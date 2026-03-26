@@ -1,0 +1,105 @@
+/* Card grid — used on landing page and section overview pages */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.doc-card {
+  border-radius: 6px;
+  padding: 1.2rem;
+  background: var(--md-default-bg-color--light);
+  border: 1px solid var(--md-default-bg-color--lighter);
+  border-top-width: 3px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  text-decoration: none !important;
+  display: block;
+  color: inherit !important;
+}
+
+.doc-card:hover {
+  transform: translateY(-2px);
+}
+
+.doc-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.doc-card p {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--md-default-fg-color--lighter);
+  line-height: 1.55;
+}
+
+.doc-card .tags {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.doc-card .tag {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  font-family: var(--md-code-font);
+  opacity: 0.85;
+}
+
+/* Hero section on landing page */
+.tx-hero {
+  padding: 3rem 1rem 2rem;
+  text-align: center;
+}
+
+.tx-hero h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  color: var(--md-primary-fg-color);
+}
+
+.tx-hero p {
+  font-size: 1.1rem;
+  color: var(--md-default-fg-color--lighter);
+  margin-bottom: 1.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.tx-hero__actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.tx-hero__stats {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin: 2rem 0 1rem;
+  flex-wrap: wrap;
+}
+
+.tx-hero__stat {
+  text-align: center;
+}
+
+.tx-hero__stat .value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--md-primary-fg-color);
+  display: block;
+}
+
+.tx-hero__stat .label {
+  font-size: 0.8rem;
+  color: var(--md-default-fg-color--lightest);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
