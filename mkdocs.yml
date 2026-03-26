@@ -1,0 +1,77 @@
+site_name: arcana's homelab
+site_description: Production-grade self-hosted infrastructure — everything as code
+site_url: https://lucid-void.github.io/homelab/
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.indexes   # section index pages are clickable links
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+extra_css:
+  - assets/catppuccin.css
+  - assets/cards.css
+
+plugins:
+  - search
+  # git-revision-date-localized disabled until repo has git history
+  # - git-revision-date-localized:
+  #     enable_creation_date: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - admonition
+  - attr_list
+  - md_in_html
+
+nav:
+  - Home: index.md
+  - Architecture:
+    - Overview: architecture/index.md
+    - Network & DNS: architecture/network.md
+    - VMs & Swarm: architecture/vms.md
+  - Storage:
+    - Overview: storage/index.md
+    - S3 / MinIO: storage/s3.md
+    - Backups: storage/backups.md
+  - IaC Pipeline:
+    - Overview: iac/index.md
+    - Packer: iac/packer.md
+    - OpenTofu: iac/opentofu.md
+    - Ansible: iac/ansible.md
+  - Certificates: certificates/index.md
+  - Monitoring:
+    - Overview: monitoring/index.md
+    - Exporters: monitoring/exporters.md
+    - Alerting: monitoring/alerting.md
+  - Diagrams: diagrams/index.md

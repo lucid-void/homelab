@@ -1,0 +1,51 @@
+{% extends "main.html" %}
+
+{% block styles %}
+  {{ super() }}
+  <style>
+    .md-sidebar { display: none !important; }
+    .md-content { max-width: 100% !important; }
+    @media screen and (min-width: 76.25em) {
+      .md-content__inner { padding-left: 2rem; padding-right: 2rem; }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <article class="md-content__inner md-typeset">
+
+    <div class="tx-hero">
+      <h1>arcana's homelab</h1>
+      <p>Production-grade self-hosted infrastructure — everything as code.</p>
+      <div class="tx-hero__actions">
+        <a href="{{ 'architecture/' | url }}" class="md-button md-button--primary">
+          Explore the docs
+        </a>
+        <a href="https://github.com/lucid-void/homelab" class="md-button">
+          GitHub
+        </a>
+      </div>
+      <div class="tx-hero__stats">
+        <div class="tx-hero__stat">
+          <span class="value">8</span>
+          <span class="label">nodes</span>
+        </div>
+        <div class="tx-hero__stat">
+          <span class="value">6</span>
+          <span class="label">VMs</span>
+        </div>
+        <div class="tx-hero__stat">
+          <span class="value">20+</span>
+          <span class="label">services</span>
+        </div>
+        <div class="tx-hero__stat">
+          <span class="value">IaC</span>
+          <span class="label">everything</span>
+        </div>
+      </div>
+    </div>
+
+    {{ page.content }}
+
+  </article>
+{% endblock %}

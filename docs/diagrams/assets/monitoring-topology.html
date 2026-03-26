@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitoring Topology</title>
+  <style>
+    /* Catppuccin Macchiato */
+    :root {
+      --bg:        #24273a;
+      --surface:   #1e2030;
+      --surface1:  #363a4f;
+      --overlay:   #6e738d;
+      --text:      #cad3f5;
+      --subtext:   #8087a2;
+      --mauve:     #c6a0f6;
+      --blue:      #8aadf4;
+      --green:     #a6da95;
+      --yellow:    #eed49f;
+      --sapphire:  #7dc4e4;
+      --pink:      #f5bde6;
+      --red:       #ed8796;
+      --peach:     #f5a97f;
+    }
+
+    @media (prefers-color-scheme: light) {
+      /* Catppuccin Latte */
+      :root {
+        --bg:        #eff1f5;
+        --surface:   #e6e9ef;
+        --surface1:  #ccd0da;
+        --overlay:   #7c7f93;
+        --text:      #4c4f69;
+        --subtext:   #6c6f85;
+        --mauve:     #8839ef;
+        --blue:      #1e66f5;
+        --green:     #40a02b;
+        --yellow:    #df8e1d;
+        --sapphire:  #209fb5;
+        --pink:      #ea76cb;
+        --red:       #d20f39;
+        --peach:     #fe640b;
+      }
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+    }
+
+    h2 { color: var(--text); margin: 0 0 4px; font-size: 1.4rem; }
+    .subtitle { color: var(--subtext); margin: 0 0 24px; font-size: 0.9rem; }
+
+    .topology {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 800px) {
+      .topology { grid-template-columns: 1fr; }
+    }
+
+    .col-header {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--subtext);
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .node {
+      background: var(--surface);
+      border: 1px solid var(--surface1);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .node-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .node-ip { font-size: 0.65rem; color: var(--subtext); font-family: monospace; }
+
+    .exporter {
+      font-size: 0.7rem;
+      padding: 3px 7px;
+      border-radius: 4px;
+      margin: 2px 2px 2px 0;
+      display: inline-block;
+      font-family: monospace;
+    }
+
+    .exp-node     { background: rgba(166,218,149,0.1); color: var(--green);   border: 1px solid rgba(166,218,149,0.3); }
+    .exp-promtail { background: rgba(138,173,244,0.1); color: var(--blue);    border: 1px solid rgba(138,173,244,0.3); }
+    .exp-special  { background: rgba(198,160,246,0.1); color: var(--mauve);   border: 1px solid rgba(198,160,246,0.3); }
+    .exp-app      { background: rgba(238,212,159,0.1); color: var(--yellow);  border: 1px solid rgba(238,212,159,0.3); }
+
+    .monitoring-vm {
+      background: var(--surface);
+      border: 2px solid var(--blue);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 10px;
+    }
+
+    .monitoring-vm .node-title { color: var(--blue); font-size: 0.85rem; }
+
+    .component {
+      background: var(--bg);
+      border: 1px solid var(--surface1);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin: 6px 0;
+      font-size: 0.72rem;
+    }
+
+    .component strong { color: var(--text); display: block; margin-bottom: 2px; }
+    .component span   { color: var(--subtext); }
+
+    .component.prom { border-left: 3px solid var(--peach); }
+    .component.loki { border-left: 3px solid var(--mauve); }
+    .component.graf { border-left: 3px solid var(--green); }
+    .component.exp  { border-left: 3px solid var(--yellow); }
+
+    .arrow { text-align: center; color: var(--subtext); font-size: 0.7rem; margin: 2px 0; }
+
+    .legend { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0 0; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--subtext); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+    .note { font-size: 0.68rem; color: var(--subtext); margin-top: 4px; }
+
+    .badge {
+      font-size: 0.6rem;
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    .badge-ansible {
+      background: rgba(198,160,246,0.1);
+      color: var(--mauve);
+      border: 1px solid rgba(198,160,246,0.3);
+    }
+
+    .badge-swarm {
+      background: rgba(138,173,244,0.1);
+      color: var(--blue);
+      border: 1px solid rgba(138,173,244,0.3);
+    }
+  </style>
+</head>
+<body>
+  <h2>Monitoring &amp; Observability Topology</h2>
+  <p class="subtitle">Prometheus + Loki + Grafana on dedicated Monitoring VM (.16) — all storage local, log data ephemeral</p>
+
+  <div class="topology">
+
+    <!-- LEFT: Monitoring VM -->
+    <div>
+      <div class="col-header">Monitoring VM (.16)</div>
+      <div class="monitoring-vm">
+        <div class="node-title">🔭 monitoring <span class="node-ip">172.16.20.16</span></div>
+
+        <div class="component prom">
+          <strong>Prometheus</strong>
+          <span>Metrics TSDB · local volume · scrapes all targets</span>
+        </div>
+        <div class="component loki">
+          <strong>Loki</strong>
+          <span>Log aggregation · filesystem backend · local volume</span>
+        </div>
+        <div class="component graf">
+          <strong>Grafana</strong>
+          <span>Dashboards + alerting → Gotify · local volume</span>
+        </div>
+
+        <div style="margin-top:10px;font-size:0.68rem;color:var(--subtext);font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">Remote exporters (containers here)</div>
+
+        <div class="component exp">
+          <strong>pve_exporter</strong>
+          <span>Scrapes Proxmox API → VM/host metrics</span>
+        </div>
+        <div class="component exp">
+          <strong>truenas-exporter</strong>
+          <span>Scrapes TrueNAS API → pool/disk/ZFS/SMART</span>
+        </div>
+        <div class="component exp">
+          <strong>unifi-poller</strong>
+          <span>Polls UDM SE API → ports/clients/WAN/PoE/temps</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MIDDLE: Compute nodes -->
+    <div>
+      <div class="col-header">Compute Nodes — agents via Ansible</div>
+
+      <div class="node">
+        <div class="node-title">🖥 Proxmox MS-A2 <span class="node-ip">.3</span></div>
+        <span class="exporter exp-node">node_exporter</span>
+        <span class="badge badge-ansible">ansible</span>
+        <p class="note">CPU · RAM · disk · <strong>hwmon temps</strong> (host hardware sensors)</p>
+        <span class="exporter exp-promtail">promtail</span>
+        <span class="badge badge-ansible">ansible</span>
+        <p class="note">Ships /var/log/pve/* to Loki</p>
+      </div>
+
+      <div class="node">
+        <div class="node-title">🤖 DGX Spark <span class="node-ip">.4</span></div>
+        <span class="exporter exp-node">node_exporter</span>
+        <span class="badge badge-ansible">ansible</span>
+        <span class="exporter exp-special">dcgm-exporter</span>
+        <span class="badge badge-ansible">ansible</span>
+        <p class="note">GPU temp · power draw · memory BW · utilisation per GPU</p>
+        <span class="exporter exp-promtail">promtail</span>
+        <span class="badge badge-ansible">ansible</span>
+      </div>
+
+      <div class="node">
+        <div class="node-title">🍓 Raspberry Pi <span class="node-ip">.1</span></div>
+        <span class="exporter exp-node">node_exporter</span>
+        <span class="badge badge-ansible">ansible</span>
+        <span class="exporter exp-promtail">promtail</span>
+        <span class="badge badge-ansible">ansible</span>
+        <p class="note">CPU temp · DNS query logs</p>
+      </div>
+
+      <div class="node">
+        <div class="node-title">💾 TrueNAS DXP4800 <span class="node-ip">.2</span></div>
+        <span class="exporter exp-node">node_exporter</span>
+        <span class="badge badge-ansible">ansible</span>
+        <p class="note">System metrics (Debian base) · disk temps via hwmon</p>
+        <p class="note" style="color:var(--yellow)">⚠ TrueNAS-specific metrics (pools, ZFS, SMART) via <em>truenas-exporter</em> on monitoring VM</p>
+      </div>
+
+      <div class="node">
+        <div class="node-title">🌐 VMs (.10–.16) <span class="node-ip">PBS, DNS, Media, Services, Game, Lab, Monitoring</span></div>
+        <span class="exporter exp-node">node_exporter</span>
+        <span class="badge badge-ansible">ansible</span>
+        <span class="exporter exp-promtail">promtail</span>
+        <span class="badge badge-ansible">ansible</span>
+        <span class="exporter exp-app">cAdvisor</span>
+        <span class="badge badge-swarm">swarm global</span>
+        <p class="note">Container CPU/mem/net per service · Docker Swarm log streams</p>
+      </div>
+    </div>
+
+    <!-- RIGHT: Network & Access -->
+    <div>
+      <div class="col-header">Network &amp; Access</div>
+
+      <div class="node">
+        <div class="node-title">🔒 UniFi UDM SE <span class="node-ip">gateway</span></div>
+        <p class="note" style="color:var(--subtext)">Polled by <strong>unifi-poller</strong> on monitoring VM via local API</p>
+        <ul style="font-size:0.7rem;color:var(--subtext);margin:4px 0;padding-left:16px;">
+          <li>WAN throughput &amp; latency</li>
+          <li>Switch port traffic &amp; errors</li>
+          <li>PoE budget per port</li>
+          <li>Connected client count</li>
+          <li>AP radio stats</li>
+          <li>Device temperatures</li>
+        </ul>
+      </div>
+
+      <div class="node">
+        <div class="node-title">📊 Grafana <span class="node-ip">grafana.blackcats.cc</span></div>
+        <p class="note" style="color:var(--subtext)">Routed via Traefik on Services VM (.13) over Swarm overlay</p>
+        <div class="arrow">↓ alerts</div>
+        <div style="background:rgba(166,218,149,0.08);border:1px solid rgba(166,218,149,0.25);border-radius:6px;padding:6px 10px;font-size:0.7rem;">
+          <strong style="color:var(--green)">Gotify</strong>
+          <span style="color:var(--subtext);display:block;">Push notifications to desktop / mobile</span>
+        </div>
+      </div>
+
+      <div class="node">
+        <div class="node-title">📦 Swarm cAdvisor</div>
+        <p class="note" style="color:var(--subtext)">Global service — one instance auto-scheduled on every Swarm node. Mounts Docker socket + cgroups. Per-container CPU, memory, network.</p>
+      </div>
+
+      <div class="node" style="border-color:var(--green)">
+        <div class="node-title" style="color:var(--green)">💾 Storage — all local</div>
+        <ul style="font-size:0.7rem;color:var(--subtext);margin:4px 0;padding-left:16px;">
+          <li>Prometheus: named volume on monitoring VM</li>
+          <li>Loki: named volume on monitoring VM (ephemeral)</li>
+          <li>Grafana: named volume on monitoring VM</li>
+          <li><strong style="color:var(--text)">No TrueNAS NFS mounts needed</strong></li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> node_exporter — OS metrics</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> promtail — log shipping</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--mauve)"></div> dcgm-exporter — GPU metrics</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div> cAdvisor — container metrics</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--mauve)"></div> ansible — deployed as systemd unit</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> swarm — global service</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# MkDocs build output — never commit
+site/
+
+# AI
+.claude/
+.superpowers/
+design/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# SOPS / secrets (extra safety net)
+*.sops.yml
+*.sops.yaml
+*.sops.tfvars
+
+# Editor
+.DS_Store
+.idea/
+*.swp

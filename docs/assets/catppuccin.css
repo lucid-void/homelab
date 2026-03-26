@@ -1,0 +1,103 @@
+/* ============================================================
+   Catppuccin Macchiato — applied when scheme = slate (dark)
+   ============================================================ */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color:            #24273a;
+  --md-default-bg-color--light:     #1e2030;
+  --md-default-bg-color--lighter:   #363a4f;
+  --md-default-bg-color--lightest:  #494d64;
+  --md-default-fg-color:            #cad3f5;
+  --md-default-fg-color--light:     #b8c0e0;
+  --md-default-fg-color--lighter:   #a5adcb;
+  --md-default-fg-color--lightest:  #8087a2;
+
+  --md-primary-fg-color:            #c6a0f6;
+  --md-primary-fg-color--light:     #b7bdf8;
+  --md-primary-fg-color--dark:      #1e2030;
+  --md-primary-bg-color:            #1e2030;
+  --md-primary-bg-color--light:     #24273a;
+
+  --md-accent-fg-color:             #c6a0f6;
+  --md-accent-fg-color--transparent: rgba(198, 160, 246, 0.1);
+  --md-accent-bg-color:             #1e2030;
+
+  --md-code-bg-color:               #1e2030;
+  --md-code-fg-color:               #cad3f5;
+  --md-code-hl-color:               rgba(198, 160, 246, 0.15);
+  --md-code-hl-keyword-color:       #c6a0f6;
+  --md-code-hl-string-color:        #a6da95;
+  --md-code-hl-number-color:        #f5a97f;
+  --md-code-hl-comment-color:       #6e738d;
+  --md-code-hl-variable-color:      #8aadf4;
+  --md-code-hl-function-color:      #7dc4e4;
+  --md-code-hl-punctuation-color:   #cad3f5;
+  --md-code-hl-operator-color:      #f5bde6;
+
+  --md-typeset-a-color:             #8aadf4;
+  --md-typeset-mark-color:          rgba(238, 212, 159, 0.3);
+
+  --md-admonition-fg-color:         #cad3f5;
+  --md-admonition-bg-color:         #1e2030;
+
+  --md-footer-bg-color:             #181926;
+  --md-footer-bg-color--dark:       #181926;
+  --md-footer-fg-color:             #8087a2;
+  --md-footer-fg-color--light:      #6e738d;
+  --md-footer-fg-color--lighter:    #5b6078;
+
+  --md-shadow-z1: 0 0.2rem 0.5rem rgba(0,0,0,.4), 0 0 0.05rem rgba(0,0,0,.3);
+  --md-shadow-z2: 0 0.2rem 0.5rem rgba(0,0,0,.4), 0 0 0.05rem rgba(0,0,0,.3);
+  --md-shadow-z3: 0 0.2rem 0.5rem rgba(0,0,0,.4), 0 0 0.05rem rgba(0,0,0,.3);
+}
+
+/* ============================================================
+   Catppuccin Latte — applied when scheme = default (light)
+   ============================================================ */
+[data-md-color-scheme="default"] {
+  --md-default-bg-color:            #eff1f5;
+  --md-default-bg-color--light:     #e6e9ef;
+  --md-default-bg-color--lighter:   #ccd0da;
+  --md-default-bg-color--lightest:  #bcc0cc;
+  --md-default-fg-color:            #4c4f69;
+  --md-default-fg-color--light:     #5c5f77;
+  --md-default-fg-color--lighter:   #6c6f85;
+  --md-default-fg-color--lightest:  #7c7f93;
+
+  --md-primary-fg-color:            #8839ef;
+  --md-primary-fg-color--light:     #7287fd;
+  --md-primary-fg-color--dark:      #e6e9ef;
+  --md-primary-bg-color:            #e6e9ef;
+  --md-primary-bg-color--light:     #eff1f5;
+
+  --md-accent-fg-color:             #8839ef;
+  --md-accent-fg-color--transparent: rgba(136, 57, 239, 0.1);
+  --md-accent-bg-color:             #e6e9ef;
+
+  --md-code-bg-color:               #e6e9ef;
+  --md-code-fg-color:               #4c4f69;
+  --md-code-hl-color:               rgba(136, 57, 239, 0.1);
+  --md-code-hl-keyword-color:       #8839ef;
+  --md-code-hl-string-color:        #40a02b;
+  --md-code-hl-number-color:        #fe640b;
+  --md-code-hl-comment-color:       #7c7f93;
+  --md-code-hl-variable-color:      #1e66f5;
+  --md-code-hl-function-color:      #179299;
+  --md-code-hl-punctuation-color:   #4c4f69;
+  --md-code-hl-operator-color:      #ea76cb;
+
+  --md-typeset-a-color:             #1e66f5;
+  --md-typeset-mark-color:          rgba(223, 142, 29, 0.3);
+
+  --md-footer-bg-color:             #dce0e8;
+  --md-footer-bg-color--dark:       #ccd0da;
+  --md-footer-fg-color:             #5c5f77;
+  --md-footer-fg-color--light:      #6c6f85;
+  --md-footer-fg-color--lighter:    #7c7f93;
+
+  --md-admonition-fg-color:         #4c4f69;
+  --md-admonition-bg-color:         #e6e9ef;
+
+  --md-shadow-z1: 0 0.2rem 0.5rem rgba(0,0,0,.1), 0 0 0.05rem rgba(0,0,0,.1);
+  --md-shadow-z2: 0 0.2rem 0.5rem rgba(0,0,0,.1), 0 0 0.05rem rgba(0,0,0,.1);
+  --md-shadow-z3: 0 0.2rem 0.5rem rgba(0,0,0,.1), 0 0 0.05rem rgba(0,0,0,.1);
+}
