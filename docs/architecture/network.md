@@ -20,7 +20,7 @@ All inter-VLAN routing and firewall rules are managed on the UDM SE.
 
 <iframe
   src="../network-topology.html"
-  style="width:100%;height:520px;border:none;border-radius:6px;"
+  style="width:100%;border:none;border-radius:6px;"
   title="Network topology">
 </iframe>
 

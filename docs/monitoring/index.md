@@ -49,6 +49,6 @@ All volumes are local to the Monitoring VM — no TrueNAS NFS mounts. Log data i
 
 <iframe
   src="monitoring-topology.html"
-  style="width:100%;height:540px;border:none;border-radius:6px;"
+  style="width:100%;border:none;border-radius:6px;"
   title="Monitoring topology">
 </iframe>
