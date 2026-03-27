@@ -52,3 +52,9 @@ A personal homelab that doubles as a production environment for self-hosted serv
 | `.15` | Lab VM |
 | `.16` | Monitoring VM |
 | `10.0.x.x` | Docker Swarm overlay (internal, not routed) |
+
+<iframe
+  src="physical-topology.html"
+  style="width:100%;height:520px;border:none;border-radius:6px;"
+  title="Physical network topology">
+</iframe>

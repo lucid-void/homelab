@@ -46,3 +46,9 @@ All four components run as a single Swarm stack pinned to the Monitoring VM via 
 | `grafana-data` | `/var/lib/grafana` | Dashboards, alert rules, data source config |
 
 All volumes are local to the Monitoring VM — no TrueNAS NFS mounts. Log data is intentionally ephemeral.
+
+<iframe
+  src="monitoring-topology.html"
+  style="width:100%;height:540px;border:none;border-radius:6px;"
+  title="Monitoring topology">
+</iframe>

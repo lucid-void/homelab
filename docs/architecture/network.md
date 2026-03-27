@@ -18,16 +18,23 @@ tags:
 
 All inter-VLAN routing and firewall rules are managed on the UDM SE.
 
+<iframe
+  src="network-topology.html"
+  style="width:100%;height:520px;border:none;border-radius:6px;"
+  title="Network topology">
+</iframe>
+
 ## DNS — Technitium
 
-**Primary:** Raspberry Pi (`.1`) — all DNS zones and blocklists configured here.
+**Primary zone authority:** DNS VM (`.11`) — all DNS zones and blocklists are configured here. This is the source of truth.
 
-**Secondary:** DNS VM (`.11`) — zones replicate automatically via Technitium's built-in zone transfer.
+**Secondary (replication):** Raspberry Pi (`.1`) — receives zones via Technitium's built-in zone transfer from `.11`. Zone data always flows DNS VM → Pi.
 
-- Single configuration point; the secondary is always in sync
+**Client resolver order:** DHCP hands out `.1` (Pi) as the primary resolver and `.11` (DNS VM) as the secondary. Clients query the Pi first to distribute load away from the DNS VM; both nodes serve identical zone data.
+
+- Single configuration point on the DNS VM; the Pi is always in sync via zone transfer
 - Technitium REST API enables Ansible to manage zones declaratively
 - Ad blocking built in (equivalent to Pi-hole)
-- UDM SE DHCP hands out `.1` as primary DNS, `.11` as secondary
 
 ## NTP — chrony
 
