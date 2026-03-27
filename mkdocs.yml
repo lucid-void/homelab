@@ -33,6 +33,9 @@ extra_css:
   - assets/catppuccin.css
   - assets/cards.css
 
+extra_javascript:
+  - assets/iframe-resize.js
+
 plugins:
   - search
   # git-revision-date-localized disabled until repo has git history

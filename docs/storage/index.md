@@ -47,7 +47,7 @@ tank/
 
 <iframe
   src="storage-diagram.html"
-  style="width:100%;height:560px;border:none;border-radius:6px;"
+  style="width:100%;border:none;border-radius:6px;"
   title="Storage architecture">
 </iframe>
 

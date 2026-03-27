@@ -55,6 +55,6 @@ A personal homelab that doubles as a production environment for self-hosted serv
 
 <iframe
   src="physical-topology.html"
-  style="width:100%;height:520px;border:none;border-radius:6px;"
+  style="width:100%;border:none;border-radius:6px;"
   title="Physical network topology">
 </iframe>
