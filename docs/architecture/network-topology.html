@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Network Topology</title>
+  <style>
+    /* Catppuccin Macchiato */
+    :root {
+      --bg:        #24273a;
+      --surface:   #1e2030;
+      --surface1:  #363a4f;
+      --overlay:   #6e738d;
+      --text:      #cad3f5;
+      --subtext:   #8087a2;
+      --mauve:     #c6a0f6;
+      --blue:      #8aadf4;
+      --green:     #a6da95;
+      --yellow:    #eed49f;
+      --sapphire:  #7dc4e4;
+      --pink:      #f5bde6;
+      --red:       #ed8796;
+      --peach:     #f5a97f;
+    }
+
+    @media (prefers-color-scheme: light) {
+      /* Catppuccin Latte */
+      :root {
+        --bg:        #eff1f5;
+        --surface:   #e6e9ef;
+        --surface1:  #ccd0da;
+        --overlay:   #7c7f93;
+        --text:      #4c4f69;
+        --subtext:   #6c6f85;
+        --mauve:     #8839ef;
+        --blue:      #1e66f5;
+        --green:     #40a02b;
+        --yellow:    #df8e1d;
+        --sapphire:  #209fb5;
+        --pink:      #ea76cb;
+        --red:       #d20f39;
+        --peach:     #fe640b;
+      }
+    }
+
+    body {
+      margin: 0;
+      padding: 1rem;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+    }
+
+    h2 {
+      margin: 0 0 0.25rem;
+      font-size: 1.2rem;
+      color: var(--text);
+    }
+
+    .subtitle {
+      margin: 0 0 1.5rem;
+      font-size: 0.85rem;
+      color: var(--subtext);
+    }
+
+    .diagram-wrap {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <h2>Network Topology</h2>
+  <p class="subtitle">172.16.20.0/24 homelab VLAN · Proxmox VMs provisioned via OpenTofu + Packer · Services VM (.13) is Swarm manager</p>
+
+  <div class="diagram-wrap">
+    <svg width="760" height="640" viewBox="0 0 760 640" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif">
+
+      <!-- ── Internet ── -->
+      <ellipse cx="380" cy="28" rx="72" ry="20" fill="none" stroke="#6e738d" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <text x="380" y="33" text-anchor="middle" font-size="12" fill="#8087a2">Internet / ISP</text>
+
+      <!-- WAN line -->
+      <line x1="380" y1="48" x2="380" y2="62" stroke="#6e738d" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+      <!-- ── UDM SE ── -->
+      <rect x="155" y="62" width="450" height="52" rx="8" fill="#1e2030" stroke="#8aadf4" stroke-width="2"/>
+      <text x="380" y="83" text-anchor="middle" font-size="13" font-weight="bold" fill="#8aadf4">UniFi UDM SE</text>
+      <text x="380" y="101" text-anchor="middle" font-size="10" fill="#7dc4e4">Firewall / Router · gateway · inter-VLAN routing · 8× 1Gb PoE WAN + 2× SFP</text>
+
+      <!-- UDM SE → Core Switch -->
+      <line x1="380" y1="114" x2="380" y2="204" stroke="#a6da95" stroke-width="2"/>
+
+      <!-- ════════════════════════════════════════════
+           HOMELAB VLAN box
+           ════════════════════════════════════════════ -->
+      <rect x="10" y="130" width="740" height="468" rx="10" fill="#1e2030" stroke="#a6da95" stroke-width="1.5"/>
+      <text x="380" y="149" text-anchor="middle" font-size="11" font-weight="bold" fill="#a6da95">Homelab VLAN · 172.16.20.0/24</text>
+
+      <!-- ── Core Switch ── -->
+      <rect x="100" y="162" width="560" height="44" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1.5"/>
+      <text x="380" y="180" text-anchor="middle" font-size="12" font-weight="bold" fill="#a6da95">Core Switch</text>
+      <text x="380" y="196" text-anchor="middle" font-size="9" fill="#a6da95">22× 2.5Gb PoE+  ·  2× 10Gb PoE+  ·  4× SFP  ·  SFP DAC ↔ UDM SE + Proxmox</text>
+
+      <!-- ── Lines: Core Switch → Physical devices ──
+           Device centers: .1→112  .2→280  .3→448  .4→616 -->
+      <line x1="112" y1="206" x2="112" y2="226" stroke="#8087a2" stroke-width="1.5"/>
+      <line x1="280" y1="206" x2="280" y2="226" stroke="#f5a97f" stroke-width="2.5"/>
+      <line x1="448" y1="206" x2="448" y2="226" stroke="#eed49f" stroke-width="2.5"/>
+      <line x1="616" y1="206" x2="616" y2="226" stroke="#f5a97f" stroke-width="2.5"/>
+
+      <!-- Port type labels -->
+      <text x="92"  y="219" text-anchor="end" font-size="8" fill="#8087a2">1Gb PoE</text>
+      <text x="260" y="219" text-anchor="end" font-size="8" fill="#f5a97f">10Gb PoE+</text>
+      <text x="428" y="219" text-anchor="end" font-size="8" fill="#eed49f">SFP DAC</text>
+      <text x="596" y="219" text-anchor="end" font-size="8" fill="#f5a97f">10Gb PoE+</text>
+
+      <!-- ════════════════════
+           Physical devices row   (y=226, h=80)
+           ════════════════════ -->
+
+      <!-- Raspberry Pi · .1 · mauve · Swarm worker -->
+      <rect x="35" y="226" width="155" height="90" rx="6" fill="#24273a" stroke="#c6a0f6" stroke-width="1.5"/>
+      <!-- worker badge -->
+      <rect x="143" y="299" width="42" height="13" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1"/>
+      <text x="164" y="309" text-anchor="middle" font-size="8" fill="#a6da95">worker</text>
+      <text x="112" y="252" text-anchor="middle" font-size="11" font-weight="bold" fill="#c6a0f6">Raspberry Pi</text>
+      <text x="112" y="267" text-anchor="middle" font-size="10" fill="#b7bdf8">172.16.20.1</text>
+      <text x="112" y="281" text-anchor="middle" font-size="9" fill="#8087a2">physical · 1GbE PoE</text>
+      <text x="112" y="294" text-anchor="middle" font-size="9" fill="#8087a2">DNS primary · NTP</text>
+
+      <!-- TrueNAS DXP4800 · .2 · sapphire · not in Swarm -->
+      <rect x="203" y="226" width="155" height="90" rx="6" fill="#1e2030" stroke="#7dc4e4" stroke-width="1.5"/>
+      <text x="280" y="252" text-anchor="middle" font-size="11" font-weight="bold" fill="#7dc4e4">TrueNAS</text>
+      <text x="280" y="267" text-anchor="middle" font-size="10" fill="#8aadf4">172.16.20.2</text>
+      <text x="280" y="281" text-anchor="middle" font-size="9" fill="#8087a2">physical · 10GbE</text>
+      <text x="280" y="294" text-anchor="middle" font-size="9" fill="#8087a2">Storage · Postgres · MinIO</text>
+
+      <!-- Proxmox MS-A2 · .3 · red · not in Swarm -->
+      <rect x="371" y="226" width="155" height="90" rx="6" fill="#1e2030" stroke="#ed8796" stroke-width="1.5"/>
+      <text x="448" y="252" text-anchor="middle" font-size="11" font-weight="bold" fill="#ed8796">Proxmox</text>
+      <text x="448" y="267" text-anchor="middle" font-size="10" fill="#ed8796">172.16.20.3</text>
+      <text x="448" y="281" text-anchor="middle" font-size="9" fill="#8087a2">physical · 10Gb SFP DAC</text>
+      <text x="448" y="294" text-anchor="middle" font-size="9" fill="#8087a2">hypervisor · VMs + LXCs</text>
+
+      <!-- NVIDIA DGX Spark · .4 · pink · Swarm worker -->
+      <rect x="539" y="226" width="155" height="90" rx="6" fill="#24273a" stroke="#f5bde6" stroke-width="2"/>
+      <!-- worker badge -->
+      <rect x="647" y="299" width="42" height="13" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1"/>
+      <text x="668" y="309" text-anchor="middle" font-size="8" fill="#a6da95">worker</text>
+      <text x="616" y="252" text-anchor="middle" font-size="11" font-weight="bold" fill="#f5bde6">NVIDIA DGX Spark</text>
+      <text x="616" y="267" text-anchor="middle" font-size="10" fill="#f5bde6">172.16.20.4</text>
+      <text x="616" y="281" text-anchor="middle" font-size="9" fill="#8087a2">physical · 10GbE · WOL</text>
+      <text x="616" y="294" text-anchor="middle" font-size="9" fill="#8087a2">GPU · AI/ML workloads</text>
+
+      <!-- ── Line: Proxmox → VMs section ── -->
+      <line x1="448" y1="316" x2="448" y2="330" stroke="#ed8796" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+      <!-- ════════════════════
+           Proxmox VMs section   (y=330, h=252)
+           ════════════════════ -->
+      <rect x="25" y="330" width="710" height="252" rx="8" fill="#24273a" stroke="#ed8796" stroke-width="1"/>
+      <text x="380" y="347" text-anchor="middle" font-size="10" fill="#ed8796">Proxmox VMs + LXC · .10–.17 · provisioned via OpenTofu + Packer</text>
+
+      <!-- ── VM row 1 · y=356 · h=100 ── -->
+
+      <!-- PBS VM · .10 · overlay · not in Swarm -->
+      <rect x="35" y="356" width="155" height="100" rx="6" fill="#1e2030" stroke="#6e738d" stroke-width="1.5"/>
+      <text x="112" y="378" text-anchor="middle" font-size="11" font-weight="bold" fill="#8087a2">PBS VM</text>
+      <text x="112" y="394" text-anchor="middle" font-size="10" fill="#6e738d">172.16.20.10</text>
+      <text x="112" y="409" text-anchor="middle" font-size="9" fill="#8087a2">Proxmox Backup Server</text>
+      <text x="112" y="423" text-anchor="middle" font-size="9" fill="#8087a2">NFS datastore → TrueNAS</text>
+
+      <!-- DNS/NTP VM · .11 · mauve · Swarm worker -->
+      <rect x="203" y="356" width="155" height="100" rx="6" fill="#1e2030" stroke="#c6a0f6" stroke-width="1.5"/>
+      <!-- worker badge -->
+      <rect x="311" y="438" width="42" height="13" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1"/>
+      <text x="332" y="448" text-anchor="middle" font-size="8" fill="#a6da95">worker</text>
+      <text x="280" y="386" text-anchor="middle" font-size="11" font-weight="bold" fill="#c6a0f6">DNS/NTP VM</text>
+      <text x="280" y="401" text-anchor="middle" font-size="10" fill="#b7bdf8">172.16.20.11</text>
+      <text x="280" y="415" text-anchor="middle" font-size="9" fill="#8087a2">Technitium DNS secondary</text>
+      <text x="280" y="429" text-anchor="middle" font-size="9" fill="#8087a2">chrony NTP</text>
+
+      <!-- Media VM · .12 · blue · Swarm worker -->
+      <rect x="371" y="356" width="155" height="100" rx="6" fill="#1e2030" stroke="#8aadf4" stroke-width="1.5"/>
+      <!-- worker badge -->
+      <rect x="479" y="438" width="42" height="13" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1"/>
+      <text x="500" y="448" text-anchor="middle" font-size="8" fill="#a6da95">worker</text>
+      <text x="448" y="386" text-anchor="middle" font-size="11" font-weight="bold" fill="#8aadf4">Media VM</text>
+      <text x="448" y="401" text-anchor="middle" font-size="10" fill="#8aadf4">172.16.20.12</text>
+      <text x="448" y="415" text-anchor="middle" font-size="9" fill="#8087a2">Plex · Sonarr · Radarr</text>
+      <text x="448" y="429" text-anchor="middle" font-size="9" fill="#8087a2">SABnzbd · qBittorrent</text>
+
+      <!-- Services VM · .13 · green · Swarm MANAGER -->
+      <rect x="539" y="352" width="163" height="108" rx="6" fill="#1e2030" stroke="#a6da95" stroke-width="2.5"/>
+      <!-- manager badge -->
+      <rect x="647" y="442" width="50" height="13" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1.5"/>
+      <text x="672" y="452" text-anchor="middle" font-size="8" font-weight="bold" fill="#a6da95">★ manager</text>
+      <text x="620" y="382" text-anchor="middle" font-size="11" font-weight="bold" fill="#a6da95">Services VM</text>
+      <text x="620" y="397" text-anchor="middle" font-size="10" fill="#a6da95">172.16.20.13</text>
+      <text x="620" y="411" text-anchor="middle" font-size="9" fill="#8087a2">Traefik · Immich · Paperless</text>
+      <text x="620" y="424" text-anchor="middle" font-size="9" fill="#8087a2">Gitea · Authentik · Authelia</text>
+      <text x="620" y="437" text-anchor="middle" font-size="9" fill="#8087a2">N8N · reactive-resume</text>
+
+      <!-- ── VM row 2 · y=466 · h=100 ── -->
+
+      <!-- Game VM · .14 · yellow · Swarm worker -->
+      <rect x="35" y="466" width="155" height="100" rx="6" fill="#1e2030" stroke="#eed49f" stroke-width="1.5"/>
+      <!-- worker badge -->
+      <rect x="143" y="548" width="42" height="13" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1"/>
+      <text x="164" y="558" text-anchor="middle" font-size="8" fill="#a6da95">worker</text>
+      <text x="112" y="496" text-anchor="middle" font-size="11" font-weight="bold" fill="#eed49f">Game VM</text>
+      <text x="112" y="511" text-anchor="middle" font-size="10" fill="#eed49f">172.16.20.14</text>
+      <text x="112" y="525" text-anchor="middle" font-size="9" fill="#8087a2">Satisfactory server</text>
+      <text x="112" y="539" text-anchor="middle" font-size="9" fill="#8087a2">Netbird · ZeroTier</text>
+
+      <!-- Lab VM · .15 · overlay · Swarm worker -->
+      <rect x="203" y="466" width="155" height="100" rx="6" fill="#1e2030" stroke="#6e738d" stroke-width="1.5"/>
+      <!-- worker badge -->
+      <rect x="311" y="548" width="42" height="13" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1"/>
+      <text x="332" y="558" text-anchor="middle" font-size="8" fill="#a6da95">worker</text>
+      <text x="280" y="496" text-anchor="middle" font-size="11" font-weight="bold" fill="#8087a2">Lab VM</text>
+      <text x="280" y="511" text-anchor="middle" font-size="10" fill="#6e738d">172.16.20.15</text>
+      <text x="280" y="525" text-anchor="middle" font-size="9" fill="#8087a2">ephemeral · testing</text>
+      <text x="280" y="539" text-anchor="middle" font-size="9" fill="#8087a2">staging workloads</text>
+
+      <!-- Monitoring VM · .16 · peach · Swarm worker -->
+      <rect x="371" y="466" width="155" height="100" rx="6" fill="#1e2030" stroke="#f5a97f" stroke-width="1.5"/>
+      <!-- worker badge -->
+      <rect x="479" y="548" width="42" height="13" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1"/>
+      <text x="500" y="558" text-anchor="middle" font-size="8" fill="#a6da95">worker</text>
+      <text x="448" y="496" text-anchor="middle" font-size="11" font-weight="bold" fill="#f5a97f">Monitoring VM</text>
+      <text x="448" y="511" text-anchor="middle" font-size="10" fill="#f5a97f">172.16.20.16</text>
+      <text x="448" y="525" text-anchor="middle" font-size="9" fill="#8087a2">Prometheus · Loki</text>
+      <text x="448" y="539" text-anchor="middle" font-size="9" fill="#8087a2">Grafana · Gotify</text>
+
+      <!-- Gitea Runner LXC · .17 · sapphire · not in Swarm -->
+      <rect x="539" y="466" width="155" height="100" rx="6" fill="#1e2030" stroke="#7dc4e4" stroke-width="1.5"/>
+      <text x="616" y="496" text-anchor="middle" font-size="11" font-weight="bold" fill="#7dc4e4">Runner LXC</text>
+      <text x="616" y="511" text-anchor="middle" font-size="10" fill="#7dc4e4">172.16.20.17</text>
+      <text x="616" y="525" text-anchor="middle" font-size="9" fill="#8087a2">Gitea act_runner</text>
+      <text x="616" y="539" text-anchor="middle" font-size="9" fill="#8087a2">CI/CD pipelines</text>
+
+      <!-- ── Legend ── -->
+      <rect x="20"  y="609" width="42" height="13" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1"/>
+      <text x="41"  y="619" text-anchor="middle" font-size="8" fill="#a6da95">worker</text>
+      <text x="68"  y="620" font-size="10" fill="#8087a2">Swarm worker</text>
+
+      <rect x="190" y="609" width="50" height="13" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1.5"/>
+      <text x="215" y="619" text-anchor="middle" font-size="8" font-weight="bold" fill="#a6da95">★ manager</text>
+      <text x="246" y="620" font-size="10" fill="#8087a2">Swarm manager</text>
+
+      <line x1="380" y1="615" x2="402" y2="615" stroke="#6e738d" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <text x="408" y="619" font-size="10" fill="#8087a2">WAN</text>
+
+    </svg>
+  </div>
+</body>
+</html>

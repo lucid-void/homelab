@@ -1,4 +1,4 @@
-site_name: arcana's homelab
+site_name: void's homelab
 site_description: Production-grade self-hosted infrastructure — everything as code
 site_url: https://lucid-void.github.io/homelab/
 
@@ -74,4 +74,5 @@ nav:
     - Overview: monitoring/index.md
     - Exporters: monitoring/exporters.md
     - Alerting: monitoring/alerting.md
-  - Diagrams: diagrams/index.md
+  - Gitea: gitea/index.md
+  - SSO: sso/index.md
