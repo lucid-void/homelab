@@ -15,9 +15,9 @@ All VMs are provisioned via the Packer → OpenTofu → Ansible pipeline.
 | VM | IP | In Swarm | Purpose |
 |---|---|---|---|
 | PBS VM | .10 | No | Proxmox Backup Server — standalone Debian VM |
-| DNS/NTP VM | .11 | Worker | Secondary Technitium DNS, chrony NTP |
+| DNS/NTP VM | .11 | Worker | Primary Technitium DNS (zone authority), chrony NTP |
 | Media VM | .12 | Worker | Plex, *arr stack, download clients |
-| Services VM | .13 | **Manager** | Traefik, Paperless, Immich, N8N, general services |
+| Services VM | .13 | **Manager** | Traefik, Paperless, Immich, Authentik, Authelia, N8N, general services |
 | Game VM | .14 | Worker | Satisfactory, Netbird, ZeroTier |
 | Lab VM | .15 | Worker | Testing, staging, ephemeral workloads |
 | Monitoring VM | .16 | Worker | Prometheus, Loki, Grafana, exporters |
@@ -50,12 +50,12 @@ Services are pinned via `node.hostname == <name>` placement constraints.
 | Host | Pinned services |
 |---|---|
 | `media` (.12) | plex, sabnzbd, sonarr, radarr, prowlarr, qbittorrent, flaresolverr |
-| `services` (.13) | traefik, paperless, immich, immich-machine-learning, n8n, reactive-resume, homebox, gotify, dockge |
+| `services` (.13) | traefik, paperless, paperless-broker (Valkey), gotenberg, tika, immich, immich-machine-learning (CPU), immich-valkey, n8n, reactive-resume, reactive-resume-browserless, homebox, it-tools, authentik, authentik-worker, authentik-valkey, authelia, authelia-valkey |
 | `dgx` (.4) | ollama, openwebui, langfuse, qdrant, searxng, cortex stack |
 | `game` (.14) | satisfactory-server |
-| `pi` (.1) | Technitium DNS (primary), chrony |
-| `dns` (.11) | Technitium DNS (secondary), chrony |
-| `monitoring` (.16) | prometheus, loki, grafana, cAdvisor, pve_exporter, truenas-exporter, unifi-poller |
+| `pi` (.1) | Technitium DNS (secondary replica), chrony |
+| `dns` (.11) | Technitium DNS (primary zone authority), chrony |
+| `monitoring` (.16) | prometheus, loki, grafana, cAdvisor (global), pve_exporter, truenas-exporter, unifi-poller, gotify, uptime-kuma |
 
 !!! note "Netbird and ZeroTier on Game VM"
     These require `--network host` and kernel-level capabilities incompatible with Swarm's ingress mesh. They run as plain `docker compose` stacks outside Swarm.

@@ -21,31 +21,35 @@ tank/
 │   ├── movies          recordsize=1M  · compression=off  · atime=off
 │   ├── downloads       recordsize=1M  · compression=off  · atime=off
 │   ├── images          recordsize=128K · compression=lz4  · atime=off   ← Immich
-│   └── paperless       recordsize=128K · compression=zstd · atime=off
+│   ├── paperless       recordsize=128K · compression=zstd · atime=off
+│   ├── gitea           recordsize=128K · compression=zstd · atime=off
+│   └── authentik       recordsize=128K · compression=zstd · atime=off
 │
-├── services/
+├── services/                                                            ← For local containers on TrueNAS
 │   ├── databases/
-│   │   ├── postgres    recordsize=8K  · compression=lz4  · atime=off   ⚠ match Postgres page size
-│   │   ├── mariadb     recordsize=16K · compression=lz4  · atime=off   ⚠ match InnoDB page size
+│   │   ├── postgres    recordsize=8K  · compression=lz4  · atime=off   ⚠ see note
+│   │   ├── mariadb     recordsize=16K · compression=lz4  · atime=off   ⚠ see note
 │   │   ├── pgadmin     recordsize=128K · compression=zstd · atime=off
 │   │   └── databassus  recordsize=128K · compression=zstd · atime=off
-│   └── pbs             recordsize=1M  · compression=lz4  · atime=off
 │
 ├── s3/                 recordsize=1M  · compression=lz4  · atime=off   ← MinIO data
 │
 ├── backups/
 │   ├── databases/
-│   │   ├── daily/      recordsize=128K · compression=zstd · atime=off
-│   │   └── weekly/     recordsize=128K · compression=zstd · atime=off
+│   │   ├── daily/      recordsize=128K · compression=zstd · atime=off  ← Databassus backups
+│   │   └── weekly/     recordsize=128K · compression=zstd · atime=off  ← Scripted backups
 │   ├── keys/           compression=zstd · ZFS native encryption (AES-256-GCM)
-│   └── services/       recordsize=128K · compression=zstd · atime=off
-│
-├── pxe/
-│   ├── iso             recordsize=1M  · compression=off  · atime=off
-│   └── tftp            recordsize=128K · compression=zstd · atime=off
+│   ├── pbs/            recordsize=1M  · compression=lz4  · atime=off   ← PBS chunk store
+│   └── services/       recordsize=128K · compression=zstd · atime=off  ← File backup
 │
 └── repos/              recordsize=128K · compression=zstd · atime=off
 ```
+
+<iframe
+  src="storage-diagram.html"
+  style="width:100%;height:560px;border:none;border-radius:6px;"
+  title="Storage architecture">
+</iframe>
 
 ### ZFS property rationale
 
@@ -55,7 +59,7 @@ tank/
 | `compression=off` | Video datasets | Already compressed; CPU cost with zero gain |
 | `compression=lz4` | Images, DB live, PBS, S3 | Near-zero CPU cost, moderate gain |
 | `compression=zstd` | Documents, dumps, configs, repos | Good ratio, worth the CPU |
-| `recordsize=1M` | Video, PBS, ISO, S3 | Large sequential reads/writes |
+| `recordsize=1M` | Video, PBS, S3 | Large sequential reads/writes |
 | `recordsize=128K` | General files | TrueNAS default; suits mixed workloads |
 | `recordsize=8K` | `postgres` | **Must match Postgres page size exactly** |
 | `recordsize=16K` | `mariadb` | **Must match InnoDB page size exactly** |
@@ -67,6 +71,17 @@ tank/
 
 `tank/backups/keys` uses ZFS native encryption (AES-256-GCM). Stores SSH keys, rclone crypt password, and long-lived secrets. No NFS export — accessible on TrueNAS locally only.
 
+## Database Live Data Directories
+
+`tank/services/databases/postgres` and `tank/services/databases/mariadb` hold the **live container data directories**, bind-mounted directly into their respective Docker containers running on TrueNAS (.2). These datasets are **not NFS-exported** — the database engines and their data are co-located on the same host.
+
+!!! warning
+    **Critical constraints for database datasets:**
+
+    - `recordsize=8K` for Postgres and `recordsize=16K` for MariaDB must be set **before** the containers first write data. Setting these after initialization has no effect and cannot be corrected without destroying and recreating the dataset.
+    - ZFS snapshots of live DB data directories are **not crash-consistent while the engine is running**. Use `pg_dump` / `mysqldump` into `backups/databases/` instead for reliable, restorable backups.
+    - All Swarm services connecting to a database must use `172.16.20.2` as the host — databases are outside the Swarm overlay network and are not reachable via Swarm service names.
+
 ## NFS Exports
 
 | Dataset | Exported to | Mount point on client |
@@ -76,19 +91,16 @@ tank/
 | `tank/media/downloads` | Media VM (.12) | `/media/downloads` |
 | `tank/media/images` | Services VM (.13) | `/mnt/media/images` |
 | `tank/media/paperless` | Services VM (.13) | `/mnt/media/paperless` |
-| `tank/services/databases/postgres` | Services VM (.13) | `/mnt/services/postgres` |
-| `tank/services/databases/mariadb` | Services VM (.13) | `/mnt/services/mariadb` |
-| `tank/services/databases/pgadmin` | Services VM (.13) | `/mnt/services/pgadmin` |
-| `tank/services/databases/databassus` | Services VM (.13) | `/mnt/services/databassus` |
-| `tank/services/pbs` | PBS VM (.10) | `/mnt/datastore` |
-| `tank/backups/databases` | Services VM (.13) | `/mnt/backups/databases` |
+| `tank/media/gitea` | Services VM (.13) | `/mnt/media/gitea` |
+| `tank/media/authentik` | Services VM (.13) | `/mnt/media/authentik` |
+| `tank/services/databases/*` | **No NFS export** | Local bind mounts on TrueNAS only |
+| `tank/backups/pbs` | PBS VM (.10) | `/mnt/datastore` |
+| `tank/backups/databases/weekly` | Services VM (.13) | `/mnt/backups/databases/weekly` |
 | `tank/backups/services` | Services VM (.13) | `/mnt/backups/services` |
-| `tank/pxe/iso` | Proxmox (.3), Lab VM (.15) | `/mnt/iso` |
-| `tank/pxe/tftp` | Pi (.1), DNS VM (.11) | `/mnt/tftp` |
 | `tank/repos` | Linux workstation | `~/repos` |
-| `tank/backups/keys` | **No export** | Local to TrueNAS only |
+| `tank/backups/keys` | **No NFS export** | Local to TrueNAS only |
 
-NFS options: `sync`, `no_subtree_check`. DB mounts additionally use `no_root_squash` (required for container UID mapping).
+NFS options: `sync`, `no_subtree_check`.
 
 ## Docker Volume Strategy
 
@@ -98,8 +110,10 @@ NFS options: `sync`, `no_subtree_check`. DB mounts additionally use `no_root_squ
 | Ephemeral volumes (Valkey, Traefik ACME) | Local host | Intentionally non-persistent |
 | Immich photos | `tank/media/images` NFS | Irreplaceable user data |
 | Paperless documents | `tank/media/paperless` NFS | Irreplaceable user data |
-| Postgres data dir | `tank/services/databases/postgres` NFS | Survives Services VM rebuild |
-| MariaDB data dir | `tank/services/databases/mariadb` NFS | Survives Services VM rebuild |
-| Admin tool state | `tank/services/databases/<name>` NFS | Preserves saved connections |
-| PBS datastore | `tank/services/pbs` NFS | PBS manages its own chunk store |
+| Gitea data | `tank/media/gitea` NFS | Application data, mirrors GitHub |
+| Authentik media | `tank/media/authentik` NFS | Custom assets, media uploads |
+| Postgres data dir | `tank/services/databases/postgres` — local bind mount on TrueNAS | Engine and data co-located; no NFS |
+| MariaDB data dir | `tank/services/databases/mariadb` — local bind mount on TrueNAS | Engine and data co-located; no NFS |
+| pgadmin / adminer / databassus state | `tank/services/databases/<name>` — local bind mount on TrueNAS | Co-located with engines |
+| PBS datastore | `tank/backups/pbs` NFS | PBS manages its own chunk store |
 | reactive_resume files | TrueNAS S3 bucket | No SeaweedFS container needed |

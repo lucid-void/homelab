@@ -52,12 +52,21 @@ hide:
     </div>
   </a>
 
-  <a href="diagrams/" class="doc-card" style="border-top-color:#f5bde6;">
-    <h3 style="color:#f5bde6;">🗺 Diagrams</h3>
-    <p>Interactive topology diagrams: physical network, Swarm layout, storage, and monitoring.</p>
+  <a href="gitea/" class="doc-card" style="border-top-color:#8bd5ca;">
+    <h3 style="color:#8bd5ca;">⎇ Gitea</h3>
+    <p>Self-hosted Git service on the Swarm, GitHub mirror sync, Actions CI, and shared Postgres.</p>
     <div class="tags">
-      <span class="tag" style="background:rgba(245,189,230,0.12);color:#f5bde6;">Visual</span>
-      <span class="tag" style="background:rgba(245,189,230,0.12);color:#f5bde6;">Topology</span>
+      <span class="tag" style="background:rgba(139,213,202,0.12);color:#8bd5ca;">Git</span>
+      <span class="tag" style="background:rgba(139,213,202,0.12);color:#8bd5ca;">CI</span>
+    </div>
+  </a>
+
+  <a href="sso/" class="doc-card" style="border-top-color:#b7bdf8;">
+    <h3 style="color:#b7bdf8;">🔑 SSO</h3>
+    <p>Authentik as the identity provider with Authelia forward-auth middleware for Traefik.</p>
+    <div class="tags">
+      <span class="tag" style="background:rgba(183,189,248,0.12);color:#b7bdf8;">Authentik</span>
+      <span class="tag" style="background:rgba(183,189,248,0.12);color:#b7bdf8;">OIDC</span>
     </div>
   </a>
 

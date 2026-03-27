@@ -74,5 +74,5 @@ password2 = <rclone-crypt-salt>       # stored in tank/backups/keys/
 |---|---|
 | `tank/media/series`, `movies`, `downloads` | Re-downloadable; too large for cloud quota |
 | `tank/services/databases/` live dirs | Use dumps — never sync live DB dirs |
-| `tank/services/pbs/` | VM backups too large; PBS is local recovery path |
+| `tank/backups/pbs/` | VM backups too large; PBS is local recovery path |
 | `tank/pxe/` | ISOs are re-downloadable |

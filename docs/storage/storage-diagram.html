@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storage Architecture</title>
+  <style>
+    /* Catppuccin Macchiato */
+    :root {
+      --bg:        #24273a;
+      --surface:   #1e2030;
+      --surface1:  #363a4f;
+      --overlay:   #6e738d;
+      --text:      #cad3f5;
+      --subtext:   #8087a2;
+      --mauve:     #c6a0f6;
+      --blue:      #8aadf4;
+      --green:     #a6da95;
+      --yellow:    #eed49f;
+      --sapphire:  #7dc4e4;
+      --pink:      #f5bde6;
+      --red:       #ed8796;
+      --peach:     #f5a97f;
+    }
+
+    @media (prefers-color-scheme: light) {
+      /* Catppuccin Latte */
+      :root {
+        --bg:        #eff1f5;
+        --surface:   #e6e9ef;
+        --surface1:  #ccd0da;
+        --overlay:   #7c7f93;
+        --text:      #4c4f69;
+        --subtext:   #6c6f85;
+        --mauve:     #8839ef;
+        --blue:      #1e66f5;
+        --green:     #40a02b;
+        --yellow:    #df8e1d;
+        --sapphire:  #209fb5;
+        --pink:      #ea76cb;
+        --red:       #d20f39;
+        --peach:     #fe640b;
+      }
+    }
+
+    body {
+      margin: 0;
+      padding: 1rem;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+    }
+
+    h2 {
+      margin: 0 0 0.25rem;
+      font-size: 1.2rem;
+      color: var(--text);
+    }
+
+    .subtitle {
+      margin: 0 0 1.5rem;
+      font-size: 0.85rem;
+      color: var(--subtext);
+    }
+
+    .diagram-wrap {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <h2>Storage Architecture</h2>
+  <p class="subtitle">TrueNAS DXP4800 · ZFS pool: tank (RAIDZ) · NFS exports · S3 (MinIO) · backup chain</p>
+
+  <div class="diagram-wrap">
+    <svg width="880" height="565" viewBox="0 0 880 565" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif">
+
+      <!-- ════════════════════════════════════════════════════
+           TrueNAS outer box  (y=10 → y=405)
+           ════════════════════════════════════════════════════ -->
+      <rect x="10" y="10" width="860" height="395" rx="8" fill="#24273a" stroke="#7dc4e4" stroke-width="2"/>
+      <text x="440" y="30"  text-anchor="middle" font-size="12" font-weight="bold" fill="#7dc4e4">TrueNAS DXP4800 · 172.16.20.2</text>
+      <text x="440" y="46"  text-anchor="middle" font-size="10" fill="#8087a2">10GbE · ZFS pool: tank (RAIDZ) · single storage authority for all persistent data</text>
+
+      <!-- column dividers -->
+      <line x1="192" y1="55" x2="192" y2="400" stroke="#363a4f" stroke-width="1"/>
+      <line x1="364" y1="55" x2="364" y2="400" stroke="#363a4f" stroke-width="1"/>
+      <line x1="530" y1="55" x2="530" y2="400" stroke="#363a4f" stroke-width="1"/>
+      <line x1="706" y1="55" x2="706" y2="400" stroke="#363a4f" stroke-width="1"/>
+
+      <!-- ══ Column 1: tank/media/  (NFS export tier) ══ -->
+      <rect x="20"  y="57" width="162" height="20" rx="3" fill="#8aadf4" fill-opacity="0.15" stroke="#8aadf4" stroke-width="1"/>
+      <text x="101" y="71"  text-anchor="middle" font-size="10" font-weight="bold" fill="#8aadf4">tank/media/</text>
+
+      <text x="101" y="95"  text-anchor="middle" font-size="10" font-weight="bold" fill="#cad3f5">NFS Export Tier</text>
+      <text x="101" y="109" text-anchor="middle" font-size="9"  fill="#8087a2">mounted by Swarm VMs</text>
+
+      <text x="30"  y="133" font-size="9"  fill="#8aadf4">series/</text>
+      <text x="30"  y="146" font-size="8"  fill="#8087a2">1M · comp=off</text>
+      <text x="30"  y="157" font-size="8"  fill="#6e738d">→ Media VM (.12)</text>
+
+      <text x="30"  y="175" font-size="9"  fill="#8aadf4">movies/</text>
+      <text x="30"  y="188" font-size="8"  fill="#8087a2">1M · comp=off</text>
+      <text x="30"  y="199" font-size="8"  fill="#6e738d">→ Media VM (.12)</text>
+
+      <text x="30"  y="217" font-size="9"  fill="#8aadf4">downloads/</text>
+      <text x="30"  y="230" font-size="8"  fill="#8087a2">1M · comp=off</text>
+      <text x="30"  y="241" font-size="8"  fill="#6e738d">→ Media VM (.12)</text>
+
+      <text x="30"  y="259" font-size="9"  fill="#8aadf4">images/</text>
+      <text x="30"  y="272" font-size="8"  fill="#8087a2">128K · lz4</text>
+      <text x="30"  y="283" font-size="8"  fill="#6e738d">→ Services VM (.13) · Immich</text>
+
+      <text x="30"  y="301" font-size="9"  fill="#8aadf4">paperless/</text>
+      <text x="30"  y="314" font-size="8"  fill="#8087a2">128K · zstd</text>
+      <text x="30"  y="325" font-size="8"  fill="#6e738d">→ Services VM (.13)</text>
+
+      <rect x="30"  y="378" width="32" height="14" rx="6" fill="#363a4f" stroke="#8aadf4" stroke-width="1"/>
+      <text x="46"  y="388" text-anchor="middle" font-size="8"  fill="#8aadf4">NFS</text>
+
+      <!-- ══ Column 2: tank/services/  (local DB bind mounts) ══ -->
+      <rect x="202" y="57" width="152" height="20" rx="3" fill="#f5a97f" fill-opacity="0.15" stroke="#f5a97f" stroke-width="1"/>
+      <text x="278" y="71"  text-anchor="middle" font-size="10" font-weight="bold" fill="#f5a97f">tank/services/</text>
+
+      <text x="278" y="95"  text-anchor="middle" font-size="10" font-weight="bold" fill="#cad3f5">Local DB Tier</text>
+      <text x="278" y="109" text-anchor="middle" font-size="9"  fill="#8087a2">engine + data co-located · no NFS</text>
+
+      <text x="212" y="133" font-size="9"  fill="#f5a97f">databases/postgres</text>
+      <text x="212" y="146" font-size="8"  fill="#8087a2">8K · lz4  ⚠ match page size</text>
+      <text x="212" y="157" font-size="8"  fill="#6e738d">bind → Postgres container</text>
+
+      <text x="212" y="175" font-size="9"  fill="#f5a97f">databases/mariadb</text>
+      <text x="212" y="188" font-size="8"  fill="#8087a2">16K · lz4  ⚠ match InnoDB</text>
+      <text x="212" y="199" font-size="8"  fill="#6e738d">bind → MariaDB container</text>
+
+      <text x="212" y="217" font-size="9"  fill="#f5a97f">databases/pgadmin</text>
+      <text x="212" y="230" font-size="8"  fill="#8087a2">128K · zstd</text>
+      <text x="212" y="241" font-size="8"  fill="#6e738d">bind → pgadmin container</text>
+
+      <text x="212" y="259" font-size="9"  fill="#f5a97f">databases/databassus</text>
+      <text x="212" y="272" font-size="8"  fill="#8087a2">128K · zstd</text>
+      <text x="212" y="283" font-size="8"  fill="#6e738d">bind → Databassus container</text>
+
+      <text x="212" y="310" font-size="8"  fill="#8087a2">Swarm services connect via</text>
+      <text x="212" y="322" font-size="8"  fill="#8087a2">TCP to 172.16.20.2 — not</text>
+      <text x="212" y="334" font-size="8"  fill="#8087a2">via Swarm overlay</text>
+
+      <rect x="212" y="378" width="78" height="14" rx="6" fill="#363a4f" stroke="#f5a97f" stroke-width="1"/>
+      <text x="251" y="388" text-anchor="middle" font-size="8"  fill="#f5a97f">local bind mount</text>
+
+      <!-- ══ Column 3: tank/s3/  (MinIO S3) ══ -->
+      <rect x="374" y="57" width="146" height="20" rx="3" fill="#a6da95" fill-opacity="0.15" stroke="#a6da95" stroke-width="1"/>
+      <text x="447" y="71"  text-anchor="middle" font-size="10" font-weight="bold" fill="#a6da95">tank/s3/</text>
+
+      <text x="447" y="95"  text-anchor="middle" font-size="10" font-weight="bold" fill="#cad3f5">S3 Tier (MinIO)</text>
+      <text x="447" y="109" text-anchor="middle" font-size="9"  fill="#8087a2">172.16.20.2:9000 · HTTP</text>
+
+      <text x="384" y="133" font-size="9"  fill="#a6da95">1M · lz4</text>
+      <text x="384" y="147" font-size="8"  fill="#8087a2">MinIO app on TrueNAS</text>
+
+      <text x="384" y="175" font-size="9"  fill="#a6da95">reactive-resume bucket</text>
+      <text x="384" y="188" font-size="8"  fill="#6e738d">→ Services VM (.13)</text>
+      <text x="384" y="199" font-size="8"  fill="#8087a2">file storage (no SeaweedFS)</text>
+
+      <text x="384" y="223" font-size="9"  fill="#a6da95">terraform-state bucket</text>
+      <text x="384" y="236" font-size="8"  fill="#6e738d">→ OpenTofu IaC</text>
+      <text x="384" y="247" font-size="8"  fill="#8087a2">state backend for all infra</text>
+
+      <rect x="384" y="378" width="60" height="14" rx="6" fill="#363a4f" stroke="#a6da95" stroke-width="1"/>
+      <text x="414" y="388" text-anchor="middle" font-size="8"  fill="#a6da95">S3 (MinIO)</text>
+
+      <!-- ══ Column 4: tank/backups/  (backup staging) ══ -->
+      <rect x="540" y="57" width="156" height="20" rx="3" fill="#eed49f" fill-opacity="0.15" stroke="#eed49f" stroke-width="1"/>
+      <text x="618" y="71"  text-anchor="middle" font-size="10" font-weight="bold" fill="#eed49f">tank/backups/</text>
+
+      <text x="618" y="95"  text-anchor="middle" font-size="10" font-weight="bold" fill="#cad3f5">Backup Tier</text>
+      <text x="618" y="109" text-anchor="middle" font-size="9"  fill="#8087a2">dumps · snapshots · PBS store</text>
+
+      <text x="550" y="133" font-size="9"  fill="#eed49f">databases/daily/</text>
+      <text x="550" y="146" font-size="8"  fill="#8087a2">128K · zstd · local</text>
+      <text x="550" y="157" font-size="8"  fill="#6e738d">Databassus 02:00 · 7-day ret.</text>
+
+      <text x="550" y="175" font-size="9"  fill="#eed49f">databases/weekly/</text>
+      <text x="550" y="188" font-size="8"  fill="#8087a2">128K · zstd · NFS → .13</text>
+      <text x="550" y="199" font-size="8"  fill="#6e738d">weekly script Sun 03:00</text>
+
+      <text x="550" y="217" font-size="9"  fill="#eed49f">pbs/</text>
+      <text x="550" y="230" font-size="8"  fill="#8087a2">1M · lz4 · NFS → .10</text>
+      <text x="550" y="241" font-size="8"  fill="#6e738d">PBS VM chunk store</text>
+
+      <text x="550" y="259" font-size="9"  fill="#eed49f">services/</text>
+      <text x="550" y="272" font-size="8"  fill="#8087a2">128K · zstd · NFS → .13</text>
+      <text x="550" y="283" font-size="8"  fill="#6e738d">file backups</text>
+
+      <text x="550" y="301" font-size="9"  fill="#eed49f">keys/</text>
+      <text x="550" y="314" font-size="8"  fill="#8087a2">zstd · ZFS native encryption</text>
+      <text x="550" y="325" font-size="8"  fill="#6e738d">SSH keys · rclone creds</text>
+      <text x="550" y="336" font-size="8"  fill="#6e738d">local only · no NFS export</text>
+
+      <rect x="550" y="378" width="62" height="14" rx="6" fill="#363a4f" stroke="#eed49f" stroke-width="1"/>
+      <text x="581" y="388" text-anchor="middle" font-size="8"  fill="#eed49f">NFS + local</text>
+
+      <!-- ══ Column 5: tank/repos/ ══ -->
+      <rect x="716" y="57" width="144" height="20" rx="3" fill="#c6a0f6" fill-opacity="0.15" stroke="#c6a0f6" stroke-width="1"/>
+      <text x="788" y="71"  text-anchor="middle" font-size="10" font-weight="bold" fill="#c6a0f6">tank/repos/</text>
+
+      <text x="788" y="95"  text-anchor="middle" font-size="10" font-weight="bold" fill="#cad3f5">Repos Tier</text>
+      <text x="788" y="109" text-anchor="middle" font-size="9"  fill="#8087a2">git repos · workstation access</text>
+
+      <text x="726" y="133" font-size="9"  fill="#c6a0f6">128K · zstd</text>
+
+      <text x="726" y="159" font-size="9"  fill="#c6a0f6">NFS → Desktop</text>
+      <text x="726" y="172" font-size="8"  fill="#8087a2">mounted at ~/repos</text>
+
+      <rect x="726" y="378" width="32" height="14" rx="6" fill="#363a4f" stroke="#c6a0f6" stroke-width="1"/>
+      <text x="742" y="388" text-anchor="middle" font-size="8"  fill="#c6a0f6">NFS</text>
+
+      <!-- ════════════════════════════════════════════════════
+           Backup chain  (y=420 → y=550)
+           ════════════════════════════════════════════════════ -->
+
+      <!-- Databassus daily -->
+      <rect x="10"  y="420" width="262" height="130" rx="6" fill="#1e2030" stroke="#f5a97f" stroke-width="1.5"/>
+      <text x="141" y="440" text-anchor="middle" font-size="11" font-weight="bold" fill="#f5a97f">Databassus (daily)</text>
+      <text x="141" y="455" text-anchor="middle" font-size="9"  fill="#8087a2">runs on TrueNAS (.2) · 02:00 daily</text>
+      <text x="141" y="473" text-anchor="middle" font-size="9"  fill="#cad3f5">Postgres + MariaDB → dumps</text>
+      <text x="141" y="488" text-anchor="middle" font-size="9"  fill="#8087a2">→ databases/daily/ (local, no downtime)</text>
+      <text x="141" y="503" text-anchor="middle" font-size="9"  fill="#8087a2">retention: 7 daily dumps</text>
+
+      <!-- arrow: Databassus → Weekly -->
+      <line x1="272" y1="485" x2="286" y2="485" stroke="#8087a2" stroke-width="1.5"/>
+      <polygon points="286,481 294,485 286,489" fill="#8087a2"/>
+
+      <!-- Weekly coordinated backup -->
+      <rect x="295" y="420" width="272" height="130" rx="6" fill="#1e2030" stroke="#eed49f" stroke-width="1.5"/>
+      <text x="431" y="440" text-anchor="middle" font-size="11" font-weight="bold" fill="#eed49f">Weekly Coordinated Backup</text>
+      <text x="431" y="455" text-anchor="middle" font-size="9"  fill="#8087a2">Services VM (.13) · Sunday 03:00</text>
+      <text x="431" y="473" text-anchor="middle" font-size="9"  fill="#cad3f5">stop services → pg_dump → ZFS snapshot → restart</text>
+      <text x="431" y="488" text-anchor="middle" font-size="9"  fill="#8087a2">→ databases/weekly/ (NFS) · ~1–3 min downtime</text>
+      <text x="431" y="503" text-anchor="middle" font-size="9"  fill="#8087a2">retention: 4 SQL dumps · 4 ZFS snaps per dataset</text>
+
+      <!-- arrow: Weekly → Offsite -->
+      <line x1="567" y1="485" x2="581" y2="485" stroke="#8087a2" stroke-width="1.5"/>
+      <polygon points="581,481 589,485 581,489" fill="#8087a2"/>
+
+      <!-- Offsite — Filen via rclone crypt -->
+      <rect x="590" y="420" width="280" height="130" rx="6" fill="#1e2030" stroke="#6e738d" stroke-width="1.5"/>
+      <text x="730" y="440" text-anchor="middle" font-size="11" font-weight="bold" fill="#8087a2">Offsite — Filen Cloud</text>
+      <text x="730" y="455" text-anchor="middle" font-size="9"  fill="#8087a2">rclone crypt · double-layer encryption · Sunday 05:00</text>
+      <text x="730" y="473" text-anchor="middle" font-size="9"  fill="#cad3f5">databases/weekly/ · services/ · repos/</text>
+      <text x="730" y="488" text-anchor="middle" font-size="9"  fill="#cad3f5">media/images (incr.) · media/paperless (incr.)</text>
+      <text x="730" y="503" text-anchor="middle" font-size="9"  fill="#8087a2">keys in backups/keys/ (ZFS AES-256-GCM encrypted)</text>
+      <text x="730" y="518" text-anchor="middle" font-size="8"  fill="#6e738d">not offsite: video · live DB dirs · PBS · S3</text>
+
+    </svg>
+  </div>
+</body>
+</html>
