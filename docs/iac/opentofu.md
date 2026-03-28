@@ -10,9 +10,12 @@ tags:
 OpenTofu provisions VMs from the Packer template: assigns IPs, CPU, RAM, and tags. Also creates DNS A records in Technitium.
 
 ```bash
-just plan    # → tofu plan
-just apply   # → tofu apply
+just plan    # -> tofu plan
+just apply   # -> tofu apply
 ```
+
+!!! warning "Apply is always manual"
+    `tofu apply` is never automated — not even in CI. The Gitea Actions pipeline runs `tofu plan` only. Apply requires explicit human review and execution via `just apply`.
 
 ## State Backend — TrueNAS MinIO
 
@@ -36,3 +39,16 @@ terraform {
 ```
 
 MinIO credentials are injected from the SOPS-encrypted tfvars file or via `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` environment variables.
+
+```mermaid
+graph LR
+    TF[OpenTofu] -->|state read/write| S3[MinIO S3<br/>terraform-state bucket]
+    S3 -->|stored on| ZFS[(tank/s3)]
+
+    SOPS[SOPS] -->|decrypt| TF
+    TF -->|provision| PVE[Proxmox API]
+    TF -->|create records| DNS[Technitium API]
+
+    style S3 fill:#eed49f,stroke:#eed49f,color:#1e2030
+    style SOPS fill:#f5a97f,stroke:#f5a97f,color:#1e2030
+```

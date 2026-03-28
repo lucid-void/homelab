@@ -10,6 +10,39 @@ tags:
 
 TrueNAS DXP4800 (`172.16.20.2`, 10GbE) is the single storage authority. Compute nodes mount shares over NFS. Docker config files and ephemeral volumes stay local to each host — only data that must survive a host rebuild lives on TrueNAS.
 
+### Data Flow
+
+```mermaid
+graph LR
+    subgraph Compute["Compute Nodes"]
+        SVC[Services VM .13]
+        MED[Media VM .12]
+        PBS[PBS VM .10]
+    end
+
+    subgraph TrueNAS["TrueNAS .2"]
+        NFS[NFS Server]
+        ZFS[(ZFS Pool<br/>tank)]
+        PG[Postgres]
+        MB[MariaDB]
+        S3[MinIO S3]
+    end
+
+    SVC -->|NFS mount| NFS
+    MED -->|NFS mount| NFS
+    PBS -->|NFS mount| NFS
+    NFS --> ZFS
+    SVC -->|TCP :5432| PG
+    SVC -->|TCP :9000| S3
+    PG -->|local bind| ZFS
+    MB -->|local bind| ZFS
+    S3 --> ZFS
+
+    style ZFS fill:#a6da95,stroke:#a6da95,color:#1e2030
+    style NFS fill:#8aadf4,stroke:#8aadf4,color:#1e2030
+    style S3 fill:#eed49f,stroke:#eed49f,color:#1e2030
+```
+
 ## ZFS Dataset Tree
 
 All datasets live under a single pool named `tank`, backed by a RAIDZ pool.
@@ -51,7 +84,7 @@ tank/
   title="Storage architecture">
 </iframe>
 
-### ZFS property rationale
+### ZFS Property Rationale
 
 | Property | Value | Why |
 |---|---|---|
@@ -64,10 +97,10 @@ tank/
 | `recordsize=8K` | `postgres` | **Must match Postgres page size exactly** |
 | `recordsize=16K` | `mariadb` | **Must match InnoDB page size exactly** |
 
-!!! warning
-    `recordsize` and encryption must be set **at dataset creation time**. They cannot be changed after data is written.
+!!! danger "Set at creation time"
+    `recordsize` and encryption must be set **at dataset creation time**. They cannot be changed after data is written. Setting these after container initialization has no effect and cannot be corrected without destroying and recreating the dataset.
 
-### `backups/keys` — ZFS native encryption
+### `backups/keys` — ZFS Native Encryption
 
 `tank/backups/keys` uses ZFS native encryption (AES-256-GCM). Stores SSH keys, rclone crypt password, and long-lived secrets. No NFS export — accessible on TrueNAS locally only.
 
@@ -75,12 +108,10 @@ tank/
 
 `tank/services/databases/postgres` and `tank/services/databases/mariadb` hold the **live container data directories**, bind-mounted directly into their respective Docker containers running on TrueNAS (.2). These datasets are **not NFS-exported** — the database engines and their data are co-located on the same host.
 
-!!! warning
-    **Critical constraints for database datasets:**
-
-    - `recordsize=8K` for Postgres and `recordsize=16K` for MariaDB must be set **before** the containers first write data. Setting these after initialization has no effect and cannot be corrected without destroying and recreating the dataset.
-    - ZFS snapshots of live DB data directories are **not crash-consistent while the engine is running**. Use `pg_dump` / `mysqldump` into `backups/databases/` instead for reliable, restorable backups.
-    - All Swarm services connecting to a database must use `172.16.20.2` as the host — databases are outside the Swarm overlay network and are not reachable via Swarm service names.
+!!! warning "Critical constraints for database datasets"
+    - `recordsize=8K` for Postgres and `recordsize=16K` for MariaDB must be set **before** the containers first write data
+    - ZFS snapshots of live DB data directories are **not crash-consistent while the engine is running** — use `pg_dump` / `mysqldump` into `backups/databases/` instead
+    - All Swarm services connecting to a database must use `172.16.20.2` as the host — databases are outside the Swarm overlay network
 
 ## NFS Exports
 
@@ -101,6 +132,9 @@ tank/
 | `tank/backups/keys` | **No NFS export** | Local to TrueNAS only |
 
 NFS options: `sync`, `no_subtree_check`.
+
+!!! tip "NFS-export tier naming"
+    New NFS-mounted datasets for Swarm services go under `tank/media/<service>`, not `tank/services/`. The `services/` tier is reserved for containers running directly on TrueNAS.
 
 ## Docker Volume Strategy
 

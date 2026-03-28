@@ -11,6 +11,24 @@ tags:
 
 All infrastructure is provisioned and configured declaratively via a three-stage pipeline. Everything lives under `infra/` in the `Homelab` mono-repo.
 
+### Pipeline Flow
+
+```mermaid
+graph LR
+    P[Packer<br/>Base template] -->|VM image| T[OpenTofu<br/>Provisioning]
+    T -->|VMs created| A[Ansible<br/>Configuration]
+    A -->|Configured| S[Swarm stacks<br/>deployed]
+
+    SOPS[SOPS + age] -.->|secrets| T
+    SOPS -.->|secrets| A
+
+    style P fill:#eed49f,stroke:#eed49f,color:#1e2030
+    style T fill:#8aadf4,stroke:#8aadf4,color:#1e2030
+    style A fill:#a6da95,stroke:#a6da95,color:#1e2030
+    style S fill:#c6a0f6,stroke:#c6a0f6,color:#1e2030
+    style SOPS fill:#f5a97f,stroke:#f5a97f,color:#1e2030
+```
+
 **Stages:**
 
 1. **Packer** — builds a Debian base VM template stored in Proxmox
@@ -23,32 +41,24 @@ All infrastructure is provisioned and configured declaratively via a three-stage
 Homelab/
 ├── infra/
 │   ├── packer/
-│   │   └── debian-base.pkr.hcl
+│   │   └── debian-base.pkr.hcl          # VM template definition
 │   ├── terraform/
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   ├── backend.tf
-│   │   └── secrets.sops.tfvars
+│   │   ├── main.tf                       # VM resources + DNS records
+│   │   ├── variables.tf                  # Input variables
+│   │   ├── backend.tf                    # MinIO S3 state backend
+│   │   └── secrets.sops.tfvars           # Encrypted credentials
 │   └── ansible/
 │       ├── inventory/
-│       │   ├── physical.yml
-│       │   └── proxmox.yml
+│       │   ├── physical.yml              # Pi, TrueNAS, Proxmox
+│       │   └── proxmox.yml              # Dynamic VM discovery
 │       ├── group_vars/all/
-│       │   ├── vars.yml
-│       │   └── secrets.sops.yml
-│       ├── roles/
-│       │   ├── common/
-│       │   ├── docker/
-│       │   ├── truenas/
-│       │   ├── proxmox/
-│       │   └── pbs/
-│       └── playbooks/
-│           ├── site.yml
-│           ├── vms.yml
-│           └── certs.yml
-├── stacks/
-├── docs/
-└── justfile
+│       │   ├── vars.yml                  # Shared variables
+│       │   └── secrets.sops.yml          # Encrypted secrets
+│       ├── roles/                        # common, docker, truenas, proxmox, pbs
+│       └── playbooks/                    # site.yml, vms.yml, certs.yml
+├── stacks/                               # Docker Swarm compose files
+├── docs/                                 # This documentation site
+└── justfile                              # Task runner
 ```
 
 ## justfile Targets

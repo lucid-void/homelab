@@ -19,29 +19,50 @@ just certs                             # certificate provisioning only
 
 ## Hybrid Inventory
 
-### Static — `infra/ansible/inventory/physical.yml`
+```mermaid
+graph TB
+    subgraph Inventory["Ansible Inventory"]
+        STATIC[physical.yml<br/>Pi, TrueNAS, Proxmox]
+        DYNAMIC[proxmox.yml<br/>Dynamic — Proxmox API]
+    end
 
-```yaml
-all:
-  children:
-    physical:
-      hosts:
-        pi:      { ansible_host: 172.16.20.1 }
-        truenas: { ansible_host: 172.16.20.2 }
-        proxmox: { ansible_host: 172.16.20.3 }
+    DYNAMIC -->|discovers| VMS[VMs grouped by tags]
+    VMS --> SW[swarm_manager]
+    VMS --> WK[swarm_worker]
+    VMS --> MD[media]
+    VMS --> MN[monitoring]
+
+    STATIC --> PI[pi]
+    STATIC --> TN[truenas]
+    STATIC --> PX[proxmox]
+
+    style STATIC fill:#a6da95,stroke:#a6da95,color:#1e2030
+    style DYNAMIC fill:#8aadf4,stroke:#8aadf4,color:#1e2030
 ```
 
-### Dynamic — `infra/ansible/inventory/proxmox.yml`
+=== "Static — physical.yml"
 
-```yaml
-plugin: community.general.proxmox
-url: https://proxmox.blackcats.cc:8006
-user: ansible@pve
-token_id: ansible
-token_secret: "{{ proxmox_api_token }}"
-group_by_tags: true
-want_facts: true
-```
+    ```yaml
+    all:
+      children:
+        physical:
+          hosts:
+            pi:      { ansible_host: 172.16.20.1 }
+            truenas: { ansible_host: 172.16.20.2 }
+            proxmox: { ansible_host: 172.16.20.3 }
+    ```
+
+=== "Dynamic — proxmox.yml"
+
+    ```yaml
+    plugin: community.general.proxmox
+    url: https://proxmox.blackcats.cc:8006
+    user: ansible@pve
+    token_id: ansible
+    token_secret: "{{ proxmox_api_token }}"
+    group_by_tags: true
+    want_facts: true
+    ```
 
 VMs are grouped by Proxmox tags (`swarm_manager`, `swarm_worker`, `media`, etc.) set by OpenTofu at provisioning time. Ansible group membership is automatic.
 
@@ -59,14 +80,29 @@ creation_rules:
     age: ssh-ed25519 AAAA...yourpublickey
 ```
 
-### Secret files
+### Secret Files
 
 | File | Contents |
 |---|---|
 | `infra/ansible/group_vars/all/secrets.sops.yml` | Cloudflare API token, DB passwords, Proxmox API token |
 | `infra/terraform/secrets.sops.tfvars` | Proxmox API credentials, MinIO access/secret keys |
 
-### Runtime decryption
+### Runtime Decryption
+
+```mermaid
+sequenceDiagram
+    participant Op as Operator
+    participant SOPS as SOPS
+    participant Key as SSH Private Key
+    participant Tool as Ansible / OpenTofu
+
+    Op->>Tool: Run playbook / plan
+    Tool->>SOPS: Decrypt secrets file
+    SOPS->>Key: age decrypt with SSH key
+    Key-->>SOPS: Plaintext values
+    SOPS-->>Tool: Decrypted vars
+    Tool->>Tool: Execute with secrets
+```
 
 ```bash
 # Ansible: community.sops collection decrypts group_vars automatically

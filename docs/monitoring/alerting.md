@@ -10,33 +10,40 @@ tags:
 
 Grafana's built-in alerting engine evaluates rules against Prometheus metrics. All notifications are delivered to Gotify via a webhook contact point. No Alertmanager is used.
 
-## Gotify contact point
+### Alert Pipeline
+
+```mermaid
+graph LR
+    PROM[Prometheus<br/>metrics] --> GRAF[Grafana<br/>alert rules]
+    GRAF -->|threshold breached| EVAL{Evaluate<br/>condition}
+    EVAL -->|firing| GOTIFY[Gotify<br/>push notification]
+    EVAL -->|resolved| GOTIFY
+
+    style PROM fill:#f5a97f,stroke:#f5a97f,color:#1e2030
+    style GRAF fill:#a6da95,stroke:#a6da95,color:#1e2030
+    style GOTIFY fill:#c6a0f6,stroke:#c6a0f6,color:#1e2030
+```
+
+## Gotify Contact Point
 
 - **URL:** `http://gotify.blackcats.cc`
 - **Token:** Gotify app token — stored as a Grafana secret, provisioned by Ansible
 
-## Alert rules
+## Alert Rules
 
 | Alert | Condition | Severity |
 |---|---|---|
-| Host down | `up == 0` for any scrape target for > 2 min | Critical |
+| Host down | `up == 0` for any scrape target for > 2 min | **Critical** |
+| ZFS pool degraded | `truenas_pool_status != healthy` | **Critical** |
 | High CPU | Node CPU usage > 90% sustained for 5 min | Warning |
 | Low disk | Any mount with < 20% free | Warning |
 | Disk spike | Disk usage growing > 5 GB/h on any mount | Warning |
-| ZFS pool degraded | `truenas_pool_status != healthy` | Critical |
-| GPU temp high | `dcgm_gpu_temp > 85°C` | Warning |
+| GPU temp high | `dcgm_gpu_temp > 85C` | Warning |
 
-## Provisioning
+!!! tip "Provisioning"
+    Alert rules are provisioned via Ansible-templated YAML files in Grafana's file-based provisioning directory (`/etc/grafana/provisioning/alerting/`). Files are loaded at container startup — reproducible on rebuild without touching the Grafana UI.
 
-Alert rules are provisioned via Ansible-templated YAML files in Grafana's file-based provisioning directory:
-
-```
-/etc/grafana/provisioning/alerting/
-```
-
-Files are loaded at container startup — reproducible on rebuild without touching the Grafana UI.
-
-## Key decisions
+## Key Decisions
 
 | Topic | Decision |
 |---|---|
