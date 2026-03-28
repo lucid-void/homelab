@@ -101,3 +101,129 @@
   --md-shadow-z2: 0 0.2rem 0.5rem rgba(0,0,0,.1), 0 0 0.05rem rgba(0,0,0,.1);
   --md-shadow-z3: 0 0.2rem 0.5rem rgba(0,0,0,.1), 0 0 0.05rem rgba(0,0,0,.1);
 }
+
+/* ============================================================
+   Scrollbar — dark mode
+   ============================================================ */
+[data-md-color-scheme="slate"] ::-webkit-scrollbar {
+  width: 8px; height: 8px;
+}
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-track {
+  background: #1e2030;
+}
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-thumb {
+  background: #494d64;
+  border-radius: 4px;
+}
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-thumb:hover {
+  background: #5b6078;
+}
+
+/* Scrollbar — light mode */
+[data-md-color-scheme="default"] ::-webkit-scrollbar {
+  width: 8px; height: 8px;
+}
+[data-md-color-scheme="default"] ::-webkit-scrollbar-track {
+  background: #e6e9ef;
+}
+[data-md-color-scheme="default"] ::-webkit-scrollbar-thumb {
+  background: #bcc0cc;
+  border-radius: 4px;
+}
+[data-md-color-scheme="default"] ::-webkit-scrollbar-thumb:hover {
+  background: #9ca0b0;
+}
+
+/* ============================================================
+   Selection highlight
+   ============================================================ */
+[data-md-color-scheme="slate"] ::selection {
+  background: rgba(198, 160, 246, 0.25);
+  color: #cad3f5;
+}
+[data-md-color-scheme="default"] ::selection {
+  background: rgba(136, 57, 239, 0.2);
+  color: #4c4f69;
+}
+
+/* ============================================================
+   Admonition accent colors — Catppuccin palette
+   ============================================================ */
+[data-md-color-scheme="slate"] {
+  --md-admonition-icon--note:       #8aadf4;
+  --md-admonition-icon--tip:        #a6da95;
+  --md-admonition-icon--warning:    #eed49f;
+  --md-admonition-icon--danger:     #ed8796;
+  --md-admonition-icon--info:       #7dc4e4;
+}
+
+/* Note */
+[data-md-color-scheme="slate"] .md-typeset .admonition.note,
+[data-md-color-scheme="slate"] .md-typeset details.note {
+  border-color: #8aadf4;
+}
+[data-md-color-scheme="slate"] .md-typeset .note > .admonition-title,
+[data-md-color-scheme="slate"] .md-typeset .note > summary {
+  background-color: rgba(138, 173, 244, 0.1);
+}
+
+/* Tip */
+[data-md-color-scheme="slate"] .md-typeset .admonition.tip,
+[data-md-color-scheme="slate"] .md-typeset details.tip {
+  border-color: #a6da95;
+}
+[data-md-color-scheme="slate"] .md-typeset .tip > .admonition-title,
+[data-md-color-scheme="slate"] .md-typeset .tip > summary {
+  background-color: rgba(166, 218, 149, 0.1);
+}
+
+/* Warning */
+[data-md-color-scheme="slate"] .md-typeset .admonition.warning,
+[data-md-color-scheme="slate"] .md-typeset details.warning {
+  border-color: #eed49f;
+}
+[data-md-color-scheme="slate"] .md-typeset .warning > .admonition-title,
+[data-md-color-scheme="slate"] .md-typeset .warning > summary {
+  background-color: rgba(238, 212, 159, 0.1);
+}
+
+/* Danger */
+[data-md-color-scheme="slate"] .md-typeset .admonition.danger,
+[data-md-color-scheme="slate"] .md-typeset details.danger {
+  border-color: #ed8796;
+}
+[data-md-color-scheme="slate"] .md-typeset .danger > .admonition-title,
+[data-md-color-scheme="slate"] .md-typeset .danger > summary {
+  background-color: rgba(237, 135, 150, 0.1);
+}
+
+/* Info */
+[data-md-color-scheme="slate"] .md-typeset .admonition.info,
+[data-md-color-scheme="slate"] .md-typeset details.info {
+  border-color: #7dc4e4;
+}
+[data-md-color-scheme="slate"] .md-typeset .info > .admonition-title,
+[data-md-color-scheme="slate"] .md-typeset .info > summary {
+  background-color: rgba(125, 196, 228, 0.1);
+}
+
+/* ============================================================
+   Navigation overrides
+   ============================================================ */
+[data-md-color-scheme="slate"] .md-tabs {
+  background: #1e2030;
+}
+
+[data-md-color-scheme="slate"] .md-header {
+  background: #1e2030;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+[data-md-color-scheme="default"] .md-tabs {
+  background: #e6e9ef;
+}
+
+[data-md-color-scheme="default"] .md-header {
+  background: #e6e9ef;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+}

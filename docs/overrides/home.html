@@ -8,6 +8,127 @@
     @media screen and (min-width: 76.25em) {
       .md-content__inner { padding-left: 2rem; padding-right: 2rem; }
     }
+
+    /* Animated gradient background */
+    .tx-hero {
+      position: relative;
+      overflow: hidden;
+    }
+    .tx-hero::before {
+      content: "";
+      position: absolute;
+      inset: -50%;
+      background: radial-gradient(
+        ellipse at 50% 50%,
+        var(--md-accent-fg-color--transparent) 0%,
+        transparent 70%
+      );
+      animation: hero-pulse 8s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+    @keyframes hero-pulse {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+    }
+
+    /* Dot grid overlay */
+    .tx-hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(
+        circle,
+        var(--md-default-fg-color--lightest) 0.5px,
+        transparent 0.5px
+      );
+      background-size: 24px 24px;
+      opacity: 0.08;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .tx-hero > * { position: relative; z-index: 1; }
+
+    /* Terminal widget */
+    .tx-terminal {
+      max-width: 520px;
+      margin: 2rem auto 0;
+      background: var(--md-code-bg-color);
+      border-radius: 8px;
+      border: 1px solid var(--md-default-bg-color--lighter);
+      overflow: hidden;
+      text-align: left;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+    .tx-terminal__bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 14px;
+      background: var(--md-default-bg-color--lighter);
+    }
+    .tx-terminal__dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .tx-terminal__dot--red { background: #ed8796; }
+    .tx-terminal__dot--yellow { background: #eed49f; }
+    .tx-terminal__dot--green { background: #a6da95; }
+    .tx-terminal__title {
+      flex: 1;
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--md-default-fg-color--lightest);
+      font-family: var(--md-code-font);
+    }
+    .tx-terminal__body {
+      padding: 14px 16px;
+      font-family: var(--md-code-font);
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: var(--md-code-fg-color);
+      min-height: 110px;
+    }
+    .tx-terminal__line {
+      opacity: 0;
+      animation: term-fade-in 0.4s ease forwards;
+    }
+    .tx-terminal__line:nth-child(1) { animation-delay: 0.3s; }
+    .tx-terminal__line:nth-child(2) { animation-delay: 1.2s; }
+    .tx-terminal__line:nth-child(3) { animation-delay: 2.1s; }
+    .tx-terminal__line:nth-child(4) { animation-delay: 3.0s; }
+    .tx-terminal__line:nth-child(5) { animation-delay: 3.9s; }
+    @keyframes term-fade-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .tx-terminal__prompt { color: #a6da95; }
+    .tx-terminal__cmd { color: #8aadf4; }
+    .tx-terminal__output { color: var(--md-default-fg-color--lighter); }
+    .tx-terminal__cursor {
+      display: inline-block;
+      width: 7px; height: 14px;
+      background: var(--md-accent-fg-color);
+      animation: blink 1s step-end infinite;
+      vertical-align: text-bottom;
+      margin-left: 2px;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    /* Stats counter animation */
+    .tx-hero__stat .value {
+      display: inline-block;
+    }
+    .tx-hero__stat .sublabel {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--md-default-fg-color--lightest);
+      margin-top: 0.15rem;
+      opacity: 0.7;
+    }
   </style>
 {% endblock %}
 
@@ -29,18 +150,48 @@
         <div class="tx-hero__stat">
           <span class="value">8</span>
           <span class="label">nodes</span>
+          <span class="sublabel">physical + virtual</span>
         </div>
         <div class="tx-hero__stat">
-          <span class="value">6</span>
+          <span class="value">7</span>
           <span class="label">VMs</span>
+          <span class="sublabel">Proxmox VE</span>
         </div>
         <div class="tx-hero__stat">
-          <span class="value">20+</span>
+          <span class="value">30+</span>
           <span class="label">services</span>
+          <span class="sublabel">Docker Swarm</span>
         </div>
         <div class="tx-hero__stat">
           <span class="value">IaC</span>
           <span class="label">everything</span>
+          <span class="sublabel">Packer + Tofu + Ansible</span>
+        </div>
+      </div>
+
+      <div class="tx-terminal">
+        <div class="tx-terminal__bar">
+          <span class="tx-terminal__dot tx-terminal__dot--red"></span>
+          <span class="tx-terminal__dot tx-terminal__dot--yellow"></span>
+          <span class="tx-terminal__dot tx-terminal__dot--green"></span>
+          <span class="tx-terminal__title">void@homelab ~ </span>
+        </div>
+        <div class="tx-terminal__body">
+          <div class="tx-terminal__line">
+            <span class="tx-terminal__prompt">$</span> <span class="tx-terminal__cmd">just plan</span>
+          </div>
+          <div class="tx-terminal__line">
+            <span class="tx-terminal__output">Plan: 7 VMs, 2 DNS records. No changes.</span>
+          </div>
+          <div class="tx-terminal__line">
+            <span class="tx-terminal__prompt">$</span> <span class="tx-terminal__cmd">just configure</span>
+          </div>
+          <div class="tx-terminal__line">
+            <span class="tx-terminal__output">ok=42&ensp; changed=0&ensp; unreachable=0&ensp; failed=0</span>
+          </div>
+          <div class="tx-terminal__line">
+            <span class="tx-terminal__prompt">$</span> <span class="tx-terminal__cursor"></span>
+          </div>
         </div>
       </div>
     </div>

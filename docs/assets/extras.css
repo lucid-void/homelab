@@ -1,0 +1,149 @@
+/* ============================================================
+   Extra polish — animations, tables, blockquotes, transitions
+   ============================================================ */
+
+/* Smooth page transitions (navigation.instant) */
+.md-content {
+  animation: page-fade-in 0.25s ease;
+}
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Code block header styling */
+.highlight .filename {
+  font-family: var(--md-code-font);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--md-default-fg-color--lighter);
+  border-bottom: 1px solid var(--md-default-bg-color--lighter);
+  padding: 0.5rem 1rem;
+  background: var(--md-code-bg-color);
+  border-radius: 6px 6px 0 0;
+}
+
+/* Better table styling */
+.md-typeset table:not([class]) {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--md-default-bg-color--lighter);
+  width: 100%;
+}
+
+.md-typeset table:not([class]) thead {
+  background: var(--md-default-bg-color--light);
+}
+
+.md-typeset table:not([class]) thead th {
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--md-default-fg-color--light);
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid var(--md-default-bg-color--lighter);
+}
+
+.md-typeset table:not([class]) tbody tr {
+  transition: background 0.15s ease;
+}
+
+.md-typeset table:not([class]) tbody tr:nth-child(even) {
+  background: var(--md-default-bg-color--light);
+}
+
+.md-typeset table:not([class]) tbody tr:hover {
+  background: var(--md-accent-fg-color--transparent);
+}
+
+.md-typeset table:not([class]) td {
+  padding: 0.6rem 1rem;
+  border-top: 1px solid var(--md-default-bg-color--lighter);
+}
+
+/* Blockquote styling */
+.md-typeset blockquote {
+  border-left: 3px solid var(--md-accent-fg-color);
+  background: var(--md-default-bg-color--light);
+  padding: 0.8rem 1.2rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1rem 0;
+}
+
+.md-typeset blockquote p {
+  color: var(--md-default-fg-color--light);
+}
+
+/* Enhanced buttons */
+.md-button--primary {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.md-button--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--md-accent-fg-color--transparent);
+}
+
+.md-button:not(.md-button--primary) {
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+
+.md-button:not(.md-button--primary):hover {
+  transform: translateY(-1px);
+  border-color: var(--md-accent-fg-color);
+}
+
+/* Mermaid diagram theming */
+.mermaid {
+  background: transparent !important;
+  padding: 1rem 0;
+}
+
+/* Admonition icon transitions */
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 6px;
+  transition: box-shadow 0.2s ease;
+}
+
+.md-typeset .admonition:hover,
+.md-typeset details:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Inline code styling */
+.md-typeset :not(pre) > code {
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.82em;
+  border: 1px solid var(--md-default-bg-color--lighter);
+}
+
+/* Tab transitions */
+.md-typeset .tabbed-labels label {
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Navigation link hover */
+.md-nav__link {
+  transition: color 0.15s ease;
+}
+
+/* Search bar refinement */
+.md-search__input {
+  border-radius: 8px;
+}
+
+/* Footer refinement */
+.md-footer {
+  border-top: 1px solid var(--md-default-bg-color--lighter);
+}
+
+/* Smooth anchor scrolling */
+html {
+  scroll-behavior: smooth;
+}
