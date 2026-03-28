@@ -5,6 +5,14 @@ site_url: https://lucid-void.github.io/homelab/
 theme:
   name: material
   custom_dir: docs/overrides
+  icon:
+    repo: fontawesome/brands/github
+    admonition:
+      note: octicons/note-16
+      tip: octicons/light-bulb-16
+      warning: octicons/alert-16
+      danger: octicons/zap-16
+      info: octicons/info-16
   palette:
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
@@ -21,17 +29,25 @@ theme:
         icon: material/brightness-7
         name: Switch to dark mode
   features:
-    - navigation.indexes   # section index pages are clickable links
+    - navigation.indexes
     - navigation.tabs
     - navigation.sections
     - navigation.top
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.footer
+    - toc.follow
     - search.highlight
+    - search.suggest
     - content.code.copy
     - content.code.annotate
+    - content.tabs.link
 
 extra_css:
   - assets/catppuccin.css
   - assets/cards.css
+  - assets/extras.css
 
 extra_javascript:
   - assets/iframe-resize.js
@@ -52,10 +68,14 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.details
+  - pymdownx.mark
   - tables
   - admonition
   - attr_list
   - md_in_html
+  - def_list
+  - footnotes
 
 nav:
   - Home: index.md
