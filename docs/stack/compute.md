@@ -1,9 +1,9 @@
 ---
 tags:
-  - architecture
+  - stack
   - proxmox
   - swarm
-  - vms
+  - compute
 ---
 
 # VMs & Swarm
@@ -64,37 +64,3 @@ PBS VM (`.10`) is **not** a Swarm member — standalone Proxmox Backup Server.
 
 !!! tip "Single manager is sufficient"
     The Raft control plane is separate from the data plane: **all running services remain up if the manager reboots**. Management operations are blocked only during that window.
-
-### Service Placement
-
-Services are pinned via `node.hostname == <name>` placement constraints.
-
-=== "Services VM (.13)"
-
-    Traefik, Paperless, paperless-broker (Valkey), Gotenberg, Tika, Immich, Immich ML (CPU), immich-valkey, N8N, reactive-resume, reactive-resume-browserless, Homebox, IT-Tools, Authentik, Authentik-worker, authentik-valkey, Authelia, authelia-valkey
-
-=== "Media VM (.12)"
-
-    Plex, Sabnzbd, Sonarr, Radarr, Prowlarr, qBittorrent, FlareSolverr
-
-=== "DGX Spark (.4)"
-
-    Ollama, OpenWebUI, Langfuse, Qdrant, SearXNG, Cortex stack
-
-=== "Monitoring VM (.16)"
-
-    Prometheus, Loki, Grafana, cAdvisor (global), pve_exporter, truenas-exporter, unifi-poller, Gotify, Uptime Kuma
-
-=== "Game VM (.14)"
-
-    Satisfactory server
-
-=== "DNS nodes (.1, .11)"
-
-    Technitium DNS, chrony NTP
-
-!!! note "Netbird and ZeroTier on Game VM"
-    These require `--network host` and kernel-level capabilities incompatible with Swarm's ingress mesh. They run as plain `docker compose` stacks outside Swarm.
-
-!!! note "Valkey (Redis replacement)"
-    Valkey is used in place of Redis for all cache and broker instances. Valkey instances are co-located with their service on the Services VM and hold no persistent data.

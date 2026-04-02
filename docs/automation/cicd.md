@@ -1,11 +1,12 @@
 ---
 tags:
+  - automation
   - gitea
   - ci-cd
   - git
 ---
 
-# Gitea
+# CI/CD — Gitea
 
 Local git server and CI/CD runtime for homelab infrastructure pipelines. GitHub remains the primary remote and source of truth for GitHub Pages. Gitea mirrors the repository on a schedule and runs pipelines on every sync — keeping all homelab automation on the homelab network where it has direct access to all infrastructure.
 

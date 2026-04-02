@@ -1,12 +1,14 @@
 ---
 tags:
+  - stack
   - storage
   - truenas
   - zfs
   - nfs
+  - backups
 ---
 
-# Storage Overview
+# Storage
 
 TrueNAS DXP4800 (`172.16.20.2`, 10GbE) is the single storage authority. Compute nodes mount shares over NFS. Docker config files and ephemeral volumes stay local to each host — only data that must survive a host rebuild lives on TrueNAS.
 
@@ -151,3 +153,140 @@ NFS options: `sync`, `no_subtree_check`.
 | pgadmin / adminer / databassus state | `tank/services/databases/<name>` — local bind mount on TrueNAS | Co-located with engines |
 | PBS datastore | `tank/backups/pbs` NFS | PBS manages its own chunk store |
 | reactive_resume files | TrueNAS S3 bucket | No SeaweedFS container needed |
+
+---
+
+## S3 / MinIO
+
+TrueNAS SCALE ships with a built-in MinIO app. Enable it under Apps and point its data path at `tank/s3/`.
+
+**Endpoint:** `http://172.16.20.2:9000`
+
+!!! info "Plaintext is acceptable"
+    MinIO runs on the internal homelab VLAN (`172.16.20.0/24`) with no external exposure. Plaintext HTTP is acceptable for this use case.
+
+## Buckets
+
+| Bucket | Consumer | Notes |
+|---|---|---|
+| `reactive-resume` | reactive_resume on Services VM (.13) | Replaces SeaweedFS |
+| `terraform-state` | OpenTofu | Remote state backend |
+| `loki` | Loki log storage | Future use |
+
+Each service uses a dedicated access key. Keys are stored in SOPS-encrypted Ansible secrets.
+
+!!! note "SeaweedFS eliminated"
+    SeaweedFS was originally planned for reactive_resume file storage but was replaced by the existing TrueNAS MinIO instance. This avoids running another distributed storage system for a single consumer — just point reactive_resume at `172.16.20.2:9000` with a dedicated bucket and key.
+
+## reactive_resume Configuration
+
+Remove the SeaweedFS container from the compose stack and set these environment variables on the `reactive_resume` service:
+
+```env
+STORAGE_ENDPOINT=172.16.20.2
+STORAGE_PORT=9000
+STORAGE_REGION=us-east-1
+STORAGE_BUCKET=reactive-resume
+STORAGE_ACCESS_KEY=<truenas-key>
+STORAGE_SECRET_KEY=<truenas-secret>
+STORAGE_USE_SSL=false
+```
+
+---
+
+## Backups
+
+### Backup Strategy Overview
+
+```mermaid
+graph LR
+    subgraph Daily["Daily — 02:00"]
+        DB1[Databassus] -->|pg_dump / mysqldump| DD[tank/backups/<br/>databases/daily]
+    end
+
+    subgraph Weekly["Weekly — Sun 03:00"]
+        STOP[Stop services] --> DUMP[pg_dump] --> SNAP[ZFS snapshot] --> START[Restart services]
+        DUMP --> WD[tank/backups/<br/>databases/weekly]
+    end
+
+    subgraph Offsite["Offsite — rclone crypt"]
+        DD -->|03:30 daily| FILEN[(Filen Cloud)]
+        WD -->|Sun 05:00| FILEN
+        MEDIA[tank/media/paperless] -->|04:00 daily| FILEN
+        PHOTOS[tank/media/images] -->|Sun 06:00| FILEN
+    end
+
+    style Daily fill:#a6da95,stroke:#a6da95,color:#1e2030
+    style Weekly fill:#eed49f,stroke:#eed49f,color:#1e2030
+    style Offsite fill:#8aadf4,stroke:#8aadf4,color:#1e2030
+```
+
+=== "Daily — Databasus"
+
+    Databasus runs as a Swarm service on Services VM. It connects to Postgres and MariaDB over TCP and writes dumps to `tank/backups/databases/daily/` (NFS-mounted into the container).
+
+    - **Schedule:** 02:00 daily
+    - **Retention:** 7 daily dumps
+    - **Services stay running** throughout — no downtime
+
+=== "Weekly — Coordinated shutdown"
+
+    Runs every Sunday at 03:00 on Services VM. Stops services, dumps databases, snapshots file datasets, then restarts services.
+
+    ```bash
+    # 1. Stop Immich and Paperless
+    docker service scale immich_server=0 immich_microservices=0
+    docker service scale paperless_webserver=0 paperless_worker=0
+
+    # 2. Dump databases
+    pg_dump immich    > /mnt/backups/databases/weekly/immich_$(date +%F).sql
+    pg_dump paperless > /mnt/backups/databases/weekly/paperless_$(date +%F).sql
+
+    # 3. ZFS snapshots (instant — downtime = pg_dump duration only)
+    ssh truenas "zfs snapshot tank/media/images@weekly-$(date +%F)"
+    ssh truenas "zfs snapshot tank/media/paperless@weekly-$(date +%F)"
+
+    # 4. Restart services
+    docker service scale immich_server=1 immich_microservices=1
+    docker service scale paperless_webserver=1 paperless_worker=1
+    ```
+
+    - **Retention:** 4 weekly SQL dumps; 4 ZFS snapshots per dataset
+    - **Downtime:** ~1-3 minutes (pg_dump duration)
+
+=== "Offsite — Filen"
+
+    Double-layer encryption: Filen's own E2E encryption plus rclone client-side `crypt` remote.
+
+    ```ini
+    [filen]
+    type = filen
+    email = <filen-account-email>
+    password = <filen-master-key>
+
+    [filen-crypt]
+    type = crypt
+    remote = filen:homelab-backup
+    filename_encryption = standard
+    directory_name_encryption = true
+    password = <rclone-crypt-password>    # stored in tank/backups/keys/
+    password2 = <rclone-crypt-salt>       # stored in tank/backups/keys/
+    ```
+
+## Offsite Sync Schedule
+
+| Time | Frequency | What |
+|---|---|---|
+| 03:30 | Daily | `tank/backups/keys/` + `tank/backups/databases/daily/` |
+| 04:00 | Daily | `tank/media/paperless/` (incremental) |
+| Sun 05:00 | Weekly | `tank/backups/databases/weekly/` + `tank/backups/services/` + `tank/repos/` |
+| Sun 06:00 | Weekly | `tank/media/images/` (incremental photo sync) |
+
+### Not Backed Up Offsite
+
+| Dataset | Reason |
+|---|---|
+| `tank/media/series`, `movies`, `downloads` | Re-downloadable; too large for cloud quota |
+| `tank/services/databases/` live dirs | Use dumps — never sync live DB dirs |
+| `tank/backups/pbs/` | VM backups too large; PBS is local recovery path |
+| `tank/pxe/` | ISOs are re-downloadable |
