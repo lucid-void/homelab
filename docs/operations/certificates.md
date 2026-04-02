@@ -1,5 +1,6 @@
 ---
 tags:
+  - operations
   - certificates
   - tls
   - acme
