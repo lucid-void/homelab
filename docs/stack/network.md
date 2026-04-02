@@ -1,9 +1,10 @@
 ---
 tags:
-  - architecture
+  - stack
   - network
   - dns
   - vlan
+  - ntp
 ---
 
 # Network & DNS
@@ -19,7 +20,7 @@ tags:
 All inter-VLAN routing and firewall rules are managed on the UDM SE.
 
 <iframe
-  src="../network-topology.html"
+  src="network-topology.html"
   style="width:100%;border:none;border-radius:6px;"
   title="Network topology">
 </iframe>

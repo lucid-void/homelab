@@ -1,9 +1,10 @@
 ---
 tags:
-  - monitoring
+  - operations
   - alerting
   - grafana
   - gotify
+  - security
 ---
 
 # Alerting
@@ -50,3 +51,17 @@ graph LR
 | Alerting engine | Grafana built-in — no Alertmanager |
 | Notification target | Gotify webhook |
 | Rule delivery | File-based provisioning via Ansible |
+
+## Security Alerts (Loki LogQL)
+
+Grafana alerting also evaluates rules against Loki log queries. Authentik and Authelia write auth events to container stdout, which Promtail ships to Loki. SSH failures come from system auth logs.
+
+| Alert | LogQL pattern | Severity |
+|---|---|---|
+| SSH brute force | `{job="syslog"} \|= "Failed password"` > 10 in 5m per host | Warning |
+| Authentik login failure | `{container_name="authentik-server"} \| json \| event="login_failed"` > 5 in 5m | Warning |
+| Authentik login failure burst | Same as above, > 20 in 5m | Critical |
+| Authelia 1FA failure | `{container_name="authelia"} \|= "Unsuccessful 1FA authentication"` > 5 in 5m | Warning |
+| Proxmox API auth failure | `{job="syslog", host="proxmox"} \|= "authentication failure"` | Warning |
+| Backup script failure | `{job="syslog", host="services"} \|= "Backup FAILED"` | Critical |
+| NFS mount stale | `{job="syslog"} \|= "nfs.*stale"` | Critical |

@@ -1,11 +1,12 @@
 ---
 tags:
-  - architecture
+  - stack
   - hardware
   - proxmox
+  - overview
 ---
 
-# Architecture Overview
+# The Stack — Overview
 
 A personal homelab that doubles as a production environment for self-hosted services. Every host, VM, and service is provisioned and configured declaratively.
 

@@ -79,23 +79,18 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Architecture:
-    - Overview: architecture/index.md
-    - Network & DNS: architecture/network.md
-    - VMs & Swarm: architecture/vms.md
-  - Storage:
-    - Overview: storage/index.md
-    - S3 / MinIO: storage/s3.md
-    - Backups: storage/backups.md
-  - IaC Pipeline:
-    - Overview: iac/index.md
-    - Packer: iac/packer.md
-    - OpenTofu: iac/opentofu.md
-    - Ansible: iac/ansible.md
-  - Certificates: certificates/index.md
-  - Monitoring:
-    - Overview: monitoring/index.md
-    - Exporters: monitoring/exporters.md
-    - Alerting: monitoring/alerting.md
-  - Gitea: gitea/index.md
-  - SSO: sso/index.md
+  - The Stack:
+    - Overview: stack/index.md
+    - Network: stack/network.md
+    - Compute: stack/compute.md
+    - Storage: stack/storage.md
+    - Services: stack/services.md
+  - Automation:
+    - Pipeline: automation/index.md
+    - Secrets: automation/secrets.md
+    - CI/CD: automation/cicd.md
+  - Operations:
+    - Monitoring: operations/index.md
+    - Alerting: operations/alerting.md
+    - Certificates: operations/certificates.md
+    - Security: operations/security.md
