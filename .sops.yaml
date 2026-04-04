@@ -1,0 +1,12 @@
+creation_rules:
+  # Ansible secrets — encrypted YAML files
+  - path_regex: .*\.sops\.ya?ml$
+    age: >-
+      ssh-ed25519 YOUR_SSH_ED25519_PUBLIC_KEY,
+      age1YOUR_RECOVERY_AGE_PUBLIC_KEY
+
+  # Terraform secrets — encrypted tfvars files
+  - path_regex: .*\.sops\.tfvars$
+    age: >-
+      ssh-ed25519 YOUR_SSH_ED25519_PUBLIC_KEY,
+      age1YOUR_RECOVERY_AGE_PUBLIC_KEY
