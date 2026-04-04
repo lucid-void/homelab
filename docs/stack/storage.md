@@ -64,15 +64,12 @@ tank/
 │   ├── databases/
 │   │   ├── postgres    recordsize=8K  · compression=lz4  · atime=off   ⚠ see note
 │   │   ├── mariadb     recordsize=16K · compression=lz4  · atime=off   ⚠ see note
-│   │   ├── pgadmin     recordsize=128K · compression=zstd · atime=off
-│   │   └── databassus  recordsize=128K · compression=zstd · atime=off
+│   │   └── pgadmin     recordsize=128K · compression=zstd · atime=off
 │
 ├── s3/                 recordsize=1M  · compression=lz4  · atime=off   ← MinIO data
 │
 ├── backups/
-│   ├── databases/
-│   │   ├── daily/      recordsize=128K · compression=zstd · atime=off  ← Databassus backups
-│   │   └── weekly/     recordsize=128K · compression=zstd · atime=off  ← Scripted backups
+│   ├── databases/      recordsize=128K · compression=zstd · atime=off  ← Daily pg_dump output (30-day retention)
 │   ├── keys/           compression=zstd · ZFS native encryption (AES-256-GCM)
 │   ├── pbs/            recordsize=1M  · compression=lz4  · atime=off   ← PBS chunk store
 │   └── services/       recordsize=128K · compression=zstd · atime=off  ← File backup
@@ -81,7 +78,7 @@ tank/
 ```
 
 <iframe
-  src="storage-diagram.html"
+  src="../storage-diagram.html"
   style="width:100%;border:none;border-radius:6px;"
   title="Storage architecture">
 </iframe>
@@ -128,12 +125,18 @@ tank/
 | `tank/media/authentik` | Services VM (.13) | `/mnt/media/authentik` |
 | `tank/services/databases/*` | **No NFS export** | Local bind mounts on TrueNAS only |
 | `tank/backups/pbs` | PBS VM (.10) | `/mnt/datastore` |
-| `tank/backups/databases/weekly` | Services VM (.13) | `/mnt/backups/databases/weekly` |
+| `tank/backups/databases` | Services VM (.13) | `/mnt/backups/databases` |
 | `tank/backups/services` | Services VM (.13) | `/mnt/backups/services` |
 | `tank/repos` | Linux workstation | `~/repos` |
 | `tank/backups/keys` | **No NFS export** | Local to TrueNAS only |
 
 NFS options: `sync`, `no_subtree_check`.
+
+!!! info "NFS encryption"
+    NFS traffic is cleartext; accepted risk on a private VLAN with VPN-gated access (Netbird). Mitigated by planned host-level nftables.
+
+!!! info "Postgres TLS"
+    Postgres connections are also cleartext on the internal VLAN. Accepted risk: private VLAN, VPN-gated access (Netbird), no external exposure. Mitigated by planned host-level nftables (Postgres port restricted to known client IPs).
 
 !!! tip "NFS-export tier naming"
     New NFS-mounted datasets for Swarm services go under `tank/media/<service>`, not `tank/services/`. The `services/` tier is reserved for containers running directly on TrueNAS.
@@ -150,7 +153,7 @@ NFS options: `sync`, `no_subtree_check`.
 | Authentik media | `tank/media/authentik` NFS | Custom assets, media uploads |
 | Postgres data dir | `tank/services/databases/postgres` — local bind mount on TrueNAS | Engine and data co-located; no NFS |
 | MariaDB data dir | `tank/services/databases/mariadb` — local bind mount on TrueNAS | Engine and data co-located; no NFS |
-| pgadmin / adminer / databassus state | `tank/services/databases/<name>` — local bind mount on TrueNAS | Co-located with engines |
+| pgadmin / adminer state | `tank/services/databases/<name>` — local bind mount on TrueNAS | Co-located with engines |
 | PBS datastore | `tank/backups/pbs` NFS | PBS manages its own chunk store |
 | reactive_resume files | TrueNAS S3 bucket | No SeaweedFS container needed |
 
@@ -160,10 +163,7 @@ NFS options: `sync`, `no_subtree_check`.
 
 TrueNAS SCALE ships with a built-in MinIO app. Enable it under Apps and point its data path at `tank/s3/`.
 
-**Endpoint:** `http://172.16.20.2:9000`
-
-!!! info "Plaintext is acceptable"
-    MinIO runs on the internal homelab VLAN (`172.16.20.0/24`) with no external exposure. Plaintext HTTP is acceptable for this use case.
+**Endpoint:** `https://truenas.blackcats.cc:9000` (TLS — use the hostname, not the IP; the cert is issued for `truenas.blackcats.cc` and IP access bypasses validation)
 
 ## Buckets
 
@@ -176,20 +176,20 @@ TrueNAS SCALE ships with a built-in MinIO app. Enable it under Apps and point it
 Each service uses a dedicated access key. Keys are stored in SOPS-encrypted Ansible secrets.
 
 !!! note "SeaweedFS eliminated"
-    SeaweedFS was originally planned for reactive_resume file storage but was replaced by the existing TrueNAS MinIO instance. This avoids running another distributed storage system for a single consumer — just point reactive_resume at `172.16.20.2:9000` with a dedicated bucket and key.
+    SeaweedFS was originally planned for reactive_resume file storage but was replaced by the existing TrueNAS MinIO instance. This avoids running another distributed storage system for a single consumer — just point reactive_resume at `truenas.blackcats.cc:9000` with a dedicated bucket and key.
 
 ## reactive_resume Configuration
 
 Remove the SeaweedFS container from the compose stack and set these environment variables on the `reactive_resume` service:
 
 ```env
-STORAGE_ENDPOINT=172.16.20.2
+STORAGE_ENDPOINT=truenas.blackcats.cc
 STORAGE_PORT=9000
 STORAGE_REGION=us-east-1
 STORAGE_BUCKET=reactive-resume
 STORAGE_ACCESS_KEY=<truenas-key>
 STORAGE_SECRET_KEY=<truenas-secret>
-STORAGE_USE_SSL=false
+STORAGE_USE_SSL=true
 ```
 
 ---
@@ -200,59 +200,32 @@ STORAGE_USE_SSL=false
 
 ```mermaid
 graph LR
-    subgraph Daily["Daily — 02:00"]
-        DB1[Databassus] -->|pg_dump / mysqldump| DD[tank/backups/<br/>databases/daily]
-    end
-
-    subgraph Weekly["Weekly — Sun 03:00"]
-        STOP[Stop services] --> DUMP[pg_dump] --> SNAP[ZFS snapshot] --> START[Restart services]
-        DUMP --> WD[tank/backups/<br/>databases/weekly]
+    subgraph Daily["Daily — 03:00"]
+        STOP[Stop services] --> DUMP[pg_dump all DBs] --> SNAP[ZFS snapshot 03:05] --> START[Restart services]
+        DUMP --> DD[tank/backups/<br/>databases]
     end
 
     subgraph Offsite["Offsite — rclone crypt"]
-        DD -->|03:30 daily| FILEN[(Filen Cloud)]
-        WD -->|Sun 05:00| FILEN
-        MEDIA[tank/media/paperless] -->|04:00 daily| FILEN
-        PHOTOS[tank/media/images] -->|Sun 06:00| FILEN
+        DD -->|daily| FILEN[(Filen Cloud)]
+        MEDIA[tank/media/paperless] -->|daily| FILEN
+        PHOTOS[tank/media/images] -->|daily| FILEN
     end
 
-    style Daily fill:#a6da95,stroke:#a6da95,color:#1e2030
-    style Weekly fill:#eed49f,stroke:#eed49f,color:#1e2030
+    style Daily fill:#eed49f,stroke:#eed49f,color:#1e2030
     style Offsite fill:#8aadf4,stroke:#8aadf4,color:#1e2030
 ```
 
-=== "Daily — Databasus"
+A single script runs **daily at 03:00** on TrueNAS (.2). It stops services (via SSH to the Swarm manager at .13), dumps all databases locally, waits for the automated ZFS snapshot at 03:05, restarts services, then syncs offsite via rclone directly from local ZFS snapshot paths. rclone and Filen credentials are deployed to TrueNAS by Ansible.
 
-    Databasus runs as a Swarm service on Services VM. It connects to Postgres and MariaDB over TCP and writes dumps to `tank/backups/databases/daily/` (NFS-mounted into the container).
+The script is maintained in the IaC repository. Ansible deploys it to TrueNAS and installs it as a cron job — it is version-controlled, reviewed through normal CI, and updated automatically when Ansible runs.
 
-    - **Schedule:** 02:00 daily
-    - **Retention:** 7 daily dumps
-    - **Services stay running** throughout — no downtime
-
-=== "Weekly — Coordinated shutdown"
-
-    Runs every Sunday at 03:00 on Services VM. Stops services, dumps databases, snapshots file datasets, then restarts services.
-
-    ```bash
-    # 1. Stop Immich and Paperless
-    docker service scale immich_server=0 immich_microservices=0
-    docker service scale paperless_webserver=0 paperless_worker=0
-
-    # 2. Dump databases
-    pg_dump immich    > /mnt/backups/databases/weekly/immich_$(date +%F).sql
-    pg_dump paperless > /mnt/backups/databases/weekly/paperless_$(date +%F).sql
-
-    # 3. ZFS snapshots (instant — downtime = pg_dump duration only)
-    ssh truenas "zfs snapshot tank/media/images@weekly-$(date +%F)"
-    ssh truenas "zfs snapshot tank/media/paperless@weekly-$(date +%F)"
-
-    # 4. Restart services
-    docker service scale immich_server=1 immich_microservices=1
-    docker service scale paperless_webserver=1 paperless_worker=1
-    ```
-
-    - **Retention:** 4 weekly SQL dumps; 4 ZFS snapshots per dataset
-    - **Downtime:** ~1-3 minutes (pg_dump duration)
+- **Schedule:** 03:00 daily
+- **Runs on:** TrueNAS (.2) — direct local access to ZFS datasets, snapshots, and databases
+- **Downtime:** ~2–5 minutes (service stop → dump → snapshot wait → restart)
+- **Step 1 — TrueNAS config export:** `GET /api/v2.0/config/save` — exports a tar.gz of the full system config (pool layout, datasets, network, users, credentials, ACME config) to `tank/backups/services/truenas/truenas-config-$(date +%F).tar.gz`, 7-day local retention, synced offsite to Filen. Required for total-loss recovery (Scenario C3/D): without it the correct pool layout cannot be reconstructed before restoring data from Filen.
+- **Databases in scope:** `immich`, `paperless`, `gitea`, `authentik`, `freshrss`
+- **Retention:** 30 daily SQL dumps in `tank/backups/databases/`
+- **Timeout:** 4-hour total limit; on success emits a heartbeat timestamp for Prometheus alerting (alert fires if file is older than 25 hours)
 
 === "Offsite — Filen"
 
@@ -277,10 +250,8 @@ graph LR
 
 | Time | Frequency | What |
 |---|---|---|
-| 03:30 | Daily | `tank/backups/keys/` + `tank/backups/databases/daily/` |
-| 04:00 | Daily | `tank/media/paperless/` (incremental) |
-| Sun 05:00 | Weekly | `tank/backups/databases/weekly/` + `tank/backups/services/` + `tank/repos/` |
-| Sun 06:00 | Weekly | `tank/media/images/` (incremental photo sync) |
+| 03:00 | Daily | Services stopped → pg_dump all DBs → ZFS snapshot → restart |
+| ~04:00 | Daily | rclone sync: databases, paperless, images, services → Filen |
 
 ### Not Backed Up Offsite
 

@@ -13,7 +13,7 @@ What runs where — every service pinned to its host via Swarm placement constra
 
 === "Services VM (.13)"
 
-    Traefik, Paperless, paperless-broker (Valkey), Gotenberg, Tika, Immich, Immich ML (CPU), immich-valkey, N8N, reactive-resume, reactive-resume-browserless, Homebox, IT-Tools, Authentik, Authentik-worker, authentik-valkey, Authelia, authelia-valkey
+    Traefik, Paperless, paperless-broker (Valkey), Gotenberg, Tika, Immich, Immich ML (CPU), immich-valkey, reactive-resume, reactive-resume-browserless, Homebox, IT-Tools, Authentik, Authentik-worker, authentik-valkey, Authelia, authelia-valkey
 
 === "Media VM (.12)"
 
@@ -56,4 +56,4 @@ Services are isolated by function — each logical group gets its own encrypted 
 | `auth` | Authentik, authentik-worker, authentik-valkey, Authelia, authelia-valkey | SSO components |
 | `monitoring` | Prometheus, Loki, Grafana, Gotify, Uptime Kuma | PLG stack |
 
-**Standalone services** (n8n, homebox, it-tools, freshrss, Gitea) join only the `traefik` overlay for HTTP routing. Database access goes over TCP to TrueNAS on the host network.
+**Standalone services** (homebox, it-tools, freshrss, Gitea) join only the `traefik` overlay for HTTP routing. Database access goes over TCP to TrueNAS on the host network.

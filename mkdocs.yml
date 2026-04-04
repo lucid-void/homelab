@@ -94,3 +94,4 @@ nav:
     - Alerting: operations/alerting.md
     - Certificates: operations/certificates.md
     - Security: operations/security.md
+    - Incident Response: operations/incident-response.md
