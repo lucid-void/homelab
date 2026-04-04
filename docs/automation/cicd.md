@@ -60,3 +60,23 @@ Workflow files live in `.gitea/workflows/` (GitHub Actions-compatible syntax).
 
 !!! danger "Apply is never automated"
     `tofu apply` is always run manually after a plan has been reviewed. This matches the `just plan -> just show -> just apply` discipline and guards against accidental destroys in CI.
+
+## Drift Detection
+
+Weekly scheduled Gitea Actions jobs catch infrastructure and configuration drift early. Both are read-only — no changes are applied automatically.
+
+| Job | Command | Report |
+|---|---|---|
+| Infrastructure drift | `tofu plan` against current state | Gotify notification |
+| Configuration drift | `ansible-playbook --check --diff site.yml` | Gotify notification |
+
+Any drift found is reviewed and addressed manually via the normal pipeline.
+
+## Image Pinning Policy
+
+Docker Compose image tags are pinned to **minor semver** (e.g. `traefik:v3.1`, `grafana/grafana:11.2`).
+
+- Do **not** use rolling major tags (e.g. `traefik:v3`) — these change silently on every release
+- Do **not** use digest pins — too maintenance-heavy for a homelab
+
+Renovate Bot is configured to propose minor/patch updates per this policy. Existing Compose files using rolling major tags should be updated to the current minor version.

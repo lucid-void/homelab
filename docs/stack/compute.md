@@ -17,7 +17,7 @@ All VMs are provisioned via the Packer -> OpenTofu -> Ansible pipeline.
 | PBS VM | .10 | No | Proxmox Backup Server — standalone Debian VM |
 | DNS/NTP VM | .11 | Worker | Primary Technitium DNS (zone authority), chrony NTP |
 | Media VM | .12 | Worker | Plex, *arr stack, download clients |
-| Services VM | .13 | **Manager** | Traefik, Paperless, Immich, Authentik, Authelia, N8N, general services |
+| Services VM | .13 | **Manager** | Traefik, Paperless, Immich, Authentik, Authelia, general services |
 | Game VM | .14 | Worker | Satisfactory, Netbird, ZeroTier |
 | Lab VM | .15 | Worker | Testing, staging, ephemeral workloads |
 | Monitoring VM | .16 | Worker | Prometheus, Loki, Grafana, exporters |
@@ -58,9 +58,12 @@ graph TB
 | Game VM (.14) | Worker | Game + networking services |
 | Lab VM (.15) | Worker | No pinned services; free for testing |
 | Monitoring VM (.16) | Worker | Monitoring stack pinned here |
-| DGX Spark (.4) | Worker | GPU node; AI/ML stack pinned here |
+| DGX Spark (.4) | Worker | GPU node; AI/ML stack pinned here; powered off by default, woken via WOL for GPU workloads; alerting suppressed for host-down states |
 
 PBS VM (`.10`) is **not** a Swarm member — standalone Proxmox Backup Server.
 
 !!! tip "Single manager is sufficient"
     The Raft control plane is separate from the data plane: **all running services remain up if the manager reboots**. Management operations are blocked only during that window.
+
+!!! note "Swarm viability"
+    Docker Swarm is in maintenance mode but remains appropriate at current scale (~20 services). Migration trigger: >50 services, need for CRDs/operators, or Swarm is dropped from Docker Engine.
