@@ -12,10 +12,17 @@ __pycache__/
 .venv/
 *.egg-info/
 
-# SOPS / secrets (extra safety net)
-*.sops.yml
-*.sops.yaml
-*.sops.tfvars
+# SOPS — encrypted files ARE committed (that's the point); only block decrypted temp outputs
+*.sops.tfvars.dec
+*.sops.yml.dec
+
+# OpenTofu
+*.tfplan
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl
+
+# Action plan (personal, local only)
+PLAN.md
 
 # Editor
 .DS_Store
