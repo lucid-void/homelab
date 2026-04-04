@@ -8,17 +8,23 @@ tags:
 
 # Secrets
 
-Secrets are encrypted files committed to git. SOPS encrypts using the operator's SSH public key as the age recipient.
+Secrets are encrypted files committed to git. SOPS encrypts using the operator's SSH public key as the age recipient. A **single SOPS age key** is used for all secrets — no per-function key scoping. Per-function scoping was evaluated and rejected: in a runner-compromise scenario any key the runner holds is exposed regardless of scope, so scoping provides no meaningful blast-radius reduction. A backup/recovery copy of the age key is stored in `tank/backups/keys/` (ZFS-encrypted, no NFS export).
 
 ### `.sops.yaml` (repo root)
 
 ```yaml
 creation_rules:
   - path_regex: .*\.sops\.ya?ml$
-    age: ssh-ed25519 AAAA...yourpublickey
+    age: >-
+      ssh-ed25519 AAAA...yourpublickey,
+      age1...recoverykey
   - path_regex: .*\.sops\.tfvars$
-    age: ssh-ed25519 AAAA...yourpublickey
+    age: >-
+      ssh-ed25519 AAAA...yourpublickey,
+      age1...recoverykey
 ```
+
+Both recipients (primary SSH key and recovery age key) can decrypt independently. The recovery key is stored in `tank/backups/keys/` (ZFS-encrypted) with a printed paper copy offline.
 
 ### Secret Files
 
@@ -52,7 +58,7 @@ ansible-playbook -i inventory/ playbooks/site.yml
 tofu apply -var-file=<(sops decrypt secrets.sops.tfvars)
 ```
 
-The SSH private key is backed up to `tank/backups/keys/`. In CI, it is injected as a repository secret (`SOPS_AGE_SSH_KEY`).
+The SSH private key (primary) is backed up to `tank/backups/keys/` (ZFS-encrypted). In CI, it is injected as a repository secret (`SOPS_AGE_SSH_KEY`).
 
 ---
 
@@ -71,5 +77,6 @@ The SSH private key is backed up to `tank/backups/keys/`. In CI, it is injected 
 | OIDC client secret (Authelia→Authentik) | New secret in Authentik → `sops edit` → Ansible redeploy Authelia |
 | SOPS age key (primary) | New SSH key → `sops updatekeys` on all files → commit → Ansible deploy to runner |
 | SOPS age key (recovery) | New age key → `sops updatekeys` → store in `tank/backups/keys/` + new paper copy |
+| Docker Swarm join tokens | `docker swarm join-token --rotate worker` on manager (.13) → `docker swarm join-token --rotate manager` on manager → update join token in Ansible inventory/vars → rotate after any worker node is decommissioned or rebuilt |
 
 **Post-rotation:** Run the service's health check and confirm no auth errors in Loki.
