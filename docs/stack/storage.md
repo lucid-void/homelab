@@ -27,7 +27,6 @@ graph LR
         ZFS[(ZFS Pool<br/>tank)]
         PG[Postgres]
         MB[MariaDB]
-        S3[MinIO S3]
     end
 
     SVC -->|NFS mount| NFS
@@ -35,14 +34,11 @@ graph LR
     PBS -->|NFS mount| NFS
     NFS --> ZFS
     SVC -->|TCP :5432| PG
-    SVC -->|TCP :9000| S3
     PG -->|local bind| ZFS
     MB -->|local bind| ZFS
-    S3 --> ZFS
 
     style ZFS fill:#a6da95,stroke:#a6da95,color:#1e2030
     style NFS fill:#8aadf4,stroke:#8aadf4,color:#1e2030
-    style S3 fill:#eed49f,stroke:#eed49f,color:#1e2030
 ```
 
 ## ZFS Dataset Tree
@@ -57,16 +53,13 @@ tank/
 │   ├── downloads       recordsize=1M  · compression=off  · atime=off
 │   ├── images          recordsize=128K · compression=lz4  · atime=off   ← Immich
 │   ├── paperless       recordsize=128K · compression=zstd · atime=off
-│   ├── gitea           recordsize=128K · compression=zstd · atime=off
-│   └── authentik       recordsize=128K · compression=zstd · atime=off
+│   └── gitea           recordsize=128K · compression=zstd · atime=off
 │
 ├── services/                                                            ← For local containers on TrueNAS
 │   ├── databases/
 │   │   ├── postgres    recordsize=8K  · compression=lz4  · atime=off   ⚠ see note
 │   │   ├── mariadb     recordsize=16K · compression=lz4  · atime=off   ⚠ see note
 │   │   └── pgadmin     recordsize=128K · compression=zstd · atime=off
-│
-├── s3/                 recordsize=1M  · compression=lz4  · atime=off   ← MinIO data
 │
 ├── backups/
 │   ├── databases/      recordsize=128K · compression=zstd · atime=off  ← Daily pg_dump output (30-day retention)
@@ -89,9 +82,9 @@ tank/
 |---|---|---|
 | `atime=off` | All datasets | Eliminates write-on-read overhead |
 | `compression=off` | Video datasets | Already compressed; CPU cost with zero gain |
-| `compression=lz4` | Images, DB live, PBS, S3 | Near-zero CPU cost, moderate gain |
+| `compression=lz4` | Images, DB live, PBS | Near-zero CPU cost, moderate gain |
 | `compression=zstd` | Documents, dumps, configs, repos | Good ratio, worth the CPU |
-| `recordsize=1M` | Video, PBS, S3 | Large sequential reads/writes |
+| `recordsize=1M` | Video, PBS | Large sequential reads/writes |
 | `recordsize=128K` | General files | TrueNAS default; suits mixed workloads |
 | `recordsize=8K` | `postgres` | **Must match Postgres page size exactly** |
 | `recordsize=16K` | `mariadb` | **Must match InnoDB page size exactly** |
@@ -122,7 +115,6 @@ tank/
 | `tank/media/images` | Services VM (.13) | `/mnt/media/images` |
 | `tank/media/paperless` | Services VM (.13) | `/mnt/media/paperless` |
 | `tank/media/gitea` | Services VM (.13) | `/mnt/media/gitea` |
-| `tank/media/authentik` | Services VM (.13) | `/mnt/media/authentik` |
 | `tank/services/databases/*` | **No NFS export** | Local bind mounts on TrueNAS only |
 | `tank/backups/pbs` | PBS VM (.10) | `/mnt/datastore` |
 | `tank/backups/databases` | Services VM (.13) | `/mnt/backups/databases` |
@@ -150,47 +142,10 @@ NFS options: `sync`, `no_subtree_check`.
 | Immich photos | `tank/media/images` NFS | Irreplaceable user data |
 | Paperless documents | `tank/media/paperless` NFS | Irreplaceable user data |
 | Gitea data | `tank/media/gitea` NFS | Application data, mirrors GitHub |
-| Authentik media | `tank/media/authentik` NFS | Custom assets, media uploads |
 | Postgres data dir | `tank/services/databases/postgres` — local bind mount on TrueNAS | Engine and data co-located; no NFS |
 | MariaDB data dir | `tank/services/databases/mariadb` — local bind mount on TrueNAS | Engine and data co-located; no NFS |
 | pgadmin / adminer state | `tank/services/databases/<name>` — local bind mount on TrueNAS | Co-located with engines |
 | PBS datastore | `tank/backups/pbs` NFS | PBS manages its own chunk store |
-| reactive_resume files | TrueNAS S3 bucket | No SeaweedFS container needed |
-
----
-
-## S3 / MinIO
-
-TrueNAS SCALE ships with a built-in MinIO app. Enable it under Apps and point its data path at `tank/s3/`.
-
-**Endpoint:** `https://truenas.blackcats.cc:9000` (TLS — use the hostname, not the IP; the cert is issued for `truenas.blackcats.cc` and IP access bypasses validation)
-
-## Buckets
-
-| Bucket | Consumer | Notes |
-|---|---|---|
-| `reactive-resume` | reactive_resume on Services VM (.13) | Replaces SeaweedFS |
-| `terraform-state` | OpenTofu | Remote state backend |
-| `loki` | Loki log storage | Future use |
-
-Each service uses a dedicated access key. Keys are stored in SOPS-encrypted Ansible secrets.
-
-!!! note "SeaweedFS eliminated"
-    SeaweedFS was originally planned for reactive_resume file storage but was replaced by the existing TrueNAS MinIO instance. This avoids running another distributed storage system for a single consumer — just point reactive_resume at `truenas.blackcats.cc:9000` with a dedicated bucket and key.
-
-## reactive_resume Configuration
-
-Remove the SeaweedFS container from the compose stack and set these environment variables on the `reactive_resume` service:
-
-```env
-STORAGE_ENDPOINT=truenas.blackcats.cc
-STORAGE_PORT=9000
-STORAGE_REGION=us-east-1
-STORAGE_BUCKET=reactive-resume
-STORAGE_ACCESS_KEY=<truenas-key>
-STORAGE_SECRET_KEY=<truenas-secret>
-STORAGE_USE_SSL=true
-```
 
 ---
 
@@ -223,7 +178,7 @@ The script is maintained in the IaC repository. Ansible deploys it to TrueNAS an
 - **Runs on:** TrueNAS (.2) — direct local access to ZFS datasets, snapshots, and databases
 - **Downtime:** ~2–5 minutes (service stop → dump → snapshot wait → restart)
 - **Step 1 — TrueNAS config export:** `GET /api/v2.0/config/save` — exports a tar.gz of the full system config (pool layout, datasets, network, users, credentials, ACME config) to `tank/backups/services/truenas/truenas-config-$(date +%F).tar.gz`, 7-day local retention, synced offsite to Filen. Required for total-loss recovery (Scenario C3/D): without it the correct pool layout cannot be reconstructed before restoring data from Filen.
-- **Databases in scope:** `immich`, `paperless`, `gitea`, `authentik`, `freshrss`
+- **Databases in scope:** `immich`, `paperless`, `gitea`, `zitadel`, `freshrss`, `tofu_state`
 - **Retention:** 30 daily SQL dumps in `tank/backups/databases/`
 - **Timeout:** 4-hour total limit; on success emits a heartbeat timestamp for Prometheus alerting (alert fires if file is older than 25 hours)
 
