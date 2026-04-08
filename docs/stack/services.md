@@ -13,7 +13,7 @@ What runs where — every service pinned to its host via Swarm placement constra
 
 === "Services VM (.13)"
 
-    Traefik, Paperless, paperless-broker (Valkey), Gotenberg, Tika, Immich, Immich ML (CPU), immich-valkey, reactive-resume, reactive-resume-browserless, Homebox, IT-Tools, Authentik, Authentik-worker, authentik-valkey, Authelia, authelia-valkey
+    Traefik, Paperless, paperless-broker (Valkey), Gotenberg, Tika, Immich, Immich ML (CPU), immich-valkey, Homebox, IT-Tools, FreshRSS, Gitea, Zitadel, Authelia, authelia-valkey
 
 === "Media VM (.12)"
 
@@ -51,9 +51,8 @@ Services are isolated by function — each logical group gets its own encrypted 
 | `media` | Plex, Sonarr, Radarr, Prowlarr, Sabnzbd, qBittorrent, FlareSolverr | *arr interconnect |
 | `paperless` | Paperless, paperless-broker (Valkey), Gotenberg, Tika | Document pipeline |
 | `immich` | Immich server, ML, immich-valkey | Photo pipeline |
-| `reactive-resume` | reactive-resume, browserless | Resume builder |
 | `llm` | Ollama, vLLM, OpenWebUI, Langfuse, Qdrant, SearXNG, Cortex stack | AI/ML interconnect |
-| `auth` | Authentik, authentik-worker, authentik-valkey, Authelia, authelia-valkey | SSO components |
+| `auth` | Zitadel, Authelia, authelia-valkey | SSO components |
 | `monitoring` | Prometheus, Loki, Grafana, Gotify, Uptime Kuma | PLG stack |
 
 **Standalone services** (homebox, it-tools, freshrss, Gitea) join only the `traefik` overlay for HTTP routing. Database access goes over TCP to TrueNAS on the host network.
