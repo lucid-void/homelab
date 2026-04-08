@@ -46,7 +46,7 @@ sequenceDiagram
 `tank/media/gitea` follows the NFS-export tier pattern: `recordsize=128K · compression=zstd · atime=off`.
 
 !!! info "Runner LXC access requirements"
-    The runner LXC requires broad network access: SSH to all homelab hosts for Ansible, the Proxmox API for OpenTofu dynamic inventory, and TrueNAS MinIO for OpenTofu state. The SOPS age private key is deployed to the runner by Ansible, allowing it to decrypt secrets at pipeline runtime.
+    The runner LXC requires broad network access: SSH to all homelab hosts for Ansible, the Proxmox API for OpenTofu dynamic inventory, and TrueNAS Postgres for OpenTofu state. The SOPS age private key is deployed to the runner by Ansible, allowing it to decrypt secrets at pipeline runtime.
 
 ## Pipelines
 
