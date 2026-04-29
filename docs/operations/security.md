@@ -3,16 +3,16 @@ tags:
   - operations
   - security
   - sso
-  - authentik
-  - authelia
+  - zitadel
+  - oauth2-proxy
   - firewall
 ---
 
 # Security
 
-## SSO — Authentik & Authelia
+## SSO — Zitadel & oauth2-proxy
 
-Authentik is the single identity provider — all users, credentials, 2FA, and group membership are managed there. Authelia sits in front of Traefik as a forward auth middleware for services that have no native OIDC support, authenticating back to Authentik via OIDC. There is no separate user database in Authelia.
+Zitadel is the single identity provider — all users, credentials, 2FA, and group membership are managed there. oauth2-proxy sits in front of Traefik as a forward auth middleware for services without native OIDC support. It authenticates against Zitadel as a public OIDC client (PKCE, no secret). There is no separate user database — Zitadel is the single source of truth.
 
 ## Auth Flows
 
@@ -24,39 +24,40 @@ For apps that support it (Grafana, Immich, and others determined per service):
 sequenceDiagram
     participant U as User
     participant App as Application
-    participant AK as Authentik<br/>authentik.blackcats.cc
+    participant ZI as Zitadel<br/>zitadel.blackcats.cc
 
     U->>App: Access app
-    App->>AK: Redirect to login
-    U->>AK: Authenticate (credentials + 2FA)
-    AK-->>App: OIDC token
+    App->>ZI: Redirect to login
+    U->>ZI: Authenticate (credentials + 2FA)
+    ZI-->>App: OIDC token
     App->>App: Validate token
     App-->>U: Authenticated session
 ```
 
 ### Traefik Forward Auth
 
-For apps without native OIDC support:
+For apps without native OIDC support (*arr stack, etc.):
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant TF as Traefik
-    participant AL as Authelia
-    participant AK as Authentik
+    participant OP as oauth2-proxy<br/>auth.blackcats.cc
+    participant ZI as Zitadel
 
     U->>TF: Request app.blackcats.cc
-    TF->>AL: Forward auth check
-    AL-->>TF: 401 — not authenticated
-    TF-->>U: Redirect to Authelia login
-    U->>AL: Login page
-    AL->>AK: OIDC redirect
-    U->>AK: Authenticate (credentials + 2FA)
-    AK-->>AL: OIDC callback + token
-    AL-->>U: Set session cookie
+    TF->>OP: Forward auth check (/oauth2/auth)
+    OP-->>TF: 401 — not authenticated
+    TF-->>U: Redirect to oauth2-proxy
+    OP->>ZI: PKCE authorization redirect
+    U->>ZI: Authenticate (credentials + 2FA)
+    ZI-->>OP: Authorization code
+    OP->>ZI: Token exchange (PKCE verifier)
+    ZI-->>OP: Access token
+    OP-->>U: Set session cookie
     U->>TF: Retry with cookie
-    TF->>AL: Forward auth check
-    AL-->>TF: 200 — authenticated
+    TF->>OP: Forward auth check
+    OP-->>TF: 200 — authenticated
     TF-->>U: Serve application
 ```
 
@@ -68,14 +69,12 @@ All components run as Swarm services on Services VM (.13).
 
 | Component | Detail |
 |---|---|
-| Authentik server | `authentik.blackcats.cc` via Traefik · TLS auto |
-| Authentik worker | Same image, separate service · background tasks (email, flows, events) |
-| authentik-valkey | Dedicated Valkey · cache + sessions · ephemeral local volume |
-| Authentik DB | Shared Postgres on TrueNAS (.2) · dedicated `authentik` database |
-| Authentik data | `tank/media/authentik` NFS -> `/mnt/media/authentik` · media uploads, custom assets |
-| Authelia | Traefik forward auth middleware · OIDC client of Authentik · no own user DB |
-| authelia-valkey | Dedicated Valkey · session storage · ephemeral local volume |
-| Authelia config | YAML managed by Ansible · no persistent data volume · OIDC client secret in SOPS |
+| Zitadel server | `zitadel.blackcats.cc` via Traefik · TLS auto · Go binary |
+| Zitadel login UI | Next.js app (`ghcr.io/zitadel/zitadel-login`) · served at `zitadel.blackcats.cc/ui/v2/login` · reads login-client PAT from shared `zitadel-bootstrap` volume |
+| Zitadel DB | Shared Postgres on DB VM (.10) · dedicated `zitadel` database |
+| oauth2-proxy | `auth.blackcats.cc` · Traefik forward auth middleware · public OIDC client of Zitadel (PKCE, no secret) · Swarm middleware name `oauth2-proxy@swarm` |
+| oauth2-proxy-valkey | Dedicated Valkey · session storage · ephemeral local volume · no password (internal to `auth` overlay only) |
+| oauth2-proxy config | TOML managed by Ansible · cookie secret in SOPS |
 
 ### Component Relationships
 
@@ -83,22 +82,20 @@ All components run as Swarm services on Services VM (.13).
 graph TB
     U[User] --> TF[Traefik]
 
-    TF -->|native OIDC apps| AK[Authentik<br/>Identity Provider]
-    TF -->|forward auth| AL[Authelia<br/>Middleware]
-    AL -->|OIDC client| AK
+    TF -->|native OIDC apps| ZI[Zitadel<br/>Identity Provider]
+    TF -->|forward auth| OP[oauth2-proxy<br/>Middleware]
+    OP -->|PKCE/OIDC| ZI
 
-    AK --> AK_V[authentik-valkey<br/>Cache + sessions]
-    AK --> AK_DB[(Postgres<br/>authentik DB)]
-    AK --> AK_DATA[tank/media/authentik<br/>NFS]
-    AL --> AL_V[authelia-valkey<br/>Sessions]
+    ZI --> ZI_DB[(Postgres<br/>zitadel DB)]
+    OP --> OP_V[oauth2-proxy-valkey<br/>Sessions]
 
-    style AK fill:#c6a0f6,stroke:#c6a0f6,color:#1e2030
-    style AL fill:#b7bdf8,stroke:#b7bdf8,color:#1e2030
+    style ZI fill:#c6a0f6,stroke:#c6a0f6,color:#1e2030
+    style OP fill:#b7bdf8,stroke:#b7bdf8,color:#1e2030
     style TF fill:#eed49f,stroke:#eed49f,color:#1e2030
 ```
 
-!!! note "Authelia has no data volume"
-    Config is YAML in git (deployed by Ansible), sessions live in Valkey, and all credentials are stored in Authentik. The OIDC client secret (Authelia registered as a client in Authentik) is encrypted in SOPS.
+!!! note "oauth2-proxy uses PKCE — no client secret"
+    oauth2-proxy is registered as a public OIDC client in Zitadel. The PKCE flow (S256 challenge) replaces the client secret. Only a cookie secret (session encryption) is stored in SOPS.
 
 !!! note "Placement rationale"
     A dedicated auth VM was considered but rejected: Traefik is pinned to Services VM, so forward auth always traverses Services VM regardless. Separating auth adds VM overhead without meaningful resilience gain.
@@ -113,10 +110,9 @@ The homelab VLAN (`172.16.20.0/24`) is a flat trusted network. The VLAN boundary
 
 | Service | Mechanism | Allowed sources |
 |---|---|---|
-| Postgres (5432) | `pg_hba.conf` | .13 (Services), .16 (Monitoring), .17 (Runner) |
+| Postgres (5432) | `pg_hba.conf` | .13 (Services), .11 (Monitoring), .17 (Runner) |
 | MariaDB (3306) | `bind-address` + `GRANT` | .13 (Services) |
-| NFS (2049) | `allowed_hosts` per export | .10 (PBS), .12 (Media), .13 (Services) |
-| MinIO (9000) | Bucket policies by source IP | .13 (Services), .17 (Runner) |
+| NFS (2049) | `allowed_hosts` per export | .10 (DB/backups), .12 (Media), .13 (Services) |
 
 ### Host-Level Firewall (Services VM)
 
@@ -155,8 +151,9 @@ Lightweight containment checklist for a compromised host or service.
 
 | Host | Credentials at risk |
 |---|---|
-| Services VM (.13) | Cloudflare token, OIDC secrets, Valkey passwords, Gotify tokens, all Swarm secrets |
-| Runner LXC (.17) | **Highest risk** — SOPS age key, SSH to all hosts, Proxmox API, MinIO keys |
-| TrueNAS (.2) | All DB passwords, MinIO keys, NFS exports, ZFS encryption key |
-| Monitoring VM (.16) | Prometheus targets (read-only), Gotify token, UDM SE read-only account |
-| Proxmox (.3) | VM management, PBS access — physical access to all VMs |
+| Services VM (.13) | Cloudflare token, OIDC cookie secrets, Zitadel masterkey, Gotify tokens, all Swarm secrets |
+| Runner LXC (.17) | **Highest risk** — SOPS age key, SSH to all hosts, Proxmox API, Tofu state DB credentials |
+| Synology (.2) | NFS exports (media data), Btrfs snapshots, rclone sync staging |
+| DB VM (.10) | Postgres data (all apps), rclone/Filen credentials, backup cron |
+| Monitoring VM (.11) | Prometheus targets (read-only), Gotify token, UDM SE read-only account |
+| Proxmox (.3) | VM management — physical access to all VMs |
