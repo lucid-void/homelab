@@ -1,48 +1,121 @@
-# Homelab IaC — task runner
-# See README.md for usage and prerequisites.
+# Homelab — Task Runner
 
-# ── Packer ─────────────────────────────────────────────────────────────────
+set dotenv-load := false
 
-# Build the Debian base VM template in Proxmox
+_default:
+    @just --list
+
+# Initialize IAC backends
+init:
+    cd infra/packer && packer init config.pkr.hcl
+    cd ..
+    cd infra/terraform && sops exec-env secrets.sops.tfvars 'tofu init -upgrade'
+    cd ..
+    cd infra/ansible && ansible-galaxy collection install -r requirements.yml
+
+# ── Packer ────────────────────────────────────────────────────────────────────
+
 build-template:
-    packer build infra/packer/debian-base.pkr.hcl
+    sops exec-file --input-type binary --filename tmp-file.hcl infra/packer/credentials.sops.pkr.hcl 'packer build --var-file={} infra/packer/Debian13/debian-base.pkr.hcl'
 
-# ── OpenTofu ────────────────────────────────────────────────────────────────
+# Validate Packer template (no build)
+validate-template:
+    packer validate infra/packer/
 
-# Generate a plan and write it to tfplan (review before applying)
+# ── OpenTofu ──────────────────────────────────────────────────────────────────
+
+
+# Plan — outputs tfplan for review before apply
 plan:
-    cd infra/terraform && sops exec-env secrets.sops.tfvars 'tofu plan -out=tfplan'
+    cd infra/terraform && sops exec-file --input-type binary --filename secrets.tfvars secrets.sops.tfvars 'tofu plan --var-file={} -out=tfplan'
 
-# Show the saved plan in human-readable form
+# Show the last plan in human-readable form
 show:
     cd infra/terraform && tofu show tfplan
 
-# Apply exactly the reviewed plan (no re-evaluation)
+# Apply the reviewed plan (never re-evaluates — applies exactly what was planned)
 apply:
-    cd infra/terraform && sops exec-env secrets.sops.tfvars 'tofu apply tfplan'
+    cd infra/terraform && sops exec-file --input-type binary --filename secrets.tfvars secrets.sops.tfvars 'tofu apply --var-file={} tfplan'
 
-# ── Ansible ─────────────────────────────────────────────────────────────────
+# Destroy all managed resources (DANGEROUS — prompts for confirmation)
+destroy:
+    cd infra/terraform && sops exec-env secrets.sops.tfvars 'tofu destroy'
 
-# Full configuration run — all hosts, all roles
+# ── Ansible ───────────────────────────────────────────────────────────────────
+
+# Refresh the Proxmox dynamic inventory cache (needed after adding/removing VMs)
+inventory-refresh:
+    cd infra/ansible && \
+    PROXMOX_TOKEN_SECRET="$(sops -d --extract '["proxmox_api_token"]' inventory/group_vars/all/secrets.sops.yml | cut -d= -f2-)" \
+    ansible-inventory --list > /dev/null
+
+# Full configuration run — all hosts, all roles, deploy stacks
 configure:
-    ansible-playbook -i infra/ansible/inventory/ infra/ansible/playbooks/site.yml
+    cd infra/ansible && \
+    PROXMOX_TOKEN_SECRET="$(sops -d --extract '["proxmox_api_token"]' inventory/group_vars/all/secrets.sops.yml | cut -d= -f2-)" \
+    ansible-playbook playbooks/site.yml
 
-# Configure a single host (e.g. just configure host=services)
+# Configure a single host
+# Usage: just configure-host host=services
 configure-host host:
-    ansible-playbook -i infra/ansible/inventory/ infra/ansible/playbooks/site.yml --limit {{ host }}
+    cd infra/ansible && \
+    PROXMOX_TOKEN_SECRET="$(sops -d --extract '["proxmox_api_token"]' inventory/group_vars/all/secrets.sops.yml | cut -d= -f2-)" \
+    ansible-playbook playbooks/site.yml --limit {{ host }}
 
-# Redeploy a single Swarm stack (e.g. just deploy-stack stack=media)
-deploy-stack stack:
-    ansible-playbook -i infra/ansible/inventory/ infra/ansible/playbooks/site.yml --tags stack_{{ stack }}
+# Configure VMs only (skip physical hosts)
+configure-vms:
+    cd infra/ansible && \
+    PROXMOX_TOKEN_SECRET="$(sops -d --extract '["proxmox_api_token"]' inventory/group_vars/all/secrets.sops.yml | cut -d= -f2-)" \
+    ansible-playbook playbooks/vms.yml
 
-# First-time ACME certificate provisioning (registers domains, configures Cloudflare plugin)
+# Provision TLS certificates (first-time ACME setup)
 certs:
-    ansible-playbook -i infra/ansible/inventory/ infra/ansible/playbooks/certs.yml
+    cd infra/ansible && \
+    PROXMOX_TOKEN_SECRET="$(sops -d --extract '["proxmox_api_token"]' inventory/group_vars/all/secrets.sops.yml | cut -d= -f2-)" \
+    ansible-playbook playbooks/certs.yml
 
-# ── Lint ─────────────────────────────────────────────────────────────────────
+# Dry-run — show what would change without applying
+check:
+    cd infra/ansible && \
+    PROXMOX_TOKEN_SECRET="$(sops -d --extract '["proxmox_api_token"]' inventory/group_vars/all/secrets.sops.yml | cut -d= -f2-)" \
+    ansible-playbook playbooks/site.yml --check --diff
 
-# Validate all IaC files (Packer, Terraform, Ansible)
-lint:
-    packer validate infra/packer/
+# ── Stack deployment ──────────────────────────────────────────────────────────
+
+# Redeploy a single Swarm stack
+# Usage: just deploy-stack stack=media
+deploy-stack stack:
+    cd infra/ansible && \
+    PROXMOX_TOKEN_SECRET="$(sops -d --extract '["proxmox_api_token"]' inventory/group_vars/all/secrets.sops.yml | cut -d= -f2-)" \
+    ansible-playbook playbooks/site.yml --tags stack_{{ stack }}
+
+# ── Linting ───────────────────────────────────────────────────────────────────
+
+# Run all linters (Packer, TFLint, ansible-lint)
+lint: validate-template lint-tf lint-ansible
+
+lint-tf:
     cd infra/terraform && tflint
+
+lint-ansible:
     ansible-lint infra/ansible/
+
+# ── SOPS helpers ──────────────────────────────────────────────────────────────
+
+# Edit Ansible secrets
+edit-ansible-secrets:
+    sops infra/ansible/inventory/group_vars/all/secrets.sops.yml
+
+# Edit Packer secrets
+edit-packer-secrets:
+    sops --input-type binary infra/packer/credentials.sops.pkr.hcl
+
+# Edit Terraform secrets
+edit-tf-secrets:
+    sops infra/terraform/secrets.sops.tfvars
+
+# Verify secrets are decryptable
+verify-secrets:
+    sops -d infra/ansible/inventory/group_vars/all/secrets.sops.yml > /dev/null && echo "ansible secrets OK"
+    sops -d infra/terraform/secrets.sops.tfvars > /dev/null && echo "terraform secrets OK"
+    sops --input-type binary -d infra/packer/credentials.sops.pkr.hcl > /dev/null && echo "packer secrets OK"
