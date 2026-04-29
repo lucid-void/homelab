@@ -15,9 +15,16 @@ __pycache__/
 # SOPS — encrypted files ARE committed (that's the point); only block decrypted temp outputs
 *.sops.tfvars.dec
 *.sops.yml.dec
+recovery.key
+
+#packer
+downloaded_iso_path/
 
 # OpenTofu
 *.tfplan
+infra/terraform/tfplan
+infra/terraform/terraform.tfstate
+infra/terraform/terraform.tfstate.backup
 infra/terraform/.terraform/
 infra/terraform/.terraform.lock.hcl
 
