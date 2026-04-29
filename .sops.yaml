@@ -2,11 +2,17 @@ creation_rules:
   # Ansible secrets — encrypted YAML files
   - path_regex: .*\.sops\.ya?ml$
     age: >-
-      ssh-ed25519 YOUR_SSH_ED25519_PUBLIC_KEY,
-      age1YOUR_RECOVERY_AGE_PUBLIC_KEY
+      ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINn7GfUFiuXjafDckqYBRRe873ZGK5hIWVYFKuAXGvYM,
+      age1jgd9p5hpfcefndq4r7383vrjzxfu2mcc0askr76g2z7x47c9scxsy0s0n4
 
   # Terraform secrets — encrypted tfvars files
   - path_regex: .*\.sops\.tfvars$
     age: >-
-      ssh-ed25519 YOUR_SSH_ED25519_PUBLIC_KEY,
-      age1YOUR_RECOVERY_AGE_PUBLIC_KEY
+      ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINn7GfUFiuXjafDckqYBRRe873ZGK5hIWVYFKuAXGvYM,
+      age1jgd9p5hpfcefndq4r7383vrjzxfu2mcc0askr76g2z7x47c9scxsy0s0n4
+
+  # Packer secrets — encrypted pkr.hcl files
+  - path_regex: .*credentials\.sops\.pkr\.hcl$
+    age: >-
+      ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINn7GfUFiuXjafDckqYBRRe873ZGK5hIWVYFKuAXGvYM,
+      age1jgd9p5hpfcefndq4r7383vrjzxfu2mcc0askr76g2z7x47c9scxsy0s0n4

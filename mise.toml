@@ -1,0 +1,13 @@
+[env]
+SOPS_AGE_KEY_FILE="./recovery.key"
+
+[tools]
+age = "latest"
+just = "latest"
+python = "latest"
+sops = "latest"
+
+[hooks]
+postinstall = "pip install -r requirements.txt"
+# /home/void/.local/share/mise/installs/ansible/13.4.0/venvs/ansible/bin/python -m pip install requests
+
