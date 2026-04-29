@@ -73,16 +73,16 @@ graph TB
 
 | Range | Purpose |
 |---|---|
-| `.1 - .4` | Physical devices |
+| `.2 - .4` | Physical devices (Synology, Proxmox, DGX Spark) |
 | `.5 - .9` | Reserved — future physical devices |
-| `.10` | PBS VM — not in Swarm |
-| `.11` | DNS/NTP VM |
+| `.10` | DB VM — Swarm worker |
+| `.11` | Monitoring VM — Swarm worker |
 | `.12` | Media VM |
 | `.13` | Services VM — Swarm manager |
 | `.14` | Game VM |
 | `.15` | Lab VM |
-| `.16` | Monitoring VM |
 | `.17` | Gitea runner LXC |
+| `.254` | UDM SE — gateway + DNS |
 | `10.0.x.x` | Docker Swarm overlay (internal, not routed) |
 
 <iframe

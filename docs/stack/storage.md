@@ -2,15 +2,15 @@
 tags:
   - stack
   - storage
-  - truenas
-  - zfs
+  - synology
+  - btrfs
   - nfs
   - backups
 ---
 
 # Storage
 
-TrueNAS DXP4800 (`172.16.20.2`, 10GbE) is the single storage authority. Compute nodes mount shares over NFS. Docker config files and ephemeral volumes stay local to each host — only data that must survive a host rebuild lives on TrueNAS.
+Synology RS1219+ (`172.16.20.2`, 10GbE) is the NFS storage authority — it handles disks and NFS exports only. Databases run on the dedicated DB VM (`.10`). Compute nodes mount media and application shares over NFS. Docker config and ephemeral volumes stay local to each host.
 
 ### Data Flow
 
@@ -19,133 +19,110 @@ graph LR
     subgraph Compute["Compute Nodes"]
         SVC[Services VM .13]
         MED[Media VM .12]
-        PBS[PBS VM .10]
+        DB[DB VM .10]
     end
 
-    subgraph TrueNAS["TrueNAS .2"]
+    subgraph Synology["Synology .2"]
         NFS[NFS Server]
-        ZFS[(ZFS Pool<br/>tank)]
+        BTRFS[(Btrfs Volume<br/>/volume2)]
+    end
+
+    subgraph DBHost["DB VM .10"]
         PG[Postgres]
         MB[MariaDB]
+        EXT4[(ext4<br/>local disk)]
     end
 
     SVC -->|NFS mount| NFS
     MED -->|NFS mount| NFS
-    PBS -->|NFS mount| NFS
-    NFS --> ZFS
+    DB -->|NFS mount| NFS
+    NFS --> BTRFS
     SVC -->|TCP :5432| PG
-    PG -->|local bind| ZFS
-    MB -->|local bind| ZFS
+    PG -->|local bind| EXT4
+    MB -->|local bind| EXT4
 
-    style ZFS fill:#a6da95,stroke:#a6da95,color:#1e2030
+    style BTRFS fill:#a6da95,stroke:#a6da95,color:#1e2030
     style NFS fill:#8aadf4,stroke:#8aadf4,color:#1e2030
+    style EXT4 fill:#f5a97f,stroke:#f5a97f,color:#1e2030
 ```
 
-## ZFS Dataset Tree
+## Synology Share Structure
 
-All datasets live under a single pool named `tank`, backed by a RAIDZ pool.
+All NFS-exported data lives under two top-level shared folders on `/volume2`.
 
 ```
-tank/
+/volume2/
+├── Media/
+│   ├── Series/         — Video; no backup
+│   ├── Series_done/    — Processed video; no backup
+│   ├── Movies/         — Video; no backup
+│   └── Downloads/      — Transient; no backup
+│
 ├── media/
-│   ├── series          recordsize=1M  · compression=off  · atime=off
-│   ├── movies          recordsize=1M  · compression=off  · atime=off
-│   ├── downloads       recordsize=1M  · compression=off  · atime=off
-│   ├── images          recordsize=128K · compression=lz4  · atime=off   ← Immich
-│   ├── paperless       recordsize=128K · compression=zstd · atime=off
-│   └── gitea           recordsize=128K · compression=zstd · atime=off
+│   ├── images/         — Immich photos + dbdump/ subdir
+│   ├── paperless/      — Documents + dbdump/ subdir
+│   └── gitea/          — Git data + dbdump/ subdir
 │
-├── services/                                                            ← For local containers on TrueNAS
-│   ├── databases/
-│   │   ├── postgres    recordsize=8K  · compression=lz4  · atime=off   ⚠ see note
-│   │   ├── mariadb     recordsize=16K · compression=lz4  · atime=off   ⚠ see note
-│   │   └── pgadmin     recordsize=128K · compression=zstd · atime=off
-│
-├── backups/
-│   ├── databases/      recordsize=128K · compression=zstd · atime=off  ← Daily pg_dump output (30-day retention)
-│   ├── keys/           compression=zstd · ZFS native encryption (AES-256-GCM)
-│   ├── pbs/            recordsize=1M  · compression=lz4  · atime=off   ← PBS chunk store
-│   └── services/       recordsize=128K · compression=zstd · atime=off  ← File backup
-│
-└── repos/              recordsize=128K · compression=zstd · atime=off
+└── backups/
+    ├── databases/      — zitadel/freshrss/tofu_state dumps (30-day)
+    └── services/       — Miscellaneous config backups; heartbeat file
 ```
 
-<iframe
-  src="../storage-diagram.html"
-  style="width:100%;border:none;border-radius:6px;"
-  title="Storage architecture">
-</iframe>
+`dbdump/` subdirectories inside media shares are created by the backup script. They get synced to Filen along with the application data, so Immich/Paperless/Gitea DB dumps get offsite coverage for free.
 
-### ZFS Property Rationale
+!!! tip "NFS-export share naming"
+    New NFS-mounted shares for Swarm services go under `/volume2/media/<service>`. The `backups/` tier is reserved for dump output and config archives.
 
-| Property | Value | Why |
-|---|---|---|
-| `atime=off` | All datasets | Eliminates write-on-read overhead |
-| `compression=off` | Video datasets | Already compressed; CPU cost with zero gain |
-| `compression=lz4` | Images, DB live, PBS | Near-zero CPU cost, moderate gain |
-| `compression=zstd` | Documents, dumps, configs, repos | Good ratio, worth the CPU |
-| `recordsize=1M` | Video, PBS | Large sequential reads/writes |
-| `recordsize=128K` | General files | TrueNAS default; suits mixed workloads |
-| `recordsize=8K` | `postgres` | **Must match Postgres page size exactly** |
-| `recordsize=16K` | `mariadb` | **Must match InnoDB page size exactly** |
+## Database Live Data
 
-!!! danger "Set at creation time"
-    `recordsize` and encryption must be set **at dataset creation time**. They cannot be changed after data is written. Setting these after container initialization has no effect and cannot be corrected without destroying and recreating the dataset.
+Postgres, MariaDB, pgadmin, and adminer run as **Swarm services** pinned to the DB VM (.10) via placement constraint (`node.hostname == db`). Data directories are local ext4 bind mounts — pinning ensures the container always lands on the same data.
 
-### `backups/keys` — ZFS Native Encryption
-
-`tank/backups/keys` uses ZFS native encryption (AES-256-GCM). Stores SSH keys, rclone crypt password, and long-lived secrets. No NFS export — accessible on TrueNAS locally only.
-
-## Database Live Data Directories
-
-`tank/services/databases/postgres` and `tank/services/databases/mariadb` hold the **live container data directories**, bind-mounted directly into their respective Docker containers running on TrueNAS (.2). These datasets are **not NFS-exported** — the database engines and their data are co-located on the same host.
-
-!!! warning "Critical constraints for database datasets"
-    - `recordsize=8K` for Postgres and `recordsize=16K` for MariaDB must be set **before** the containers first write data
-    - ZFS snapshots of live DB data directories are **not crash-consistent while the engine is running** — use `pg_dump` / `mysqldump` into `backups/databases/` instead
-    - All Swarm services connecting to a database must use `172.16.20.2` as the host — databases are outside the Swarm overlay network
+!!! warning "Connecting to databases: use overlay DNS, not `172.16.20.10`"
+    DB services are on the `db` overlay network. Services that need a database must join that overlay and connect by service name (e.g. `POSTGRES_HOST=postgres`). The backup script on the host OS uses `127.0.0.1:5432` via a `mode=host` published port.
 
 ## NFS Exports
 
-| Dataset | Exported to | Mount point on client |
+| Synology path | Exported to | Mount point on client |
 |---|---|---|
-| `tank/media/series` | Media VM (.12) | `/media/series` |
-| `tank/media/movies` | Media VM (.12) | `/media/movies` |
-| `tank/media/downloads` | Media VM (.12) | `/media/downloads` |
-| `tank/media/images` | Services VM (.13) | `/mnt/media/images` |
-| `tank/media/paperless` | Services VM (.13) | `/mnt/media/paperless` |
-| `tank/media/gitea` | Services VM (.13) | `/mnt/media/gitea` |
-| `tank/services/databases/*` | **No NFS export** | Local bind mounts on TrueNAS only |
-| `tank/backups/pbs` | PBS VM (.10) | `/mnt/datastore` |
-| `tank/backups/databases` | Services VM (.13) | `/mnt/backups/databases` |
-| `tank/backups/services` | Services VM (.13) | `/mnt/backups/services` |
-| `tank/repos` | Linux workstation | `~/repos` |
-| `tank/backups/keys` | **No NFS export** | Local to TrueNAS only |
+| `/volume2/Media` | Media VM (.12) | `/media` |
+| `/volume2/media/images` | Services VM (.13), DB VM (.10) | `/mnt/media/images` |
+| `/volume2/media/paperless` | Services VM (.13), DB VM (.10) | `/mnt/media/paperless` |
+| `/volume2/media/gitea` | Services VM (.13), DB VM (.10) | `/mnt/media/gitea` |
+| `/volume2/backups/databases` | DB VM (.10) | `/mnt/backups/databases` |
+| `/volume2/backups/services` | DB VM (.10), other VMs as needed | `/mnt/backups/services` |
 
-NFS options: `sync`, `no_subtree_check`.
+NFS options: `nfsvers=4.0`, `proto=tcp`, `hard,intr`, `rsize/wsize=1048576`. Configured as systemd `.mount` units deployed by Ansible (`roles/nfs`).
 
 !!! info "NFS encryption"
     NFS traffic is cleartext; accepted risk on a private VLAN with VPN-gated access (Netbird). Mitigated by planned host-level nftables.
 
 !!! info "Postgres TLS"
-    Postgres connections are also cleartext on the internal VLAN. Accepted risk: private VLAN, VPN-gated access (Netbird), no external exposure. Mitigated by planned host-level nftables (Postgres port restricted to known client IPs).
+    Postgres connections are cleartext on the internal VLAN. Accepted risk: private VLAN, VPN-gated access (Netbird). Mitigated by planned host-level nftables (Postgres port restricted to known client IPs).
 
-!!! tip "NFS-export tier naming"
-    New NFS-mounted datasets for Swarm services go under `tank/media/<service>`, not `tank/services/`. The `services/` tier is reserved for containers running directly on TrueNAS.
+## Synology Snapshot Replication
+
+Btrfs snapshots are configured as scheduled tasks in **DSM → Snapshot Replication** — not script-driven. They provide a local rollback point; Filen is the primary offsite backup.
+
+| Shared folder | Frequency | Retention |
+|---|---|---|
+| `media/images` | Daily 04:00 | 7 daily, 4 weekly |
+| `media/paperless` | Daily 04:00 | 7 daily, 4 weekly |
+| `media/gitea` | Daily 04:00 | 7 daily, 4 weekly |
+| `backups/*` | Daily 04:00 | 7 daily |
+| `media/series`, `movies`, `downloads` | None | Re-downloadable |
 
 ## Docker Volume Strategy
 
 | Data type | Location | Rationale |
 |---|---|---|
-| Docker compose files, `.env` | Local host | Config is in git; Ansible restores on rebuild |
+| Docker compose files, `.env` | Local host | Config in git; Ansible restores on rebuild |
 | Ephemeral volumes (Valkey, Traefik ACME) | Local host | Intentionally non-persistent |
-| Immich photos | `tank/media/images` NFS | Irreplaceable user data |
-| Paperless documents | `tank/media/paperless` NFS | Irreplaceable user data |
-| Gitea data | `tank/media/gitea` NFS | Application data, mirrors GitHub |
-| Postgres data dir | `tank/services/databases/postgres` — local bind mount on TrueNAS | Engine and data co-located; no NFS |
-| MariaDB data dir | `tank/services/databases/mariadb` — local bind mount on TrueNAS | Engine and data co-located; no NFS |
-| pgadmin / adminer state | `tank/services/databases/<name>` — local bind mount on TrueNAS | Co-located with engines |
-| PBS datastore | `tank/backups/pbs` NFS | PBS manages its own chunk store |
+| Immich photos | `/volume2/media/images` NFS | Irreplaceable user data |
+| Paperless documents | `/volume2/media/paperless` NFS | Irreplaceable user data |
+| Gitea data | `/volume2/media/gitea` NFS | Application data, mirrors GitHub |
+| Postgres data dir | `/opt/volumes/postgres` — local ext4 bind on DB VM (.10) | Engine and data co-located; no NFS |
+| MariaDB data dir | `/opt/volumes/mariadb` — local ext4 bind on DB VM (.10) | Engine and data co-located; no NFS |
+| pgadmin / adminer state | `/opt/volumes/pgadmin` — local ext4 bind on DB VM (.10) | Co-located with engines |
 
 ---
 
@@ -155,36 +132,33 @@ NFS options: `sync`, `no_subtree_check`.
 
 ```mermaid
 graph LR
-    subgraph Daily["Daily — 03:00"]
-        STOP[Stop services] --> DUMP[pg_dump all DBs] --> SNAP[ZFS snapshot 03:05] --> START[Restart services]
-        DUMP --> DD[tank/backups/<br/>databases]
+    subgraph Daily["Daily — 03:00 on DB VM"]
+        STOP[Stop services] --> DUMP[pg_dump all DBs] --> START[Restart services]
+        DUMP --> DMEDIA[images/dbdump/<br/>paperless/dbdump/<br/>gitea/dbdump/]
+        DUMP --> DD[backups/databases/<br/>zitadel · freshrss · tofu_state]
     end
 
-    subgraph Offsite["Offsite — rclone crypt"]
-        DD -->|daily| FILEN[(Filen Cloud)]
-        MEDIA[tank/media/paperless] -->|daily| FILEN
-        PHOTOS[tank/media/images] -->|daily| FILEN
+    subgraph Offsite["Offsite — rclone crypt → Filen"]
+        DMEDIA -->|daily| FILEN[(Filen Cloud)]
+        DD -->|daily| FILEN
     end
 
     style Daily fill:#eed49f,stroke:#eed49f,color:#1e2030
     style Offsite fill:#8aadf4,stroke:#8aadf4,color:#1e2030
 ```
 
-A single script runs **daily at 03:00** on TrueNAS (.2). It stops services (via SSH to the Swarm manager at .13), dumps all databases locally, waits for the automated ZFS snapshot at 03:05, restarts services, then syncs offsite via rclone directly from local ZFS snapshot paths. rclone and Filen credentials are deployed to TrueNAS by Ansible.
-
-The script is maintained in the IaC repository. Ansible deploys it to TrueNAS and installs it as a cron job — it is version-controlled, reviewed through normal CI, and updated automatically when Ansible runs.
+A single script runs **daily at 03:00** as a cron job on the **DB VM (.10)**. It stops services (via SSH to the Swarm manager at `.13`), dumps all databases, restarts services, then syncs offsite via rclone. rclone and Filen credentials are deployed to the DB VM by Ansible.
 
 - **Schedule:** 03:00 daily
-- **Runs on:** TrueNAS (.2) — direct local access to ZFS datasets, snapshots, and databases
-- **Downtime:** ~2–5 minutes (service stop → dump → snapshot wait → restart)
-- **Step 1 — TrueNAS config export:** `GET /api/v2.0/config/save` — exports a tar.gz of the full system config (pool layout, datasets, network, users, credentials, ACME config) to `tank/backups/services/truenas/truenas-config-$(date +%F).tar.gz`, 7-day local retention, synced offsite to Filen. Required for total-loss recovery (Scenario C3/D): without it the correct pool layout cannot be reconstructed before restoring data from Filen.
+- **Runs on:** DB VM (.10) — direct local DB access; NFS mounts for dump output and rclone sync
+- **Downtime:** ~2–5 minutes (service stop → dump → restart)
 - **Databases in scope:** `immich`, `paperless`, `gitea`, `zitadel`, `freshrss`, `tofu_state`
-- **Retention:** 30 daily SQL dumps in `tank/backups/databases/`
-- **Timeout:** 4-hour total limit; on success emits a heartbeat timestamp for Prometheus alerting (alert fires if file is older than 25 hours)
+- **Retention:** 30 daily SQL dumps per database
+- **Timeout:** 4-hour total limit; on success emits a heartbeat timestamp to `/mnt/backups/services/backup-heartbeat` for Prometheus alerting (alert fires if file is older than 25 hours)
 
 === "Offsite — Filen"
 
-    Double-layer encryption: Filen's own E2E encryption plus rclone client-side `crypt` remote.
+    Double-layer encryption: Filen's own E2E encryption plus rclone client-side `crypt` remote. All sync is incremental.
 
     ```ini
     [filen]
@@ -197,22 +171,33 @@ The script is maintained in the IaC repository. Ansible deploys it to TrueNAS an
     remote = filen:homelab-backup
     filename_encryption = standard
     directory_name_encryption = true
-    password = <rclone-crypt-password>    # stored in tank/backups/keys/
-    password2 = <rclone-crypt-salt>       # stored in tank/backups/keys/
+    password = <rclone-crypt-password>
+    password2 = <rclone-crypt-salt>
+    ```
+
+    Filen folder structure:
+    ```
+    filen-crypt:
+    ├── media/
+    │   ├── images/      ← photos + dbdump/ subdir
+    │   ├── paperless/   ← documents + dbdump/ subdir
+    │   └── gitea/       ← git data + dbdump/ subdir
+    ├── databases/       ← zitadel, freshrss, tofu_state (30 days)
+    └── archive/
+        └── YYYY-MM/     ← first-of-month databases/ copy, kept forever
     ```
 
 ## Offsite Sync Schedule
 
 | Time | Frequency | What |
 |---|---|---|
-| 03:00 | Daily | Services stopped → pg_dump all DBs → ZFS snapshot → restart |
-| ~04:00 | Daily | rclone sync: databases, paperless, images, services → Filen |
+| 03:00 | Daily | Services stopped → pg_dump all DBs → restart |
+| ~04:00 | Daily | rclone sync: media shares (+ dbdump/) + backups/databases → Filen |
 
 ### Not Backed Up Offsite
 
-| Dataset | Reason |
+| Data | Reason |
 |---|---|
-| `tank/media/series`, `movies`, `downloads` | Re-downloadable; too large for cloud quota |
-| `tank/services/databases/` live dirs | Use dumps — never sync live DB dirs |
-| `tank/backups/pbs/` | VM backups too large; PBS is local recovery path |
-| `tank/pxe/` | ISOs are re-downloadable |
+| `media/series`, `movies`, `downloads` | Re-downloadable; too large for cloud quota |
+| Live DB dirs (`/opt/volumes/postgres`, etc.) | Use dumps — never sync live DB dirs |
+| Grafana/Prometheus/Loki data | Ephemeral by design |
