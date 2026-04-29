@@ -1,0 +1,17 @@
+proxmox_api_url          = "https://x.x.x.x:8006/api2/json"
+proxmox_api_token_id     = "root@pam!description"
+proxmox_api_token_secret = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+proxmox_node        = "pve"
+proxmox_skip_tls_verify     = "true"
+proxmox_iso_storage         = "local"
+proxmox_vm_storage    = "local-lvm"
+proxmox_network_bridge   = "vmbr0"
+
+TZ = "Continent/City"
+
+ssh_username = "iacuser"
+ssh_password = "iacpassword"
+ssh_public_key = ""
+
+# void user password — SHA-512: mkpasswd --method=SHA-512 --rounds=4096
+hashed_password = ""
