@@ -1,0 +1,103 @@
+---
+# Immich stack
+# Pinned to: node.hostname == services (172.16.20.13)
+# Upload data: NFS /mnt/media/Photos → Synology /volume2/Media/Photos
+# Model cache: local bind mount /opt/volumes/immich/model-cache
+
+secrets:
+  immich_db_password:
+    external: true
+
+networks:
+  traefik:
+    external: true
+  immich:
+    external: true
+  db:
+    external: true
+
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:v2.7.5
+    user: "2202:2200"
+    environment:
+      DB_HOSTNAME: databases_postgres
+      DB_DATABASE_NAME: immich
+      DB_USERNAME: immich
+      DB_PASSWORD_FILE: /run/secrets/immich_db_password
+      REDIS_HOSTNAME: immich-valkey
+      UPLOAD_LOCATION: /usr/src/app/upload
+      IMMICH_SERVER_URL: https://immich.blackcats.cc
+      IMMICH_WEB_URL: https://immich.blackcats.cc
+    volumes:
+      - /mnt/media/Photos:/usr/src/app/upload
+    secrets:
+      - immich_db_password
+    networks:
+      - traefik
+      - immich
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2283/api/server/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.immich.rule=Host(`immich.blackcats.cc`)
+        - traefik.http.routers.immich.entrypoints=websecure
+        - traefik.http.routers.immich.tls=true
+        - traefik.http.routers.immich.tls.certresolver=letsencrypt
+        - traefik.http.services.immich.loadbalancer.server.port=2283
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:v2.7.5
+    user: "2202:2200"
+    environment:
+      MPLCONFIGDIR: /tmp
+    volumes:
+      - /opt/volumes/immich/model-cache:/cache
+    networks:
+      - immich
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  immich-valkey:
+    image: valkey/valkey:8.0
+    networks:
+      - immich
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first

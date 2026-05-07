@@ -1,0 +1,24 @@
+# Plex — standalone compose on Media VM (.12), outside Swarm
+# Requires host networking (Plex discovery/GDM) and /dev/dri for iGPU transcode.
+# Neither is supported in Swarm mode — deploy with: docker compose up -d
+# Tautulli and Seerr connect to Plex via 172.16.20.12:32400 (host IP), not overlay DNS.
+# Variables substituted at deploy time by Ansible: TZ, PUID, PGID, PLEX_CLAIM
+
+services:
+  plex:
+    image: plexinc/pms-docker:latest
+    network_mode: host
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - PLEX_CLAIM=${PLEX_CLAIM:-}
+    volumes:
+      - /opt/volumes/plex:/config
+      - /mnt/media/Series:/data/series
+      - /mnt/media/Series_done:/data/series_done
+      - /mnt/media/Movies:/data/movies
+      - /mnt/media/Downloads:/data/downloads
+    restart: unless-stopped

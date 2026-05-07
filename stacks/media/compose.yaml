@@ -1,0 +1,247 @@
+# Media stack — runs on Media VM (.12)
+# NFS mount /volume2/Media → /mnt/media pre-mounted by systemd (roles/nfs)
+# Variables substituted at deploy time by Ansible: TZ, PUID, PGID
+# Plex is NOT in this stack — it runs as standalone compose (stacks/plex/) outside Swarm
+# due to host networking and /dev/dri GPU requirements.
+
+services:
+  tautulli:
+    image: lscr.io/linuxserver/tautulli:latest
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - /opt/volumes/tautulli:/config
+    networks:
+      - traefik
+      - media
+    deploy:
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - node.hostname == media
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.tautulli.rule=Host(`tautulli.blackcats.cc`)"
+        - "traefik.http.routers.tautulli.entrypoints=websecure"
+        - "traefik.http.routers.tautulli.tls.certresolver=letsencrypt"
+        - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
+        - "traefik.http.routers.tautulli.middlewares=oauth2-proxy@file"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - /opt/volumes/sonarr:/config
+      - /mnt/media:/Media
+    networks:
+      - traefik
+      - media
+    deploy:
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - node.hostname == media
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.sonarr.rule=Host(`sonarr.blackcats.cc`)"
+        - "traefik.http.routers.sonarr.entrypoints=websecure"
+        - "traefik.http.routers.sonarr.tls.certresolver=letsencrypt"
+        - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+        - "traefik.http.routers.sonarr.middlewares=oauth2-proxy@file"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - /opt/volumes/radarr:/config
+      - /mnt/media:/Media
+    networks:
+      - traefik
+      - media
+    deploy:
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - node.hostname == media
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.radarr.rule=Host(`radarr.blackcats.cc`)"
+        - "traefik.http.routers.radarr.entrypoints=websecure"
+        - "traefik.http.routers.radarr.tls.certresolver=letsencrypt"
+        - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+        - "traefik.http.routers.radarr.middlewares=oauth2-proxy@file"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - /opt/volumes/prowlarr:/config
+    networks:
+      - traefik
+      - media
+    deploy:
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - node.hostname == media
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.blackcats.cc`)"
+        - "traefik.http.routers.prowlarr.entrypoints=websecure"
+        - "traefik.http.routers.prowlarr.tls.certresolver=letsencrypt"
+        - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
+        - "traefik.http.routers.prowlarr.middlewares=oauth2-proxy@file"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  sabnzbd:
+    image: lscr.io/linuxserver/sabnzbd:latest
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - /opt/volumes/sabnzbd:/config
+      - /mnt/media:/Media
+    networks:
+      - traefik
+      - media
+    deploy:
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - node.hostname == media
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.sabnzbd.rule=Host(`nzb.blackcats.cc`)"
+        - "traefik.http.routers.sabnzbd.entrypoints=websecure"
+        - "traefik.http.routers.sabnzbd.tls.certresolver=letsencrypt"
+        - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
+        - "traefik.http.routers.sabnzbd.middlewares=oauth2-proxy@file"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  seerr:
+    image: ghcr.io/seerr-team/seerr:v3.2.0
+    user: "2202:2200"
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - /opt/volumes/seerr:/app/config
+    networks:
+      - traefik
+      - media
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5055/api/v1/settings/public"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    deploy:
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - node.hostname == media
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.seerr.rule=Host(`seerr.blackcats.cc`)"
+        - "traefik.http.routers.seerr.entrypoints=websecure"
+        - "traefik.http.routers.seerr.tls.certresolver=letsencrypt"
+        - "traefik.http.services.seerr.loadbalancer.server.port=5055"
+        - "traefik.http.routers.seerr.middlewares=oauth2-proxy@file"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    user: "${PUID}:${PGID}"
+    environment:
+      - LOG_LEVEL=info
+    networks:
+      - media
+    deploy:
+      endpoint_mode: dnsrr
+      placement:
+        constraints:
+          - node.hostname == media
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+networks:
+  traefik:
+    external: true
+  media:
+    external: true

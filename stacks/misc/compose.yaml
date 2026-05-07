@@ -1,0 +1,101 @@
+---
+# Miscellaneous services stack
+# Pinned to: node.hostname == services (172.16.20.13)
+
+networks:
+  traefik:
+    external: true
+  db:
+    external: true
+
+services:
+  homebox:
+    image: ghcr.io/sysadminsmedia/homebox:latest-rootless
+    user: "2202:2200"
+    volumes:
+      - /opt/volumes/homebox:/data
+    networks:
+      - traefik
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.homebox.rule=Host(`homebox.blackcats.cc`)
+        - traefik.http.routers.homebox.entrypoints=websecure
+        - traefik.http.routers.homebox.tls=true
+        - traefik.http.routers.homebox.tls.certresolver=letsencrypt
+        - traefik.http.routers.homebox.middlewares=oauth2-proxy@file
+        - traefik.http.services.homebox.loadbalancer.server.port=7745
+
+  it-tools:
+    image: corentinth/it-tools:2024.10.22-7ca5933
+    networks:
+      - traefik
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.it-tools.rule=Host(`tools.blackcats.cc`)
+        - traefik.http.routers.it-tools.entrypoints=websecure
+        - traefik.http.routers.it-tools.tls=true
+        - traefik.http.routers.it-tools.tls.certresolver=letsencrypt
+        - traefik.http.services.it-tools.loadbalancer.server.port=80
+
+  freshrss:
+    image: lscr.io/linuxserver/freshrss:1.28.0
+    environment:
+      PUID: "2202"
+      PGID: "2200"
+    volumes:
+      - /opt/volumes/freshrss:/config
+    networks:
+      - traefik
+      - db
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        # Web interface — protected by oauth2-proxy
+        - traefik.http.routers.freshrss.rule=Host(`rss.blackcats.cc`)
+        - traefik.http.routers.freshrss.entrypoints=websecure
+        - traefik.http.routers.freshrss.tls=true
+        - traefik.http.routers.freshrss.tls.certresolver=letsencrypt
+        - traefik.http.routers.freshrss.middlewares=oauth2-proxy@file
+        - traefik.http.services.freshrss.loadbalancer.server.port=80
+        # API — bypasses oauth2-proxy; FreshRSS handles its own API auth
+        # Higher rule specificity (PathPrefix) takes priority over the web router
+        - traefik.http.routers.freshrss-api.rule=Host(`rss.blackcats.cc`) && PathPrefix(`/api`)
+        - traefik.http.routers.freshrss-api.entrypoints=websecure
+        - traefik.http.routers.freshrss-api.tls=true
+        - traefik.http.routers.freshrss-api.tls.certresolver=letsencrypt
+        - traefik.http.routers.freshrss-api.service=freshrss

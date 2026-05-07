@@ -1,0 +1,196 @@
+---
+# Auth stack — Zitadel (IdP) + Zitadel Login UI + oauth2-proxy (forward auth) + Valkey (sessions)
+# All services pinned to Services VM (.13) via placement constraint
+# Config files managed by Ansible (templated from SOPS), mounted as bind mounts:
+#   Zitadel:      /opt/volumes/zitadel/config.yaml (DB creds + ExternalDomain + FirstInstance bootstrap)
+#                 /opt/volumes/zitadel/healthcheck.yaml (Port + TLS.Enabled override for `zitadel ready`)
+#   oauth2-proxy: /opt/volumes/oauth2-proxy/config.toml (OIDC client config, cookie secret)
+# Zitadel masterkey passed via Docker secret (v4 no longer reads it from config.yaml)
+# Zitadel healthcheck needs TLS.Enabled: false override — defaults.yaml has TLS.Enabled: true which
+# causes `zitadel ready` to try HTTPS against a plaintext HTTP server.
+# zitadel-login is the v4 Next.js login UI — served under zitadel.blackcats.cc/ui/v2/login.
+# On first init, Zitadel creates a machine user (login-client) and writes its PAT to the
+# shared zitadel-bootstrap volume; the login UI reads it from there.
+# user: "0" is required — the bootstrap volume is root-owned and zitadel runs non-root by default.
+# FIRSTINSTANCE + OIDC v2 URL env vars must be env vars (not config file) — the setup Viper
+# instance reads the embedded defaultSteps.yaml; --config only merges runtime keys.
+# IMPORTANT: to re-initialize, drop the `zitadel` Postgres database before redeploying.
+# Deploy: docker stack deploy -c compose.yaml auth
+
+secrets:
+  zitadel_masterkey:
+    external: true
+
+volumes:
+  zitadel-bootstrap:
+
+networks:
+  auth:
+    external: true
+  traefik:
+    external: true
+  db:
+    external: true
+  monitoring:
+    external: true
+
+services:
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v4.14.0
+    hostname: zitadel
+    user: "0"
+    command: start-from-init --config /config.yaml --masterkeyFile /run/secrets/zitadel_masterkey
+    environment:
+      # TLS is terminated by Traefik; Zitadel serves plain HTTP internally.
+      # Use ZITADEL_TLS_ENABLED=false (not --tlsMode disabled) so ExternalSecure: true in
+      # config.yaml takes effect. --tlsMode disabled overrides ExternalSecure to false, breaking
+      # WebAuthn/passkey origin checks (generates http:// URLs while browser is on https://).
+      ZITADEL_TLS_ENABLED: "false"
+      # FirstInstance: create login-client machine user and write its PAT to the bootstrap volume.
+      # These must be env vars — the setup Viper instance reads defaultSteps.yaml first; --config
+      # only merges runtime keys (Database, ExternalDomain) and does not replace the setup step keys.
+      ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /zitadel/bootstrap/login-client.pat
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: login-client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: Login Client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: "2099-12-31T00:00:00Z"
+      # Route OIDC/SAML auth requests to the v2 login UI served by zitadel-login.
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: https://zitadel.blackcats.cc/ui/v2/login/
+      ZITADEL_OIDC_DEFAULTLOGINURLV2: https://zitadel.blackcats.cc/ui/v2/login/login?authRequest=
+      ZITADEL_OIDC_DEFAULTLOGOUTURLV2: https://zitadel.blackcats.cc/ui/v2/login/logout?post_logout_redirect=
+      ZITADEL_SAML_DEFAULTLOGINURLV2: https://zitadel.blackcats.cc/ui/v2/login/login?samlRequest=
+    secrets:
+      - zitadel_masterkey
+    volumes:
+      - /opt/volumes/zitadel/config.yaml:/config.yaml:ro
+      - /opt/volumes/zitadel/healthcheck.yaml:/healthcheck.yaml:ro
+      - zitadel-bootstrap:/zitadel/bootstrap:rw
+    networks:
+      - auth
+      - traefik
+      - db
+      - monitoring
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready", "--config", "/healthcheck.yaml"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.zitadel.rule=Host(`zitadel.blackcats.cc`)
+        - traefik.http.routers.zitadel.entrypoints=websecure
+        - traefik.http.routers.zitadel.tls.certresolver=letsencrypt
+        - traefik.http.services.zitadel.loadbalancer.server.port=8080
+        - traefik.http.routers.zitadel.middlewares=zitadel-ratelimit
+        - traefik.http.middlewares.zitadel-ratelimit.ratelimit.average=20
+        - traefik.http.middlewares.zitadel-ratelimit.ratelimit.burst=50
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.0
+    hostname: oauth2-proxy
+    command: ["--config=/config/config.toml"]
+    volumes:
+      - /opt/volumes/oauth2-proxy/config.toml:/config/config.toml:ro
+    networks:
+      auth:
+      traefik:
+        aliases:
+          - oauth2-proxy
+    healthcheck:
+      test: ["NONE"]
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.oauth2-proxy.rule=Host(`auth.blackcats.cc`)
+        - traefik.http.routers.oauth2-proxy.entrypoints=websecure
+        - traefik.http.routers.oauth2-proxy.tls.certresolver=letsencrypt
+        - traefik.http.services.oauth2-proxy.loadbalancer.server.port=4180
+        - traefik.http.routers.oauth2-proxy.middlewares=oauth2-proxy-ratelimit
+        - traefik.http.middlewares.oauth2-proxy-ratelimit.ratelimit.average=20
+        - traefik.http.middlewares.oauth2-proxy-ratelimit.ratelimit.burst=50
+
+  zitadel-login:
+    image: ghcr.io/zitadel/zitadel-login:v4.7.3
+    hostname: zitadel-login
+    environment:
+      ZITADEL_API_URL: http://zitadel:8080
+      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
+      ZITADEL_SERVICE_USER_TOKEN_FILE: /zitadel/bootstrap/login-client.pat
+      CUSTOM_REQUEST_HEADERS: "Host:zitadel.blackcats.cc,X-Forwarded-Proto:https"
+    volumes:
+      - zitadel-bootstrap:/zitadel/bootstrap:ro
+    networks:
+      - auth
+      - traefik
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/ui/v2/login/healthy', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.zitadel-login.rule=Host(`zitadel.blackcats.cc`) && PathPrefix(`/ui/v2/login`)
+        - traefik.http.routers.zitadel-login.entrypoints=websecure
+        - traefik.http.routers.zitadel-login.tls.certresolver=letsencrypt
+        - traefik.http.services.zitadel-login.loadbalancer.server.port=3000
+
+  oauth2-proxy-valkey:
+    image: valkey/valkey:8.0
+    hostname: oauth2-proxy-valkey
+    networks:
+      - auth
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first

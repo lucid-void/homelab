@@ -1,0 +1,354 @@
+# Monitoring stack — Monitoring VM (.16)
+# Deploy: docker stack deploy -c compose.yaml monitoring
+# cAdvisor runs as a global service (all Swarm nodes)
+# GOTIFY_ADMIN_PASS must be set in the environment at deploy time (injected by Ansible)
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    user: "2202:2200"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - /opt/volumes/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /opt/volumes/prometheus/data:/prometheus
+    networks:
+      - monitoring
+      - traefik
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == monitoring
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.prometheus.rule=Host(`prometheus.blackcats.cc`)"
+        - "traefik.http.routers.prometheus.entrypoints=websecure"
+        - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.prometheus.middlewares=oauth2-proxy@file"
+        - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  loki:
+    image: grafana/loki:3.1.2
+    user: "2202:2200"
+    command:
+      - "-config.file=/etc/loki/loki-config.yml"
+    volumes:
+      - /opt/volumes/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - /opt/volumes/loki/data:/loki
+    ports:
+      - target: 3100
+        published: 3100
+        protocol: tcp
+        mode: host
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == monitoring
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  grafana:
+    image: grafana/grafana:11.2.10
+    user: "2202:2200"
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_SERVER_ROOT_URL=https://grafana.blackcats.cc
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_admin_password
+      # Zitadel OIDC — all authenticated users get GrafanaAdmin role (single-user homelab)
+      - GF_AUTH_GENERIC_OAUTH_ENABLED=true
+      - GF_AUTH_GENERIC_OAUTH_NAME=Zitadel
+      - GF_AUTH_GENERIC_OAUTH_CLIENT_ID__FILE=/run/secrets/grafana_oidc_client_id
+      - GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE=/run/secrets/grafana_oidc_client_secret
+      - GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email urn:zitadel:iam:org:project:roles
+      - GF_AUTH_GENERIC_OAUTH_AUTH_URL=https://zitadel.blackcats.cc/oauth/v2/authorize
+      - GF_AUTH_GENERIC_OAUTH_TOKEN_URL=https://zitadel.blackcats.cc/oauth/v2/token
+      - GF_AUTH_GENERIC_OAUTH_API_URL=https://zitadel.blackcats.cc/oidc/v1/userinfo
+      - "GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(keys(\"urn:zitadel:iam:org:project:roles\"), 'admin') && 'GrafanaAdmin' || contains(keys(\"urn:zitadel:iam:org:project:roles\"), 'editor') && 'Editor' || 'Viewer'"
+      - GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true
+      - GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN=false
+      - GF_AUTH_SIGNOUT_REDIRECT_URL=https://zitadel.blackcats.cc/oidc/v1/end_session
+    secrets:
+      - grafana_admin_password
+      - grafana_oidc_client_id
+      - grafana_oidc_client_secret
+    volumes:
+      - /opt/volumes/grafana/provisioning:/etc/grafana/provisioning:ro
+      - /opt/volumes/grafana/data:/var/lib/grafana
+    networks:
+      - traefik
+      - monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == monitoring
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.grafana.rule=Host(`grafana.blackcats.cc`)"
+        - "traefik.http.routers.grafana.entrypoints=websecure"
+        - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+        - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  gotify:
+    image: gotify/server:2.6
+    user: "2202:2200"
+    environment:
+      # First-run initialisation only — ignored if the database already exists
+      GOTIFY_DEFAULTUSER_NAME: admin
+      GOTIFY_DEFAULTUSER_PASS: "${GOTIFY_ADMIN_PASS}"
+    volumes:
+      - /opt/volumes/gotify:/app/data
+    networks:
+      - traefik
+      - monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == monitoring
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.gotify.rule=Host(`gotify.blackcats.cc`)"
+        - "traefik.http.routers.gotify.entrypoints=websecure"
+        - "traefik.http.routers.gotify.tls.certresolver=letsencrypt"
+        - "traefik.http.services.gotify.loadbalancer.server.port=80"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    user: "2202:2200"
+    environment:
+      DATABASE_TYPE: postgresql
+      DATABASE_HOSTNAME: "172.16.20.10"
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: uptime_kuma
+      DATABASE_USERNAME: uptime_kuma
+      DATABASE_PASSWORD: "${UPTIME_KUMA_DB_PASS}"
+    volumes:
+      - /opt/volumes/uptime-kuma:/app/data
+    networks:
+      - traefik
+      - monitoring
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == monitoring
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.uptime-kuma.rule=Host(`status.blackcats.cc`)"
+        - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
+        - "traefik.http.routers.uptime-kuma.tls.certresolver=letsencrypt"
+        - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.51.0
+    # cAdvisor requires root for host cgroup/namespace access — no user override
+    # Published on 9338 (not 8080) to avoid conflict with Traefik on the services VM
+    command:
+      - "--port=9338"
+    environment:
+      CADVISOR_HEALTHCHECK_URL: http://localhost:9338/healthz
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    ports:
+      - target: 9338
+        published: 9338
+        protocol: tcp
+        mode: host
+    networks:
+      - monitoring
+    deploy:
+      mode: global
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  pve-exporter:
+    image: prompve/prometheus-pve-exporter:3.3
+    user: "2202:2200"
+    command:
+      - "--config.file=/etc/pve.yml"
+    volumes:
+      - /opt/volumes/pve-exporter/pve.yml:/etc/pve.yml:ro
+    networks:
+      - monitoring
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == monitoring
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  unifi-poller:
+    image: ghcr.io/unpoller/unpoller:v2.39.0
+    user: "2202:2200"
+    volumes:
+      - /opt/volumes/unifi-poller/up.conf:/etc/unpoller/up.conf:ro
+    networks:
+      - monitoring
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == monitoring
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    user: "2202:2200"
+    command:
+      - "--web.listen-address=:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER}:${POSTGRES_EXPORTER_PASS}@172.16.20.10:5432/postgres?sslmode=disable"
+    networks:
+      - monitoring
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == monitoring
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  synology-exporter:
+    image: prom/snmp-exporter:v0.26
+    hostname: synology-exporter
+    networks:
+      - monitoring
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == monitoring
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+secrets:
+  grafana_admin_password:
+    external: true
+  grafana_oidc_client_id:
+    external: true
+  grafana_oidc_client_secret:
+    external: true
+
+networks:
+  traefik:
+    external: true
+  monitoring:
+    external: true

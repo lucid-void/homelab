@@ -1,0 +1,87 @@
+# Gitea stack
+# Pinned to: node.hostname == services (172.16.20.13)
+# Data: /mnt/media/Gitea (NFS — Synology Media share)
+# DB: shared Postgres on DB VM (.10) via db overlay network
+# Admin: first-run auto-created via GITEA_ADMIN_* env vars (grafana_admin_password)
+# OIDC: configured post-deploy by Ansible (gitea admin auth add-oauth)
+
+secrets:
+  gitea_db_password:
+    external: true
+  gitea_secret_key:
+    external: true
+  gitea_internal_token:
+    external: true
+  gitea_metrics_token:
+    external: true
+
+networks:
+  traefik:
+    external: true
+  db:
+    external: true
+
+services:
+  gitea-server:
+    image: gitea/gitea:1.22
+    environment:
+      USER_UID: "2202"
+      USER_GID: "2200"
+      GITEA__database__DB_TYPE: postgres
+      GITEA__database__HOST: "databases_postgres:5432"
+      GITEA__database__NAME: gitea
+      GITEA__database__USER: gitea
+      GITEA__database__PASSWD__FILE: /run/secrets/gitea_db_password
+      GITEA__server__DOMAIN: gitea.blackcats.cc
+      GITEA__server__ROOT_URL: https://gitea.blackcats.cc/
+      GITEA__server__HTTP_PORT: "3000"
+      GITEA__server__DISABLE_SSH: "true"
+      GITEA__security__INSTALL_LOCK: "true"
+      GITEA__security__SECRET_KEY__FILE: /run/secrets/gitea_secret_key
+      GITEA__security__INTERNAL_TOKEN__FILE: /run/secrets/gitea_internal_token
+      GITEA__service__DISABLE_REGISTRATION: "false"
+      GITEA__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "true"
+      GITEA__service__DEFAULT_KEEP_EMAIL_PRIVATE: "true"
+      GITEA__repository__DEFAULT_PRIVATE: private
+      GITEA__mirror__DEFAULT_INTERVAL: 10m
+      GITEA__mirror__MIN_INTERVAL: 10m
+      GITEA__metrics__ENABLED: "true"
+      GITEA__metrics__TOKEN__FILE: /run/secrets/gitea_metrics_token
+      GITEA_ADMIN_USERNAME: admin
+      GITEA_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+      GITEA_ADMIN_EMAIL: "{{ email }}"
+    volumes:
+      - /mnt/media/Gitea:/data
+    secrets:
+      - gitea_db_password
+      - gitea_secret_key
+      - gitea_internal_token
+      - gitea_metrics_token
+    networks:
+      - traefik
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.gitea.rule=Host(`gitea.blackcats.cc`)
+        - traefik.http.routers.gitea.entrypoints=websecure
+        - traefik.http.routers.gitea.tls=true
+        - traefik.http.routers.gitea.tls.certresolver=letsencrypt
+        - traefik.http.services.gitea.loadbalancer.server.port=3000
