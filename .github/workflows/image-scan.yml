@@ -3,12 +3,13 @@ name: Image Security Scan
 # Triggered by any PR that touches a stack compose file.
 # Renovate PRs hit this automatically; manual image bumps do too.
 #
-# Failure thresholds (tune here):
-#   GRYPE_FAIL_SEVERITY  — grype exits non-zero if any vuln >= this level is found
-#   OSV_FAIL_SEVERITY    — osv-scanner JSON is parsed; job fails on this severity or higher
+# Gate logic:
+#   - When a baseline exists (tag bump): fail only if new Critical/High CVEs are INTRODUCED.
+#     An upgrade that reduces or holds steady always passes, regardless of absolute count.
+#   - When no baseline exists (brand-new image): fall back to absolute threshold.
 #
-# To enforce these as a merge gate, add "Image Scans Passed" as a required
-# status check in GitHub → Settings → Branches → Branch protection rules.
+# Tune thresholds in the env block below.
+# Required status check name for branch protection: "Image Scans Passed"
 
 on:
   pull_request:
@@ -23,11 +24,11 @@ env:
   SYFT_VERSION: "1.18.1"
   GRYPE_VERSION: "0.87.0"
   OSV_SCANNER_VERSION: "1.9.2"
-  GRYPE_FAIL_SEVERITY: "critical"   # grype --fail-on value: critical / high / medium / low
+  GRYPE_FAIL_SEVERITY: "critical"   # absolute fallback (new images only)
   OSV_FAIL_SEVERITY: "CRITICAL"     # ALL CAPS: CRITICAL / HIGH / MEDIUM
 
 jobs:
-  # ── Job 1: detect which images changed in this PR ──────────────────────────
+  # ── Job 1: pair old/new images from the diff ───────────────────────────────
   detect-images:
     name: Detect changed images
     runs-on: ubuntu-latest
@@ -40,35 +41,40 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract changed images from diff
+      - name: Extract old/new image pairs from diff
         id: extract
         run: |
           git fetch origin "${{ github.base_ref }}" --depth=1
 
-          IMAGES=$(git diff "origin/${{ github.base_ref }}...HEAD" \
-            -- 'stacks/**/compose.yaml' \
-            | grep -E '^\+[^+]' \
-            | grep -E 'image:' \
-            | sed 's/.*image:[[:space:]]*//' \
-            | sed 's/[[:space:]]*$//' \
-            | grep -v '^$' \
-            | sort -u)
+          git diff "origin/${{ github.base_ref }}...HEAD" -- 'stacks/**/compose.yaml' \
+            | grep -E '^\-[^-]' | grep 'image:' \
+            | sed 's/.*image:[[:space:]]*//' | sed 's/[[:space:]]*$//' \
+            | grep -v '^$' | sort -u > /tmp/old_images.txt
 
-          if [ -z "$IMAGES" ]; then
+          git diff "origin/${{ github.base_ref }}...HEAD" -- 'stacks/**/compose.yaml' \
+            | grep -E '^\+[^+]' | grep 'image:' \
+            | sed 's/.*image:[[:space:]]*//' | sed 's/[[:space:]]*$//' \
+            | grep -v '^$' | sort -u > /tmp/new_images.txt
+
+          if [ ! -s /tmp/new_images.txt ]; then
             echo "has_images=false" >> "$GITHUB_OUTPUT"
-            echo "matrix={\"image\":[]}" >> "$GITHUB_OUTPUT"
-            echo "No image changes detected — scan skipped"
-          else
-            JSON=$(printf '%s\n' "$IMAGES" | jq -R . | jq -sc '{image: .}')
-            echo "has_images=true" >> "$GITHUB_OUTPUT"
-            echo "matrix=$JSON" >> "$GITHUB_OUTPUT"
-            echo "Images to scan:"
-            printf '%s\n' "$IMAGES"
+            echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+            echo "No image changes detected"
+            exit 0
           fi
 
-  # ── Job 2: scan each image (matrix, parallel) ──────────────────────────────
+          # Pair new images with their old counterpart by stripping the tag.
+          # Images with no matching old entry are brand-new (no baseline).
+          # One-liner to avoid heredoc indentation issues in YAML block scalars.
+          MATRIX=$(python3 -c "import json; old=[l.strip() for l in open('/tmp/old_images.txt') if l.strip()]; new=[l.strip() for l in open('/tmp/new_images.txt') if l.strip()]; f=lambda i: i[:i.rfind(':')] if ':' in i else i; m={f(i):i for i in old}; print(json.dumps({'include':[{'old':m.get(f(i),''),'new':i} for i in new]}))")
+          echo "has_images=true"  >> "$GITHUB_OUTPUT"
+          echo "matrix=$MATRIX"   >> "$GITHUB_OUTPUT"
+          echo "Pairs to scan:"
+          echo "$MATRIX" | python3 -m json.tool
+
+  # ── Job 2: scan each image pair (matrix, parallel) ─────────────────────────
   scan:
-    name: Scan ${{ matrix.image }}
+    name: Scan ${{ matrix.new }}
     needs: detect-images
     if: needs.detect-images.outputs.has-images == 'true'
     runs-on: ubuntu-latest
@@ -92,94 +98,252 @@ jobs:
 
       - name: Prepare output directory
         run: |
-          IMAGE="${{ matrix.image }}"
-          SAFE="${IMAGE//[\/:.@]/_}"
-          echo "SAFE=$SAFE" >> "$GITHUB_ENV"
-          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          NEW="${{ matrix.new }}"
+          OLD="${{ matrix.old }}"
+          SAFE="${NEW//[\/:.@]/_}"
+          HAS_BASELINE="false"
+          [ -n "$OLD" ] && HAS_BASELINE="true"
+          echo "SAFE=$SAFE"                 >> "$GITHUB_ENV"
+          echo "NEW_IMAGE=$NEW"             >> "$GITHUB_ENV"
+          echo "OLD_IMAGE=$OLD"             >> "$GITHUB_ENV"
+          echo "HAS_BASELINE=$HAS_BASELINE" >> "$GITHUB_ENV"
           mkdir -p "scan-${SAFE}"
 
-      - name: Generate SBOM (syft)
-        run: |
-          syft "$IMAGE" -o cyclonedx-json="scan-${SAFE}/sbom.cdx.json"
+      # ── SBOMs ──────────────────────────────────────────────────────────────
 
-      - name: Vulnerability scan — grype
+      - name: SBOM — new image (syft)
+        run: syft "$NEW_IMAGE" -o cyclonedx-json="scan-${SAFE}/sbom.cdx.json"
+
+      - name: SBOM — old image (syft)
+        if: env.HAS_BASELINE == 'true'
+        run: syft "$OLD_IMAGE" -o cyclonedx-json="scan-${SAFE}/sbom-old.cdx.json"
+
+      # ── Grype ──────────────────────────────────────────────────────────────
+
+      - name: Grype — new image
         run: |
-          # Capture exit code without triggering set -e on non-zero exit.
-          # Stderr is kept separate so grype.json stays valid JSON.
           grype "sbom:scan-${SAFE}/sbom.cdx.json" \
             --fail-on "$GRYPE_FAIL_SEVERITY" \
             -o json > "scan-${SAFE}/grype.json" 2>"scan-${SAFE}/grype.stderr" \
             && GRYPE_EXIT=0 || GRYPE_EXIT=$?
 
-          CRIT=$(jq '[.matches[] | select(.vulnerability.severity == "Critical")] | length' \
-            "scan-${SAFE}/grype.json" 2>/dev/null || echo 0)
-          HIGH=$(jq '[.matches[] | select(.vulnerability.severity == "High")]    | length' \
-            "scan-${SAFE}/grype.json" 2>/dev/null || echo 0)
-          MED=$(jq  '[.matches[] | select(.vulnerability.severity == "Medium")]  | length' \
-            "scan-${SAFE}/grype.json" 2>/dev/null || echo 0)
-          LOW=$(jq  '[.matches[] | select(.vulnerability.severity | test("Low|Negligible"))] | length' \
-            "scan-${SAFE}/grype.json" 2>/dev/null || echo 0)
+          CRIT=$(jq '[.matches[] | select(.vulnerability.severity=="Critical")] | length' "scan-${SAFE}/grype.json" 2>/dev/null || echo 0)
+          HIGH=$(jq '[.matches[] | select(.vulnerability.severity=="High")]    | length' "scan-${SAFE}/grype.json" 2>/dev/null || echo 0)
+          MED=$(jq  '[.matches[] | select(.vulnerability.severity=="Medium")]  | length' "scan-${SAFE}/grype.json" 2>/dev/null || echo 0)
+          LOW=$(jq  '[.matches[] | select(.vulnerability.severity | test("Low|Negligible"))] | length' "scan-${SAFE}/grype.json" 2>/dev/null || echo 0)
 
-          echo "GRYPE_EXIT=$GRYPE_EXIT" >> "$GITHUB_ENV"
-          echo "GRYPE_CRIT=$CRIT"       >> "$GITHUB_ENV"
-          echo "GRYPE_HIGH=$HIGH"       >> "$GITHUB_ENV"
-          echo "GRYPE_MED=$MED"         >> "$GITHUB_ENV"
-          echo "GRYPE_LOW=$LOW"         >> "$GITHUB_ENV"
+          { echo "GRYPE_EXIT=$GRYPE_EXIT"
+            echo "GRYPE_CRIT=$CRIT"; echo "GRYPE_HIGH=$HIGH"
+            echo "GRYPE_MED=$MED";   echo "GRYPE_LOW=$LOW"; } >> "$GITHUB_ENV"
 
-      - name: Vulnerability scan — osv-scanner
+      - name: Grype — old image (baseline)
+        if: env.HAS_BASELINE == 'true'
         run: |
-          osv-scanner \
-            --sbom "scan-${SAFE}/sbom.cdx.json" \
-            --format json > "scan-${SAFE}/osv.json" 2>"scan-${SAFE}/osv.stderr" || true
+          grype "sbom:scan-${SAFE}/sbom-old.cdx.json" \
+            -o json > "scan-${SAFE}/grype-old.json" 2>/dev/null || true
 
-          CRIT=$(jq '[.results[]?.packages[]?.vulnerabilities[]?
-                       | select(.database_specific?.severity == "CRITICAL")] | length' \
-            "scan-${SAFE}/osv.json" 2>/dev/null || echo 0)
-          HIGH=$(jq '[.results[]?.packages[]?.vulnerabilities[]?
-                       | select(.database_specific?.severity == "HIGH")] | length' \
-            "scan-${SAFE}/osv.json" 2>/dev/null || echo 0)
+          CRIT=$(jq '[.matches[] | select(.vulnerability.severity=="Critical")] | length' "scan-${SAFE}/grype-old.json" 2>/dev/null || echo 0)
+          HIGH=$(jq '[.matches[] | select(.vulnerability.severity=="High")]    | length' "scan-${SAFE}/grype-old.json" 2>/dev/null || echo 0)
+          MED=$(jq  '[.matches[] | select(.vulnerability.severity=="Medium")]  | length' "scan-${SAFE}/grype-old.json" 2>/dev/null || echo 0)
+          LOW=$(jq  '[.matches[] | select(.vulnerability.severity | test("Low|Negligible"))] | length' "scan-${SAFE}/grype-old.json" 2>/dev/null || echo 0)
 
-          echo "OSV_CRIT=$CRIT"                                   >> "$GITHUB_ENV"
-          echo "OSV_HIGH=$HIGH"                                   >> "$GITHUB_ENV"
-          echo "OSV_FAILED=$([ "$CRIT" -gt 0 ] && echo true || echo false)" >> "$GITHUB_ENV"
+          { echo "GRYPE_OLD_CRIT=$CRIT"; echo "GRYPE_OLD_HIGH=$HIGH"
+            echo "GRYPE_OLD_MED=$MED";   echo "GRYPE_OLD_LOW=$LOW"; } >> "$GITHUB_ENV"
+
+      # ── OSV ────────────────────────────────────────────────────────────────
+
+      - name: OSV — new image
+        run: |
+          osv-scanner --sbom "scan-${SAFE}/sbom.cdx.json" --format json \
+            > "scan-${SAFE}/osv.json" 2>/dev/null || true
+
+          CRIT=$(jq '[.results[]?.packages[]?.vulnerabilities[]? | select(.database_specific?.severity=="CRITICAL")] | length' "scan-${SAFE}/osv.json" 2>/dev/null || echo 0)
+          HIGH=$(jq '[.results[]?.packages[]?.vulnerabilities[]? | select(.database_specific?.severity=="HIGH")]     | length' "scan-${SAFE}/osv.json" 2>/dev/null || echo 0)
+          { echo "OSV_CRIT=$CRIT"; echo "OSV_HIGH=$HIGH"; } >> "$GITHUB_ENV"
+
+      - name: OSV — old image (baseline)
+        if: env.HAS_BASELINE == 'true'
+        run: |
+          osv-scanner --sbom "scan-${SAFE}/sbom-old.cdx.json" --format json \
+            > "scan-${SAFE}/osv-old.json" 2>/dev/null || true
+
+          CRIT=$(jq '[.results[]?.packages[]?.vulnerabilities[]? | select(.database_specific?.severity=="CRITICAL")] | length' "scan-${SAFE}/osv-old.json" 2>/dev/null || echo 0)
+          HIGH=$(jq '[.results[]?.packages[]?.vulnerabilities[]? | select(.database_specific?.severity=="HIGH")]     | length' "scan-${SAFE}/osv-old.json" 2>/dev/null || echo 0)
+          { echo "OSV_OLD_CRIT=$CRIT"; echo "OSV_OLD_HIGH=$HIGH"; } >> "$GITHUB_ENV"
+
+      # ── Delta computation ──────────────────────────────────────────────────
+
+      - name: Compute delta — grype
+        if: env.HAS_BASELINE == 'true'
+        run: |
+          jq -r '.matches[] | select(.vulnerability.severity | test("Critical|High")) | .vulnerability.id' \
+            "scan-${SAFE}/grype-old.json" 2>/dev/null | sort -u > /tmp/grype_old.txt || touch /tmp/grype_old.txt
+          jq -r '.matches[] | select(.vulnerability.severity | test("Critical|High")) | .vulnerability.id' \
+            "scan-${SAFE}/grype.json"     2>/dev/null | sort -u > /tmp/grype_new.txt || touch /tmp/grype_new.txt
+
+          # Lines only in new = introduced; lines only in old = fixed
+          comm -13 /tmp/grype_old.txt /tmp/grype_new.txt > /tmp/grype_introduced_ids.txt
+          comm -23 /tmp/grype_old.txt /tmp/grype_new.txt > /tmp/grype_fixed_ids.txt
+
+          INTRO=$(wc -l < /tmp/grype_introduced_ids.txt | tr -d ' ')
+          FIXED=$(wc -l < /tmp/grype_fixed_ids.txt      | tr -d ' ')
+
+          # TSV detail rows for introduced CVEs (used in PR comment)
+          if [ "$INTRO" -gt 0 ]; then
+            FILTER=$(jq -Rc '[inputs]' /tmp/grype_introduced_ids.txt)
+            jq -r --argjson ids "$FILTER" '
+              .matches[] |
+              select(.vulnerability.severity | test("Critical|High")) |
+              select([.vulnerability.id] | inside($ids)) |
+              [.artifact.name, .artifact.version, .vulnerability.id,
+               .vulnerability.severity, (.artifact.type // "?")] | @tsv
+            ' "scan-${SAFE}/grype.json" 2>/dev/null > "scan-${SAFE}/grype-introduced.tsv"
+          else
+            touch "scan-${SAFE}/grype-introduced.tsv"
+          fi
+
+          # TSV detail rows for fixed CVEs
+          if [ "$FIXED" -gt 0 ]; then
+            FILTER=$(jq -Rc '[inputs]' /tmp/grype_fixed_ids.txt)
+            jq -r --argjson ids "$FILTER" '
+              .matches[] |
+              select(.vulnerability.severity | test("Critical|High")) |
+              select([.vulnerability.id] | inside($ids)) |
+              [.artifact.name, .artifact.version, .vulnerability.id,
+               .vulnerability.severity, (.artifact.type // "?")] | @tsv
+            ' "scan-${SAFE}/grype-old.json" 2>/dev/null > "scan-${SAFE}/grype-fixed.tsv"
+          else
+            touch "scan-${SAFE}/grype-fixed.tsv"
+          fi
+
+          DELTA_FAILED="false"
+          [ "$INTRO" -gt 0 ] && DELTA_FAILED="true"
+          { echo "GRYPE_INTRODUCED=$INTRO"; echo "GRYPE_FIXED=$FIXED"
+            echo "GRYPE_DELTA_FAILED=$DELTA_FAILED"; } >> "$GITHUB_ENV"
+
+      - name: Compute delta — osv-scanner
+        if: env.HAS_BASELINE == 'true'
+        run: |
+          # Prefer CVE alias over GHSA ID for deduplication against grype
+          osv_ids() {
+            jq -r '
+              .results[]?.packages[]?.vulnerabilities[]? |
+              select(.database_specific?.severity | test("CRITICAL|HIGH")) |
+              if .aliases and (.aliases|length) > 0 then .aliases[0] else .id end
+            ' "$1" 2>/dev/null | sort -u || true
+          }
+
+          osv_ids "scan-${SAFE}/osv-old.json" > /tmp/osv_old.txt || touch /tmp/osv_old.txt
+          osv_ids "scan-${SAFE}/osv.json"     > /tmp/osv_new.txt || touch /tmp/osv_new.txt
+
+          comm -13 /tmp/osv_old.txt /tmp/osv_new.txt > /tmp/osv_introduced_ids.txt
+          comm -23 /tmp/osv_old.txt /tmp/osv_new.txt > /tmp/osv_fixed_ids.txt
+
+          INTRO=$(wc -l < /tmp/osv_introduced_ids.txt | tr -d ' ')
+          FIXED=$(wc -l < /tmp/osv_fixed_ids.txt      | tr -d ' ')
+
+          detail_tsv() {
+            local ids_file="$1" scan_file="$2" out="$3"
+            FILTER=$(jq -Rc '[inputs]' "$ids_file")
+            jq -r --argjson ids "$FILTER" '
+              .results[]?.packages[]? |
+              .package as $pkg |
+              .vulnerabilities[]? |
+              select(.database_specific?.severity | test("CRITICAL|HIGH")) |
+              (if .aliases and (.aliases|length)>0 then .aliases[0] else .id end) as $cve |
+              select([$cve] | inside($ids)) |
+              [$pkg.name, $pkg.version, $cve,
+               (.database_specific?.severity // "?"), $pkg.ecosystem] | @tsv
+            ' "$scan_file" 2>/dev/null > "$out"
+          }
+
+          [ "$INTRO" -gt 0 ] && \
+            detail_tsv /tmp/osv_introduced_ids.txt "scan-${SAFE}/osv.json"     "scan-${SAFE}/osv-introduced.tsv" || \
+            touch "scan-${SAFE}/osv-introduced.tsv"
+
+          [ "$FIXED" -gt 0 ] && \
+            detail_tsv /tmp/osv_fixed_ids.txt      "scan-${SAFE}/osv-old.json" "scan-${SAFE}/osv-fixed.tsv" || \
+            touch "scan-${SAFE}/osv-fixed.tsv"
+
+          OSV_DELTA_FAILED="false"
+          [ "$INTRO" -gt 0 ] && OSV_DELTA_FAILED="true"
+          { echo "OSV_INTRODUCED=$INTRO"; echo "OSV_FIXED=$FIXED"
+            echo "OSV_DELTA_FAILED=$OSV_DELTA_FAILED"; } >> "$GITHUB_ENV"
+
+      # ── Metadata, summary, artifact ────────────────────────────────────────
 
       - name: Save scan metadata
         if: always()
         run: |
           jq -n \
-            --arg     image      "$IMAGE" \
-            --argjson grype_exit "${GRYPE_EXIT:-0}" \
-            --argjson grype_crit "${GRYPE_CRIT:-0}" \
-            --argjson grype_high "${GRYPE_HIGH:-0}" \
-            --argjson grype_med  "${GRYPE_MED:-0}"  \
-            --argjson grype_low  "${GRYPE_LOW:-0}"  \
-            --argjson osv_crit   "${OSV_CRIT:-0}"   \
-            --argjson osv_high   "${OSV_HIGH:-0}"   \
-            --arg     osv_failed "${OSV_FAILED:-false}" \
+            --arg  new_image           "$NEW_IMAGE" \
+            --arg  old_image           "$OLD_IMAGE" \
+            --arg  has_baseline        "$HAS_BASELINE" \
+            --argjson grype_exit       "${GRYPE_EXIT:-0}" \
+            --argjson grype_crit       "${GRYPE_CRIT:-0}" \
+            --argjson grype_high       "${GRYPE_HIGH:-0}" \
+            --argjson grype_med        "${GRYPE_MED:-0}" \
+            --argjson grype_low        "${GRYPE_LOW:-0}" \
+            --argjson grype_old_crit   "${GRYPE_OLD_CRIT:-0}" \
+            --argjson grype_old_high   "${GRYPE_OLD_HIGH:-0}" \
+            --argjson grype_old_med    "${GRYPE_OLD_MED:-0}" \
+            --argjson grype_old_low    "${GRYPE_OLD_LOW:-0}" \
+            --argjson grype_introduced "${GRYPE_INTRODUCED:-0}" \
+            --argjson grype_fixed      "${GRYPE_FIXED:-0}" \
+            --arg  grype_delta_failed  "${GRYPE_DELTA_FAILED:-false}" \
+            --argjson osv_crit         "${OSV_CRIT:-0}" \
+            --argjson osv_high         "${OSV_HIGH:-0}" \
+            --argjson osv_old_crit     "${OSV_OLD_CRIT:-0}" \
+            --argjson osv_old_high     "${OSV_OLD_HIGH:-0}" \
+            --argjson osv_introduced   "${OSV_INTRODUCED:-0}" \
+            --argjson osv_fixed        "${OSV_FIXED:-0}" \
+            --arg  osv_delta_failed    "${OSV_DELTA_FAILED:-false}" \
             '{
-              image:      $image,
-              grype_exit: $grype_exit,
-              grype_crit: $grype_crit,  grype_high: $grype_high,
-              grype_med:  $grype_med,   grype_low:  $grype_low,
-              osv_crit:   $osv_crit,    osv_high:   $osv_high,
-              osv_failed: ($osv_failed == "true")
+              new_image: $new_image, old_image: $old_image,
+              has_baseline: ($has_baseline == "true"),
+              grype: {
+                exit: $grype_exit,
+                crit: $grype_crit, high: $grype_high, med: $grype_med, low: $grype_low,
+                old_crit: $grype_old_crit, old_high: $grype_old_high,
+                old_med:  $grype_old_med,  old_low:  $grype_old_low,
+                introduced: $grype_introduced, fixed: $grype_fixed,
+                delta_failed: ($grype_delta_failed == "true")
+              },
+              osv: {
+                crit: $osv_crit, high: $osv_high,
+                old_crit: $osv_old_crit, old_high: $osv_old_high,
+                introduced: $osv_introduced, fixed: $osv_fixed,
+                delta_failed: ($osv_delta_failed == "true")
+              }
             }' > "scan-${SAFE}/meta.json"
 
       - name: Write step summary
         if: always()
         run: |
-          GATE="✅ Pass"
-          if [ "${GRYPE_EXIT:-0}" != "0" ] || [ "${OSV_FAILED}" = "true" ]; then
-            GATE="❌ Fail"
+          if [ "$HAS_BASELINE" = "true" ]; then
+            GATE="✅ Pass"
+            { [ "${GRYPE_DELTA_FAILED:-false}" = "true" ] || \
+              [ "${OSV_DELTA_FAILED:-false}"   = "true" ]; } && GATE="❌ Fail (regression)"
+            {
+              echo "## \`${NEW_IMAGE}\` — ${GATE}"
+              echo "| | Critical | High | Medium | Low |"
+              echo "|-|----------|------|--------|-----|"
+              echo "| Before | ${GRYPE_OLD_CRIT:-?} | ${GRYPE_OLD_HIGH:-?} | ${GRYPE_OLD_MED:-?} | ${GRYPE_OLD_LOW:-?} |"
+              echo "| After  | ${GRYPE_CRIT:-?} | ${GRYPE_HIGH:-?} | ${GRYPE_MED:-?} | ${GRYPE_LOW:-?} |"
+              echo "grype: ${GRYPE_FIXED:-0} fixed, ${GRYPE_INTRODUCED:-0} introduced"
+              echo "osv:   ${OSV_FIXED:-0} fixed, ${OSV_INTRODUCED:-0} introduced"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            GATE="✅ Pass"
+            { [ "${GRYPE_EXIT:-0}" != "0" ] || [ "${OSV_CRIT:-0}" -gt 0 ]; } && GATE="❌ Fail"
+            {
+              echo "## \`${NEW_IMAGE}\` — ${GATE} (no baseline)"
+              echo "| Tool | Critical | High | Medium | Low |"
+              echo "|------|----------|------|--------|-----|"
+              echo "| grype | ${GRYPE_CRIT:-?} | ${GRYPE_HIGH:-?} | ${GRYPE_MED:-?} | ${GRYPE_LOW:-?} |"
+              echo "| osv   | ${OSV_CRIT:-?}   | ${OSV_HIGH:-?}   | —      | —   |"
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
-          {
-            echo "## \`${IMAGE}\` — ${GATE}"
-            echo ""
-            echo "| Tool | Critical | High | Medium | Low/Negligible |"
-            echo "|------|----------|------|--------|----------------|"
-            echo "| grype | ${GRYPE_CRIT:-?} | ${GRYPE_HIGH:-?} | ${GRYPE_MED:-?} | ${GRYPE_LOW:-?} |"
-            echo "| osv-scanner | ${OSV_CRIT:-?} | ${OSV_HIGH:-?} | — | — |"
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload scan artifact
         uses: actions/upload-artifact@v4
@@ -192,18 +356,28 @@ jobs:
       - name: Enforce thresholds
         run: |
           FAILED=false
-          if [ "${GRYPE_EXIT:-0}" != "0" ]; then
-            echo "grype: ${GRYPE_CRIT} Critical findings (threshold: ${GRYPE_FAIL_SEVERITY})"
-            FAILED=true
-          fi
-          if [ "${OSV_FAILED}" = "true" ]; then
-            echo "osv-scanner: ${OSV_CRIT} Critical findings"
-            FAILED=true
+          if [ "$HAS_BASELINE" = "true" ]; then
+            if [ "${GRYPE_DELTA_FAILED:-false}" = "true" ]; then
+              echo "grype: ${GRYPE_INTRODUCED} new Critical/High CVE(s) introduced"
+              FAILED=true
+            fi
+            if [ "${OSV_DELTA_FAILED:-false}" = "true" ]; then
+              echo "osv: ${OSV_INTRODUCED} new Critical/High CVE(s) introduced"
+              FAILED=true
+            fi
+          else
+            if [ "${GRYPE_EXIT:-0}" != "0" ]; then
+              echo "grype: ${GRYPE_CRIT} Critical finding(s) (absolute threshold, no baseline)"
+              FAILED=true
+            fi
+            if [ "${OSV_CRIT:-0}" -gt 0 ]; then
+              echo "osv: ${OSV_CRIT} Critical finding(s) (absolute threshold, no baseline)"
+              FAILED=true
+            fi
           fi
           [ "$FAILED" = "true" ] && exit 1 || echo "Scans passed"
 
-  # ── Job 3: post PR comment + single gate for branch protection ─────────────
-  # Add "Image Scans Passed" as a required status check in GitHub branch settings.
+  # ── Job 3: PR comment + gate ───────────────────────────────────────────────
   image-scans-passed:
     name: Image Scans Passed
     needs: [detect-images, scan]
@@ -219,7 +393,7 @@ jobs:
         with:
           pattern: scan-*
           merge-multiple: false
-        continue-on-error: true   # no artifacts when has-images == false
+        continue-on-error: true
 
       - name: Build and post PR comment
         if: needs.detect-images.outputs.has-images == 'true'
@@ -230,6 +404,22 @@ jobs:
           REPO="${{ github.repository }}"
           OVERALL_PASS=true
 
+          # Format a delta cell: "+2 ❌" / "-1 ✅" / "0"
+          delta_cell() {
+            local diff=$(( $2 - $1 ))
+            if   [ "$diff" -gt 0 ]; then printf '+%d ❌' "$diff"
+            elif [ "$diff" -lt 0 ]; then printf '%d ✅' "$diff"
+            else printf '0'; fi
+          }
+
+          # Render a TSV file as table rows (caller writes header + details wrapper)
+          render_tsv() {
+            local file="$1"
+            while IFS=$'\t' read -r c1 c2 c3 c4 c5; do
+              printf '| `%s` | %s | %s | **%s** | %s |\n' "$c1" "$c2" "$c3" "$c4" "$c5"
+            done < "$file"
+          }
+
           {
             echo "## 🔍 Image Security Scan Results"
             echo ""
@@ -237,110 +427,124 @@ jobs:
             for dir in scan-*/; do
               [ -f "${dir}meta.json" ] || continue
 
-              IMAGE=$(jq -r   '.image'       "${dir}meta.json")
-              GRYPE_EXIT=$(jq  '.grype_exit'  "${dir}meta.json")
-              GRYPE_CRIT=$(jq  '.grype_crit'  "${dir}meta.json")
-              GRYPE_HIGH=$(jq  '.grype_high'  "${dir}meta.json")
-              GRYPE_MED=$(jq   '.grype_med'   "${dir}meta.json")
-              GRYPE_LOW=$(jq   '.grype_low'   "${dir}meta.json")
-              OSV_CRIT=$(jq    '.osv_crit'    "${dir}meta.json")
-              OSV_HIGH=$(jq    '.osv_high'    "${dir}meta.json")
-              OSV_FAILED=$(jq  '.osv_failed'  "${dir}meta.json")
+              NEW=$(jq -r  '.new_image'        "${dir}meta.json")
+              OLD=$(jq -r  '.old_image'        "${dir}meta.json")
+              HB=$(jq      '.has_baseline'     "${dir}meta.json")
+              GC=$(jq      '.grype.crit'       "${dir}meta.json")
+              GH=$(jq      '.grype.high'       "${dir}meta.json")
+              GM=$(jq      '.grype.med'        "${dir}meta.json")
+              GL=$(jq      '.grype.low'        "${dir}meta.json")
+              GOC=$(jq     '.grype.old_crit'   "${dir}meta.json")
+              GOH=$(jq     '.grype.old_high'   "${dir}meta.json")
+              GOM=$(jq     '.grype.old_med'    "${dir}meta.json")
+              GOL=$(jq     '.grype.old_low'    "${dir}meta.json")
+              GI=$(jq      '.grype.introduced' "${dir}meta.json")
+              GF=$(jq      '.grype.fixed'      "${dir}meta.json")
+              GDF=$(jq     '.grype.delta_failed' "${dir}meta.json")
+              GEXIT=$(jq   '.grype.exit'       "${dir}meta.json")
+              OC=$(jq      '.osv.crit'         "${dir}meta.json")
+              OH=$(jq      '.osv.high'         "${dir}meta.json")
+              OI=$(jq      '.osv.introduced'   "${dir}meta.json")
+              OF=$(jq      '.osv.fixed'        "${dir}meta.json")
+              ODF=$(jq     '.osv.delta_failed' "${dir}meta.json")
 
               IMAGE_PASS=true
-              [ "$GRYPE_EXIT" != "0" ]       && IMAGE_PASS=false
-              [ "$OSV_FAILED" = "true" ]     && IMAGE_PASS=false
-              [ "$IMAGE_PASS" = "false" ]    && OVERALL_PASS=false
+              if [ "$HB" = "true" ]; then
+                [ "$GDF" = "true" ] && IMAGE_PASS=false
+                [ "$ODF" = "true" ] && IMAGE_PASS=false
+              else
+                [ "$GEXIT" != "0" ] && IMAGE_PASS=false
+                [ "$OC" -gt 0 ] 2>/dev/null && IMAGE_PASS=false
+              fi
+              [ "$IMAGE_PASS" = "false" ] && OVERALL_PASS=false
 
-              BADGE="✅ Pass"
-              [ "$IMAGE_PASS" = "false" ] && BADGE="❌ Fail"
+              BADGE="✅ Pass"; [ "$IMAGE_PASS" = "false" ] && BADGE="❌ Fail"
 
-              echo "### \`${IMAGE}\` — ${BADGE}"
-              echo ""
+              if [ "$HB" = "true" ]; then
+                OLD_TAG="${OLD##*:}"
+                NEW_TAG="${NEW##*:}"
+                echo "### \`${OLD_TAG}\` → \`${NEW_TAG}\` — ${BADGE}"
+                printf '_`%s`_\n\n' "$NEW"
 
-              # ── Summary counts table ───────────────────────────────────────
-              printf '| Tool | Critical | High | Medium | Low / Negligible |\n'
-              printf '|------|----------|------|--------|------------------|\n'
-              printf '| grype | %s | %s | %s | %s |\n' \
-                "$GRYPE_CRIT" "$GRYPE_HIGH" "$GRYPE_MED" "$GRYPE_LOW"
-              printf '| osv-scanner | %s | %s | — | — |\n' "$OSV_CRIT" "$OSV_HIGH"
-              echo ""
+                DC=$(delta_cell "$GOC" "$GC")
+                DH=$(delta_cell "$GOH" "$GH")
+                DM=$(delta_cell "$GOM" "$GM")
+                DL=$(delta_cell "$GOL" "$GL")
 
-              # ── Grype: Critical + High findings ───────────────────────────
-              if [ -f "${dir}grype.json" ]; then
-                GRYPE_ROWS=$(jq -r '
-                  .matches[]
-                  | select(.vulnerability.severity | test("Critical|High"))
-                  | [
-                      .artifact.name,
-                      .artifact.version,
-                      .vulnerability.id,
-                      .vulnerability.severity,
-                      (.artifact.type // "unknown")
-                    ]
-                  | @tsv
-                ' "${dir}grype.json" 2>/dev/null \
-                  | sort -t$'\t' -k4,4 \
-                  | head -50)
+                printf '| | Critical | High | Medium | Low / Negligible |\n'
+                printf '|-|----------|------|--------|------------------|\n'
+                printf '| Before (`%s`) | %s | %s | %s | %s |\n' "$OLD_TAG" "$GOC" "$GOH" "$GOM" "$GOL"
+                printf '| After  (`%s`) | %s | %s | %s | %s |\n' "$NEW_TAG" "$GC" "$GH" "$GM" "$GL"
+                printf '| **Delta** | **%s** | **%s** | %s | %s |\n' "$DC" "$DH" "$DM" "$DL"
+                echo ""
 
-                if [ -n "$GRYPE_ROWS" ]; then
-                  TOTAL=$(jq '.matches | length' "${dir}grype.json" 2>/dev/null || echo 0)
-                  SHOWN=$(echo "$GRYPE_ROWS" | wc -l)
-                  echo "<details>"
-                  echo "<summary>grype — Critical / High findings (${GRYPE_CRIT} critical, ${GRYPE_HIGH} high)</summary>"
-                  echo ""
+                # grype — introduced
+                if [ -s "${dir}grype-introduced.tsv" ]; then
+                  printf '<details>\n<summary>grype — ❌ %s new Critical/High CVE(s) introduced</summary>\n\n' "$GI"
                   printf '| Package | Installed | Vulnerability | Severity | Type |\n'
                   printf '|---------|-----------|---------------|----------|------|\n'
-                  while IFS=$'\t' read -r pkg ver vuln sev typ; do
-                    printf '| `%s` | %s | %s | **%s** | %s |\n' \
-                      "$pkg" "$ver" "$vuln" "$sev" "$typ"
-                  done <<< "$GRYPE_ROWS"
-                  REST=$(( TOTAL - SHOWN ))
-                  [ "$REST" -gt 0 ] && \
-                    printf '\n_…and %d lower-severity findings — download the scan artifact for the full report._\n' "$REST"
-                  echo ""
-                  echo "</details>"
+                  render_tsv "${dir}grype-introduced.tsv"
+                  printf '\n</details>\n\n'
                 else
-                  echo "**grype:** no Critical or High findings."
+                  echo "**grype:** no new Critical/High CVEs introduced. ✅"
                 fi
-              fi
 
-              echo ""
+                # grype — fixed
+                if [ -s "${dir}grype-fixed.tsv" ]; then
+                  printf '<details>\n<summary>grype — ✅ %s Critical/High CVE(s) fixed by this upgrade</summary>\n\n' "$GF"
+                  printf '| Package | Was | Vulnerability | Severity | Type |\n'
+                  printf '|---------|-----|---------------|----------|------|\n'
+                  render_tsv "${dir}grype-fixed.tsv"
+                  printf '\n</details>\n\n'
+                fi
 
-              # ── OSV Scanner: Critical + High findings ─────────────────────
-              if [ -f "${dir}osv.json" ]; then
-                OSV_ROWS=$(jq -r '
-                  .results[]?.packages[]?
-                  | .package as $pkg
-                  | .vulnerabilities[]?
-                  | select(.database_specific?.severity | test("CRITICAL|HIGH"))
-                  | [
-                      $pkg.name,
-                      $pkg.version,
-                      (if .aliases and (.aliases | length) > 0
-                       then .aliases[0] else .id end),
-                      (.database_specific?.severity // "UNKNOWN"),
-                      $pkg.ecosystem
-                    ]
-                  | @tsv
-                ' "${dir}osv.json" 2>/dev/null \
-                  | sort -t$'\t' -k4,4 \
-                  | head -50)
-
-                if [ -n "$OSV_ROWS" ]; then
-                  echo "<details>"
-                  echo "<summary>osv-scanner — Critical / High findings (${OSV_CRIT} critical, ${OSV_HIGH} high)</summary>"
-                  echo ""
+                # osv — introduced
+                if [ -s "${dir}osv-introduced.tsv" ]; then
+                  printf '<details>\n<summary>osv-scanner — ❌ %s new Critical/High CVE(s) introduced</summary>\n\n' "$OI"
                   printf '| Package | Installed | Vulnerability | Severity | Ecosystem |\n'
                   printf '|---------|-----------|---------------|----------|-----------|\n'
-                  while IFS=$'\t' read -r pkg ver vuln sev eco; do
-                    printf '| `%s` | %s | %s | **%s** | %s |\n' \
-                      "$pkg" "$ver" "$vuln" "$sev" "$eco"
-                  done <<< "$OSV_ROWS"
-                  echo ""
-                  echo "</details>"
+                  render_tsv "${dir}osv-introduced.tsv"
+                  printf '\n</details>\n\n'
                 else
-                  echo "**osv-scanner:** no Critical or High findings."
+                  echo "**osv-scanner:** no new Critical/High CVEs introduced. ✅"
+                fi
+
+                # osv — fixed
+                if [ -s "${dir}osv-fixed.tsv" ]; then
+                  printf '<details>\n<summary>osv-scanner — ✅ %s Critical/High CVE(s) fixed by this upgrade</summary>\n\n' "$OF"
+                  printf '| Package | Was | Vulnerability | Severity | Ecosystem |\n'
+                  printf '|---------|-----|---------------|----------|-----------|\n'
+                  render_tsv "${dir}osv-fixed.tsv"
+                  printf '\n</details>\n\n'
+                fi
+
+              else
+                echo "### \`${NEW}\` — ${BADGE} _(new image, no baseline)_"
+                echo ""
+                echo "_No prior version to compare. Absolute threshold applied (fail on Critical)._"
+                echo ""
+                printf '| Tool | Critical | High | Medium | Low / Negligible |\n'
+                printf '|------|----------|------|--------|------------------|\n'
+                printf '| grype | %s | %s | %s | %s |\n' "$GC" "$GH" "$GM" "$GL"
+                printf '| osv   | %s | %s | --     | --               |\n' "$OC" "$OH"
+                echo ""
+
+                if [ -f "${dir}grype.json" ]; then
+                  ROWS=$(jq -r '
+                    .matches[] |
+                    select(.vulnerability.severity | test("Critical|High")) |
+                    [.artifact.name, .artifact.version, .vulnerability.id,
+                     .vulnerability.severity, (.artifact.type // "?")] | @tsv
+                  ' "${dir}grype.json" 2>/dev/null | sort -t$'\t' -k4,4 | head -50)
+                  if [ -n "$ROWS" ]; then
+                    printf '<details>\n<summary>grype — Critical / High findings</summary>\n\n'
+                    printf '| Package | Installed | Vulnerability | Severity | Type |\n'
+                    printf '|---------|-----------|---------------|----------|------|\n'
+                    while IFS=$'\t' read -r pkg ver vuln sev typ; do
+                      printf '| `%s` | %s | %s | **%s** | %s |\n' "$pkg" "$ver" "$vuln" "$sev" "$typ"
+                    done <<< "$ROWS"
+                    printf '\n</details>\n\n'
+                  fi
                 fi
               fi
 
@@ -349,16 +553,14 @@ jobs:
               echo ""
             done
 
-            # ── Overall verdict ────────────────────────────────────────────────
             if [ "$OVERALL_PASS" = "true" ]; then
               echo "**Result: ✅ All image scans passed.**"
             else
-              echo "**Result: ❌ One or more images exceeded the threshold — merge blocked.**"
+              echo "**Result: ❌ One or more images introduced new vulnerabilities — merge blocked.**"
             fi
 
           } > /tmp/pr-comment.md
 
-          # Update the last bot comment if one exists, otherwise create a new one.
           gh pr comment "$PR_NUM" --repo "$REPO" \
             --edit-last --body-file /tmp/pr-comment.md 2>/dev/null \
             || gh pr comment "$PR_NUM" --repo "$REPO" \
@@ -368,17 +570,9 @@ jobs:
         run: |
           DETECT="${{ needs.detect-images.result }}"
           SCAN="${{ needs.scan.result }}"
-
           echo "detect-images: $DETECT"
           echo "scan:          $SCAN"
-
-          if [[ "$DETECT" != "success" ]]; then
-            echo "detect-images job did not succeed"
-            exit 1
-          fi
-          # skipped = no image changes in this PR, which is fine
-          if [[ "$SCAN" != "success" && "$SCAN" != "skipped" ]]; then
-            echo "One or more image scans failed — see the PR comment for details"
-            exit 1
-          fi
+          [[ "$DETECT" != "success" ]] && echo "detect-images did not succeed" && exit 1
+          [[ "$SCAN" != "success" && "$SCAN" != "skipped" ]] && \
+            echo "One or more scans failed — see PR comment" && exit 1
           echo "All image scans passed (or no image changes to scan)"
