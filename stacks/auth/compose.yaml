@@ -176,7 +176,7 @@ services:
         - traefik.http.services.zitadel-login.loadbalancer.server.port=3000
 
   oauth2-proxy-valkey:
-    image: valkey/valkey:8.0
+    image: valkey/valkey:8.1
     hostname: oauth2-proxy-valkey
     networks:
       - auth
