@@ -31,6 +31,6 @@
     - media
     - paperless
     - immich
-    - llm
+    # - llm
     - auth
     - monitoring
