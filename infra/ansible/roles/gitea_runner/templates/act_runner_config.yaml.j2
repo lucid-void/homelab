@@ -1,0 +1,27 @@
+log:
+  level: info
+  formatter: text
+  max_size: 128
+  max_days: 28
+  compress: true
+
+runner:
+  file: .runner
+  capacity: 2
+  timeout: 3h
+  insecure: false
+  fetch_timeout: 5s
+  fetch_interval: 2s
+
+cache:
+  enabled: true
+  dir: ""
+
+container:
+  network: "host"
+  privileged: false
+  force_pull: false
+  force_rebuild: false
+
+host:
+  workdir_parent: /opt/act_runner/workdir

@@ -1,0 +1,149 @@
+---
+- name: Install required packages
+  ansible.builtin.apt:
+    name:
+      - zsh
+      - sudo
+      - parted
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure labops group
+  ansible.builtin.group:
+    name: labops
+    gid: "{{ labops_gid }}"
+    state: present
+
+- name: Ensure docker group
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: Ensure docker user
+  ansible.builtin.user:
+    name: docker
+    uid: "{{ docker_uid }}"
+    group: labops
+    shell: /usr/sbin/nologin
+    create_home: false
+    state: present
+
+- name: Ensure void user
+  ansible.builtin.user:
+    name: void
+    uid: "{{ void_uid }}"
+    groups:
+      - labops
+      - sudo
+      - docker
+    append: false
+    shell: /usr/bin/zsh
+    create_home: true
+    state: present
+
+- name: Set void SSH authorized keys
+  ansible.posix.authorized_key:
+    user: void
+    key: "{{ void_ssh_authorized_keys | join('\n') }}"
+    exclusive: true
+    state: present
+
+- name: Add runner SSH key to iacuser authorized keys
+  ansible.posix.authorized_key:
+    user: iacuser
+    key: "{{ runner_ssh_public_key }}"
+    state: present
+  when: runner_ssh_public_key is defined and runner_ssh_public_key | length > 10
+
+- name: Set umask 0002 for labops members
+  ansible.builtin.copy:
+    dest: /etc/profile.d/labops.sh
+    content: "umask 0002\n"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Ensure /opt/compose exists
+  ansible.builtin.file:
+    path: /opt/compose
+    state: directory
+    owner: void
+    group: labops
+    mode: "02775"
+
+- name: Ensure /opt/volumes exists
+  ansible.builtin.file:
+    path: /opt/volumes
+    state: directory
+    owner: docker
+    group: labops
+    mode: "02775"
+
+# ── Rootfs expansion (runs automatically after Proxmox disk resize) ───────────
+- name: Detect root LVM layout
+  ansible.builtin.shell: |
+    set -e
+    root_lv=$(findmnt -n -o SOURCE /)
+    vg=$(lvs --noheadings -o vg_name "$root_lv" | tr -d ' ')
+    lv=$(lvs --noheadings -o lv_name "$root_lv" | tr -d ' ')
+    pv=$(pvs --noheadings -o pv_name,vg_name | awk -v vg="$vg" '$2 == vg {print $1; exit}')
+    disk=$(echo "$pv" | sed 's/p\?[0-9]*$//')
+    part=$(echo "$pv" | grep -oE '[0-9]+$')
+    printf 'disk=%s\npart=%s\npv=%s\nvg=%s\nlv=%s\n' "$disk" "$part" "$pv" "$vg" "$lv"
+  register: _lvm_layout
+  changed_when: false
+  check_mode: false
+  when: ansible_facts['lvm'] is defined
+
+- name: Parse LVM layout facts
+  ansible.builtin.set_fact:
+    _rootfs: "{{ dict(_lvm_layout.stdout_lines | map('split', '=')) }}"
+  when: ansible_facts['lvm'] is defined
+
+- name: Grow partition to disk boundary
+  ansible.builtin.shell: |
+    DISK="{{ _rootfs.disk }}"
+    PART="{{ _rootfs.part }}"
+
+    # Skip if free space after partition is less than 100 MiB (alignment overhead only)
+    DISK_END=$(blockdev --getsz "$DISK")
+    PART_END=$(parted -s "$DISK" unit s print | awk -v p="$PART" '$1==p{gsub(/s/,"",$3); print $3}')
+    if [ "$((DISK_END - PART_END))" -lt 204800 ]; then
+      echo "NOCHANGE"
+      exit 0
+    fi
+
+    # Logical partitions live inside an extended container — resize that first
+    PART_TYPE=$(parted -s "$DISK" unit s print | awk -v p="$PART" '$1==p{print $5}')
+    if [ "$PART_TYPE" = "logical" ]; then
+      EXT_NUM=$(parted -s "$DISK" unit s print | awk '$5=="extended"{print $1}')
+      parted -s "$DISK" resizepart "$EXT_NUM" -- -1s
+    fi
+
+    parted -s "$DISK" resizepart "$PART" -- -1s
+    partprobe "$DISK"
+    echo "CHANGED"
+  register: _growpart
+  changed_when: "'CHANGED' in _growpart.stdout"
+  failed_when: _growpart.rc != 0
+  when: ansible_facts['lvm'] is defined
+
+- name: Resize LVM physical volume
+  ansible.builtin.command: pvresize {{ _rootfs.pv }}
+  when: ansible_facts['lvm'] is defined and _growpart is changed
+  changed_when: true
+
+- name: Extend root logical volume to use all free space
+  ansible.builtin.command: lvextend -l +100%FREE /dev/{{ _rootfs.vg }}/{{ _rootfs.lv }}
+  register: _lvextend
+  when: ansible_facts['lvm'] is defined and _growpart is changed
+  changed_when: true
+  failed_when:
+    - _lvextend.rc not in [0, 5]
+    - "'No free extents' not in _lvextend.stderr"
+
+- name: Resize root ext4 filesystem
+  ansible.builtin.command: resize2fs /dev/{{ _rootfs.vg }}/{{ _rootfs.lv }}
+  when: ansible_facts['lvm'] is defined and _growpart is changed
+  changed_when: true

@@ -1,0 +1,10 @@
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: gotify
+    receivers:
+      - uid: gotify-webhook
+        type: webhook
+        settings:
+          url: "http://gotify:80/message?token={{ gotify_grafana_token }}"
+          httpMethod: POST

@@ -1,0 +1,22 @@
+Database:
+  postgres:
+    Host: databases_postgres
+    Port: 5432
+    Database: zitadel
+    User:
+      Username: zitadel
+      Password: "{{ postgres_password_zitadel }}"
+      SSL:
+        Mode: disable
+    Admin:
+      Username: "{{ postgres_superuser_username }}"
+      Password: "{{ postgres_superuser_password }}"
+      SSL:
+        Mode: disable
+
+ExternalDomain: "zitadel.{{ domain }}"
+ExternalPort: 443
+ExternalSecure: true
+
+Telemetry:
+  Enabled: false

@@ -1,0 +1,8 @@
+---
+- import_tasks: install.yml
+
+- import_tasks: swarm_manager.yml
+  when: swarm_role | default('') == 'manager'
+
+- import_tasks: swarm_worker.yml
+  when: swarm_role | default('') == 'worker'

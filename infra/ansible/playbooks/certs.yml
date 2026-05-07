@@ -1,0 +1,137 @@
+---
+# certs.yml — ACME certificate provisioning for all hosts that manage their
+# own certificates via built-in ACME clients or Traefik DNS-01.
+#
+# Run with:
+#   ansible-playbook -i inventory/ playbooks/certs.yml
+#
+# Run a single section with tags:
+#   ansible-playbook -i inventory/ playbooks/certs.yml -t proxmox
+#   ansible-playbook -i inventory/ playbooks/certs.yml -t pbs
+#   ansible-playbook -i inventory/ playbooks/certs.yml -t truenas
+#   ansible-playbook -i inventory/ playbooks/certs.yml -t traefik_secret
+
+# ---------------------------------------------------------------------------
+# Proxmox — built-in ACME client via pvenode
+# Plugin: Cloudflare DNS-01; token stored in SOPS-encrypted host_vars
+# ---------------------------------------------------------------------------
+- name: Provision ACME certificate on Proxmox host
+  hosts: proxmox
+  gather_facts: false
+  tags: [proxmox]
+
+  tasks:
+
+    - name: Configure ACME account on Proxmox
+      ansible.builtin.command: >
+        pvenode acme account register default
+        admin@{{ domain }}
+        --directory https://acme-v02.api.letsencrypt.org/directory
+      args:
+        creates: /etc/pve/priv/acme/default
+      changed_when: false
+
+    - name: Configure Cloudflare DNS plugin for Proxmox ACME
+      ansible.builtin.command: >
+        pvenode acme plugin add dns cloudflare
+        --api cf
+        --data CF_Token={{ proxmox_cloudflare_token }}
+      changed_when: false
+
+    - name: Set ACME domains for Proxmox node
+      ansible.builtin.command: >
+        pvenode config set
+        --acmedomain0 proxmox.{{ domain }},plugin=cloudflare
+      changed_when: false
+
+    - name: Order / renew Proxmox node certificate
+      ansible.builtin.command: pvenode acme cert order
+      register: proxmox_cert_order
+      changed_when: "'Successfully ordered certificate' in proxmox_cert_order.stdout"
+      failed_when:
+        - proxmox_cert_order.rc != 0
+        - "'already valid' not in proxmox_cert_order.stderr | default('')"
+
+# ---------------------------------------------------------------------------
+# TrueNAS — built-in ACME via REST API
+# Token stored in SOPS-encrypted host_vars (truenas_cloudflare_token,
+# truenas_api_key)
+# ---------------------------------------------------------------------------
+- name: Provision ACME certificate on TrueNAS
+  hosts: truenas
+  gather_facts: false
+  tags: [truenas]
+
+  tasks:
+
+    - name: Create / update Cloudflare DNS authenticator on TrueNAS
+      ansible.builtin.uri:
+        url: "https://truenas.{{ domain }}/api/v2.0/acme/dns/authenticator"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ truenas_api_key }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          name: cloudflare
+          authenticator: cloudflare
+          attributes:
+            cloudflare_email: ""
+            cloudflare_api_token: "{{ truenas_cloudflare_token }}"
+        status_code: [200, 201, 409]
+        validate_certs: true
+
+    - name: Issue / renew TrueNAS certificate via ACME
+      ansible.builtin.uri:
+        url: "https://truenas.{{ domain }}/api/v2.0/certificate"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ truenas_api_key }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          name: "truenas-acme-{{ ansible_date_time.date | replace('-', '') }}"
+          create_type: CERTIFICATE_CREATE_ACME
+          acme_directory_uri: https://acme-v02.api.letsencrypt.org/directory
+          domains_authenticators:
+            "truenas.{{ domain }}": cloudflare
+          renew_days: 30
+          tos: true
+        status_code: [200, 201]
+        validate_certs: true
+      register: truenas_cert_result
+
+    - name: Activate new TrueNAS certificate in UI settings
+      ansible.builtin.uri:
+        url: "https://truenas.{{ domain }}/api/v2.0/system/general"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ truenas_api_key }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          ui_certificate: "{{ truenas_cert_result.json.id }}"
+        status_code: [200]
+        validate_certs: true
+      when: truenas_cert_result is changed
+
+# ---------------------------------------------------------------------------
+# Services VM — deploy Cloudflare API token as a Docker secret for Traefik
+# Traefik uses DNS-01 ACME; it reads the token from the Docker secret.
+# ---------------------------------------------------------------------------
+- name: Deploy Cloudflare token Docker secret for Traefik on Services VM
+  hosts: services
+  gather_facts: false
+  tags: [traefik_secret]
+
+  tasks:
+
+    - name: Deploy cloudflare_token Docker secret
+      community.docker.docker_secret:
+        name: cloudflare_token
+        data: "{{ traefik_cloudflare_token }}"
+        state: present
+        # Force rotation only when the variable changes; Ansible compares
+        # the secret's label to detect drift.
+        labels:
+          managed_by: ansible

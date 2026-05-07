@@ -1,0 +1,5 @@
+---
+- name: deploy immich stack
+  ansible.builtin.command: >
+    docker stack deploy -c /opt/compose/immich/compose.yaml immich
+  changed_when: true

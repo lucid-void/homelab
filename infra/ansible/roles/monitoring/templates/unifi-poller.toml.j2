@@ -1,0 +1,13 @@
+[poller]
+  quiet   = true
+  debug   = false
+
+[prometheus]
+  disable     = false
+  http_listen = "0.0.0.0:9130"
+
+[unifi.defaults]
+  url        = "https://172.16.20.254"
+  user       = "unifipoller"
+  pass       = "{{ unifi_poller_password }}"
+  verify_ssl = false
