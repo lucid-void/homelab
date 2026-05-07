@@ -1,18 +1,4 @@
 ---
-# ── Docker user — override common role's nologin for this VM only ─────────────
-- name: Give docker user a shell, home directory, and docker socket access
-  ansible.builtin.user:
-    name: docker
-    uid: "{{ docker_uid }}"
-    group: labops
-    groups:
-      - docker
-    append: true
-    shell: /bin/bash
-    home: /home/docker
-    create_home: true
-    state: present
-
 # ── System packages ────────────────────────────────────────────────────────────
 - name: Install base packages
   ansible.builtin.apt:

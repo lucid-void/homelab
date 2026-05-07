@@ -1,0 +1,5 @@
+---
+docker_user_shell: /usr/sbin/nologin
+docker_user_create_home: false
+docker_user_home: /nonexistent
+docker_user_groups: []
