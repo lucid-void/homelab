@@ -298,7 +298,7 @@ services:
         order: stop-first
 
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
+    image: prometheuscommunity/postgres-exporter:v0.19.1
     user: "2202:2200"
     command:
       - "--web.listen-address=:9187"
