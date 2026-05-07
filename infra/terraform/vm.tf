@@ -36,9 +36,9 @@ locals {
     media = {
       vm_id      = 2012
       ip_last    = 12
-      vcpus      = 2
+      vcpus      = 4
       memory     = 4096
-      disk_gb    = 40
+      disk_gb    = 64
       tags       = ["iac", "swarm_worker"]
       dns_records= [] #sabnzbd, flaresolver, plex
       boot_order = 4
@@ -53,13 +53,13 @@ locals {
       tags       = ["iac", "swarm_manager"]
       dns_records= [
         # services vm (.13)
-        "traefik", "paperless", "immich", "homebox", "it-tools", "freshrss", "gitea", "zitadel", "authelia", "auth",
+        "traefik", "paperless", "immich", "photos", "homebox", "tools", "rss", "gitea", "zitadel", "authelia", "auth",
         # db vm (.10)
         "pgadmin", "postgres", "mariadb", "adminer",
         # media vm (.12)
-        "sonarr", "radarr", "nzb", "seerr", "prowlarr", "qbittorrent", "tautulli",
-        # monitoring vm (.11)
-        "grafana", "prometheus", "loki", "cadvisor", "pve_exporter", "truenas-exporter", "unifi-poller", "gotify", "uptime-kuma",
+        "sonarr", "radarr", "nzb", "seerr", "prowlarr", "tautulli",
+        # monitoring vm (.16)
+        "grafana", "prometheus", "loki", "cadvisor", "unifi-poller", "gotify", "status",
         # game vm (.14)
         "satisfactory", "crafty",
       ]
@@ -86,6 +86,17 @@ locals {
       tags       = ["iac", "swarm_worker"]
       dns_records= []
       boot_order = 6
+      up_delay   = 0
+    }
+    runner = {
+      vm_id      = 2017
+      ip_last    = 17
+      vcpus      = 2
+      memory     = 4096
+      disk_gb    = 60
+      tags       = ["iac", "runner"]
+      dns_records= []
+      boot_order = 8
       up_delay   = 0
     }
   }
