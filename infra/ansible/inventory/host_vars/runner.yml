@@ -1,0 +1,6 @@
+---
+docker_user_shell: /bin/bash
+docker_user_home: /home/docker
+docker_user_create_home: true
+docker_user_groups:
+  - docker

@@ -25,8 +25,11 @@
     name: docker
     uid: "{{ docker_uid }}"
     group: labops
-    shell: /usr/sbin/nologin
-    create_home: false
+    groups: "{{ docker_user_groups }}"
+    append: true
+    shell: "{{ docker_user_shell }}"
+    home: "{{ docker_user_home }}"
+    create_home: "{{ docker_user_create_home }}"
     state: present
 
 - name: Ensure void user
