@@ -124,7 +124,7 @@ services:
         - traefik.http.services.pgadmin.loadbalancer.server.port=5050
 
   adminer:
-    image: adminer:4.17.1
+    image: adminer:5.4.2
     hostname: adminer
     user: "2202:2200"
     networks:
