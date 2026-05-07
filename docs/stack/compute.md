@@ -16,7 +16,7 @@ All VMs are provisioned via the Packer -> OpenTofu -> Ansible pipeline.
 |---|---|---|---|
 | DB VM | .10 | Worker | Postgres, MariaDB, pgadmin, adminer — Swarm services pinned here; backup cron + rclone on host |
 | Monitoring VM | .11 | Worker | Prometheus, Loki, Grafana, exporters |
-| Media VM | .12 | Worker | Plex, *arr stack, download clients |
+| Media VM | .12 | Worker | *arr stack, download clients (Swarm); Plex (standalone compose — host network + iGPU) |
 | Services VM | .13 | **Manager** | Traefik, Paperless, Immich, Zitadel, oauth2-proxy, general services |
 | Game VM | .14 | Worker | Satisfactory, Netbird, ZeroTier |
 | Lab VM | .15 | Worker | Testing, staging, ephemeral workloads |
