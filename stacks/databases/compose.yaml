@@ -60,7 +60,7 @@ services:
         order: stop-first
 
   mariadb:
-    image: mariadb:11.4
+    image: mariadb:11.8
     hostname: mariadb
     environment:
       MARIADB_ROOT_PASSWORD_FILE: /run/secrets/mariadb_root_password
