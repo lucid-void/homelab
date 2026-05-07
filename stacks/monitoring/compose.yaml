@@ -143,7 +143,7 @@ services:
         order: stop-first
 
   gotify:
-    image: gotify/server:2.6
+    image: gotify/server:2.9
     user: "2202:2200"
     environment:
       # First-run initialisation only — ignored if the database already exists
