@@ -19,7 +19,7 @@ networks:
 
 services:
   paperless:
-    image: ghcr.io/paperless-ngx/paperless-ngx:2.20.14
+    image: ghcr.io/paperless-ngx/paperless-ngx:2.20.15
     environment:
       USERMAP_UID: "2202"
       USERMAP_GID: "2200"
