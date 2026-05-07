@@ -136,7 +136,7 @@ services:
         - traefik.http.middlewares.oauth2-proxy-ratelimit.ratelimit.burst=50
 
   zitadel-login:
-    image: ghcr.io/zitadel/zitadel-login:v4.7.3
+    image: ghcr.io/zitadel/zitadel-login:v4.15.0
     hostname: zitadel-login
     environment:
       ZITADEL_API_URL: http://zitadel:8080
