@@ -25,7 +25,7 @@ What runs where — every service pinned to its host via Swarm placement constra
 
 === "Monitoring VM (.16)"
 
-    Prometheus, Loki, Grafana, cAdvisor (global), pve_exporter, truenas-exporter, unifi-poller, Gotify, Uptime Kuma
+    Prometheus, Loki, Grafana, cAdvisor (global), pve_exporter, synology-exporter, unifi-poller, postgres_exporter, Gotify, Uptime Kuma
 
 === "Game VM (.14)"
 
@@ -41,6 +41,9 @@ What runs where — every service pinned to its host via Swarm placement constra
 !!! note "Valkey (Redis replacement)"
     Valkey is used in place of Redis for all cache and broker instances. Valkey instances are co-located with their service on the Services VM and hold no persistent data.
 
+!!! note "Immich OAuth"
+    Immich authenticates via Zitadel (native OIDC). Mobile clients use `/api/oauth/mobile-redirect` as the Zitadel redirect URI — Immich proxies this to `app.immich:///oauth-callback`, working around Zitadel's Web app type requiring an https:// redirect URI.
+
 ## Overlay Networks
 
 Services are isolated by function — each logical group gets its own encrypted overlay (`--opt encrypted`). Services that need Traefik routing join the `traefik` overlay in addition to their group overlay.
@@ -53,6 +56,6 @@ Services are isolated by function — each logical group gets its own encrypted 
 | `immich` | Immich server, ML, immich-valkey | Photo pipeline |
 | `llm` | Ollama, vLLM, OpenWebUI, Langfuse, Qdrant, SearXNG, Cortex stack | AI/ML interconnect |
 | `auth` | Zitadel, zitadel-login, oauth2-proxy, oauth2-proxy-valkey | SSO components |
-| `monitoring` | Prometheus, Loki, Grafana, Gotify, Uptime Kuma | PLG stack |
+| `monitoring` | Prometheus, Loki, Grafana, Gotify, Uptime Kuma, pve_exporter, synology-exporter, unifi-poller, postgres_exporter | PLG stack + exporters |
 
 **Standalone services** (homebox, it-tools, freshrss, Gitea) join only the `traefik` overlay for HTTP routing. Database access goes over TCP to TrueNAS on the host network.
