@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+
+  "labels": ["renovate"],
+  "assignees": ["lucid-void"],
+  "reviewers": ["lucid-void"],
+
+  "automerge": false,
+  "platformAutomerge": false,
+
+  "prConcurrentLimit": 6,
+  "prCreation": "immediate",
+  "schedule": ["every weekend"],
+
+  "packageRules": [
+    {
+      "description": "Disable major Docker image bumps — semver major requires a conscious decision",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Immich server and ML must always share the same version tag",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "ghcr.io/immich-app/immich-server",
+        "ghcr.io/immich-app/immich-machine-learning"
+      ],
+      "groupName": "immich",
+      "groupSlug": "immich"
+    },
+    {
+      "description": "Immich postgres uses a composite version string Renovate cannot parse — skip it",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/immich-app/postgres"],
+      "enabled": false
+    },
+    {
+      "description": "Pin GitHub Actions to patch level (digest pinning skipped per project policy)",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ]
+}
