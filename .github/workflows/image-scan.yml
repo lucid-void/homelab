@@ -104,10 +104,21 @@ jobs:
           SAFE="${NEW//[\/:.@]/_}"
           HAS_BASELINE="false"
           [ -n "$OLD" ] && HAS_BASELINE="true"
-          echo "SAFE=$SAFE"                 >> "$GITHUB_ENV"
-          echo "NEW_IMAGE=$NEW"             >> "$GITHUB_ENV"
-          echo "OLD_IMAGE=$OLD"             >> "$GITHUB_ENV"
-          echo "HAS_BASELINE=$HAS_BASELINE" >> "$GITHUB_ENV"
+
+          IS_MAJOR_BUMP="false"
+          if [ -n "$OLD" ]; then
+            OLD_MAJOR=$(echo "${OLD##*:}" | grep -oE '[0-9]+' | head -1)
+            NEW_MAJOR=$(echo "${NEW##*:}" | grep -oE '[0-9]+' | head -1)
+            if [ -n "$OLD_MAJOR" ] && [ -n "$NEW_MAJOR" ] && [ "$NEW_MAJOR" -gt "$OLD_MAJOR" ]; then
+              IS_MAJOR_BUMP="true"
+            fi
+          fi
+
+          echo "SAFE=$SAFE"                   >> "$GITHUB_ENV"
+          echo "NEW_IMAGE=$NEW"               >> "$GITHUB_ENV"
+          echo "OLD_IMAGE=$OLD"               >> "$GITHUB_ENV"
+          echo "HAS_BASELINE=$HAS_BASELINE"   >> "$GITHUB_ENV"
+          echo "IS_MAJOR_BUMP=$IS_MAJOR_BUMP" >> "$GITHUB_ENV"
           mkdir -p "scan-${SAFE}"
 
       # ── SBOMs ──────────────────────────────────────────────────────────────
@@ -308,9 +319,11 @@ jobs:
             --argjson osv_introduced   "${OSV_INTRODUCED:-0}" \
             --argjson osv_fixed        "${OSV_FIXED:-0}" \
             --arg  osv_delta_failed    "${OSV_DELTA_FAILED:-false}" \
+            --arg  is_major_bump       "${IS_MAJOR_BUMP:-false}" \
             '{
               new_image: $new_image, old_image: $old_image,
               has_baseline: ($has_baseline == "true"),
+              is_major_bump: ($is_major_bump == "true"),
               grype: {
                 exit: $grype_exit,
                 crit: $grype_crit, high: $grype_high, med: $grype_med, low: $grype_low,
@@ -430,6 +443,24 @@ jobs:
             done < "$file"
           }
 
+          # Infer upstream changelog URL from image reference (best-effort)
+          changelog_url() {
+            local img="${1%%:*}"       # strip tag
+            img="${img#docker.io/}"    # strip explicit docker.io/ prefix
+            case "$img" in
+              ghcr.io/immich-app/immich-*)
+                echo "https://github.com/immich-app/immich/releases" ;;
+              ghcr.io/*)
+                echo "https://github.com/${img#ghcr.io/}/releases" ;;
+              lscr.io/linuxserver/*)
+                echo "https://github.com/linuxserver/docker-${img#lscr.io/linuxserver/}/releases" ;;
+              */*)
+                echo "https://hub.docker.com/r/${img}/tags" ;;
+              *)
+                echo "https://hub.docker.com/_/${img}/tags" ;;
+            esac
+          }
+
           {
             echo "## 🔍 Image Security Scan Results"
             echo ""
@@ -457,6 +488,7 @@ jobs:
               OI=$(jq      '.osv.introduced'   "${dir}meta.json")
               OF=$(jq      '.osv.fixed'        "${dir}meta.json")
               ODF=$(jq     '.osv.delta_failed' "${dir}meta.json")
+              IS_MAJOR=$(jq '.is_major_bump'  "${dir}meta.json")
 
               IMAGE_PASS=true
               if [ "$HB" = "true" ]; then
@@ -475,6 +507,14 @@ jobs:
                 NEW_TAG="${NEW##*:}"
                 echo "### \`${OLD_TAG}\` → \`${NEW_TAG}\` — ${BADGE}"
                 printf '_`%s`_\n\n' "$NEW"
+
+                if [ "$IS_MAJOR" = "true" ]; then
+                  OLD_MAJOR=$(echo "$OLD_TAG" | grep -oE '[0-9]+' | head -1)
+                  NEW_MAJOR=$(echo "$NEW_TAG" | grep -oE '[0-9]+' | head -1)
+                  CLOG=$(changelog_url "$NEW")
+                  printf '> ⚠️ **Major version bump** `v%s` → `v%s` — review the [upstream changelog](%s) for breaking changes and configuration migrations before merging.\n\n' \
+                    "$OLD_MAJOR" "$NEW_MAJOR" "$CLOG"
+                fi
 
                 DC=$(delta_cell "$GOC" "$GC")
                 DH=$(delta_cell "$GOH" "$GH")
