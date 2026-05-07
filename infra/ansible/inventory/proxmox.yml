@@ -1,0 +1,21 @@
+---
+plugin: community.proxmox.proxmox
+url: "https://172.16.20.3:8006"
+user: root@pam
+token_id: proxmox
+# token_secret read from PROXMOX_TOKEN_SECRET env var — injected by justfile via sops
+validate_certs: false
+group_by_tags: true
+want_facts: true
+cache: true
+cache_plugin: ansible.builtin.jsonfile
+cache_timeout: 3600
+cache_connection: /tmp/ansible-proxmox-inventory
+
+# Only include VMs tagged "iac" — nodes lack proxmox_tags_parsed so they're excluded
+filters:
+  - "proxmox_tags_parsed is defined and 'iac' in proxmox_tags_parsed"
+
+# Resolve hosts by IP extracted from Proxmox ipconfig — avoids DNS dependency
+compose:
+  ansible_host: inventory_hostname + '.blackcats.cc'

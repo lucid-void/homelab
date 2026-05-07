@@ -1,0 +1,53 @@
+---
+- name: Ensure /opt/compose/traefik exists
+  ansible.builtin.file:
+    path: /opt/compose/traefik
+    state: directory
+    owner: void
+    group: labops
+    mode: "02775"
+
+- name: Ensure /opt/volumes/traefik/dynamic exists
+  ansible.builtin.file:
+    path: /opt/volumes/traefik/dynamic
+    state: directory
+    owner: void
+    group: labops
+    mode: "02775"
+
+- name: Check traefik stack health
+  ansible.builtin.shell: |
+    docker service ls --filter label=com.docker.stack.namespace=traefik \
+      | awk 'NR>1{n++; split($4,a,"/"); if(a[1]+0<a[2]+0)bad++}
+             END{if(n==0)print "MISSING"; else if(bad)print "DEGRADED"; else print "HEALTHY"}'
+  register: _stack_health
+  changed_when: (_stack_health.stdout | trim) != 'HEALTHY'
+  check_mode: false
+  notify: deploy traefik stack
+
+- name: Copy traefik compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../stacks/traefik/compose.yaml"
+    dest: /opt/compose/traefik/compose.yaml
+    owner: void
+    group: labops
+    mode: "0644"
+  notify: deploy traefik stack
+
+- name: Copy traefik dynamic config files
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../stacks/traefik/dynamic/"
+    dest: /opt/volumes/traefik/dynamic/
+    owner: void
+    group: labops
+    mode: "0644"
+  notify: deploy traefik stack
+
+- name: Create cf_traefik_token Docker secret
+  ansible.builtin.shell: >
+    docker secret inspect cf_traefik_token > /dev/null 2>&1 ||
+    printf '%s' "{{ cloudflare_token_traefik }}" | docker secret create cf_traefik_token -
+  register: _r
+  changed_when: _r.rc == 0 and _r.stdout != ''
+  no_log: true
+  notify: deploy traefik stack

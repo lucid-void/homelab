@@ -1,0 +1,138 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  # ── node_exporter — all hosts ─────────────────────────────────────────────
+  - job_name: node
+    static_configs:
+      - targets: ["{{ network_prefix }}.3:9100"]
+        labels: {nodename: proxmox}
+      - targets: ["{{ network_prefix }}.10:9100"]
+        labels: {nodename: db}
+      - targets: ["{{ network_prefix }}.16:9100"]
+        labels: {nodename: monitoring}
+      - targets: ["{{ network_prefix }}.12:9100"]
+        labels: {nodename: media}
+      - targets: ["{{ network_prefix }}.13:9100"]
+        labels: {nodename: services}
+      - targets: ["{{ network_prefix }}.14:9100"]
+        labels: {nodename: game}
+      - targets: ["{{ network_prefix }}.15:9100"]
+        labels: {nodename: lab}
+      - targets: ["{{ network_prefix }}.4:9100"]
+        labels: {nodename: dgx, wol_managed: "true"}
+    relabel_configs:
+      - source_labels: [nodename]
+        target_label: instance
+
+  # ── cAdvisor — Swarm nodes ────────────────────────────────────────────────
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["{{ network_prefix }}.10:9338"]
+        labels: {nodename: db}
+      - targets: ["{{ network_prefix }}.16:9338"]
+        labels: {nodename: monitoring}
+      - targets: ["{{ network_prefix }}.12:9338"]
+        labels: {nodename: media}
+      - targets: ["{{ network_prefix }}.13:9338"]
+        labels: {nodename: services}
+      - targets: ["{{ network_prefix }}.14:9338"]
+        labels: {nodename: game}
+      - targets: ["{{ network_prefix }}.15:9338"]
+        labels: {nodename: lab}
+      - targets: ["{{ network_prefix }}.4:9338"]
+        labels: {nodename: dgx, wol_managed: "true"}
+    relabel_configs:
+      - source_labels: [nodename]
+        target_label: instance
+
+  # ── DCGM — DGX Spark GPU metrics ─────────────────────────────────────────
+  - job_name: dcgm
+    static_configs:
+      - targets:
+          - {{ network_prefix }}.4:9400
+        labels:
+          wol_managed: "true"
+
+  # ── pve_exporter — Proxmox API ───────────────────────────────────────────
+  - job_name: pve
+    metrics_path: /pve
+    params:
+      module: [default]
+      target: ["{{ network_prefix }}.3"]
+    static_configs:
+      - targets:
+          - pve-exporter:9221
+
+  # ── unifi-poller ─────────────────────────────────────────────────────────
+  - job_name: unifi
+    static_configs:
+      - targets:
+          - unifi-poller:9130
+
+  # ── postgres_exporter ─────────────────────────────────────────────────────
+  - job_name: postgres
+    static_configs:
+      - targets:
+          - postgres-exporter:9187
+
+  # ── Traefik ───────────────────────────────────────────────────────────────
+  - job_name: traefik
+    static_configs:
+      - targets:
+          - {{ network_prefix }}.13:8080
+
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  - job_name: grafana
+    static_configs:
+      - targets:
+          - grafana:3000
+
+  # ── Loki ──────────────────────────────────────────────────────────────────
+  - job_name: loki
+    static_configs:
+      - targets:
+          - loki:3100
+
+  # ── Prometheus self-scrape ────────────────────────────────────────────────
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
+
+  # ── Gitea ─────────────────────────────────────────────────────────────────
+  - job_name: gitea
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials: "{{ gitea_metrics_token }}"
+    static_configs:
+      - targets:
+          - {{ network_prefix }}.13:3000
+
+  # ── Synology NAS — SNMP ──────────────────────────────────────────────────
+  - job_name: synology
+    metrics_path: /snmp
+    params:
+      module: [synology, if_mib, ucd_memory, ucd_system_stats, ucd_la_table]
+      auth: [public_v2]
+    static_configs:
+      - targets:
+          - {{ network_prefix }}.2
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: synology-exporter:9116
+
+  # ── Zitadel ───────────────────────────────────────────────────────────────
+  - job_name: zitadel
+    scheme: https
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - zitadel.{{ domain }}

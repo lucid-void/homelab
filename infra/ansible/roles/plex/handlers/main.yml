@@ -1,0 +1,8 @@
+---
+- name: deploy plex
+  ansible.builtin.command: docker compose -f /opt/compose/plex/compose.yaml up -d
+  changed_when: true
+
+- name: Restart plex
+  ansible.builtin.command: docker compose -f /opt/compose/plex/compose.yaml restart plex
+  changed_when: true

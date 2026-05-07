@@ -1,0 +1,10 @@
+---
+- name: deploy monitoring stack
+  ansible.builtin.command: >
+    docker stack deploy -c /opt/compose/monitoring/compose.yaml monitoring
+  environment:
+    GOTIFY_ADMIN_PASS: "{{ gotify_admin_password }}"
+    UPTIME_KUMA_DB_PASS: "{{ postgres_password_uptime_kuma }}"
+    POSTGRES_EXPORTER_USER: "{{ postgres_superuser_username }}"
+    POSTGRES_EXPORTER_PASS: "{{ postgres_superuser_password }}"
+  changed_when: true

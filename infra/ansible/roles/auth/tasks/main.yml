@@ -1,0 +1,86 @@
+---
+# Prerequisites — add to SOPS before running:
+#   oauth2_proxy_cookie_secret: python3 -c 'import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())'
+#   oauth2_proxy_client_id:     client ID from Zitadel OIDC app (confidential Web Application, PKCE/S256)
+#   oauth2_proxy_client_secret: client secret from Zitadel OIDC app
+
+- name: Ensure Zitadel volume directory exists
+  ansible.builtin.file:
+    path: /opt/volumes/zitadel
+    state: directory
+    owner: docker
+    group: labops
+    mode: "02775"
+
+- name: Ensure oauth2-proxy volume directory exists
+  ansible.builtin.file:
+    path: /opt/volumes/oauth2-proxy
+    state: directory
+    owner: docker
+    group: labops
+    mode: "02775"
+
+- name: Template Zitadel config
+  ansible.builtin.template:
+    src: zitadel/config.yaml.j2
+    dest: /opt/volumes/zitadel/config.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  no_log: true
+  notify: deploy auth stack
+
+- name: Copy Zitadel healthcheck config
+  ansible.builtin.template:
+    src: zitadel/healthcheck.yaml.j2
+    dest: /opt/volumes/zitadel/healthcheck.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: deploy auth stack
+
+- name: Template oauth2-proxy config
+  ansible.builtin.template:
+    src: oauth2-proxy/config.toml.j2
+    dest: /opt/volumes/oauth2-proxy/config.toml
+    owner: root
+    group: root
+    mode: "0644"
+  no_log: true
+  notify: deploy auth stack
+
+- name: Create zitadel_masterkey Docker secret
+  ansible.builtin.shell: >
+    docker secret inspect zitadel_masterkey > /dev/null 2>&1 ||
+    printf '%s' "{{ zitadel_masterkey }}" | docker secret create zitadel_masterkey -
+  register: _r
+  changed_when: _r.rc == 0 and _r.stdout != ''
+  no_log: true
+  notify: deploy auth stack
+
+- name: Check auth stack health
+  ansible.builtin.shell: |
+    docker service ls --filter label=com.docker.stack.namespace=auth \
+      | awk 'NR>1{n++; split($4,a,"/"); if(a[1]+0<a[2]+0)bad++}
+             END{if(n==0)print "MISSING"; else if(bad)print "DEGRADED"; else print "HEALTHY"}'
+  register: _stack_health
+  changed_when: (_stack_health.stdout | trim) != 'HEALTHY'
+  check_mode: false
+  notify: deploy auth stack
+
+- name: Ensure /opt/compose/auth exists
+  ansible.builtin.file:
+    path: /opt/compose/auth
+    state: directory
+    owner: void
+    group: labops
+    mode: "02775"
+
+- name: Copy auth compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../stacks/auth/compose.yaml"
+    dest: /opt/compose/auth/compose.yaml
+    owner: void
+    group: labops
+    mode: "0644"
+  notify: deploy auth stack

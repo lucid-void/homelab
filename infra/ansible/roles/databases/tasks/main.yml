@@ -1,0 +1,168 @@
+---
+- name: Ensure postgres data directory exists
+  ansible.builtin.file:
+    path: /opt/volumes/postgres
+    state: directory
+    owner: docker
+    group: labops
+    mode: "0700"
+  delegate_to: db
+
+- name: Ensure mariadb data directory exists
+  ansible.builtin.file:
+    path: /opt/volumes/mariadb
+    state: directory
+    owner: "999"
+    group: "999"
+    mode: "0750"
+  delegate_to: db
+
+- name: Ensure pgadmin data directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "5050"
+    group: "5050"
+    mode: "0750"
+  loop:
+    - /opt/volumes/pgadmin
+    - /opt/volumes/pgadmin/sessions
+    - /opt/volumes/pgadmin/storage
+  delegate_to: db
+
+- name: Check databases stack health
+  ansible.builtin.shell: |
+    docker service ls --filter label=com.docker.stack.namespace=databases \
+      | awk 'NR>1{n++; split($4,a,"/"); if(a[1]+0<a[2]+0)bad++}
+             END{if(n==0)print "MISSING"; else if(bad)print "DEGRADED"; else print "HEALTHY"}'
+  register: _stack_health
+  changed_when: (_stack_health.stdout | trim) != 'HEALTHY'
+  check_mode: false
+  notify: deploy databases stack
+
+- name: Ensure /opt/compose/databases exists
+  ansible.builtin.file:
+    path: /opt/compose/databases
+    state: directory
+    owner: void
+    group: labops
+    mode: "02775"
+
+- name: Copy databases compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../stacks/databases/compose.yaml"
+    dest: /opt/compose/databases/compose.yaml
+    owner: void
+    group: labops
+    mode: "0644"
+  notify: deploy databases stack
+
+- name: Create databases Docker secrets
+  ansible.builtin.shell: >
+    docker secret inspect {{ item.name }} > /dev/null 2>&1 ||
+    printf '%s' "{{ item.value }}" | docker secret create {{ item.name }} -
+  register: _r
+  changed_when: _r.rc == 0 and _r.stdout != ''
+  no_log: true
+  loop:
+    - { name: postgres_superuser_password, value: "{{ postgres_superuser_password }}" }
+    - { name: mariadb_root_password,        value: "{{ mariadb_root_password }}" }
+    - { name: pgadmin_default_password,     value: "{{ pgadmin_default_password }}" }
+  loop_control:
+    label: "{{ item.name }}"
+  notify: deploy databases stack
+
+- name: Wait for Postgres container to be healthy
+  ansible.builtin.shell: |
+    docker ps --filter "name=databases_postgres" --filter "health=healthy" --quiet | wc -l
+  delegate_to: db
+  register: _pg_health
+  until: (_pg_health.stdout | trim | int) > 0
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Ensure uptime_kuma Postgres user and database exist
+  ansible.builtin.shell: |
+    PG=$(docker ps --filter "name=databases_postgres" --quiet | head -1)
+    docker exec "$PG" psql -U postgres -tc \
+      "SELECT 1 FROM pg_roles WHERE rolname='uptime_kuma'" | grep -q 1 || \
+    docker exec "$PG" psql -U postgres -c \
+      "CREATE USER uptime_kuma WITH PASSWORD '{{ postgres_password_uptime_kuma }}'"
+    docker exec "$PG" psql -U postgres -c \
+      "ALTER USER uptime_kuma WITH PASSWORD '{{ postgres_password_uptime_kuma }}'"
+    docker exec "$PG" psql -U postgres -tc \
+      "SELECT 1 FROM pg_database WHERE datname='uptime_kuma'" | grep -q 1 || \
+    docker exec "$PG" psql -U postgres -c \
+      "CREATE DATABASE uptime_kuma OWNER uptime_kuma"
+  delegate_to: db
+  no_log: true
+  changed_when: false
+
+- name: Ensure immich Postgres user and database exist
+  ansible.builtin.shell: |
+    PG=$(docker ps --filter "name=databases_postgres" --quiet | head -1)
+    docker exec "$PG" psql -U postgres -tc \
+      "SELECT 1 FROM pg_roles WHERE rolname='immich'" | grep -q 1 || \
+    docker exec "$PG" psql -U postgres -c \
+      "CREATE USER immich WITH PASSWORD '{{ postgres_password_immich }}'"
+    docker exec "$PG" psql -U postgres -c \
+      "ALTER USER immich WITH PASSWORD '{{ postgres_password_immich }}'"
+    docker exec "$PG" psql -U postgres -tc \
+      "SELECT 1 FROM pg_database WHERE datname='immich'" | grep -q 1 || \
+    docker exec "$PG" psql -U postgres -c \
+      "CREATE DATABASE immich OWNER immich"
+  delegate_to: db
+  no_log: true
+  changed_when: false
+
+- name: Ensure paperless Postgres user and database exist
+  ansible.builtin.shell: |
+    PG=$(docker ps --filter "name=databases_postgres" --quiet | head -1)
+    docker exec "$PG" psql -U postgres -tc \
+      "SELECT 1 FROM pg_roles WHERE rolname='paperless'" | grep -q 1 || \
+    docker exec "$PG" psql -U postgres -c \
+      "CREATE USER paperless WITH PASSWORD '{{ postgres_password_paperless }}'"
+    docker exec "$PG" psql -U postgres -c \
+      "ALTER USER paperless WITH PASSWORD '{{ postgres_password_paperless }}'"
+    docker exec "$PG" psql -U postgres -tc \
+      "SELECT 1 FROM pg_database WHERE datname='paperless'" | grep -q 1 || \
+    docker exec "$PG" psql -U postgres -c \
+      "CREATE DATABASE paperless OWNER paperless"
+  delegate_to: db
+  no_log: true
+  changed_when: false
+
+- name: Ensure gitea Postgres user and database exist
+  ansible.builtin.shell: |
+    PG=$(docker ps --filter "name=databases_postgres" --quiet | head -1)
+    docker exec "$PG" psql -U postgres -tc \
+      "SELECT 1 FROM pg_roles WHERE rolname='gitea'" | grep -q 1 || \
+    docker exec "$PG" psql -U postgres -c \
+      "CREATE USER gitea WITH PASSWORD '{{ postgres_password_gitea }}'"
+    docker exec "$PG" psql -U postgres -c \
+      "ALTER USER gitea WITH PASSWORD '{{ postgres_password_gitea }}'"
+    docker exec "$PG" psql -U postgres -tc \
+      "SELECT 1 FROM pg_database WHERE datname='gitea'" | grep -q 1 || \
+    docker exec "$PG" psql -U postgres -c \
+      "CREATE DATABASE gitea OWNER gitea"
+  delegate_to: db
+  no_log: true
+  changed_when: false
+
+- name: Ensure freshrss Postgres user and database exist
+  ansible.builtin.shell: |
+    PG=$(docker ps --filter "name=databases_postgres" --quiet | head -1)
+    docker exec "$PG" psql -U postgres -tc \
+      "SELECT 1 FROM pg_roles WHERE rolname='freshrss'" | grep -q 1 || \
+    docker exec "$PG" psql -U postgres -c \
+      "CREATE USER freshrss WITH PASSWORD '{{ postgres_password_freshrss }}'"
+    docker exec "$PG" psql -U postgres -c \
+      "ALTER USER freshrss WITH PASSWORD '{{ postgres_password_freshrss }}'"
+    docker exec "$PG" psql -U postgres -tc \
+      "SELECT 1 FROM pg_database WHERE datname='freshrss'" | grep -q 1 || \
+    docker exec "$PG" psql -U postgres -c \
+      "CREATE DATABASE freshrss OWNER freshrss"
+  delegate_to: db
+  no_log: true
+  changed_when: false

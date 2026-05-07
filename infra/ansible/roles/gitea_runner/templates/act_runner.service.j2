@@ -1,0 +1,18 @@
+[Unit]
+Description=Gitea act_runner
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=docker
+Group=labops
+WorkingDirectory=/opt/act_runner
+ExecStart=/usr/local/bin/act_runner daemon --config /opt/act_runner/config.yaml
+Restart=always
+RestartSec=5s
+Environment=HOME=/home/docker
+Environment=SOPS_AGE_KEY_FILE=/home/docker/.ssh/ed25519
+
+[Install]
+WantedBy=multi-user.target
