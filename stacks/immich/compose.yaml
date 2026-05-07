@@ -86,7 +86,7 @@ services:
         order: stop-first
 
   immich-valkey:
-    image: valkey/valkey:8.0
+    image: valkey/valkey:8.1
     networks:
       - immich
     deploy:
