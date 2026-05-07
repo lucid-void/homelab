@@ -1,0 +1,167 @@
+# Paperless-ngx stack
+# Pinned to: node.hostname == services (172.16.20.13)
+# Documents: /mnt/media/Paperless/media (NFS — Synology Media share)
+# Protonmail bridge: requires manual init before first deploy — see comment below
+
+secrets:
+  paperless_db_password:
+    external: true
+  paperless_secret_key:
+    external: true
+
+networks:
+  traefik:
+    external: true
+  paperless:
+    external: true
+  db:
+    external: true
+
+services:
+  paperless:
+    image: ghcr.io/paperless-ngx/paperless-ngx:2.20.14
+    environment:
+      USERMAP_UID: "2202"
+      USERMAP_GID: "2200"
+      PAPERLESS_SECRET_KEY_FILE: /run/secrets/paperless_secret_key
+      PAPERLESS_TIME_ZONE: Europe/Brussels
+      PAPERLESS_OCR_LANGUAGE: eng
+      PAPERLESS_OCR_LANGUAGES: nld
+      PAPERLESS_URL: https://paperless.blackcats.cc
+      PAPERLESS_CORS_ALLOWED_HOSTS: https://paperless.blackcats.cc
+      PAPERLESS_ALLOWED_HOSTS: paperless.blackcats.cc
+      PAPERLESS_REDIS: redis://paperless-broker:6379
+      PAPERLESS_DBHOST: databases_postgres
+      PAPERLESS_DBPORT: "5432"
+      PAPERLESS_DBNAME: paperless
+      PAPERLESS_DBUSER: paperless
+      PAPERLESS_DBPASS_FILE: /run/secrets/paperless_db_password
+      PAPERLESS_TIKA_ENABLED: "1"
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperless-gotenberg:3000
+      PAPERLESS_TIKA_ENDPOINT: http://paperless-tika:9998
+      PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
+      PAPERLESS_SOCIALACCOUNT_PROVIDERS: >-
+        {"openid_connect": {"APPS": [{"provider_id": "zitadel", "name": "Zitadel",
+        "client_id": "{{ paperless_oidc_client_id }}",
+        "secret": "{{ paperless_oidc_client_secret }}",
+        "settings": {"server_url": "https://zitadel.blackcats.cc"}}]}}
+      PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL: https
+      PAPERLESS_SOCIAL_ACCOUNT_ALLOW_SIGNUPS: "false"
+    volumes:
+      - /opt/volumes/paperless/data:/usr/src/paperless/data
+      - /mnt/media/Paperless:/usr/src/paperless/media
+      - /opt/volumes/paperless/export:/usr/src/paperless/export
+      - /opt/volumes/paperless/consume:/usr/src/paperless/consume
+    secrets:
+      - paperless_db_password
+      - paperless_secret_key
+    networks:
+      - traefik
+      - paperless
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.paperless.rule=Host(`paperless.blackcats.cc`)
+        - traefik.http.routers.paperless.entrypoints=websecure
+        - traefik.http.routers.paperless.tls=true
+        - traefik.http.routers.paperless.tls.certresolver=letsencrypt
+        - traefik.http.services.paperless.loadbalancer.server.port=8000
+
+  paperless-broker:
+    image: valkey/valkey:8.0
+    user: "2202:2200"
+    volumes:
+      - /opt/volumes/paperless/broker:/data
+    networks:
+      - paperless
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  paperless-gotenberg:
+    image: gotenberg/gotenberg:8.25
+    user: "2202:2200"
+    command:
+      - gotenberg
+      - --chromium-disable-javascript=true
+      - --chromium-allow-list=file:///tmp/.*
+    networks:
+      - paperless
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  paperless-tika:
+    image: apache/tika:latest
+    user: "2202:2200"
+    networks:
+      - paperless
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  # Protonmail bridge — email ingestion via IMAP
+  # FIRST-TIME SETUP (run once before deploying this service):
+  #   docker run -it --rm -v /opt/volumes/paperless/protonmail-bridge:/root \
+  #     shenxn/protonmail-bridge init
+  # Then uncomment and redeploy the paperless stack.
+  #
+  paperless-protonmail:
+    image: shenxn/protonmail-bridge:latest
+    # user: "2202:2200"
+    volumes:
+      - /opt/volumes/paperless/protonmail-bridge:/root
+    networks:
+      - paperless
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s

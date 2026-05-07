@@ -95,3 +95,4 @@ nav:
     - Certificates: operations/certificates.md
     - Security: operations/security.md
     - Incident Response: operations/incident-response.md
+    - DB Migrations: operations/db-migrations.md

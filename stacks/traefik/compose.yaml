@@ -1,0 +1,123 @@
+# Traefik reverse proxy stack — runs on Services VM (.13)
+# Deploy: docker stack deploy -c compose.yaml traefik
+
+services:
+  traefik:
+    image: traefik:v3.6
+    hostname: traefik
+    command:
+      - "--api.insecure=false"
+      - "--api.dashboard=true"
+      - "--providers.swarm.endpoint=tcp://socket-proxy:2375"
+      - "--providers.swarm.exposedByDefault=false"
+      - "--providers.swarm.network=traefik"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.transport.respondingTimeouts.readTimeout=600s"
+      - "--entrypoints.websecure.transport.respondingTimeouts.writeTimeout=600s"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesResolvers.letsencrypt.acme.email=acme@blackcats.cc"
+      - "--certificatesResolvers.letsencrypt.acme.storage=/acme/acme.json"
+      - "--certificatesResolvers.letsencrypt.acme.dnsChallenge.provider=cloudflare"
+      - "--certificatesResolvers.letsencrypt.acme.dnsChallenge.resolvers=1.1.1.1:53"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.entryPoint=metrics"
+      - "--entrypoints.metrics.address=:8080"
+      - "--ping=true"
+      - "--ping.entryPoint=metrics"
+      - "--log.level=INFO"
+      - "--global.checkNewVersion=false"
+      - "--global.sendAnonymousUsage=false"
+    environment:
+      - CF_DNS_API_TOKEN_FILE=/run/secrets/cf_traefik_token
+    secrets:
+      - cf_traefik_token
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: host
+    volumes:
+      - acme:/acme
+      - /opt/volumes/traefik/dynamic:/etc/traefik/dynamic:ro
+    networks:
+      - traefik
+      - socket_proxy
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.blackcats.cc`)"
+        - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+        - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.traefik-dashboard.service=api@internal"
+        - "traefik.http.services.traefik-dummy.loadbalancer.server.port=8080"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.4.2
+    hostname: socket-proxy
+    environment:
+      - CONTAINERS=1
+      - SERVICES=1
+      - NETWORKS=1
+      - TASKS=1
+      - NODES=1
+      - VERSION=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket_proxy
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == services
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+
+secrets:
+  cf_traefik_token:
+    external: true
+
+volumes:
+  acme:
+
+networks:
+  traefik:
+    external: true
+  socket_proxy:
+    driver: overlay
+    driver_opts:
+      encrypted: "true"
+      com.docker.network.driver.mtu: "8950"

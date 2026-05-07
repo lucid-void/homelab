@@ -1,0 +1,152 @@
+---
+# Databases stack — Postgres, MariaDB, pgAdmin, adminer
+# Swarm services pinned to DB VM (.10) via placement constraint
+# Data: local ext4 bind mounts at /opt/volumes/{postgres,mariadb,pgadmin}
+# Deploy: docker stack deploy -c compose.yaml databases
+
+secrets:
+  postgres_superuser_password:
+    external: true
+  mariadb_root_password:
+    external: true
+  pgadmin_default_password:
+    external: true
+
+networks:
+  db:
+    external: true
+  traefik:
+    external: true
+
+services:
+  postgres:
+    image: ghcr.io/immich-app/postgres:17-vectorchord0.4.3-pgvectors0.3.0
+    hostname: postgres
+    user: "2202:2200"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_superuser_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    secrets:
+      - postgres_superuser_password
+    volumes:
+      - /opt/volumes/postgres:/var/lib/postgresql/data
+    networks:
+      - db
+    ports:
+      - target: 5432
+        published: 5432
+        protocol: tcp
+        mode: host
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == db
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  mariadb:
+    image: mariadb:11.4
+    hostname: mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/mariadb_root_password
+      MARIADB_AUTO_UPGRADE: "1"
+    secrets:
+      - mariadb_root_password
+    volumes:
+      - /opt/volumes/mariadb:/var/lib/mysql
+    networks:
+      - db
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == db
+      restart_policy:
+        condition: any
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+
+  pgadmin:
+    image: dpage/pgadmin4:8.9
+    hostname: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@blackcats.cc
+      PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadmin_default_password
+      PGADMIN_LISTEN_PORT: "5050"
+    secrets:
+      - pgadmin_default_password
+    volumes:
+      - /opt/volumes/pgadmin:/var/lib/pgadmin
+    networks:
+      - db
+      - traefik
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == db
+      restart_policy:
+        condition: any
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.pgadmin.rule=Host(`pgadmin.blackcats.cc`)
+        - traefik.http.routers.pgadmin.entrypoints=websecure
+        - traefik.http.routers.pgadmin.tls.certresolver=letsencrypt
+        - traefik.http.services.pgadmin.loadbalancer.server.port=5050
+
+  adminer:
+    image: adminer:4.17.1
+    hostname: adminer
+    user: "2202:2200"
+    networks:
+      - db
+      - traefik
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == db
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.adminer.rule=Host(`adminer.blackcats.cc`)
+        - traefik.http.routers.adminer.entrypoints=websecure
+        - traefik.http.routers.adminer.tls.certresolver=letsencrypt
+        - traefik.http.services.adminer.loadbalancer.server.port=8080
