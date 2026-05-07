@@ -15,10 +15,10 @@
 
   "packageRules": [
     {
-      "description": "Disable major Docker image bumps — semver major requires a conscious decision",
+      "description": "Major Docker image bumps — labeled for manual review; image-scan workflow adds a breaking-change warning to the PR comment",
       "matchDatasources": ["docker"],
       "matchUpdateTypes": ["major"],
-      "enabled": false
+      "labels": ["major-update"]
     },
     {
       "description": "Immich server and ML must always share the same version tag",
