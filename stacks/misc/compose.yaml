@@ -62,7 +62,7 @@ services:
         - traefik.http.services.it-tools.loadbalancer.server.port=80
 
   freshrss:
-    image: lscr.io/linuxserver/freshrss:1.28.0
+    image: lscr.io/linuxserver/freshrss:1.28.1
     environment:
       PUID: "2202"
       PGID: "2200"
