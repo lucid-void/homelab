@@ -1,0 +1,5 @@
+---
+- name: Remove stopped containers and dangling images
+  ansible.builtin.command: docker system prune --force
+  register: _prune_result
+  changed_when: "'Total reclaimed space: 0B' not in _prune_result.stdout"
