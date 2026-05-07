@@ -106,7 +106,7 @@ services:
         order: stop-first
 
   paperless-gotenberg:
-    image: gotenberg/gotenberg:8.25
+    image: gotenberg/gotenberg:8.32
     user: "2202:2200"
     command:
       - gotenberg
