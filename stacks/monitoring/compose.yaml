@@ -322,7 +322,7 @@ services:
         order: stop-first
 
   synology-exporter:
-    image: prom/snmp-exporter:v0.26
+    image: prom/snmp-exporter:v0.30.1
     hostname: synology-exporter
     networks:
       - monitoring
