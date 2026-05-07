@@ -31,6 +31,16 @@
       "groupSlug": "immich"
     },
     {
+      "description": "Zitadel and zitadel-login must always share the same version tag",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "ghcr.io/zitadel/zitadel",
+        "ghcr.io/zitadel/zitadel-login"
+      ],
+      "groupName": "zitadel",
+      "groupSlug": "zitadel"
+    },
+    {
       "description": "Immich postgres uses a composite version string Renovate cannot parse — skip it",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/immich-app/postgres"],
