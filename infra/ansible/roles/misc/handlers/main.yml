@@ -1,0 +1,9 @@
+---
+- name: deploy misc stack
+  ansible.builtin.command: >
+    docker stack deploy -c /opt/compose/misc/compose.yaml misc
+  changed_when: true
+
+- name: restart freshrss
+  ansible.builtin.command: docker service update --force misc_freshrss
+  changed_when: true

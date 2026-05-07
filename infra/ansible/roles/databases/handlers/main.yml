@@ -1,0 +1,5 @@
+---
+- name: deploy databases stack
+  ansible.builtin.command: >
+    docker stack deploy -c /opt/compose/databases/compose.yaml databases
+  changed_when: true

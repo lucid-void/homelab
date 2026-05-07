@@ -1,0 +1,81 @@
+---
+- name: Create gitea Docker secrets
+  ansible.builtin.shell: >
+    docker secret inspect {{ item.name }} > /dev/null 2>&1 ||
+    printf '%s' "{{ item.value }}" | docker secret create {{ item.name }} -
+  register: _r
+  changed_when: _r.rc == 0 and _r.stdout != ''
+  no_log: true
+  loop:
+    - { name: gitea_db_password,    value: "{{ postgres_password_gitea }}" }
+    - { name: gitea_secret_key,     value: "{{ gitea_secret_key }}" }
+    - { name: gitea_internal_token, value: "{{ gitea_internal_token }}" }
+    - { name: gitea_metrics_token,  value: "{{ gitea_metrics_token }}" }
+  loop_control:
+    label: "{{ item.name }}"
+  notify: deploy gitea stack
+
+- name: Check gitea stack health
+  ansible.builtin.shell: |
+    docker service ls --filter label=com.docker.stack.namespace=gitea \
+      | awk 'NR>1{n++; split($4,a,"/"); if(a[1]+0<a[2]+0)bad++}
+             END{if(n==0)print "MISSING"; else if(bad)print "DEGRADED"; else print "HEALTHY"}'
+  register: _stack_health
+  changed_when: (_stack_health.stdout | trim) != 'HEALTHY'
+  check_mode: false
+  notify: deploy gitea stack
+
+- name: Ensure /opt/compose/gitea exists
+  ansible.builtin.file:
+    path: /opt/compose/gitea
+    state: directory
+    owner: void
+    group: "{{ labops_gid }}"
+    mode: "02775"
+
+- name: Template gitea compose file
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../../../stacks/gitea/compose.yaml"
+    dest: /opt/compose/gitea/compose.yaml
+    owner: void
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  no_log: true
+  notify: deploy gitea stack
+
+- name: Flush handlers to ensure stack is deployed before OIDC config
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for gitea service to reach 1/1 replicas
+  ansible.builtin.shell: |
+    docker service ls --filter name=gitea_gitea-server --format "{{ '{{.Replicas}}' }}"
+  register: _replicas
+  retries: 20
+  delay: 15
+  until: "'1/1' in _replicas.stdout"
+  changed_when: false
+  check_mode: false
+
+- name: Check if Zitadel OIDC auth source is configured
+  ansible.builtin.shell: |
+    docker exec -u git $(docker ps -q -f name=gitea_gitea-server) \
+      gitea admin auth list 2>/dev/null | grep -q "Zitadel" && echo "yes" || echo "no"
+  register: _oidc_configured
+  changed_when: false
+  check_mode: false
+
+- name: Configure Zitadel OIDC auth source
+  ansible.builtin.shell: |
+    docker exec -u git $(docker ps -q -f name=gitea_gitea-server) \
+      gitea admin auth add-oauth \
+        --name Zitadel \
+        --provider openidConnect \
+        --key "{{ gitea_oidc_client_id }}" \
+        --secret "{{ gitea_oidc_client_secret }}" \
+        --auto-discover-url "https://zitadel.blackcats.cc/.well-known/openid-configuration" \
+        --skip-local-2fa \
+        --group-claim-name roles \
+        --admin-group admin
+  when: "'no' in _oidc_configured.stdout"
+  no_log: true
+  changed_when: true

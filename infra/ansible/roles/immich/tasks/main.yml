@@ -1,0 +1,48 @@
+---
+- name: Ensure immich volume directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "02775"
+  loop:
+    - /opt/volumes/immich
+    - /opt/volumes/immich/model-cache
+  delegate_to: services
+
+- name: Create immich Docker secret
+  ansible.builtin.shell: >
+    docker secret inspect immich_db_password > /dev/null 2>&1 ||
+    printf '%s' "{{ postgres_password_immich }}" | docker secret create immich_db_password -
+  register: _r
+  changed_when: _r.rc == 0 and _r.stdout != ''
+  no_log: true
+  notify: deploy immich stack
+
+- name: Check immich stack health
+  ansible.builtin.shell: |
+    docker service ls --filter label=com.docker.stack.namespace=immich \
+      | awk 'NR>1{n++; split($4,a,"/"); if(a[1]+0<a[2]+0)bad++}
+             END{if(n==0)print "MISSING"; else if(bad)print "DEGRADED"; else print "HEALTHY"}'
+  register: _stack_health
+  changed_when: (_stack_health.stdout | trim) != 'HEALTHY'
+  check_mode: false
+  notify: deploy immich stack
+
+- name: Ensure /opt/compose/immich exists
+  ansible.builtin.file:
+    path: /opt/compose/immich
+    state: directory
+    owner: void
+    group: "{{ labops_gid }}"
+    mode: "02775"
+
+- name: Copy immich compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../stacks/immich/compose.yaml"
+    dest: /opt/compose/immich/compose.yaml
+    owner: void
+    group: "{{ labops_gid }}"
+    mode: "0644"
+  notify: deploy immich stack

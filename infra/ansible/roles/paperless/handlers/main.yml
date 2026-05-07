@@ -1,0 +1,5 @@
+---
+- name: deploy paperless stack
+  ansible.builtin.command: >
+    docker stack deploy -c /opt/compose/paperless/compose.yaml paperless
+  changed_when: true

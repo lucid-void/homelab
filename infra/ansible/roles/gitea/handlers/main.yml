@@ -1,0 +1,5 @@
+---
+- name: deploy gitea stack
+  ansible.builtin.command: >
+    docker stack deploy -c /opt/compose/gitea/compose.yaml gitea
+  changed_when: true

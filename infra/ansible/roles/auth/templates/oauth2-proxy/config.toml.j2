@@ -1,0 +1,29 @@
+# oauth2-proxy — forward auth for Traefik, OIDC client of Zitadel (PKCE, no secret)
+# Sessions stored in Valkey (oauth2-proxy-valkey on auth overlay)
+
+provider = "oidc"
+oidc_issuer_url = "https://zitadel.{{ domain }}"
+client_id = "{{ oauth2_proxy_client_id }}"
+client_secret = "{{ oauth2_proxy_client_secret }}"
+code_challenge_method = "S256"
+
+http_address = "0.0.0.0:4180"
+reverse_proxy = true
+redirect_url = "https://auth.{{ domain }}/oauth2/callback"
+upstreams = ["static://202"]
+
+email_domains = ["*"]
+skip_provider_button = true
+
+set_xauthrequest = true
+
+cookie_secret = "{{ oauth2_proxy_cookie_secret }}"
+cookie_secure = true
+cookie_domains = [".{{ domain }}"]
+cookie_samesite = "lax"
+cookie_name = "_oauth2_proxy"
+
+whitelist_domains = [".{{ domain }}"]
+
+session_store_type = "redis"
+redis_connection_url = "redis://oauth2-proxy-valkey:6379"

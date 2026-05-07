@@ -1,0 +1,8 @@
+auth_modules:
+  connector:
+    type: userpass
+    userpass:
+      username: "{{ postgres_superuser_username }}"
+      password: "{{ postgres_superuser_password }}"
+    options:
+      sslmode: disable

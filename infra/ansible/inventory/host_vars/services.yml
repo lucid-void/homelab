@@ -1,0 +1,4 @@
+---
+nfs_mounts:
+  - path: /mnt/media
+    src: "{{ nfs_server }}:/volume2/Media"

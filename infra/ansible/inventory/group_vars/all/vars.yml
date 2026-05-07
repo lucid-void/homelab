@@ -1,0 +1,50 @@
+---
+# Domain and network
+domain: blackcats.cc
+network_prefix: "172.16.20"
+nfs_server: "172.16.20.2"
+postgres_host: "172.16.20.10"
+
+# UID/GID assignments — consistent across all hosts
+iacuser_uid: 1000
+void_uid: 2201
+docker_uid: 2202
+labops_gid: 2200
+
+# void SSH authorized keys — managed by Ansible (exclusive)
+void_ssh_authorized_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOmBWYwcfQgf4DajhBrqmPO4GzWvpA8zdjEkdG53WSsN"
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDbo0lC7EquAw4tv/slRqPZtTQp0iRvn6BUaCmyAuFhi"
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINn7GfUFiuXjafDckqYBRRe873ZGK5hIWVYFKuAXGvYM"
+
+# Timezone for all hosts and containers
+timezone: "Europe/Brussels"
+
+# Plex claim token — optional, only needed on first run to bind server to account.
+# Generate at https://www.plex.tv/claim/ (token expires in 4 minutes).
+# Leave empty after initial setup.
+plex_claim: ""
+
+# FreshRSS — Zitadel project to query for admin role membership
+# Project ID is found in Zitadel console → Projects → <project> → General
+zitadel_project_id: ""
+# freshrss_admins: static fallback used when Zitadel API is unreachable.
+# At runtime this is overridden by the live Zitadel project grant query.
+freshrss_admins:
+  - "maxim.claeys@pm.me"
+
+# Observability binary versions — bump to upgrade all hosts
+node_exporter_version: "1.8.2"
+promtail_version: "3.0.0"
+
+# Runner tool versions — bump to upgrade the Gitea runner VM
+act_runner_version: "0.2.11"
+opentofu_version: "1.9.0"
+packer_version: "1.11.0"
+sops_version: "3.9.1"
+just_version: "1.40.0"
+
+# Ansible connection defaults
+ansible_user: iacuser
+ansible_become: true
+ansible_python_interpreter: /usr/bin/python3

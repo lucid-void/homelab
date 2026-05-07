@@ -1,0 +1,159 @@
+---
+- name: Ensure misc volume directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "02775"
+  loop:
+    - /opt/volumes/homebox
+    - /opt/volumes/freshrss
+  delegate_to: services
+
+- name: Check misc stack health
+  ansible.builtin.shell: |
+    docker service ls --filter label=com.docker.stack.namespace=misc \
+      | awk 'NR>1{n++; split($4,a,"/"); if(a[1]+0<a[2]+0)bad++}
+             END{if(n==0)print "MISSING"; else if(bad)print "DEGRADED"; else print "HEALTHY"}'
+  register: _stack_health
+  changed_when: (_stack_health.stdout | trim) != 'HEALTHY'
+  check_mode: false
+  notify: deploy misc stack
+
+- name: Ensure /opt/compose/misc exists
+  ansible.builtin.file:
+    path: /opt/compose/misc
+    state: directory
+    owner: void
+    group: "{{ labops_gid }}"
+    mode: "02775"
+
+- name: Copy misc compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../stacks/misc/compose.yaml"
+    dest: /opt/compose/misc/compose.yaml
+    owner: void
+    group: "{{ labops_gid }}"
+    mode: "0644"
+  notify: deploy misc stack
+
+# ── FreshRSS config.php — enforce DB connection settings ─────────────────────
+# Runs only if config.php already exists (created via setup wizard or migration).
+# 'after'/'before' scope each replacement to the db array, avoiding false matches
+# on identically-named keys in the smtp array.
+- name: Check for FreshRSS config.php
+  ansible.builtin.stat:
+    path: /opt/volumes/freshrss/www/freshrss/data/config.php
+  delegate_to: services
+  register: _freshrss_cfg
+
+- name: Ensure FreshRSS DB host points to Swarm overlay DNS name
+  ansible.builtin.replace:
+    path: /opt/volumes/freshrss/www/freshrss/data/config.php
+    after: "'type' => 'pgsql'"
+    before: "'base' => 'freshrss'"
+    regexp: "('host' => ')[^']*"
+    replace: "\\1databases_postgres"
+  delegate_to: services
+  when: _freshrss_cfg.stat.exists
+
+- name: Ensure FreshRSS DB password matches SOPS secret
+  ansible.builtin.replace:
+    path: /opt/volumes/freshrss/www/freshrss/data/config.php
+    after: "'user' => 'freshrss'"
+    before: "'base' => 'freshrss'"
+    regexp: "('password' => ')[^']*"
+    replace: "\\1{{ postgres_password_freshrss }}"
+  delegate_to: services
+  no_log: true
+  when: _freshrss_cfg.stat.exists
+
+- name: Ensure FreshRSS uses HTTP auth for SSO
+  ansible.builtin.replace:
+    path: /opt/volumes/freshrss/www/freshrss/data/config.php
+    regexp: "('auth_type' => ')[^']*"
+    replace: "\\1http_auth"
+  delegate_to: services
+  when: _freshrss_cfg.stat.exists
+
+- name: Enable FreshRSS HTTP auth auto-registration
+  ansible.builtin.replace:
+    path: /opt/volumes/freshrss/www/freshrss/data/config.php
+    regexp: "('http_auth_auto_register' => )(true|false)"
+    replace: "\\1true"
+  delegate_to: services
+  when: _freshrss_cfg.stat.exists
+
+# ── FreshRSS nginx — inject REMOTE_USER for SSO ───────────────────────────────
+# The linuxserver image writes this file on first start; the task is skipped
+# if the container has never run (fresh volume, no config yet).
+- name: Check for FreshRSS nginx site config
+  ansible.builtin.stat:
+    path: /opt/volumes/freshrss/nginx/site-confs/default.conf
+  delegate_to: services
+  register: _freshrss_nginx
+
+# ── FreshRSS admin role enforcement ──────────────────────────────────────────
+# Query Zitadel for users with the 'admin' project role and use that list to
+# grant FreshRSS admin. Falls back to the static freshrss_admins var if the
+# API is unreachable (e.g. Zitadel not yet deployed).
+- name: Fetch admin users from Zitadel project grants
+  ansible.builtin.uri:
+    url: "https://zitadel.{{ domain }}/management/v1/usergrants/_search"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zitadel_mgmt_token }}"
+    body_format: json
+    body:
+      queries:
+        - projectIdQuery:
+            projectId: "{{ zitadel_project_id }}"
+            method: "TEXT_QUERY_METHOD_EQUALS"
+        - roleKeyQuery:
+            roleKey: "admin"
+            method: "TEXT_QUERY_METHOD_EQUALS"
+    validate_certs: true
+    status_code: 200
+  register: _zitadel_grants
+  no_log: true
+  failed_when: false
+
+- name: Override freshrss_admins from Zitadel
+  ansible.builtin.set_fact:
+    freshrss_admins: >-
+      {{ (_zitadel_grants.json.result | default([]))
+         | map(attribute='userDetail.preferredLoginName')
+         | list }}
+  when: _zitadel_grants.status | default(0) == 200
+
+# Auto-register creates users as non-admin. Promote any user in freshrss_admins
+# once their config file exists (i.e. after first login).
+- name: Check FreshRSS admin user configs exist
+  ansible.builtin.stat:
+    path: "/opt/volumes/freshrss/www/freshrss/data/users/{{ item }}/config.php"
+  loop: "{{ freshrss_admins }}"
+  delegate_to: services
+  register: _freshrss_admin_cfgs
+
+- name: Grant FreshRSS admin to listed users
+  ansible.builtin.replace:
+    path: "/opt/volumes/freshrss/www/freshrss/data/users/{{ item.item }}/config.php"
+    regexp: "('is_admin' => )(true|false)"
+    replace: "\\1true"
+  loop: "{{ _freshrss_admin_cfgs.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  delegate_to: services
+  when: item.stat.exists
+
+# ── FreshRSS nginx — inject REMOTE_USER for SSO ───────────────────────────────
+- name: Inject REMOTE_USER fastcgi param into FreshRSS nginx config
+  ansible.builtin.lineinfile:
+    path: /opt/volumes/freshrss/nginx/site-confs/default.conf
+    insertafter: "include /etc/nginx/fastcgi_params;"
+    line: "        fastcgi_param REMOTE_USER $http_x_auth_request_preferred_username;"
+    regexp: "fastcgi_param REMOTE_USER"
+  delegate_to: services
+  when: _freshrss_nginx.stat.exists
+  notify: restart freshrss

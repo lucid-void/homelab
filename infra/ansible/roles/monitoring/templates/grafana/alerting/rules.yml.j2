@@ -1,0 +1,226 @@
+{% raw %}apiVersion: 1
+groups:
+
+  # ── Infrastructure ─────────────────────────────────────────────────────────
+  - orgId: 1
+    name: Infrastructure
+    folder: Homelab
+    interval: 1m
+    rules:
+
+      - uid: host-down
+        title: Host Down
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: 'up{wol_managed!="true"} == 0'
+              refId: A
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Host {{ $labels.instance }} is down"
+
+      - uid: high-cpu
+        title: High CPU Usage
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: '(1 - avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 90'
+              refId: A
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "High CPU on {{ $labels.instance }}: {{ $values.A.Value | printf \"%.1f\" }}%"
+
+      - uid: low-disk
+        title: Low Disk Space
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: '(node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs"}) * 100 < 20'
+              refId: A
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: "Low disk on {{ $labels.instance }}{{ $labels.mountpoint }}: {{ $values.A.Value | printf \"%.1f\" }}% free"
+
+      - uid: disk-spike
+        title: Disk Filling Fast
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: 'rate(node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs"}[1h]) < -1.39e9'
+              refId: A
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Disk consuming >5 GB/h on {{ $labels.instance }}{{ $labels.mountpoint }}"
+
+  # ── GPU ────────────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: GPU
+    folder: Homelab
+    interval: 1m
+    rules:
+
+      - uid: gpu-temp-high
+        title: GPU Temperature High
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: 'DCGM_FI_DEV_GPU_TEMP > 85'
+              refId: A
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: "GPU {{ $labels.gpu }} at {{ $values.A.Value | printf \"%.0f\" }}°C on {{ $labels.instance }}"
+
+  # ── Application ────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: Application
+    folder: Homelab
+    interval: 1m
+    rules:
+
+      - uid: traefik-error-rate
+        title: Traefik High Error Rate
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(traefik_service_requests_total{code=~"5.."}[5m]))
+                /
+                sum(rate(traefik_service_requests_total[5m])) > 0.05
+              refId: A
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Traefik 5xx error rate above 5%"
+
+      - uid: backup-stale
+        title: Backup Not Run
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange: { from: 93600, to: 0 }  # 26 h window
+            datasourceUid: prometheus
+            model:
+              expr: 'time() - backup_last_success_timestamp_seconds > 90000'
+              refId: A
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "No successful backup in >25 hours"
+
+      - uid: loki-ingestion-drop
+        title: Loki Ingestion Stopped
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: 'rate(loki_ingester_streams_total[5m]) == 0'
+              refId: A
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: "Loki is not ingesting any log streams"
+
+  # ── Security (Loki log queries) ────────────────────────────────────────────
+  - orgId: 1
+    name: Security
+    folder: Homelab
+    interval: 1m
+    rules:
+
+      - uid: ssh-brute-force
+        title: SSH Brute Force
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: loki
+            model:
+              expr: 'sum(count_over_time({job="syslog"} |= "Failed password" [5m]))'
+              refId: A
+              instant: true
+          - refId: C
+            datasourceUid: "-100"
+            model:
+              type: classic_conditions
+              conditions:
+                - evaluator: { params: [10], type: gt }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last }
+              refId: C
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: "SSH brute force detected (>10 failed passwords in 5m)"
+
+      - uid: nfs-stale
+        title: NFS Stale Mount
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: loki
+            model:
+              expr: 'count_over_time({job="syslog"} |~ "nfs.*stale" [5m])'
+              refId: A
+              instant: true
+          - refId: C
+            datasourceUid: "-100"
+            model:
+              type: classic_conditions
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last }
+              refId: C
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "NFS stale file handle detected on {{ $labels.host }}"
+{% endraw %}

@@ -1,0 +1,15 @@
+---
+- name: deploy media stack
+  ansible.builtin.command: >
+    docker stack deploy -c /opt/compose/media/compose.yaml media
+  environment:
+    TZ: "{{ timezone }}"
+    PUID: "{{ docker_uid }}"
+    PGID: "{{ labops_gid }}"
+  changed_when: true
+
+- name: Restart sabnzbd
+  ansible.builtin.command: >
+    docker service update --force media_sabnzbd
+  changed_when: true
+  delegate_to: services

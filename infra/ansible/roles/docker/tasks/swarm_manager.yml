@@ -1,0 +1,36 @@
+---
+- name: Check Swarm state
+  ansible.builtin.shell: docker info 2>/dev/null | awk '/Swarm:/ {print $2}'
+  register: swarm_state
+  changed_when: false
+
+- name: Initialise Swarm
+  ansible.builtin.shell: >
+    docker swarm init --advertise-addr {{ ansible_facts['default_ipv4']['address'] }}
+  when: swarm_state.stdout != 'active'
+
+- name: Get worker join token
+  ansible.builtin.shell: docker swarm join-token -q worker
+  register: swarm_worker_token
+  changed_when: false
+
+- name: Store worker join token as fact
+  ansible.builtin.set_fact:
+    swarm_worker_join_token: "{{ swarm_worker_token.stdout }}"
+    cacheable: true
+
+- name: Create Swarm overlay networks
+  ansible.builtin.shell: >
+    docker network inspect {{ item }} > /dev/null 2>&1 ||
+    docker network create --driver overlay --opt encrypted {{ item }}
+  register: net_result
+  changed_when: net_result.stdout != ''
+  loop:
+    - traefik
+    - db
+    - media
+    - paperless
+    - immich
+    - llm
+    - auth
+    - monitoring

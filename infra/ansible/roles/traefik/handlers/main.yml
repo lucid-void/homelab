@@ -1,0 +1,5 @@
+---
+- name: deploy traefik stack
+  ansible.builtin.command: >
+    docker stack deploy -c /opt/compose/traefik/compose.yaml traefik
+  changed_when: true

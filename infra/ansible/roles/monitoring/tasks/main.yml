@@ -1,0 +1,381 @@
+---
+# All volume/config dirs live on the monitoring VM (.11); stack is deployed from manager (.13).
+
+# ── Directory setup ───────────────────────────────────────────────────────────
+- name: Ensure monitoring volume directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "{{ item.mode }}"
+  loop:
+    # config dirs — world-readable is fine, secrets are in separate 0600 files
+    - { path: /opt/volumes/prometheus,              mode: "02775" }
+    - { path: /opt/volumes/loki,                    mode: "02775" }
+    - { path: /opt/volumes/gotify,                  mode: "02775" }
+    - { path: /opt/volumes/uptime-kuma,             mode: "02775" }
+    - { path: /opt/volumes/pve-exporter,            mode: "02775" }
+    - { path: /opt/volumes/unifi-poller,            mode: "02775" }
+    - { path: /opt/volumes/postgres-exporter,       mode: "02775" }
+    # data dirs — owned by docker:labops, written by containers running as 2202:2200
+    - { path: /opt/volumes/prometheus/data,         mode: "02775" }
+    - { path: /opt/volumes/loki/data,               mode: "02775" }
+    - { path: /opt/volumes/grafana/data,            mode: "02775" }
+    # Grafana provisioning sub-dirs
+    - { path: /opt/volumes/grafana/provisioning/datasources,          mode: "02775" }
+    - { path: /opt/volumes/grafana/provisioning/dashboards,           mode: "02775" }
+    - { path: /opt/volumes/grafana/provisioning/dashboards/Homelab,   mode: "02775" }
+    - { path: /opt/volumes/grafana/provisioning/alerting,             mode: "02775" }
+    # dashboard source cache — unpatched originals from Grafana; outside scan path so Grafana ignores it
+    - { path: /opt/volumes/grafana/dashboard-src,                     mode: "02775" }
+  delegate_to: monitoring
+
+# ── Prometheus ────────────────────────────────────────────────────────────────
+- name: Template Prometheus config
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /opt/volumes/prometheus/prometheus.yml
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  no_log: true
+  delegate_to: monitoring
+  notify: deploy monitoring stack
+
+# ── Loki ──────────────────────────────────────────────────────────────────────
+- name: Template Loki config
+  ansible.builtin.template:
+    src: loki-config.yml.j2
+    dest: /opt/volumes/loki/loki-config.yml
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  delegate_to: monitoring
+  notify: deploy monitoring stack
+
+# ── pve_exporter ──────────────────────────────────────────────────────────────
+- name: Template pve_exporter config
+  ansible.builtin.template:
+    src: pve.yml.j2
+    dest: /opt/volumes/pve-exporter/pve.yml
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0600"
+  no_log: true
+  delegate_to: monitoring
+  notify: deploy monitoring stack
+
+# ── unifi-poller ──────────────────────────────────────────────────────────────
+- name: Template unifi-poller config
+  ansible.builtin.template:
+    src: unifi-poller.toml.j2
+    dest: /opt/volumes/unifi-poller/up.conf
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  delegate_to: monitoring
+  notify: deploy monitoring stack
+
+# ── postgres_exporter ─────────────────────────────────────────────────────────
+- name: Template postgres_exporter config
+  ansible.builtin.template:
+    src: postgres-exporter-config.yml.j2
+    dest: /opt/volumes/postgres-exporter/config.yml
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0600"
+  no_log: true
+  delegate_to: monitoring
+  notify: deploy monitoring stack
+
+# ── Grafana provisioning (pre-deploy) ─────────────────────────────────────────
+- name: Deploy Grafana datasources
+  ansible.builtin.template:
+    src: grafana/datasources/datasources.yml.j2
+    dest: /opt/volumes/grafana/provisioning/datasources/datasources.yml
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  delegate_to: monitoring
+  notify: deploy monitoring stack
+
+- name: Deploy Grafana dashboard provider
+  ansible.builtin.template:
+    src: grafana/dashboards/provider.yml
+    dest: /opt/volumes/grafana/provisioning/dashboards/provider.yml
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  delegate_to: monitoring
+  notify: deploy monitoring stack
+
+# ── Grafana dashboards (community) ────────────────────────────────────────────
+# Downloads go to dashboard-src/ (unpatched originals) so get_url's checksum
+# comparison always has a stable baseline. Patching happens only when a dashboard
+# was actually re-downloaded, breaking the re-download cycle that occurred when
+# the patched provisioning file had a different checksum than the Grafana original.
+- name: Download community dashboards
+  ansible.builtin.get_url:
+    url: "https://grafana.com/api/dashboards/{{ item.id }}/revisions/latest/download"
+    dest: "/opt/volumes/grafana/dashboard-src/{{ item.file }}"
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  register: _dashboard_dl
+  loop:
+    - { id: 1860,  file: node-exporter-full.json }
+    - { id: 14282, file: cadvisor.json }
+    - { id: 13639, file: logs-app.json }
+    - { id: 10347, file: pve.json }
+    - { id: 11315, file: unifi-clients.json }
+    - { id: 11314, file: unifi-uap.json }
+    - { id: 11312, file: unifi-usw.json }
+    - { id: 11313, file: unifi-usg.json }
+    - { id: 22143, file: unifi-sites.json }
+    - { id: 14114, file: postgres.json }
+    - { id: 17346, file: traefik.json }
+    - { id: 13192, file: gitea.json }
+    - { id: 14284, file: synology.json }
+  delegate_to: monitoring
+
+- name: Copy updated dashboards to provisioning directory
+  ansible.builtin.copy:
+    src: "/opt/volumes/grafana/dashboard-src/{{ item.item.file }}"
+    dest: "/opt/volumes/grafana/provisioning/dashboards/Homelab/{{ item.item.file }}"
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+    remote_src: true
+  loop: "{{ _dashboard_dl.results | selectattr('changed') | list }}"
+  loop_control:
+    label: "{{ item.item.file }}"
+  delegate_to: monitoring
+
+- name: Fix Prometheus datasource UID in dashboards
+  ansible.builtin.replace:
+    path: "/opt/volumes/grafana/provisioning/dashboards/Homelab/{{ item }}"
+    regexp: '\$\{DS_PROMETHEUS\}'
+    replace: 'prometheus'
+  loop:
+    - node-exporter-full.json
+    - cadvisor.json
+    - pve.json
+    - traefik.json
+    - unifi-clients.json
+    - unifi-uap.json
+    - unifi-usw.json
+    - unifi-usg.json
+    - unifi-sites.json
+    - postgres.json
+    - gitea.json
+    - synology.json
+  when: item in (_dashboard_dl.results | selectattr('changed') | map(attribute='item') | map(attribute='file') | list)
+  delegate_to: monitoring
+
+- name: Fix pve dashboard UID to match provisioned entry
+  ansible.builtin.replace:
+    path: /opt/volumes/grafana/provisioning/dashboards/Homelab/pve.json
+    regexp: '"uid": "Dp7Cd57Zza"'
+    replace: '"uid": "pve-exporter"'
+  when: >
+    'pve.json' in (_dashboard_dl.results | selectattr('changed') | map(attribute='item') | map(attribute='file') | list)
+  delegate_to: monitoring
+
+- name: Fix hardcoded Prometheus UID in cAdvisor dashboard
+  ansible.builtin.replace:
+    path: /opt/volumes/grafana/provisioning/dashboards/Homelab/cadvisor.json
+    regexp: 'pMEd7m0Mz'
+    replace: 'prometheus'
+  when: >
+    'cadvisor.json' in (_dashboard_dl.results | selectattr('changed') | map(attribute='item') | map(attribute='file') | list)
+  delegate_to: monitoring
+
+- name: Fix Loki datasource UID in logs dashboard
+  ansible.builtin.replace:
+    path: /opt/volumes/grafana/provisioning/dashboards/Homelab/logs-app.json
+    regexp: '\$\{DS_LOKI\}'
+    replace: 'loki'
+  when: >
+    'logs-app.json' in (_dashboard_dl.results | selectattr('changed') | map(attribute='item') | map(attribute='file') | list)
+  delegate_to: monitoring
+
+- name: Deploy custom dashboards
+  ansible.builtin.copy:
+    src: "grafana/dashboards/{{ item }}"
+    dest: "/opt/volumes/grafana/provisioning/dashboards/Homelab/{{ item }}"
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  loop:
+    - zitadel.json
+    - pve-resources.json
+  delegate_to: monitoring
+  notify: deploy monitoring stack
+
+- name: Deploy Grafana alert rules
+  ansible.builtin.template:
+    src: grafana/alerting/rules.yml.j2
+    dest: /opt/volumes/grafana/provisioning/alerting/rules.yml
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  delegate_to: monitoring
+  notify: deploy monitoring stack
+
+# ── Docker secrets ────────────────────────────────────────────────────────────
+- name: Create monitoring Docker secrets
+  ansible.builtin.shell: >
+    docker secret inspect {{ item.name }} > /dev/null 2>&1 ||
+    printf '%s' "{{ item.value }}" | docker secret create {{ item.name }} -
+  register: _r
+  changed_when: _r.rc == 0 and _r.stdout != ''
+  no_log: true
+  loop:
+    - { name: grafana_admin_password,    value: "{{ grafana_admin_password }}" }
+    - { name: grafana_oidc_client_id,    value: "{{ grafana_oidc_client_id }}" }
+    - { name: grafana_oidc_client_secret, value: "{{ grafana_oidc_client_secret }}" }
+  loop_control:
+    label: "{{ item.name }}"
+  notify: deploy monitoring stack
+
+# ── Stack deploy ──────────────────────────────────────────────────────────────
+- name: Check monitoring stack health
+  ansible.builtin.shell: |
+    docker service ls --filter label=com.docker.stack.namespace=monitoring \
+      | awk 'NR>1{n++; split($4,a,"/"); if(a[1]+0<a[2]+0)bad++}
+             END{if(n==0)print "MISSING"; else if(bad)print "DEGRADED"; else print "HEALTHY"}'
+  register: _stack_health
+  changed_when: (_stack_health.stdout | trim) != 'HEALTHY'
+  check_mode: false
+  notify: deploy monitoring stack
+
+- name: Ensure /opt/compose/monitoring exists
+  ansible.builtin.file:
+    path: /opt/compose/monitoring
+    state: directory
+    owner: void
+    group: "{{ labops_gid }}"
+    mode: "02775"
+
+- name: Copy monitoring compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../stacks/monitoring/compose.yaml"
+    dest: /opt/compose/monitoring/compose.yaml
+    owner: void
+    group: "{{ labops_gid }}"
+    mode: "0644"
+  notify: deploy monitoring stack
+
+# ── Post-deploy: Gotify app bootstrap ────────────────────────────────────────
+- name: Flush handlers before post-deploy steps
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for Gotify to become healthy
+  ansible.builtin.uri:
+    url: "https://gotify.{{ domain }}/health"
+    validate_certs: true
+    status_code: 200
+  register: _gotify_health
+  until: _gotify_health.status == 200
+  retries: 30
+  delay: 10
+
+- name: Check if Grafana alerts app token is already stored
+  ansible.builtin.stat:
+    path: /opt/volumes/gotify/.grafana_app_token
+  delegate_to: monitoring
+  register: _gotify_token_stat
+
+- name: Create Grafana Alerts app in Gotify
+  ansible.builtin.uri:
+    url: "https://gotify.{{ domain }}/application"
+    method: POST
+    user: admin
+    password: "{{ gotify_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      name: "Grafana Alerts"
+      description: "Grafana infrastructure and application alert notifications"
+    status_code: 200
+  register: _gotify_app
+  when: not _gotify_token_stat.stat.exists
+  no_log: true
+  failed_when: false
+
+- name: Store Grafana alerts app token on monitoring VM
+  ansible.builtin.copy:
+    content: "{{ _gotify_app.json.token }}"
+    dest: /opt/volumes/gotify/.grafana_app_token
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0600"
+  delegate_to: monitoring
+  when: (_gotify_app.status | default(0)) == 200
+  no_log: true
+
+- name: Fail if Grafana alerts token is not available
+  ansible.builtin.fail:
+    msg: >-
+      Gotify app creation failed (HTTP {{ _gotify_app.status | default('N/A') }}).
+      Ensure gotify_admin_password matches the password Gotify was initialised with.
+      If the stack was first deployed without GOTIFY_ADMIN_PASS set, delete
+      /opt/volumes/gotify/gotify.db on the monitoring VM and redeploy.
+  when:
+    - not _gotify_token_stat.stat.exists
+    - (_gotify_app.status | default(0)) != 200
+
+- name: Slurp Grafana alerts app token
+  ansible.builtin.slurp:
+    src: /opt/volumes/gotify/.grafana_app_token
+  delegate_to: monitoring
+  register: _token_slurp
+
+- name: Set gotify_grafana_token fact
+  ansible.builtin.set_fact:
+    gotify_grafana_token: "{{ _token_slurp.content | b64decode | trim }}"
+
+# ── Post-deploy: Grafana alerting provisioning with real Gotify token ─────────
+- name: Deploy Grafana alert contact points
+  ansible.builtin.template:
+    src: grafana/alerting/contactpoints.yml.j2
+    dest: /opt/volumes/grafana/provisioning/alerting/contactpoints.yml
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  delegate_to: monitoring
+  register: _contactpoints_result
+  no_log: true
+
+- name: Deploy Grafana alert notification policies
+  ansible.builtin.template:
+    src: grafana/alerting/policies.yml
+    dest: /opt/volumes/grafana/provisioning/alerting/policies.yml
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  delegate_to: monitoring
+  register: _policies_result
+
+- name: Wait for Grafana to become healthy
+  ansible.builtin.uri:
+    url: "https://grafana.{{ domain }}/api/health"
+    validate_certs: true
+    status_code: 200
+  register: _grafana_health
+  until: _grafana_health.status == 200
+  retries: 30
+  delay: 10
+  when: _contactpoints_result is changed or _policies_result is changed
+
+- name: Reload Grafana alerting provisioning
+  ansible.builtin.uri:
+    url: "https://grafana.{{ domain }}/api/admin/provisioning/alerting/reload"
+    method: POST
+    user: admin
+    password: "{{ grafana_admin_password }}"
+    force_basic_auth: true
+    status_code: 200
+  no_log: true
+  when: _contactpoints_result is changed or _policies_result is changed

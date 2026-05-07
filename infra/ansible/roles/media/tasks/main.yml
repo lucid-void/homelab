@@ -1,0 +1,92 @@
+---
+- name: Ensure media volume directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: docker
+    group: labops
+    mode: "02775"
+  loop:
+    - /opt/volumes/tautulli
+    - /opt/volumes/sonarr
+    - /opt/volumes/radarr
+    - /opt/volumes/prowlarr
+    - /opt/volumes/sabnzbd
+    - /opt/volumes/seerr
+  delegate_to: media
+
+- name: Check media stack health
+  ansible.builtin.shell: |
+    docker service ls --filter label=com.docker.stack.namespace=media \
+      | awk 'NR>1{n++; split($4,a,"/"); if(a[1]+0<a[2]+0)bad++}
+             END{if(n==0)print "MISSING"; else if(bad)print "DEGRADED"; else print "HEALTHY"}'
+  register: _stack_health
+  changed_when: (_stack_health.stdout | trim) != 'HEALTHY'
+  check_mode: false
+  notify: deploy media stack
+
+- name: Ensure /opt/compose/media exists
+  ansible.builtin.file:
+    path: /opt/compose/media
+    state: directory
+    owner: docker
+    group: labops
+    mode: "02775"
+
+- name: Copy media compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../stacks/media/compose.yaml"
+    dest: /opt/compose/media/compose.yaml
+    owner: docker
+    group: labops
+    mode: "0644"
+  notify: deploy media stack
+
+- name: Ensure SABnzbd download directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0775"
+  loop:
+    - /mnt/media/Downloads/incomplete
+    - /mnt/media/Downloads/complete
+  delegate_to: media
+
+- name: Wait for sabnzbd.ini to be created
+  ansible.builtin.wait_for:
+    path: /opt/volumes/sabnzbd/sabnzbd.ini
+    state: present
+    timeout: 60
+  delegate_to: media
+
+- name: Configure SABnzbd host_whitelist
+  community.general.ini_file:
+    path: /opt/volumes/sabnzbd/sabnzbd.ini
+    section: misc
+    option: host_whitelist
+    value: "sabnzbd,nzb.blackcats.cc"
+    mode: "0600"
+  delegate_to: media
+  notify: Restart sabnzbd
+
+- name: Configure SABnzbd download_dir
+  community.general.ini_file:
+    path: /opt/volumes/sabnzbd/sabnzbd.ini
+    section: misc
+    option: download_dir
+    value: "/Media/Downloads/incomplete"
+    mode: "0600"
+  delegate_to: media
+  notify: Restart sabnzbd
+
+- name: Configure SABnzbd complete_dir
+  community.general.ini_file:
+    path: /opt/volumes/sabnzbd/sabnzbd.ini
+    section: misc
+    option: complete_dir
+    value: "/Media/Downloads/complete"
+    mode: "0600"
+  delegate_to: media
+  notify: Restart sabnzbd

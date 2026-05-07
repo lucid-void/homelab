@@ -1,0 +1,57 @@
+---
+- name: Ensure paperless volume directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "02775"
+  loop:
+    - /opt/volumes/paperless/data
+    - /opt/volumes/paperless/export
+    - /opt/volumes/paperless/consume
+    - /opt/volumes/paperless/broker
+    - /opt/volumes/paperless/protonmail-bridge
+  delegate_to: services
+
+- name: Create paperless Docker secrets
+  ansible.builtin.shell: >
+    docker secret inspect {{ item.name }} > /dev/null 2>&1 ||
+    printf '%s' "{{ item.value }}" | docker secret create {{ item.name }} -
+  register: _r
+  changed_when: _r.rc == 0 and _r.stdout != ''
+  no_log: true
+  loop:
+    - { name: paperless_db_password, value: "{{ postgres_password_paperless }}" }
+    - { name: paperless_secret_key,  value: "{{ paperless_secret_key }}" }
+  loop_control:
+    label: "{{ item.name }}"
+  notify: deploy paperless stack
+
+- name: Check paperless stack health
+  ansible.builtin.shell: |
+    docker service ls --filter label=com.docker.stack.namespace=paperless \
+      | awk 'NR>1{n++; split($4,a,"/"); if(a[1]+0<a[2]+0)bad++}
+             END{if(n==0)print "MISSING"; else if(bad)print "DEGRADED"; else print "HEALTHY"}'
+  register: _stack_health
+  changed_when: (_stack_health.stdout | trim) != 'HEALTHY'
+  check_mode: false
+  notify: deploy paperless stack
+
+- name: Ensure /opt/compose/paperless exists
+  ansible.builtin.file:
+    path: /opt/compose/paperless
+    state: directory
+    owner: void
+    group: "{{ labops_gid }}"
+    mode: "02775"
+
+- name: Template paperless compose file
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../../../stacks/paperless/compose.yaml"
+    dest: /opt/compose/paperless/compose.yaml
+    owner: void
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  no_log: true
+  notify: deploy paperless stack

@@ -1,0 +1,5 @@
+---
+- name: deploy auth stack
+  ansible.builtin.command: >
+    docker stack deploy -c /opt/compose/auth/compose.yaml auth
+  changed_when: true

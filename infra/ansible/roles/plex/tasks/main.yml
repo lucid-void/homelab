@@ -1,0 +1,47 @@
+---
+- name: Ensure plex volume directory exists
+  ansible.builtin.file:
+    path: /opt/volumes/plex
+    state: directory
+    owner: docker
+    group: labops
+    mode: "02775"
+
+- name: Ensure /opt/compose/plex exists
+  ansible.builtin.file:
+    path: /opt/compose/plex
+    state: directory
+    owner: void
+    group: labops
+    mode: "02775"
+
+- name: Check plex health
+  ansible.builtin.shell: |
+    total=$(docker ps -a --filter label=com.docker.compose.project=plex --quiet | wc -l)
+    running=$(docker ps --filter label=com.docker.compose.project=plex --filter status=running --quiet | wc -l)
+    if [ "$total" -eq 0 ]; then echo MISSING
+    elif [ "$running" -lt "$total" ]; then echo DEGRADED
+    else echo HEALTHY; fi
+  register: _plex_health
+  changed_when: (_plex_health.stdout | trim) != 'HEALTHY'
+  failed_when: false
+  check_mode: false
+  notify: deploy plex
+
+- name: Copy plex compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../stacks/plex/compose.yaml"
+    dest: /opt/compose/plex/compose.yaml
+    owner: void
+    group: labops
+    mode: "0644"
+  notify: deploy plex
+
+- name: Write plex .env file
+  ansible.builtin.template:
+    src: env.j2
+    dest: /opt/compose/plex/.env
+    owner: void
+    group: labops
+    mode: "0640"
+  notify: deploy plex

@@ -1,0 +1,190 @@
+---
+# Full site run.  Usage:
+#   just configure
+#   just configure-host host=services
+#   just deploy-stack stack=databases
+
+# ---------------------------------------------------------------------------
+# Common baseline — all VMs
+# ---------------------------------------------------------------------------
+- name: Apply common role to all VMs
+  hosts: proxmox_all_qemu
+  gather_facts: true
+  roles:
+    - role: common
+
+# ---------------------------------------------------------------------------
+# NFS mounts — per-host, skipped on hosts without nfs_mounts defined
+# ---------------------------------------------------------------------------
+- name: Configure NFS mounts
+  hosts: proxmox_all_qemu
+  gather_facts: false
+  roles:
+    - role: nfs
+      when: nfs_mounts is defined
+
+# ---------------------------------------------------------------------------
+# Docker Engine + Swarm — manager first, workers second
+# ---------------------------------------------------------------------------
+- name: Install Docker and init Swarm on manager
+  hosts: services
+  gather_facts: true
+  vars:
+    swarm_role: manager
+  roles:
+    - role: docker
+
+- name: Install Docker and join Swarm on workers
+  hosts: proxmox_all_qemu:!services:!runner
+  gather_facts: true
+  vars:
+    swarm_role: worker
+  roles:
+    - role: docker
+
+- name: Install Docker on runner (no Swarm)
+  hosts: runner
+  gather_facts: true
+  roles:
+    - role: docker
+
+# ---------------------------------------------------------------------------
+# Observability — node_exporter + promtail on all VMs and Proxmox host
+# ---------------------------------------------------------------------------
+- name: Deploy node_exporter on all hosts
+  hosts: proxmox_all_qemu:proxmox_nodes
+  gather_facts: false
+  tags: [observability, node_exporter]
+  roles:
+    - role: node_exporter
+
+- name: Deploy promtail on all hosts
+  hosts: proxmox_all_qemu:proxmox_nodes
+  gather_facts: false
+  tags: [observability, promtail]
+  roles:
+    - role: promtail
+
+# ---------------------------------------------------------------------------
+# L0: databases — Postgres, MariaDB, pgadmin, adminer  (pinned to db VM)
+# ---------------------------------------------------------------------------
+- name: Deploy databases stack
+  hosts: services
+  gather_facts: false
+  tags: [stack_databases]
+  roles:
+    - role: databases
+
+# ---------------------------------------------------------------------------
+# L0: traefik — reverse proxy, TLS termination, WOL plugin
+# ---------------------------------------------------------------------------
+- name: Deploy traefik stack
+  hosts: services
+  gather_facts: false
+  tags: [stack_traefik]
+  roles:
+    - role: traefik
+
+# ---------------------------------------------------------------------------
+# L1: auth — Zitadel (IdP), Authelia (forward auth), Valkey
+#     Requires: databases stack healthy (Postgres up)
+# ---------------------------------------------------------------------------
+- name: Deploy auth stack
+  hosts: services
+  gather_facts: false
+  tags: [stack_auth]
+  roles:
+    - role: auth
+
+# ---------------------------------------------------------------------------
+# L1: media — sonarr, radarr, prowlarr, sabnzbd, seerr, flaresolverr
+#     Requires: traefik stack healthy, NFS mounts up on media VM
+# ---------------------------------------------------------------------------
+- name: Deploy media stack
+  hosts: services
+  gather_facts: false
+  tags: [stack_media]
+  roles:
+    - role: media
+
+# ---------------------------------------------------------------------------
+# L1: plex — standalone compose on media VM (host network + /dev/dri)
+#     Requires: NFS mounts up on media VM (/mnt/media)
+# ---------------------------------------------------------------------------
+- name: Deploy plex standalone
+  hosts: media
+  gather_facts: false
+  tags: [stack_plex]
+  roles:
+    - role: plex
+
+# ---------------------------------------------------------------------------
+# L1: monitoring — Prometheus, Loki, Grafana, exporters
+#     Requires: traefik stack healthy; node_exporter + promtail deployed
+# ---------------------------------------------------------------------------
+- name: Deploy monitoring stack
+  hosts: services
+  gather_facts: false
+  tags: [stack_monitoring]
+  roles:
+    - role: monitoring
+
+# ---------------------------------------------------------------------------
+# L1: misc — homebox, IT-Tools, FreshRSS
+#     Requires: traefik stack healthy, databases stack healthy (Postgres up for FreshRSS)
+# ---------------------------------------------------------------------------
+- name: Deploy misc stack
+  hosts: services
+  gather_facts: false
+  tags: [stack_misc]
+  roles:
+    - role: misc
+
+# ---------------------------------------------------------------------------
+# L1: immich — photo management
+#     Requires: traefik healthy, databases healthy, NFS mount up
+# ---------------------------------------------------------------------------
+- name: Deploy immich stack
+  hosts: services
+  gather_facts: false
+  tags: [stack_immich]
+  roles:
+    - role: immich
+
+# ---------------------------------------------------------------------------
+# Gitea runner VM — act_runner, tools (tofu, ansible, packer, just, sops)
+#   Requires: gitea stack deployed and runner token generated
+#   Secrets needed in SOPS: sops_age_private_key, runner_ssh_private_key,
+#                            runner_ssh_public_key, gitea_runner_token
+# ---------------------------------------------------------------------------
+- name: Configure Gitea runner
+  hosts: runner
+  gather_facts: true
+  tags: [runner]
+  roles:
+    - role: gitea_runner
+
+# ---------------------------------------------------------------------------
+# L1: gitea — git hosting, CI/CD
+#     Requires: traefik healthy, databases healthy (Postgres up)
+#     Secrets needed in SOPS: gitea_secret_key, gitea_internal_token, gitea_metrics_token,
+#                              gitea_oidc_client_id, gitea_oidc_client_secret
+# ---------------------------------------------------------------------------
+- name: Deploy gitea stack
+  hosts: services
+  gather_facts: false
+  tags: [stack_gitea]
+  roles:
+    - role: gitea
+
+# ---------------------------------------------------------------------------
+# L1: paperless — document management
+#     Requires: traefik healthy, databases healthy (Postgres up)
+#     Secrets needed in SOPS: postgres_password_paperless, paperless_secret_key
+# ---------------------------------------------------------------------------
+- name: Deploy paperless stack
+  hosts: services
+  gather_facts: false
+  tags: [stack_paperless]
+  roles:
+    - role: paperless
