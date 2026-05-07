@@ -4,8 +4,9 @@ name: Image Security Scan
 # Renovate PRs hit this automatically; manual image bumps do too.
 #
 # Gate logic:
-#   - When a baseline exists (tag bump): fail only if new Critical/High CVEs are INTRODUCED.
-#     An upgrade that reduces or holds steady always passes, regardless of absolute count.
+#   - When a baseline exists (tag bump): fail only if the NET Critical or High count
+#     INCREASES. An upgrade that introduces some CVEs but fixes more (net improvement)
+#     always passes. Introduced/fixed detail is shown in the comment but does not gate.
 #   - When no baseline exists (brand-new image): fall back to absolute threshold.
 #
 # Tune thresholds in the env block below.
@@ -216,8 +217,13 @@ jobs:
             touch "scan-${SAFE}/grype-fixed.tsv"
           fi
 
+          # Gate on NET count: pass if Critical+High did not increase, even if some new
+          # CVEs were introduced (net improvement covers them).
           DELTA_FAILED="false"
-          [ "$INTRO" -gt 0 ] && DELTA_FAILED="true"
+          if [ "${GRYPE_CRIT:-0}" -gt "${GRYPE_OLD_CRIT:-0}" ] || \
+             [ "${GRYPE_HIGH:-0}" -gt "${GRYPE_OLD_HIGH:-0}" ]; then
+            DELTA_FAILED="true"
+          fi
           { echo "GRYPE_INTRODUCED=$INTRO"; echo "GRYPE_FIXED=$FIXED"
             echo "GRYPE_DELTA_FAILED=$DELTA_FAILED"; } >> "$GITHUB_ENV"
 
@@ -265,8 +271,12 @@ jobs:
             detail_tsv /tmp/osv_fixed_ids.txt      "scan-${SAFE}/osv-old.json" "scan-${SAFE}/osv-fixed.tsv" || \
             touch "scan-${SAFE}/osv-fixed.tsv"
 
+          # Same net-count gate as grype.
           OSV_DELTA_FAILED="false"
-          [ "$INTRO" -gt 0 ] && OSV_DELTA_FAILED="true"
+          if [ "${OSV_CRIT:-0}" -gt "${OSV_OLD_CRIT:-0}" ] || \
+             [ "${OSV_HIGH:-0}" -gt "${OSV_OLD_HIGH:-0}" ]; then
+            OSV_DELTA_FAILED="true"
+          fi
           { echo "OSV_INTRODUCED=$INTRO"; echo "OSV_FIXED=$FIXED"
             echo "OSV_DELTA_FAILED=$OSV_DELTA_FAILED"; } >> "$GITHUB_ENV"
 
@@ -358,11 +368,11 @@ jobs:
           FAILED=false
           if [ "$HAS_BASELINE" = "true" ]; then
             if [ "${GRYPE_DELTA_FAILED:-false}" = "true" ]; then
-              echo "grype: ${GRYPE_INTRODUCED} new Critical/High CVE(s) introduced"
+              echo "grype: net Critical/High count increased (${GRYPE_OLD_CRIT:-0}C/${GRYPE_OLD_HIGH:-0}H → ${GRYPE_CRIT:-0}C/${GRYPE_HIGH:-0}H)"
               FAILED=true
             fi
             if [ "${OSV_DELTA_FAILED:-false}" = "true" ]; then
-              echo "osv: ${OSV_INTRODUCED} new Critical/High CVE(s) introduced"
+              echo "osv: net Critical/High count increased (${OSV_OLD_CRIT:-0}C/${OSV_OLD_HIGH:-0}H → ${OSV_CRIT:-0}C/${OSV_HIGH:-0}H)"
               FAILED=true
             fi
           else
