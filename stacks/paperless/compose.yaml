@@ -86,7 +86,7 @@ services:
         - traefik.http.services.paperless.loadbalancer.server.port=8000
 
   paperless-broker:
-    image: valkey/valkey:8.1
+    image: valkey/valkey:9.1
     user: "2202:2200"
     volumes:
       - /opt/volumes/paperless/broker:/data
