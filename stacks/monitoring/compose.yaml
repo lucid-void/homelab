@@ -252,7 +252,7 @@ services:
         order: stop-first
 
   pve-exporter:
-    image: prompve/prometheus-pve-exporter:3.3
+    image: prompve/prometheus-pve-exporter:3.8
     user: "2202:2200"
     command:
       - "--config.file=/etc/pve.yml"
