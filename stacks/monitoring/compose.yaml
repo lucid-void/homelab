@@ -276,7 +276,7 @@ services:
         order: stop-first
 
   unifi-poller:
-    image: ghcr.io/unpoller/unpoller:v3.0.0
+    image: ghcr.io/unpoller/unpoller:v3.1.2
     user: "2202:2200"
     volumes:
       - /opt/volumes/unifi-poller/up.conf:/etc/unpoller/up.conf:ro
