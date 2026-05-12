@@ -485,6 +485,8 @@ jobs:
               GEXIT=$(jq   '.grype.exit'       "${dir}meta.json")
               OC=$(jq      '.osv.crit'         "${dir}meta.json")
               OH=$(jq      '.osv.high'         "${dir}meta.json")
+              OOC=$(jq     '.osv.old_crit'     "${dir}meta.json")
+              OOH=$(jq     '.osv.old_high'     "${dir}meta.json")
               OI=$(jq      '.osv.introduced'   "${dir}meta.json")
               OF=$(jq      '.osv.fixed'        "${dir}meta.json")
               ODF=$(jq     '.osv.delta_failed' "${dir}meta.json")
@@ -520,17 +522,25 @@ jobs:
                 DH=$(delta_cell "$GOH" "$GH")
                 DM=$(delta_cell "$GOM" "$GM")
                 DL=$(delta_cell "$GOL" "$GL")
+                DOC=$(delta_cell "$OOC" "$OC")
+                DOH=$(delta_cell "$OOH" "$OH")
 
                 printf '| | Critical | High | Medium | Low / Negligible |\n'
                 printf '|-|----------|------|--------|------------------|\n'
-                printf '| Before (`%s`) | %s | %s | %s | %s |\n' "$OLD_TAG" "$GOC" "$GOH" "$GOM" "$GOL"
-                printf '| After  (`%s`) | %s | %s | %s | %s |\n' "$NEW_TAG" "$GC" "$GH" "$GM" "$GL"
-                printf '| **Delta** | **%s** | **%s** | %s | %s |\n' "$DC" "$DH" "$DM" "$DL"
+                printf '| grype before (`%s`) | %s | %s | %s | %s |\n' "$OLD_TAG" "$GOC" "$GOH" "$GOM" "$GOL"
+                printf '| grype after  (`%s`) | %s | %s | %s | %s |\n' "$NEW_TAG" "$GC" "$GH" "$GM" "$GL"
+                printf '| grype delta | **%s** | **%s** | %s | %s |\n' "$DC" "$DH" "$DM" "$DL"
+                printf '| osv before (`%s`) | %s | %s | — | — |\n' "$OLD_TAG" "$OOC" "$OOH"
+                printf '| osv after  (`%s`) | %s | %s | — | — |\n' "$NEW_TAG" "$OC" "$OH"
+                printf '| osv delta | **%s** | **%s** | — | — |\n' "$DOC" "$DOH"
                 echo ""
 
                 # grype — introduced
                 if [ -s "${dir}grype-introduced.tsv" ]; then
-                  printf '<details>\n<summary>grype — ❌ %s new Critical/High CVE(s) introduced</summary>\n\n' "$GI"
+                  GI_ACTUAL=$(wc -l < "${dir}grype-introduced.tsv" | tr -d ' ')
+                  GRYPE_INTRO_ICON="❌"; [ "$GDF" != "true" ] && GRYPE_INTRO_ICON="⚠️"
+                  printf '<details>\n<summary>grype — %s %s new Critical/High CVE(s) introduced</summary>\n\n' \
+                    "$GRYPE_INTRO_ICON" "$GI_ACTUAL"
                   printf '| Package | Installed | Vulnerability | Severity | Type |\n'
                   printf '|---------|-----------|---------------|----------|------|\n'
                   render_tsv "${dir}grype-introduced.tsv"
@@ -541,7 +551,8 @@ jobs:
 
                 # grype — fixed
                 if [ -s "${dir}grype-fixed.tsv" ]; then
-                  printf '<details>\n<summary>grype — ✅ %s Critical/High CVE(s) fixed by this upgrade</summary>\n\n' "$GF"
+                  GF_ACTUAL=$(wc -l < "${dir}grype-fixed.tsv" | tr -d ' ')
+                  printf '<details>\n<summary>grype — ✅ %s Critical/High CVE(s) fixed by this upgrade</summary>\n\n' "$GF_ACTUAL"
                   printf '| Package | Was | Vulnerability | Severity | Type |\n'
                   printf '|---------|-----|---------------|----------|------|\n'
                   render_tsv "${dir}grype-fixed.tsv"
@@ -550,7 +561,10 @@ jobs:
 
                 # osv — introduced
                 if [ -s "${dir}osv-introduced.tsv" ]; then
-                  printf '<details>\n<summary>osv-scanner — ❌ %s new Critical/High CVE(s) introduced</summary>\n\n' "$OI"
+                  OI_ACTUAL=$(wc -l < "${dir}osv-introduced.tsv" | tr -d ' ')
+                  OSV_INTRO_ICON="❌"; [ "$ODF" != "true" ] && OSV_INTRO_ICON="⚠️"
+                  printf '<details>\n<summary>osv-scanner — %s %s new Critical/High CVE(s) introduced</summary>\n\n' \
+                    "$OSV_INTRO_ICON" "$OI_ACTUAL"
                   printf '| Package | Installed | Vulnerability | Severity | Ecosystem |\n'
                   printf '|---------|-----------|---------------|----------|-----------|\n'
                   render_tsv "${dir}osv-introduced.tsv"
@@ -561,7 +575,8 @@ jobs:
 
                 # osv — fixed
                 if [ -s "${dir}osv-fixed.tsv" ]; then
-                  printf '<details>\n<summary>osv-scanner — ✅ %s Critical/High CVE(s) fixed by this upgrade</summary>\n\n' "$OF"
+                  OF_ACTUAL=$(wc -l < "${dir}osv-fixed.tsv" | tr -d ' ')
+                  printf '<details>\n<summary>osv-scanner — ✅ %s Critical/High CVE(s) fixed by this upgrade</summary>\n\n' "$OF_ACTUAL"
                   printf '| Package | Was | Vulnerability | Severity | Ecosystem |\n'
                   printf '|---------|-----|---------------|----------|-----------|\n'
                   render_tsv "${dir}osv-fixed.tsv"
