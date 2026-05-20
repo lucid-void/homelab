@@ -1,0 +1,44 @@
+---
+csiDriver:
+  name: "org.democratic-csi.iscsi"
+
+driver:
+  config:
+    driver: synology-iscsi
+    httpConnection:
+      protocol: https
+      host: "172.16.20.2"
+      port: 5001
+      username: "${SECRET_SYNOLOGY_USERNAME}"
+      password: "${SECRET_SYNOLOGY_PASSWORD}"
+      allowInsecure: true
+    iscsi:
+      # targetPortalGroups: name must match the portal group in Synology DSM
+      # iSCSI Manager → Info → Target Portal Group name (usually "default")
+      targetPortalGroups:
+        - name: "default"
+      # baseiqn: check Synology DSM → iSCSI Manager → Info for your IQN prefix
+      baseiqn: "iqn.2000-01.com.synology:"
+      lunSnapshotTemplate:
+        is_locked: false
+      targetGroupMappingPrefix: "k8s-"
+
+# Talos requires hostPID + nsenter strategy to reach the host iscsiadm.
+# The siderolabs/iscsi-tools extension must be included in the Talos image schematic.
+node:
+  hostPID: true
+  driver:
+    extraEnv:
+      - name: ISCSIADM_HOST_STRATEGY
+        value: nsenter
+      - name: ISCSIADM_HOST_PATH
+        value: /usr/local/sbin/iscsiadm
+
+storageClasses:
+  - name: synology-iscsi
+    defaultClass: false
+    reclaimPolicy: Retain
+    volumeBindingMode: Immediate
+    allowVolumeExpansion: true
+    parameters:
+      fsType: ext4

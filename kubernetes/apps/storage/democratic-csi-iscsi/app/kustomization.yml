@@ -1,0 +1,11 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./helmrelease.yml
+configMapGenerator:
+  - name: democratic-csi-iscsi-helm-values
+    files:
+      - values.yaml=./helm-values.yml
+configurations:
+  - kustomizeconfig.yml
