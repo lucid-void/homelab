@@ -13,6 +13,7 @@ env:
   VECTORCHORD_VERSION: "1.1.1"
   REGISTRY: ghcr.io
   IMAGE_NAME: lucid-void/postgres-cnpg-immich
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
