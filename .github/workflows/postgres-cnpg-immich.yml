@@ -9,6 +9,7 @@ on:
 
 env:
   PG_MAJOR: "17"
+  PG_BASE_TAG: "bookworm"
   PGVECTOR_VERSION: "0.8.2"
   VECTORCHORD_VERSION: "1.1.1"
   REGISTRY: ghcr.io
@@ -39,8 +40,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ env.PG_MAJOR }}-vectorchord${{ env.VECTORCHORD_VERSION }}-pgvector${{ env.PGVECTOR_VERSION }}
-            type=raw,value=${{ env.PG_MAJOR }}
+            type=raw,value=${{ env.PG_MAJOR }}-${{ env.PG_BASE_TAG }}-vectorchord${{ env.VECTORCHORD_VERSION }}-pgvector${{ env.PGVECTOR_VERSION }}
+            type=raw,value=${{ env.PG_MAJOR }}-${{ env.PG_BASE_TAG }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -50,6 +51,7 @@ jobs:
           platforms: linux/amd64
           build-args: |
             PG_MAJOR=${{ env.PG_MAJOR }}
+            PG_BASE_TAG=${{ env.PG_BASE_TAG }}
             PGVECTOR_VERSION=${{ env.PGVECTOR_VERSION }}
             VECTORCHORD_VERSION=${{ env.VECTORCHORD_VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
