@@ -4,4 +4,3 @@ kind: Kustomization
 resources:
   - ./namespace.yml
   - ./democratic-csi-nfs/ks.yml
-  - ./democratic-csi-iscsi/ks.yml

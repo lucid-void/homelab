@@ -17,10 +17,3 @@ spec:
   wait: true
   interval: 30m
   timeout: 5m
-  postBuild:
-    substituteFrom:
-      - kind: ConfigMap
-        name: cluster-settings
-      - kind: Secret
-        name: cluster-secrets
-        optional: false
