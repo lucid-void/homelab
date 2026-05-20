@@ -1,20 +1,15 @@
 ---
 csiDriver:
-  name: "org.democratic-csi.nfs"
+  name: "synology.democratic-csi.nfs-client"
+  fsGroupPolicy: File
 
 driver:
   config:
-    driver: synology-nfs
-    httpConnection:
-      protocol: https
-      host: "172.16.20.2"
-      port: 5001
-      username: "${SECRET_SYNOLOGY_USERNAME}"
-      password: "${SECRET_SYNOLOGY_PASSWORD}"
-      allowInsecure: true
+    driver: nfs-client
     nfs:
-      shareVolume: /volume2
-      shareBasePath: /k8s
+      shareHost: synology.blackcats.cc
+      shareBasePath: /volume2/Kubernetes
+      controllerBasePath: /mnt/kubernetes.nfs
       dirPermissionsMode: "0777"
       dirPermissionsUser: 0
       dirPermissionsGroup: 0
