@@ -1,0 +1,22 @@
+---
+sources:
+  - gateway-httproute
+
+provider:
+  name: cloudflare
+
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: external-dns-cloudflare
+        key: api-token
+
+extraArgs:
+  - --cloudflare-proxied=false
+
+domainFilters:
+  - blackcats.cc
+
+policy: sync
+txtOwnerId: homelab-k8s

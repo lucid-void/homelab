@@ -41,5 +41,8 @@ securityContext:
       - SYS_ADMIN
       - SYS_RESOURCE
 
+gatewayAPI:
+  enabled: true
+
 operator:
   replicas: 1

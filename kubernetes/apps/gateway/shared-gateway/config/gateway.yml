@@ -1,0 +1,30 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: shared
+  namespace: gateway
+spec:
+  gatewayClassName: cilium
+  addresses:
+    - type: IPAddress
+      value: "172.16.20.50"
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: "*.blackcats.cc"
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https
+      port: 443
+      protocol: HTTPS
+      hostname: "*.blackcats.cc"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: shared-tls
+      allowedRoutes:
+        namespaces:
+          from: All
