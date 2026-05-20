@@ -13,12 +13,10 @@ spec:
       owner: immich
       secret:
         name: immich-pg-user
-      postInitSQL:
-        - ALTER SYSTEM SET shared_preload_libraries = 'vchord.so'
-
   postgresql:
+    shared_preload_libraries:
+      - vchord.so
     parameters:
-      shared_preload_libraries: "vchord.so"
       max_connections: "200"
 
   storage:
