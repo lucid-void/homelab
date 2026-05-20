@@ -2,17 +2,16 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: immich-pg
+  name: postgres
 spec:
   instances: 2
   imageName: ghcr.io/lucid-void/postgres-cnpg-immich:17-vectorchord1.1.1-pgvector0.8.2
 
   bootstrap:
     initdb:
-      database: immich
-      owner: immich
-      secret:
-        name: immich-pg-user
+      database: app
+      owner: app
+
   postgresql:
     shared_preload_libraries:
       - vchord.so
@@ -20,5 +19,5 @@ spec:
       max_connections: "200"
 
   storage:
-    size: 10Gi
+    size: 20Gi
     storageClass: nfs-client
