@@ -1,0 +1,26 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-pg
+spec:
+  instances: 2
+  imageName: ghcr.io/lucid-void/postgres-cnpg-immich:17-vectorchord1.1.1-pgvector0.8.2
+
+  bootstrap:
+    initdb:
+      database: immich
+      owner: immich
+      secret:
+        name: immich-pg-user
+      postInitSQL:
+        - ALTER SYSTEM SET shared_preload_libraries = 'vchord.so'
+
+  postgresql:
+    parameters:
+      shared_preload_libraries: "vchord.so"
+      max_connections: "200"
+
+  storage:
+    size: 10Gi
+    storageClass: nfs-client
