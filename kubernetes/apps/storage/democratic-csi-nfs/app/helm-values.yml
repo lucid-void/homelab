@@ -14,12 +14,16 @@ driver:
       dirPermissionsUser: 0
       dirPermissionsGroup: 0
 
+controller:
+  externalResizer:
+    enabled: false
+
 storageClasses:
   - name: synology-nfs
     defaultClass: false
     reclaimPolicy: Retain
     volumeBindingMode: Immediate
-    allowVolumeExpansion: true
+    allowVolumeExpansion: false
     parameters:
       fsType: nfs
     mountOptions:
