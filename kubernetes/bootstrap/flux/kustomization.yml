@@ -1,0 +1,37 @@
+# Not tracked by Flux — only used to install the Flux CRDs and controllers
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - github.com/fluxcd/flux2/manifests/install?ref=v2.4.0
+patches:
+  - patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: not-used
+    target:
+      group: networking.k8s.io
+      kind: NetworkPolicy
+  - target:
+      kind: ClusterRoleBinding
+      name: cluster-reconciler
+    patch: |
+      - op: replace
+        path: /metadata/name
+        value: cluster-reconciler-flux-system
+  - target:
+      kind: ClusterRoleBinding
+      name: crd-controller
+    patch: |
+      - op: replace
+        path: /metadata/name
+        value: crd-controller-flux-system
+  - target:
+      kind: ClusterRole
+      name: crd-controller
+    patch: |
+      - op: replace
+        path: /metadata/name
+        value: crd-controller-flux-system
