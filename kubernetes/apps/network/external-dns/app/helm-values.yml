@@ -12,9 +12,6 @@ env:
         name: external-dns-cloudflare
         key: api-token
 
-extraArgs:
-  - --cloudflare-proxied=false
-
 domainFilters:
   - blackcats.cc
 
