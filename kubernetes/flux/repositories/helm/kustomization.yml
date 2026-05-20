@@ -1,0 +1,22 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # - ./bjw-s.yml
+  - ./cilium.yml
+  # - ./coredns.yml
+  # - ./democratic-csi.yml
+  # - ./jetstack.yml
+  # - ./metrics-server.yml
+  # - ./netdata.yml
+  # - ./openebs.yml
+  # - ./postfinance.yml
+  - ./prometheus-community.yml
+  - ./sealed-secrets.yml
+  - ./spegel.yml
+  # - ./stakater.yml
+  # - ./external-dns.yml
+  # - ./ingress-nginx.yml
+  # - ./k8s-gateway.yml
+  # - ./kubernetes-dashboard.yml
+  # - ./twin.yml 
