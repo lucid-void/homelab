@@ -3,7 +3,7 @@ ARG PGVECTOR_VERSION=0.8.2
 ARG VECTORCHORD_VERSION=1.1.1
 
 # Build pgvector from source (pinned version, no apt version drift)
-FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR} AS builder
+FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-bookworm AS builder
 
 ARG PG_MAJOR
 ARG PGVECTOR_VERSION
@@ -28,7 +28,7 @@ RUN curl -fsSL "https://github.com/pgvector/pgvector/archive/refs/tags/v${PGVECT
     && rm -rf /tmp/pgvector-${PGVECTOR_VERSION}
 
 # Final image — CNPG base + pgvector + VectorChord
-FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}
+FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-bookworm
 
 ARG PG_MAJOR
 ARG PGVECTOR_VERSION
