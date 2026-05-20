@@ -3,6 +3,31 @@ config:
   kubernetes:
     mode: cluster
 
+  services:
+    - Infrastructure:
+        - Proxmox:
+            href: https://pve.blackcats.cc:8006
+            description: Hypervisor
+            icon: proxmox.png
+    - Development:
+        - Gitea:
+            href: https://gitea.blackcats.cc
+            description: Git service
+            icon: gitea.png
+    - Media:
+        - Sonarr:
+            href: https://sonarr.blackcats.cc
+            description: TV series
+            icon: sonarr.png
+        - Radarr:
+            href: https://radarr.blackcats.cc
+            description: Movies
+            icon: radarr.png
+        - Seerr:
+            href: https://seerr.blackcats.cc
+            description: Requests
+            icon: overseerr.png
+
 ingress:
   main:
     enabled: false
