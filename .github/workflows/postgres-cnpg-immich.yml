@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - kubernetes/images/postgres-cnpg-immich/**
+      - .github/workflows/postgres-cnpg-immich.yml
   workflow_dispatch:
 
 env:
