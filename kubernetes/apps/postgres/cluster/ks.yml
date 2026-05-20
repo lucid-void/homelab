@@ -2,7 +2,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app immich-postgres
+  name: &app postgres-cluster
   namespace: flux-system
 spec:
   targetNamespace: postgres
@@ -12,7 +12,7 @@ spec:
   dependsOn:
     - name: cnpg
     - name: sealed-secrets
-  path: ./kubernetes/apps/postgres/immich-pg/app
+  path: ./kubernetes/apps/postgres/cluster/app
   prune: true
   sourceRef:
     kind: GitRepository
