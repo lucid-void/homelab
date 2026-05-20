@@ -1,0 +1,9 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ClusterImageCatalog
+metadata:
+  name: postgres-cnpg-immich
+spec:
+  images:
+    - major: 17
+      image: ghcr.io/lucid-void/postgres-cnpg-immich:v1.0.0
