@@ -10,3 +10,6 @@ ingress:
 enableRbac: true
 serviceAccount:
   create: true
+
+env:
+  HOMEPAGE_ALLOWED_HOSTS: home.blackcats.cc
