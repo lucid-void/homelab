@@ -5,7 +5,7 @@ resources:
   # - ./bjw-s.yml
   - ./cilium.yml
   # - ./coredns.yml
-  # - ./democratic-csi.yml
+  - ./democratic-csi.yml
   - ./external-dns.yml
   - ./jetstack.yml
   # - ./metrics-server.yml
