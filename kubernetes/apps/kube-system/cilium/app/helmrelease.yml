@@ -36,48 +36,37 @@ spec:
           - icmp
           - http
         serviceMonitor:
-          enabled: true
+          enabled: false
         dashboards:
-          enabled: true
-          annotations:
-            grafana_folder: Cilium
+          enabled: false
       relay:
         enabled: true
         rollOutPods: true
         prometheus:
           serviceMonitor:
-            enabled: true
+            enabled: false
       ui:
         enabled: true
         rollOutPods: true
         ingress:
           enabled: true
           className: internal
-          hosts: ["hubble.${SECRET_DOMAIN}"]
+          hosts: ["hubble.${CLUSTER_DOMAIN}"]
           annotations:
             kubernetes.io/ingress.class: "internal"
             cert-manager.io/cluster-issuer: "letsencrypt-production"
-            external-dns.alpha.kubernetes.io/hostname: "hubble.${SECRET_DOMAIN}"
+            external-dns.alpha.kubernetes.io/hostname: "hubble.${CLUSTER_DOMAIN}"
             external-dns.alpha.kubernetes.io/ttl: "120" #optional
           tls:
             - hosts:
-                - "hubble.${SECRET_DOMAIN}"
+                - "hubble.${CLUSTER_DOMAIN}"
               secretName: hubble-ui-tls
     operator:
       prometheus:
-        enabled: true
+        enabled: false
         serviceMonitor:
-          enabled: true
-      dashboards:
-        enabled: true
-        annotations:
-          grafana_folder: Cilium
+          enabled: false
     prometheus:
-      enabled: true
+      enabled: false
       serviceMonitor:
-        enabled: true
-        trustCRDsExist: true
-    dashboards:
-      enabled: true
-      annotations:
-        grafana_folder: Cilium
+        enabled: false
