@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   # - ./bjw-s.yml
   - ./cilium.yml
+  - ./cloudnative-pg.yml
   # - ./coredns.yml
   - ./democratic-csi.yml
   - ./external-dns.yml
