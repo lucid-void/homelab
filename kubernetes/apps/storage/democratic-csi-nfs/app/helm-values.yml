@@ -1,0 +1,32 @@
+---
+csiDriver:
+  name: "org.democratic-csi.nfs"
+
+driver:
+  config:
+    driver: synology-nfs
+    httpConnection:
+      protocol: https
+      host: "172.16.20.2"
+      port: 5001
+      username: "${SECRET_SYNOLOGY_USERNAME}"
+      password: "${SECRET_SYNOLOGY_PASSWORD}"
+      allowInsecure: true
+    nfs:
+      shareVolume: /volume2
+      shareBasePath: /k8s
+      dirPermissionsMode: "0777"
+      dirPermissionsUser: 0
+      dirPermissionsGroup: 0
+
+storageClasses:
+  - name: synology-nfs
+    defaultClass: false
+    reclaimPolicy: Retain
+    volumeBindingMode: Immediate
+    allowVolumeExpansion: true
+    parameters:
+      fsType: nfs
+    mountOptions:
+      - noatime
+      - nfsvers=4.1
