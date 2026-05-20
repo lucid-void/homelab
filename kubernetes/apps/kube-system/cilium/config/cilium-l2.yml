@@ -12,7 +12,9 @@ spec:
     matchLabels:
       kubernetes.io/os: linux
 ---
-# Assign to services with label: lbpool: pool-a
+# Assign to the "shared" Gateway (172.16.20.50)
+# Cilium's gateway controller labels the auto-created Service with
+# gateway.networking.k8s.io/gateway-name: <gateway-name>
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
 metadata:
@@ -23,9 +25,9 @@ spec:
       stop: "172.16.20.50"
   serviceSelector:
     matchLabels:
-      lbpool: pool-a
+      gateway.networking.k8s.io/gateway-name: shared
 ---
-# Assign to services with label: lbpool: pool-b
+# General-purpose pool for direct LoadBalancer services (label: lbpool: pool-b)
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
 metadata:
