@@ -5,14 +5,14 @@ metadata:
   name: &app immich-postgres
   namespace: flux-system
 spec:
-  targetNamespace: immich
+  targetNamespace: postgres
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
   dependsOn:
     - name: cnpg
     - name: sealed-secrets
-  path: ./kubernetes/apps/immich/postgres/app
+  path: ./kubernetes/apps/postgres/immich-pg/app
   prune: true
   sourceRef:
     kind: GitRepository
