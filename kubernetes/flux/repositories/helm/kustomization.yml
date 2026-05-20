@@ -6,7 +6,8 @@ resources:
   - ./cilium.yml
   # - ./coredns.yml
   # - ./democratic-csi.yml
-  # - ./jetstack.yml
+  - ./external-dns.yml
+  - ./jetstack.yml
   # - ./metrics-server.yml
   # - ./netdata.yml
   # - ./openebs.yml
@@ -18,5 +19,6 @@ resources:
   # - ./external-dns.yml
   # - ./ingress-nginx.yml
   # - ./k8s-gateway.yml
+  - ./jameswynn.yml
   # - ./kubernetes-dashboard.yml
-  # - ./twin.yml 
+  # - ./twin.yml
