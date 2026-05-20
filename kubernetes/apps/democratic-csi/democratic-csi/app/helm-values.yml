@@ -18,7 +18,7 @@ storageClasses:
     allowVolumeExpansion: false
     parameters:
       fsType: nfs
-      nameTemplate: "{{parameters.[csi.storage.k8s.io/pvc/namespace]}}-{{parameters.[csi.storage.k8s.io/pvc/name]}}"
+      nameTemplate: "{{lookup parameters 'csi.storage.k8s.io/pvc/namespace'}}-{{lookup parameters 'csi.storage.k8s.io/pvc/name'}}"
 
     mountOptions:
       - noatime
