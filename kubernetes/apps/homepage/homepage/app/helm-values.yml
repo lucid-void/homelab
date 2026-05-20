@@ -1,0 +1,12 @@
+---
+config:
+  kubernetes:
+    mode: cluster
+
+ingress:
+  main:
+    enabled: false
+
+enableRbac: true
+serviceAccount:
+  create: true
