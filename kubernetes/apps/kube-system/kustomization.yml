@@ -10,4 +10,4 @@ resources:
   # - ./reloader/ks.yml
   # - ./kubelet-csr-approver/ks.yml
   - ./spegel/ks.yml
-  # - ./sealed-secrets/ks.yml
+  - ./sealed-secrets/ks.yml
