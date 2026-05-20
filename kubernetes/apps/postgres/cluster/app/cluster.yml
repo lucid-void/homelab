@@ -5,7 +5,7 @@ metadata:
   name: postgres
 spec:
   instances: 2
-  imageName: ghcr.io/lucid-void/postgres-cnpg-immich:v1.0.0
+  imageName: ghcr.io/lucid-void/postgres-cnpg-immich:17-bookworm-vectorchord1.1.1-pgvector0.8.2
 
   bootstrap:
     initdb:
