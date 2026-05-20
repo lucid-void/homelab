@@ -1,0 +1,39 @@
+---
+# https://docs.cilium.io/en/latest/network/l2-announcements
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: l2-policy
+spec:
+  loadBalancerIPs: true
+  interfaces:
+    - ^ens[0-9]+
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/os: linux
+---
+# Assign to services with label: lbpool: pool-a
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: pool-a
+spec:
+  blocks:
+    - start: "172.16.20.50"
+      stop: "172.16.20.50"
+  serviceSelector:
+    matchLabels:
+      lbpool: pool-a
+---
+# Assign to services with label: lbpool: pool-b
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: pool-b
+spec:
+  blocks:
+    - start: "172.16.20.51"
+      stop: "172.16.20.51"
+  serviceSelector:
+    matchLabels:
+      lbpool: pool-b
