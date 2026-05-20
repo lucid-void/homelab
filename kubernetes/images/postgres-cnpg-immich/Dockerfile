@@ -45,15 +45,18 @@ RUN cp /pgvector-artifacts/vector.so /usr/lib/postgresql/${PG_MAJOR}/lib/ \
     && cp /pgvector-artifacts/vector*.sql /usr/share/postgresql/${PG_MAJOR}/extension/ \
     && rm -rf /pgvector-artifacts
 
-# VectorChord — pre-built deb from GitHub releases
+# VectorChord — zip release (avoids dpkg dependency resolution against CNPG's custom postgres install)
+# zip layout: pkglibdir/vchord.so  sharedir/extension/*.{control,sql}
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && apt-get install -y --no-install-recommends curl ca-certificates unzip \
     && curl -fsSL \
-        "https://github.com/tensorchord/VectorChord/releases/download/${VECTORCHORD_VERSION}/postgresql-${PG_MAJOR}-vchord_${VECTORCHORD_VERSION}-1_amd64.deb" \
-        -o /tmp/vchord.deb \
-    && dpkg -i /tmp/vchord.deb \
-    && rm /tmp/vchord.deb \
-    && apt-get purge -y curl \
+        "https://github.com/tensorchord/VectorChord/releases/download/${VECTORCHORD_VERSION}/postgresql-${PG_MAJOR}-vchord_${VECTORCHORD_VERSION}_x86_64-linux-gnu.zip" \
+        -o /tmp/vchord.zip \
+    && unzip /tmp/vchord.zip -d /tmp/vchord \
+    && cp /tmp/vchord/pkglibdir/vchord.so /usr/lib/postgresql/${PG_MAJOR}/lib/ \
+    && cp /tmp/vchord/sharedir/extension/* /usr/share/postgresql/${PG_MAJOR}/extension/ \
+    && rm -rf /tmp/vchord /tmp/vchord.zip \
+    && apt-get purge -y curl unzip \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
