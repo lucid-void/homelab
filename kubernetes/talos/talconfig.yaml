@@ -1,0 +1,73 @@
+# Talos cluster definition — edit before running `talhelper genconfig`
+# See design/kubernetes.md for full rationale
+
+clusterName: homelab-k8s
+endpoint: https://172.16.20.19:6443    # VIP — floats between control planes
+talosVersion: v1.13.2
+kubernetesVersion: v1.36.1
+
+cniConfig:
+  name: none                            # Cilium installed post-bootstrap (Phase 9)
+
+additionalApiServerCertSans:
+  - 172.16.20.19                        # VIP
+  - 172.16.20.20                        # k8s-cp-1
+  - 172.16.20.21                        # k8s-cp-2
+  - 172.16.20.22                        # k8s-cp-3
+
+controlPlane:
+  patches:
+    - |-
+      cluster:
+        proxy:
+          disabled: true
+        allowSchedulingOnControlPlanes: true
+
+nodes:
+  - hostname: k8s-cp-1
+    ipAddress: 172.16.20.20
+    installDisk: /dev/sda
+    controlPlane: true
+    networkInterfaces:
+      - interface: ens18
+        addresses: [172.16.20.20/24]
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 172.16.20.254
+        dhcp: false
+        nameservers:
+          - 172.16.20.254
+        vip:
+          ip: 172.16.20.19              # shared VIP — held by whichever CP wins leader election
+
+  - hostname: k8s-cp-2
+    ipAddress: 172.16.20.21
+    installDisk: /dev/sda
+    controlPlane: true
+    networkInterfaces:
+      - interface: ens18
+        addresses: [172.16.20.21/24]
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 172.16.20.254
+        dhcp: false
+        nameservers:
+          - 172.16.20.254
+        vip:
+          ip: 172.16.20.19
+
+  - hostname: k8s-cp-3
+    ipAddress: 172.16.20.22
+    installDisk: /dev/sda
+    controlPlane: true
+    networkInterfaces:
+      - interface: ens18
+        addresses: [172.16.20.22/24]
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 172.16.20.254
+        dhcp: false
+        nameservers:
+          - 172.16.20.254
+        vip:
+          ip: 172.16.20.19
