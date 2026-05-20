@@ -1,11 +1,13 @@
 ARG PG_MAJOR=17
+ARG PG_BASE_TAG=bookworm
 ARG PGVECTOR_VERSION=0.8.2
 ARG VECTORCHORD_VERSION=1.1.1
 
 # Build pgvector from source (pinned version, no apt version drift)
-FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-bookworm AS builder
+FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-${PG_BASE_TAG} AS builder
 
 ARG PG_MAJOR
+ARG PG_BASE_TAG
 ARG PGVECTOR_VERSION
 
 USER root
@@ -28,13 +30,14 @@ RUN curl -fsSL "https://github.com/pgvector/pgvector/archive/refs/tags/v${PGVECT
     && rm -rf /tmp/pgvector-${PGVECTOR_VERSION}
 
 # Final image — CNPG base + pgvector + VectorChord
-FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-bookworm
+FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-${PG_BASE_TAG}
 
 ARG PG_MAJOR
+ARG PG_BASE_TAG
 ARG PGVECTOR_VERSION
 ARG VECTORCHORD_VERSION
 
-LABEL org.opencontainers.image.description="CNPG PostgreSQL ${PG_MAJOR} with pgvector ${PGVECTOR_VERSION} and VectorChord ${VECTORCHORD_VERSION}"
+LABEL org.opencontainers.image.description="CNPG PostgreSQL ${PG_MAJOR}-${PG_BASE_TAG} with pgvector ${PGVECTOR_VERSION} and VectorChord ${VECTORCHORD_VERSION}"
 
 USER root
 
