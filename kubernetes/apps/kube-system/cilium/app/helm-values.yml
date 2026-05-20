@@ -46,3 +46,5 @@ gatewayAPI:
 
 operator:
   replicas: 1
+  extraArgs:
+    - --enable-gateway-api
