@@ -18,7 +18,6 @@ storageClasses:
     allowVolumeExpansion: false
     parameters:
       fsType: nfs
-      nameTemplate: "{{lookup parameters 'csi.storage.k8s.io/pvc/namespace'}}-{{lookup parameters 'csi.storage.k8s.io/pvc/name'}}"
 
     mountOptions:
       - noatime
@@ -43,6 +42,10 @@ driver:
     # YOU MUST COPY THE DATA HERE INLINE!
     driver: nfs-client
     instance_id: 33823a5b-0d7a-40e8-b931-92a03b1e0889
+    _private:
+      csi:
+        volume:
+          idTemplate: "{{lookup parameters 'csi.storage.k8s.io/pvc/namespace'}}-{{lookup parameters 'csi.storage.k8s.io/pvc/name'}}"
     nfs:
       shareHost: *globalShareHost
       shareBasePath: *globalShareBasePath
