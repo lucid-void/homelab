@@ -3,6 +3,31 @@ config:
   kubernetes:
     mode: cluster
 
+  services:
+    - Infrastructure:
+        - Proxmox:
+            href: https://pve.example.com:8006
+            description: Hypervisor
+            icon: proxmox.png
+    - Development:
+        - Gitea:
+            href: https://gitea.example.com
+            description: Git service
+            icon: gitea.png
+    - Media:
+        - Sonarr:
+            href: https://sonarr.example.com
+            description: TV series
+            icon: sonarr.png
+        - Radarr:
+            href: https://radarr.example.com
+            description: Movies
+            icon: radarr.png
+        - Seerr:
+            href: https://seerr.example.com
+            description: Requests
+            icon: overseerr.png
+
 ingress:
   main:
     enabled: false
