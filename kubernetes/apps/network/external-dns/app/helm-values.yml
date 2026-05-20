@@ -12,6 +12,9 @@ env:
         name: external-dns-cloudflare
         key: api-token
 
+extraArgs:
+  - --annotation-filter=external-dns.alpha.kubernetes.io/enabled=true
+
 domainFilters:
   - blackcats.cc
 
