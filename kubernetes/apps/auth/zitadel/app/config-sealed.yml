@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: zitadel-config-secret
+  namespace: auth
+spec:
+  encryptedData:
+    config.yaml: AgAXIflTKzzMG6UJUyWqCMRwvgBn8OFNKPG5iZTxjpGrGnIQF51n0uoZEkt4qB/VbU7Qn9g0aC/oq7hMa6GMz4JgofAPHy+4TO/RSm/BHt+TzIi4C1L9jjCNiXjZw89jGl+qGgWeyDkWUcnMKidffBGB3KmEDZ/VHcwFG7PtQ4ZBULMyUxFN2PhFMDi41CBq2fDV6f8hQ3a0u4WFQEi1KAtoQ2Jd7ZKYLg6/Kvqby6O628UBgnj5ZfIi+Vcy68oUAXT+JSoHtNWK1qjmjnFa56qJX5OGPb4Gdxo+Cp0rhro90MxQmlKH/gCPQpFbh5/dtcy7r3CcxdbUCWD9Al/Upnh3QdosT9vb7PW23xDAicHSqjiebc+/oQlDnADLf0Ba4oQ7/Js0rG1GmKbtgWwgSgTOysvdyGgUfo3+mtMI6hVlqwhE70tdj1x2TZaIL2vUNItojnEy8vHOxZlwZR0KYLU/eX0xQzEn39d05PlvrZDPjFMLR25j7hxsB281k3i2DFDiAuX07Lz77Qi5kzjvbeAV4JiUTE2yPlLAzrv8KXggp6tUtmAGXJpriyMEIlrNBpxp+uN9l5iDIBxEtnIch2Jqo9stc5fAeyfan3Y6sppFjDhDtiGNrkejB4qfu32dohMxp4J1XbFBCGoC9MaSkfiqPE6zeRsM5STgAzlCBI3+xvF55z27zqSpiudv26vGNpa2UGQ8M/Tk9BmLkLEzMuLpvqm6K4YiPaezy9LrVZFCXFbGS4hO70Fzu3UYB+pYyVBLQc3q5Tv3iu55r4+nLPi9vaO0ApDuf/ae/uHqdRR1Yni38+X12CyEOAIEd03C8HCbLE1BCcWjBZZ22hep7DhTlihk7avJDVEitfzPC6ed+I3RpJtleR/9RvX+4d7eIx25o6Nc89FsgHavCMTRomX14u66co83HDP2xvir+2RQ8O2LZSux7Vfv3eLw81WC5uQHuddw/dmrCdOQwN/PcQ7S1H1UaYLyxHxWMxhwTJrW+/Nlw2JYw18clJeEzt6ia1lM6iEVr72XR8OSH5IKySnVCWsPkdqYiqVkpw==
+  template:
+    metadata:
+      name: zitadel-config-secret
+      namespace: auth
+    type: Opaque

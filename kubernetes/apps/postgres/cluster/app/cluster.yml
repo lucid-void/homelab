@@ -30,6 +30,11 @@ spec:
         inherit: true
         passwordSecret:
           name: immich-role-secret
+      - name: zitadel
+        login: true
+        inherit: true
+        passwordSecret:
+          name: zitadel-role-secret
 
   storage:
     size: 20Gi

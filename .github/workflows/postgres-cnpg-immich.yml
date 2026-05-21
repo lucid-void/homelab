@@ -13,7 +13,7 @@ env:
   PG_BASE_TAG: "bookworm"
   PGVECTOR_VERSION: "0.8.2"
   VECTORCHORD_VERSION: "1.1.1"
-  PGVECTORS_VERSION: "0.3.0"
+  PGVECTORS_VERSION: "0.4.0"
   IMAGE_VERSION: "1.0.1"
   REGISTRY: ghcr.io
   IMAGE_NAME: lucid-void/postgres-cnpg-immich

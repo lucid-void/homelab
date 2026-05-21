@@ -1,0 +1,127 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zitadel-bootstrap-tf
+  namespace: auth
+data:
+  main.tf: |
+    terraform {
+      required_providers {
+        zitadel = {
+          source  = "zitadel/zitadel"
+          version = "~> 2.0"
+        }
+        kubernetes = {
+          source  = "hashicorp/kubernetes"
+          version = "~> 2.35"
+        }
+      }
+      backend "kubernetes" {
+        secret_suffix     = "zitadel-bootstrap"
+        namespace         = "auth"
+        in_cluster_config = true
+      }
+    }
+
+    provider "zitadel" {
+      domain   = "auth.blackcats.cc"
+      port     = "443"
+      insecure = false
+      token    = var.zitadel_pat
+    }
+
+    provider "kubernetes" {}
+
+    variable "zitadel_pat" {
+      sensitive = true
+    }
+
+    data "zitadel_orgs" "default" {
+      name = "Homelab"
+    }
+
+    locals {
+      org_id = tolist(data.zitadel_orgs.default.ids)[0]
+    }
+
+    resource "zitadel_project" "homelab" {
+      name   = "Homelab"
+      org_id = local.org_id
+
+      project_role_assertion = false
+      project_role_check     = false
+      has_project_check      = false
+    }
+
+    resource "zitadel_application_oidc" "immich" {
+      project_id = zitadel_project.homelab.id
+      org_id     = local.org_id
+      name       = "Immich"
+
+      redirect_uris = [
+        "https://immich2.blackcats.cc/auth/login",
+        "app.immich:///oauth-callback",
+      ]
+      post_logout_redirect_uris = [
+        "https://immich2.blackcats.cc",
+      ]
+
+      response_types   = ["CODE"]
+      grant_types      = ["AUTHORIZATION_CODE"]
+      app_type         = "WEB"
+      auth_method_type = "POST"
+
+      access_token_type           = "BEARER"
+      id_token_userinfo_assertion = true
+
+      version  = "OIDC_VERSION_1_0"
+      dev_mode = false
+    }
+
+    resource "kubernetes_secret_v1" "immich_oidc_config" {
+      metadata {
+        name      = "immich-oidc-config"
+        namespace = "immich"
+      }
+      data = {
+        "immich.json" = jsonencode({
+          oauth = {
+            enabled               = true
+            issuerUrl             = "https://auth.blackcats.cc"
+            clientId              = zitadel_application_oidc.immich.client_id
+            clientSecret          = zitadel_application_oidc.immich.client_secret
+            buttonText            = "Login with SSO"
+            autoRegister          = true
+            mobileOverrideEnabled = true
+            mobileRedirectUri     = "app.immich:///oauth-callback"
+            scope                 = "openid email profile"
+            signingAlgorithm      = "RS256"
+          }
+          passwordLogin = {
+            enabled = false
+          }
+        })
+      }
+    }
+
+  run.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Copy tf files to a writable workspace (ConfigMap mounts are read-only)
+    cp /tf-config/*.tf /workspace/
+    cd /workspace
+
+    # Wait for Zitadel readiness via the internal service (avoids external DNS dependency)
+    echo "Waiting for Zitadel at http://zitadel.auth.svc.cluster.local:8080/debug/healthz ..."
+    until curl -sf --max-time 5 http://zitadel.auth.svc.cluster.local:8080/debug/healthz > /dev/null 2>&1; do
+      echo "  not ready, retrying in 10s..."
+      sleep 10
+    done
+    echo "Zitadel is ready."
+
+    tofu init -input=false
+    tofu apply -input=false -auto-approve
+
+    echo "Bootstrap complete: $(date -u +%Y-%m-%dT%H:%M:%SZ)"

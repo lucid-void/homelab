@@ -2,19 +2,18 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app immich
+  name: &app zitadel
   namespace: flux-system
 spec:
-  targetNamespace: immich
+  targetNamespace: auth
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
   dependsOn:
-    - name: immich-database
+    - name: auth-database
     - name: shared-gateway
     - name: sealed-secrets
-    - name: zitadel-bootstrap
-  path: ./kubernetes/apps/immich/immich/app
+  path: ./kubernetes/apps/auth/zitadel/app
   prune: true
   sourceRef:
     kind: GitRepository
