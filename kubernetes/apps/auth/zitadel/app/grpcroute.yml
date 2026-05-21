@@ -1,0 +1,17 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: zitadel-grpc
+  namespace: auth
+spec:
+  parentRefs:
+    - name: shared
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - zitadel2.blackcats.cc
+  rules:
+    - backendRefs:
+        - name: zitadel
+          port: 8080
