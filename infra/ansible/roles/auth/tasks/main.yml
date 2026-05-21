@@ -84,3 +84,9 @@
     group: labops
     mode: "0644"
   notify: deploy auth stack
+
+- name: Verify auth stack health
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/docker/tasks/stack_health_check.yml"
+  vars:
+    _stack_name: auth

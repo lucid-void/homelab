@@ -1,0 +1,26 @@
+apiVersion: 1
+templates:
+  - name: homelab.title
+    template: |
+      {{ define "homelab.title" -}}
+      {{- if eq .Status "firing" -}}
+      🔴 {{ if .CommonLabels.alertname }}{{ .CommonLabels.alertname }}{{ else }}{{ len .Alerts.Firing }} alerts{{ end -}}
+      {{- if and .CommonLabels.alertname (gt (len .Alerts.Firing) 1) }} ({{ len .Alerts.Firing }}){{ end -}}
+      {{- else -}}
+      ✅ {{ if .CommonLabels.alertname }}{{ .CommonLabels.alertname }}{{ else }}{{ len .Alerts.Resolved }} alerts{{ end }} resolved
+      {{- end -}}
+      {{- end }}
+
+  - name: homelab.message
+    template: |
+      {{ define "homelab.message" -}}
+      {{- range .Alerts.Firing -}}
+      {{- $host := or .Labels.instance .Labels.host -}}
+      • {{ .Labels.alertname }}{{ if $host }} — {{ $host }}{{ end }}{{ if .Labels.mountpoint }} ({{ .Labels.mountpoint }}){{ end }} (since {{ .StartsAt.UTC.Format "Jan 02 15:04 UTC" }})
+      {{ .GeneratorURL }}
+      {{ end -}}
+      {{- range .Alerts.Resolved -}}
+      {{- $host := or .Labels.instance .Labels.host -}}
+      • {{ .Labels.alertname }}{{ if $host }} — {{ $host }}{{ end }}{{ if .Labels.mountpoint }} ({{ .Labels.mountpoint }}){{ end }}
+      {{ end -}}
+      {{- end }}

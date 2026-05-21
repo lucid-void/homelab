@@ -8,3 +8,7 @@ contactPoints:
         settings:
           url: "http://gotify:80/message?token={{ gotify_grafana_token }}"
           httpMethod: POST
+          title: {% raw %}'{{ template "homelab.title" . }}'{% endraw %}
+
+          message: {% raw %}'{{ template "homelab.message" . }}'{% endraw %}
+

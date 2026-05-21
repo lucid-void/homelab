@@ -1,0 +1,58 @@
+---
+# Reusable post-deploy health gate. Include at the end of any stack role.
+# Variables:
+#   _stack_name  Swarm stack namespace / compose project label (e.g. "databases")
+#   _stack_mode  "swarm" (default) or "compose"
+
+- name: "Flush pending handlers before health check ({{ _stack_name }})"
+  ansible.builtin.meta: flush_handlers
+
+- name: "Wait for {{ _stack_name }} Swarm services to converge"
+  ansible.builtin.shell: |
+    svc_lines=$(docker service ls \
+      --filter label=com.docker.stack.namespace={{ _stack_name }} 2>/dev/null | awk 'NR>1')
+    [ -z "$svc_lines" ] && echo "MISSING" && exit 0
+    unhealthy=$(echo "$svc_lines" | \
+      awk '{ split($4,a,"/"); if(a[1]+0<a[2]+0) c++ } END{ print c+0 }')
+    [ "$unhealthy" -eq 0 ] && echo "HEALTHY" && exit 0
+    # Fast-fail: check the most recent tasks of each unhealthy service for rejections
+    rejected=0
+    for svc in $(echo "$svc_lines" | awk '{print $1}'); do
+      if docker service ps "$svc" --no-trunc 2>/dev/null \
+          | awk 'NR>1 && NR<=5' | grep -iEq 'rejected|failed'; then
+        rejected=$((rejected + 1))
+      fi
+    done
+    [ "$rejected" -gt 0 ] \
+      && echo "REJECTED:$rejected service(s) with rejected/failed tasks" \
+      || echo "STARTING:$unhealthy service(s) not yet converged"
+  when: (_stack_mode | default('swarm')) == 'swarm'
+  register: _post_health
+  until: (_post_health.stdout | trim | regex_search('^(HEALTHY|MISSING)')) is not none
+  retries: 18
+  delay: 10
+  changed_when: false
+  failed_when: (_post_health.stdout | trim | regex_search('^REJECTED')) is not none
+
+- name: "Wait for {{ _stack_name }} compose containers to be running"
+  ansible.builtin.shell: |
+    total=$(docker ps -a \
+      --filter label=com.docker.compose.project={{ _stack_name }} -q | wc -l | tr -d ' ')
+    running=$(docker ps \
+      --filter label=com.docker.compose.project={{ _stack_name }} \
+      --filter status=running -q | wc -l | tr -d ' ')
+    restarting=$(docker ps \
+      --filter label=com.docker.compose.project={{ _stack_name }} \
+      --filter status=restarting -q | wc -l | tr -d ' ')
+    [ "$total" -eq 0 ] && echo "MISSING" && exit 0
+    [ "$restarting" -gt 0 ] && echo "RESTARTING:$restarting/$total containers" && exit 0
+    [ "$running" -ge "$total" ] \
+      && echo "HEALTHY:$total containers" \
+      || echo "STARTING:$running/$total running"
+  when: (_stack_mode | default('swarm')) == 'compose'
+  register: _compose_health
+  until: (_compose_health.stdout | trim | regex_search('^(HEALTHY|MISSING)')) is not none
+  retries: 18
+  delay: 10
+  changed_when: false
+  failed_when: (_compose_health.stdout | trim | regex_search('^RESTARTING')) is not none

@@ -51,3 +51,9 @@
   changed_when: _r.rc == 0 and _r.stdout != ''
   no_log: true
   notify: deploy traefik stack
+
+- name: Verify traefik stack health
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/docker/tasks/stack_health_check.yml"
+  vars:
+    _stack_name: traefik
