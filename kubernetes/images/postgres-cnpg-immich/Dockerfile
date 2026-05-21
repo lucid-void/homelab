@@ -2,7 +2,7 @@ ARG PG_MAJOR=17
 ARG PG_BASE_TAG=bookworm
 ARG PGVECTOR_VERSION=0.8.2
 ARG VECTORCHORD_VERSION=1.1.1
-ARG PGVECTORS_VERSION=0.3.0
+ARG PGVECTORS_VERSION=0.4.0
 
 # Build pgvector from source (pinned version, no apt version drift)
 FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-${PG_BASE_TAG} AS builder
@@ -64,7 +64,7 @@ RUN apt-get update \
     && cp /tmp/vchord/pkglibdir/vchord.so /usr/lib/postgresql/${PG_MAJOR}/lib/ \
     && cp /tmp/vchord/sharedir/extension/* /usr/share/postgresql/${PG_MAJOR}/extension/ \
     && curl -fsSL \
-        "https://github.com/tensorchord/pgvecto.rs/releases/download/v${PGVECTORS_VERSION}/vectors-pg${PG_MAJOR}-linux_${PGVECTORS_VERSION}_amd64.deb" \
+        "https://github.com/tensorchord/pgvecto.rs/releases/download/v${PGVECTORS_VERSION}/vectors-pg${PG_MAJOR}_${PGVECTORS_VERSION}_amd64.deb" \
         -o /tmp/vectors.deb \
     && dpkg-deb --extract /tmp/vectors.deb /tmp/vectors-pkg \
     && cp /tmp/vectors-pkg/usr/lib/postgresql/${PG_MAJOR}/lib/vectors.so /usr/lib/postgresql/${PG_MAJOR}/lib/ \
