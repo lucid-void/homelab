@@ -31,6 +31,9 @@ infra/terraform/.terraform.lock.hcl
 # Action plan (personal, local only)
 PLAN.md
 
+# Kubernetes — plaintext secret templates (seal to *-sealed.yml before committing)
+*-secret.yml
+
 # Editor
 .DS_Store
 .idea/
