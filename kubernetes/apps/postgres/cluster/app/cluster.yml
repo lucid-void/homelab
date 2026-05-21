@@ -5,6 +5,7 @@ metadata:
   name: postgres
 spec:
   instances: 2
+  enableSuperuserAccess: true
   imageCatalogRef:
     apiGroup: postgresql.cnpg.io
     kind: ClusterImageCatalog
