@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./database.yml
   - ./role-sealed.yml
+  - ./extensions-job.yml
