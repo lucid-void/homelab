@@ -24,7 +24,7 @@ spec:
       hostAliases:
         - ip: "10.102.171.8"
           hostnames:
-            - "auth.example.com"
+            - "zitadel2.example.com"
       volumes:
         - name: tf-config
           configMap:
