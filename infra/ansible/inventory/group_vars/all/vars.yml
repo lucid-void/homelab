@@ -36,6 +36,7 @@ freshrss_admins:
 # Observability binary versions — bump to upgrade all hosts
 node_exporter_version: "1.8.2"
 promtail_version: "3.0.0"
+rclone_version: "1.73.4"
 
 # Runner tool versions — bump to upgrade the Gitea runner VM
 act_runner_version: "0.2.11"
