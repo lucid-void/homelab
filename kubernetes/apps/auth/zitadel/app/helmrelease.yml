@@ -39,7 +39,7 @@ spec:
       masterkeySecretName: zitadel-masterkey
 
       configmapConfig:
-        ExternalDomain: auth.blackcats.cc
+        ExternalDomain: zitadel2.blackcats.cc
         ExternalPort: 443
         ExternalSecure: true
 

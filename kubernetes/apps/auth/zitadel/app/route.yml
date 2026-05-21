@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - auth.blackcats.cc
+    - zitadel2.blackcats.cc
   rules:
     - backendRefs:
         - name: zitadel

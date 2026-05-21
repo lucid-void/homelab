@@ -25,7 +25,7 @@ data:
     }
 
     provider "zitadel" {
-      domain       = "auth.blackcats.cc"
+      domain       = "zitadel2.blackcats.cc"
       port         = "8080"
       insecure     = true
       access_token = var.zitadel_pat
@@ -88,7 +88,7 @@ data:
         "immich.json" = jsonencode({
           oauth = {
             enabled               = true
-            issuerUrl             = "https://auth.blackcats.cc"
+            issuerUrl             = "https://zitadel2.blackcats.cc"
             clientId              = zitadel_application_oidc.immich.client_id
             clientSecret          = zitadel_application_oidc.immich.client_secret
             buttonText            = "Login with SSO"
