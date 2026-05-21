@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-backup-script
+  namespace: postgres
+data:
+  backup.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "[postgres-backup] Starting at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    mkdir -p /db
+
+    # Dump each database to a separate file.
+    # pg_dump from the read replica uses a consistent transaction snapshot
+    # (PostgreSQL MVCC) — no service quiescing needed.
+    while IFS= read -r dbname; do
+      [[ -z "${dbname}" ]] && continue
+      echo "[postgres-backup] Dumping ${dbname}..."
+      pg_dump --format=custom --file="/db/${dbname}.pgdump" "${dbname}"
+      echo "[postgres-backup] ${dbname}: $(du -sh /db/${dbname}.pgdump | cut -f1)"
+    done < /config/databases
+
+    # Init restic repo on Filen if this is the first run
+    restic cat config &>/dev/null || restic init
+
+    # All database dumps in a single restic snapshot.
+    # Restic deduplicates — only new or changed chunks are uploaded.
+    restic backup /db/ \
+      --tag "$(date +%Y-%m-%d)" \
+      --tag postgres \
+      --verbose
+
+    # Keep 30 daily snapshots; prune orphaned pack files from Filen
+    restic forget --keep-daily 30 --prune
+
+    # Spot-check: verify 1/10th of repository data
+    restic check --read-data-subset=1/10
+
+    echo "[postgres-backup] Done at $(date -u +%Y-%m-%dT%H:%M:%SZ)"

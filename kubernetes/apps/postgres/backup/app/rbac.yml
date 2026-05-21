@@ -1,0 +1,8 @@
+---
+# No Deployment scale RBAC needed — this backup is non-quiesced.
+# pg_dump from the read replica is MVCC-consistent without stopping any services.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-backup
+  namespace: postgres

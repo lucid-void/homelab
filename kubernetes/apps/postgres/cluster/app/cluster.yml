@@ -22,6 +22,14 @@ spec:
     parameters:
       max_connections: "200"
 
+  managed:
+    roles:
+      - name: immich
+        login: true
+        inherit: true
+        passwordSecret:
+          name: immich-role-secret
+
   storage:
     size: 20Gi
     storageClass: nfs-client

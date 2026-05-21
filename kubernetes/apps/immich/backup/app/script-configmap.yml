@@ -1,0 +1,59 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: immich-backup-script
+  namespace: immich
+data:
+  backup.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    NAMESPACE=immich
+    DEPLOYMENT=immich-server
+    DB_DUMP=/db/immich.pgdump
+
+    cleanup() {
+      echo "[backup] Scaling ${DEPLOYMENT} back to 1 replica..."
+      kubectl scale deployment/${DEPLOYMENT} -n ${NAMESPACE} --replicas=1 || true
+    }
+    trap cleanup EXIT
+
+    echo "[backup] Starting at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    # 1. Quiesce — stops uploads and in-flight processing jobs
+    echo "[backup] Scaling down ${DEPLOYMENT}..."
+    kubectl scale deployment/${DEPLOYMENT} -n ${NAMESPACE} --replicas=0
+    kubectl rollout status deployment/${DEPLOYMENT} -n ${NAMESPACE} --timeout=120s
+    echo "[backup] ${DEPLOYMENT} is down"
+
+    # 2. Dump the immich database to ephemeral local storage
+    echo "[backup] Dumping database..."
+    mkdir -p /db
+    pg_dump --format=custom --file="${DB_DUMP}"
+    echo "[backup] Database dump complete: $(du -sh ${DB_DUMP} | cut -f1)"
+
+    # 3. Init restic repo on Filen if this is the first run
+    if ! restic cat config &>/dev/null; then
+      echo "[backup] Initialising new restic repository on Filen..."
+      restic init
+    fi
+
+    # 4. Single restic snapshot containing both the DB dump and the photo library.
+    #    restic is content-addressable: only new or changed chunks are uploaded.
+    echo "[backup] Running restic backup..."
+    restic backup "${DB_DUMP}" /library \
+      --tag "$(date +%Y-%m-%d)" \
+      --tag immich \
+      --verbose
+
+    # 5. Forget old snapshots (keep 30 daily) and prune orphaned pack files from Filen
+    echo "[backup] Pruning old snapshots..."
+    restic forget --keep-daily 30 --prune
+
+    # 6. Spot-check: verify 1/10th of the repository data
+    echo "[backup] Checking repository integrity..."
+    restic check --read-data-subset=1/10
+
+    echo "[backup] Done at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    # trap fires here → scale back up
