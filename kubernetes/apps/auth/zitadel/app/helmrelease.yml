@@ -83,6 +83,13 @@ spec:
     ingress:
       enabled: false
 
+    # bitnami/kubectl tag is derived from Capabilities.KubeVersion — pin it
+    # because k8s 1.36 doesn't have a matching bitnami image yet.
+    setupJob:
+      machinekeyWriter:
+        image:
+          tag: "1.32"
+
     resources:
       requests:
         cpu: 100m
