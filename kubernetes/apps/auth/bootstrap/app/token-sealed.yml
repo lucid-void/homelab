@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: zitadel-bootstrap-token
+  namespace: auth
+spec:
+  encryptedData:
+    token: AgBGtejIb3YcFKv5LUcb+Is+C8hTEOejrt29QhAfP1fCczN20iiP13JcoROGWf5YvH21pG5is+IlTUOXHNO3zmAF3+NaQ0pyf652JFBXEKl+g7YTztQwMI2aP+v+2aL0QkW04/4pUzAVKlWy4CENWzShaLazEYaVjw6HVOeNV283kei/Z8lKpzHswsTic2WCHQ/sl2g8FQSgiGNeNIyvRmwgSsTBCNKIMEAjv60u+afqJgsGy5cCf+75EL4O+6H+7fVTQzGctiaDXUMVfDcxGMYk9dh+T9OV25kjpGBfGaJzCRTTI1unh6ZnRzbQt3jLPQXEfHxqR5kfhQuWORYLuezSaXQa/zExchN7r4bRZklpogzFbyUIgCyeJKQskcupWXrmaDFxM7TblgTtdN+W5E0e04K8tV5Cn2b1wLqYudpdun4/geTxTnD9sjtYvJ5R85m22RehRuIw5y20M2+gALiL3f+DXpOqeW5QWdLR2F2ozam+tM/SFw7qekwbyZIoubQcYPSTD/yUFLmOqj23oMH1qa20ds23d9F4PgaM7e7VIRL2OMPzWpJMzg57Ovr3L05OWYAzNfwPAaZQ/hVlObnaOVPXylMMnU2EMRcfCjyXPAYrTllIY9DP51sq75APjLFndUUIjtz30O+SSYi1kPSOVkYemDknhqdsBgdUvC49R60tmr+4kqddNIgaJLPye3ae1HJpQZiWvwFNLiJyhGnxKbsILl8t6clI8aZkJBV1zS9zHJzmflED1u02SJy1UoRowG6L4oGSadvcWxbjPuJc9WChDKcoAQ==
+  template:
+    metadata:
+      name: zitadel-bootstrap-token
+      namespace: auth
+    type: Opaque
