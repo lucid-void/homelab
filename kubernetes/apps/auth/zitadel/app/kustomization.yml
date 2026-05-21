@@ -5,4 +5,4 @@ resources:
   - ./helmrelease.yml
   - ./route.yml
   - ./masterkey-sealed.yml
-  - ./config-sealed.yml
+  - ./values-sealed.yml
