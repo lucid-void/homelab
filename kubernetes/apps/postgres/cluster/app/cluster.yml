@@ -33,8 +33,8 @@ spec:
       - name: zitadel
         login: true
         inherit: true
-        createRole: true
-        createDb: true
+        createrole: true
+        createdb: true
         passwordSecret:
           name: zitadel-role-secret
 
