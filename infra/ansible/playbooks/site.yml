@@ -188,3 +188,28 @@
   tags: [stack_paperless]
   roles:
     - role: paperless
+
+# ---------------------------------------------------------------------------
+# Backup — daily pg_dump + rclone sync to Synology NFS + Filen (DB VM .10)
+#     Requires: NFS mounts up on DB VM, Postgres published on 127.0.0.1:5432
+# ---------------------------------------------------------------------------
+- name: Deploy backup cron job
+  hosts: db
+  gather_facts: false
+  tags: [backup]
+  roles:
+    - role: backup
+
+# ---------------------------------------------------------------------------
+# Cleanup — prune stopped containers and dangling images on all Docker hosts.
+# Runs after all stacks are deployed so new image layers are already in use.
+# ---------------------------------------------------------------------------
+- name: Prune Docker on all hosts
+  hosts: proxmox_all_qemu
+  gather_facts: false
+  tags: [docker_prune]
+  tasks:
+    - name: Remove stopped containers and dangling images
+      ansible.builtin.command: docker system prune --force
+      register: _prune_result
+      changed_when: "'Total reclaimed space: 0B' not in _prune_result.stdout"

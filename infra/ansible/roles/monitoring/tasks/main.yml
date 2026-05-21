@@ -337,6 +337,16 @@
     gotify_grafana_token: "{{ _token_slurp.content | b64decode | trim }}"
 
 # ── Post-deploy: Grafana alerting provisioning with real Gotify token ─────────
+- name: Deploy Grafana notification templates
+  ansible.builtin.copy:
+    src: grafana/alerting/templates.yml
+    dest: /opt/volumes/grafana/provisioning/alerting/templates.yml
+    owner: "{{ docker_uid }}"
+    group: "{{ labops_gid }}"
+    mode: "0640"
+  delegate_to: monitoring
+  register: _templates_result
+
 - name: Deploy Grafana alert contact points
   ansible.builtin.template:
     src: grafana/alerting/contactpoints.yml.j2
@@ -367,7 +377,7 @@
   until: _grafana_health.status == 200
   retries: 30
   delay: 10
-  when: _contactpoints_result is changed or _policies_result is changed
+  when: _contactpoints_result is changed or _policies_result is changed or _templates_result is changed
 
 - name: Reload Grafana alerting provisioning
   ansible.builtin.uri:
@@ -378,4 +388,41 @@
     force_basic_auth: true
     status_code: 200
   no_log: true
-  when: _contactpoints_result is changed or _policies_result is changed
+  when: _contactpoints_result is changed or _policies_result is changed or _templates_result is changed
+
+- name: Verify monitoring stack health
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/docker/tasks/stack_health_check.yml"
+  vars:
+    _stack_name: monitoring
+
+# ── Telegram relay ────────────────────────────────────────────────────────────
+- name: Ensure /opt/scripts exists on monitoring VM
+  ansible.builtin.file:
+    path: /opt/scripts
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  delegate_to: monitoring
+
+- name: Deploy Telegram relay script
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../../../scripts/telegram-relay.py"
+    dest: /opt/scripts/telegram-relay.py
+    owner: root
+    group: root
+    mode: "0700"
+  no_log: true
+  vars:
+    gotify_relay_url: "https://gotify.{{ domain }}"
+  delegate_to: monitoring
+
+- name: Schedule Telegram relay cron job
+  ansible.builtin.cron:
+    name: gotify-telegram-relay
+    user: root
+    minute: "*/5"
+    job: "/usr/bin/python3 /opt/scripts/telegram-relay.py >> /var/log/telegram-relay.log 2>&1"
+    state: present
+  delegate_to: monitoring

@@ -55,3 +55,9 @@
     mode: "0640"
   no_log: true
   notify: deploy paperless stack
+
+- name: Verify paperless stack health
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/docker/tasks/stack_health_check.yml"
+  vars:
+    _stack_name: paperless

@@ -16,7 +16,7 @@ groups:
             relativeTimeRange: { from: 300, to: 0 }
             datasourceUid: prometheus
             model:
-              expr: 'up{wol_managed!="true"} == 0'
+              expr: 'max by(instance)(up{job="node",wol_managed!="true"}) == 0'
               refId: A
         noDataState: OK
         execErrState: Alerting
@@ -137,7 +137,7 @@ groups:
             model:
               expr: 'time() - backup_last_success_timestamp_seconds > 90000'
               refId: A
-        noDataState: Alerting
+        noDataState: OK
         execErrState: Alerting
         for: 1m
         labels: { severity: critical }
@@ -176,7 +176,7 @@ groups:
             relativeTimeRange: { from: 300, to: 0 }
             datasourceUid: loki
             model:
-              expr: 'sum(count_over_time({job="syslog"} |= "Failed password" [5m]))'
+              expr: 'sum by(host)(count_over_time({job="syslog"} |= "Failed password" [5m]))'
               refId: A
               instant: true
           - refId: C
@@ -194,7 +194,7 @@ groups:
         for: 1m
         labels: { severity: warning }
         annotations:
-          summary: "SSH brute force detected (>10 failed passwords in 5m)"
+          summary: "SSH brute force on {{ $labels.host }} (>10 failed passwords in 5m)"
 
       - uid: nfs-stale
         title: NFS Stale Mount

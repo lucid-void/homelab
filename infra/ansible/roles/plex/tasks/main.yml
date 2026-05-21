@@ -45,3 +45,10 @@
     group: labops
     mode: "0640"
   notify: deploy plex
+
+- name: Verify plex stack health
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/docker/tasks/stack_health_check.yml"
+  vars:
+    _stack_name: plex
+    _stack_mode: compose

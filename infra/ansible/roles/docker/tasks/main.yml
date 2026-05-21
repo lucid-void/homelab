@@ -7,5 +7,3 @@
 - import_tasks: swarm_worker.yml
   when: swarm_role | default('') == 'worker'
 
-- import_tasks: prune.yml
-  tags: [docker_prune]

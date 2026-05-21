@@ -79,3 +79,9 @@
   when: "'no' in _oidc_configured.stdout"
   no_log: true
   changed_when: true
+
+- name: Verify gitea stack health
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/docker/tasks/stack_health_check.yml"
+  vars:
+    _stack_name: gitea

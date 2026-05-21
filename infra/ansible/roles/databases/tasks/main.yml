@@ -107,7 +107,7 @@
     docker exec "$PG" psql -U postgres -c \
       "CREATE USER immich WITH PASSWORD '{{ postgres_password_immich }}'"
     docker exec "$PG" psql -U postgres -c \
-      "ALTER USER immich WITH PASSWORD '{{ postgres_password_immich }}'"
+      "ALTER USER immich WITH PASSWORD '{{ postgres_password_immich }}' SUPERUSER"
     docker exec "$PG" psql -U postgres -tc \
       "SELECT 1 FROM pg_database WHERE datname='immich'" | grep -q 1 || \
     docker exec "$PG" psql -U postgres -c \
@@ -166,3 +166,9 @@
   delegate_to: db
   no_log: true
   changed_when: false
+
+- name: Verify databases stack health
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/docker/tasks/stack_health_check.yml"
+  vars:
+    _stack_name: databases

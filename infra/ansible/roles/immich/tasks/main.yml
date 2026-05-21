@@ -46,3 +46,9 @@
     group: "{{ labops_gid }}"
     mode: "0644"
   notify: deploy immich stack
+
+- name: Verify immich stack health
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/docker/tasks/stack_health_check.yml"
+  vars:
+    _stack_name: immich
