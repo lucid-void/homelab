@@ -1,0 +1,52 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: immich-db-extensions
+  namespace: postgres
+spec:
+  # Give Flux time to observe completion before TTL deletes the Job.
+  # Idempotent: all statements use IF NOT EXISTS, so re-runs on reconcile are safe.
+  ttlSecondsAfterFinished: 300
+  activeDeadlineSeconds: 600
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: psql
+          image: ghcr.io/cloudnative-pg/postgresql:17-bookworm
+          command:
+            - psql
+            - -v
+            - ON_ERROR_STOP=1
+            - -c
+            - CREATE EXTENSION IF NOT EXISTS "vector"
+            - -c
+            - CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
+            - -c
+            - CREATE EXTENSION IF NOT EXISTS "cube"
+            - -c
+            - CREATE EXTENSION IF NOT EXISTS "earthdistance"
+            - -c
+            - CREATE EXTENSION IF NOT EXISTS "pg_trgm"
+            - -c
+            - CREATE EXTENSION IF NOT EXISTS "unaccent"
+          env:
+            - name: PGHOST
+              value: postgres-rw.postgres.svc.cluster.local
+            - name: PGDATABASE
+              value: immich
+            - name: PGUSER
+              value: postgres
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-superuser
+                  key: password
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 10m
+            limits:
+              memory: 64Mi
