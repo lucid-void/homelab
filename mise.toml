@@ -4,8 +4,17 @@ SOPS_AGE_KEY_FILE="./recovery.key"
 [tools]
 age = "latest"
 just = "latest"
+k9s = "latest"
 python = "latest"
 sops = "latest"
+kubectl = "latest"
+talosctl = "latest"
+talhelper = "latest"
+helm = "latest"
+flux2 = "latest"
+kubeseal = "latest"
+helm-diff = { version = "latest", bin = "diff", bin_path = "diff/bin", rename_exe = "helm-diff" }
+gh = "latest"
 
 [hooks]
 postinstall = "pip install -r requirements.txt"
