@@ -1,0 +1,24 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app zitadel-bootstrap
+  namespace: flux-system
+spec:
+  targetNamespace: auth
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: zitadel
+    - name: sealed-secrets
+  path: ./kubernetes/apps/auth/bootstrap/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  # wait: true — Flux waits for the Job to succeed before marking this ks healthy.
+  # immich ks depends on this; it won't start until the OIDC Secret exists.
+  wait: true
+  interval: 30m
+  timeout: 30m
