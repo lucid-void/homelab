@@ -84,7 +84,7 @@ spec:
     service:
       type: ClusterIP
       port: 8080
-      appProtocol: kubernetes.io/http
+      appProtocol: kubernetes.io/h2c
 
     ingress:
       enabled: false
