@@ -12,13 +12,22 @@ metadata:
   name: zitadel-bootstrap-state
   namespace: auth
 rules:
+  # list needed for Terraform backend workspace discovery (resourceNames restriction doesn't apply to list)
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "list", "create", "update", "patch", "delete"]
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch", "delete"]
     resourceNames: ["tfstate-default-zitadel-bootstrap"]
-  - apiGroups: [""]
-    resources: ["secrets"]
+  # leases needed for Terraform state locking (create cannot be restricted by resourceName)
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
     verbs: ["create"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "update", "patch", "delete"]
+    resourceNames: ["lock-tfstate-default-zitadel-bootstrap"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
