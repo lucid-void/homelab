@@ -24,7 +24,7 @@ spec:
       hostAliases:
         - ip: "10.102.171.8"
           hostnames:
-            - "auth.blackcats.cc"
+            - "zitadel2.blackcats.cc"
       volumes:
         - name: tf-config
           configMap:
