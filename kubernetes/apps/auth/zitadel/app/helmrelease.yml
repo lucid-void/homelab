@@ -29,8 +29,13 @@ spec:
     replicaCount: 1
 
     zitadel:
-      # 32-byte master key — mounted from zitadel-masterkey Secret (key: masterkey)
       masterkeySecretName: zitadel-masterkey
+
+      # bitnami/kubectl tag is derived from Capabilities.KubeVersion;
+      # k8s 1.36 has no matching image yet — pin to last stable release.
+      machinekeyWriter:
+        image:
+          tag: "1.32"
 
       configmapConfig:
         ExternalDomain: auth.blackcats.cc
@@ -82,13 +87,6 @@ spec:
 
     ingress:
       enabled: false
-
-    # bitnami/kubectl tag is derived from Capabilities.KubeVersion — pin it
-    # because k8s 1.36 doesn't have a matching bitnami image yet.
-    setupJob:
-      machinekeyWriter:
-        image:
-          tag: "1.32"
 
     resources:
       requests:
