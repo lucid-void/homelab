@@ -1,0 +1,78 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-backup
+  namespace: immich
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 14400
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: immich-backup
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            fsGroup: 65534
+          volumes:
+            - name: library
+              persistentVolumeClaim:
+                claimName: immich-library
+                readOnly: true
+            - name: db-dump
+              emptyDir: {}
+            - name: rclone-config
+              secret:
+                secretName: rclone-secret
+                defaultMode: 0440
+            - name: script
+              configMap:
+                name: immich-backup-script
+                defaultMode: 0755
+          containers:
+            - name: backup
+              image: ghcr.io/lucid-void/backup-tools:v1.0.0
+              command: ["/bin/bash", "/scripts/backup.sh"]
+              envFrom:
+                - secretRef:
+                    name: restic-secret
+              env:
+                - name: PGHOST
+                  value: postgres-ro.postgres.svc.cluster.local
+                - name: PGPORT
+                  value: "5432"
+                - name: PGDATABASE
+                  value: immich
+                - name: PGUSER
+                  value: immich
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-app-secret
+                      key: DB_PASSWORD
+                - name: RCLONE_CONFIG
+                  value: /rclone-config/rclone.conf
+              volumeMounts:
+                - name: library
+                  mountPath: /library
+                  readOnly: true
+                - name: db-dump
+                  mountPath: /db
+                - name: rclone-config
+                  mountPath: /rclone-config
+                  readOnly: true
+                - name: script
+                  mountPath: /scripts
+              resources:
+                requests:
+                  memory: 256Mi
+                  cpu: 100m
+                limits:
+                  memory: 2Gi

@@ -1,0 +1,74 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: postgres
+spec:
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 7200
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: postgres-backup
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            fsGroup: 65534
+          volumes:
+            - name: db-dump
+              emptyDir: {}
+            - name: rclone-config
+              secret:
+                secretName: rclone-secret
+                defaultMode: 0440
+            - name: script
+              configMap:
+                name: postgres-backup-script
+                defaultMode: 0755
+            - name: databases
+              configMap:
+                name: postgres-backup-databases
+          containers:
+            - name: backup
+              image: ghcr.io/lucid-void/backup-tools:v1.0.0
+              command: ["/bin/bash", "/scripts/backup.sh"]
+              envFrom:
+                - secretRef:
+                    name: restic-secret
+              env:
+                - name: PGHOST
+                  value: postgres-ro.postgres.svc.cluster.local
+                - name: PGPORT
+                  value: "5432"
+                - name: PGUSER
+                  value: postgres
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-superuser
+                      key: password
+                - name: RCLONE_CONFIG
+                  value: /rclone-config/rclone.conf
+              volumeMounts:
+                - name: db-dump
+                  mountPath: /db
+                - name: rclone-config
+                  mountPath: /rclone-config
+                  readOnly: true
+                - name: script
+                  mountPath: /scripts
+                - name: databases
+                  mountPath: /config
+              resources:
+                requests:
+                  memory: 128Mi
+                  cpu: 100m
+                limits:
+                  memory: 1Gi

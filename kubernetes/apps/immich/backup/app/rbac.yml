@@ -1,0 +1,35 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: immich-backup
+  namespace: immich
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: immich-backup
+  namespace: immich
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "watch"]
+    resourceNames: ["immich-server"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "update", "patch"]
+    resourceNames: ["immich-server"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: immich-backup
+  namespace: immich
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: immich-backup
+subjects:
+  - kind: ServiceAccount
+    name: immich-backup
+    namespace: immich
