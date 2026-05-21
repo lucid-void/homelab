@@ -1,0 +1,15 @@
+---
+# Add a database name here when deploying a new service that uses the shared postgres cluster.
+# The backup CronJob dumps each listed database to a separate file in one restic snapshot.
+# Immich is intentionally excluded — its backup is handled by the quiesced immich-backup CronJob.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-backup-databases
+  namespace: postgres
+data:
+  databases: |
+    gitea
+    paperless
+    zitadel
+    freshrss
