@@ -50,7 +50,13 @@ variable "proxmox_skip_tls_verify" {
 
 variable "packer_template_vm_id" {
   type        = number
-  description = "VM ID of the Packer base template in Proxmox"
+  description = "VM ID of the Debian Packer base template in Proxmox"
+}
+
+variable "talos_template_vm_id" {
+  type        = number
+  default     = 9001
+  description = "VM ID of the Talos Packer template in Proxmox"
 }
 
 variable "cloudflare_api_token" {
