@@ -21,5 +21,6 @@ resources:
   # - ./ingress-nginx.yml
   # - ./k8s-gateway.yml
   - ./jameswynn.yml
+  - ./zitadel.yml
   # - ./kubernetes-dashboard.yml
   # - ./twin.yml

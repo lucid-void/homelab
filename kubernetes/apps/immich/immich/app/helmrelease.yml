@@ -40,6 +40,7 @@ spec:
               MACHINE_LEARNING_URL: http://immich-machine-learning:3003
               UPLOAD_LOCATION: /usr/src/app/upload
               IMMICH_LOG_LEVEL: log
+              IMMICH_CONFIG_FILE: /immich-config/immich.json
             envFrom:
               - secretRef:
                   name: immich-app-secret
@@ -121,3 +122,12 @@ spec:
           machine-learning:
             app:
               - path: /cache
+      oidc-config:
+        type: secret
+        name: immich-oidc-config
+        defaultMode: 0440
+        advancedMounts:
+          server:
+            app:
+              - path: /immich-config
+                readOnly: true

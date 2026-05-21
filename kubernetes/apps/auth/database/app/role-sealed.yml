@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: zitadel-role-secret
+  namespace: postgres
+spec:
+  encryptedData:
+    password: AgBzWHn57LMSX5mL0XwcCaC6JLjgLLORLZVfAayvyCxU8rgtdOI27s5q+HM+5RbxTC/6ovPtYc3zrlZjsrpj4krdQFLRTIf43KazkOlV+pg0VXvGc/YpQhit81Uib/xmONk5PYZIILGeAo5xAlBCP3f90pUeYYIj24o83B3hQ2R/XtevbWc55OlJa0L3Z2WF/Cs/tUTTbTCp7tnM2XKk1Ameq+qHCCLSSMrKAjUWkfyY4FWAGIAItLXM+wGKvg9BlxLxow/BlQwKqhRkUM9WsOrd9TVK4E3cR9FpTpLKd6QBQr/jiNmbJUHpO6ek4rE4IkW6KQOJ6golCBdB6DYZ1KJlJNhBFBVrJbkNtkvw3AXka03138e3csyFev15nSEIaqu1GeuivqR8BRdh2VQf8olZrJbU3/veLbFPnAJq5AqZKfDyiIxr7MZ/kI6FvQdZMWlbtSiJIU/Oaacd+AYzgAXGcTjVNXXSxnq22mksmUvoH8P2pb3jeJqwbc4CRELaOEF2lcnXsnoVgIvMsUepFWDNCCBa4cL6t3dAc0Zldd+Vg/NQEKyodX8eRqMcZwnwBAneEMyT4VjCaddvWrMtH/n9KcOxfUH60ol6tjPgD5rM686cah58VxvfLhzU8LeEh0FWMkuK2SE0QLLleCfE+WpqyIuJso/YA6mHVoL69bVLFFfRuZN1ddLdmZgWDTySOaKfrENRJgOkdgdJKwmNH0egeOgk1g+lFgTxi3r+d1ca6YpSdXNeDmXUuAvBcYJQO2xMVQ0p6PChHmnCaTu7jurr
+  template:
+    metadata:
+      name: zitadel-role-secret
+      namespace: postgres
+    type: Opaque
