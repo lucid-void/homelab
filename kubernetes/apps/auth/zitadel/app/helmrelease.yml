@@ -84,7 +84,6 @@ spec:
     service:
       type: ClusterIP
       port: 8080
-      protocol: http2
 
     ingress:
       enabled: false
