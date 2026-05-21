@@ -28,12 +28,12 @@ spec:
   values:
     replicaCount: 1
 
-    # bitnami/kubectl tag derived from Capabilities.KubeVersion;
-    # k8s 1.36 has no matching image yet — pin to last stable release.
+    # bitnami/kubectl has no version tags — only latest and digests.
+    # Override the auto-derived Capabilities.KubeVersion tag to latest.
     setupJob:
       machinekeyWriter:
         image:
-          tag: "1.32"
+          tag: latest
 
     zitadel:
       masterkeySecretName: zitadel-masterkey
