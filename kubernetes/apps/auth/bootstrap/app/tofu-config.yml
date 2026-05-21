@@ -25,10 +25,10 @@ data:
     }
 
     provider "zitadel" {
-      domain   = "auth.blackcats.cc"
-      port     = "443"
-      insecure = false
-      token    = var.zitadel_pat
+      domain       = "auth.blackcats.cc"
+      port         = "8080"
+      insecure     = true
+      access_token = var.zitadel_pat
     }
 
     provider "kubernetes" {}
@@ -67,12 +67,12 @@ data:
         "https://immich2.blackcats.cc",
       ]
 
-      response_types   = ["CODE"]
-      grant_types      = ["AUTHORIZATION_CODE"]
-      app_type         = "WEB"
-      auth_method_type = "POST"
+      response_types   = ["OIDC_RESPONSE_TYPE_CODE"]
+      grant_types      = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
+      app_type         = "OIDC_APP_TYPE_WEB"
+      auth_method_type = "OIDC_AUTH_METHOD_TYPE_POST"
 
-      access_token_type           = "BEARER"
+      access_token_type           = "OIDC_TOKEN_TYPE_BEARER"
       id_token_userinfo_assertion = true
 
       version  = "OIDC_VERSION_1_0"
