@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
   - ./helmrelease.yml
   - ./route.yml
+  - ./grpcroute.yml
   - ./masterkey-sealed.yml
   - ./values-sealed.yml
