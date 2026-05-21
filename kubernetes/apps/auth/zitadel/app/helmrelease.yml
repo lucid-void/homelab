@@ -21,15 +21,16 @@ spec:
     cleanupOnFail: true
     remediation:
       retries: 3
+  valuesFrom:
+    - kind: Secret
+      name: zitadel-helm-values
+      valuesKey: values.yaml
   values:
     replicaCount: 1
 
     zitadel:
       # 32-byte master key — mounted from zitadel-masterkey Secret (key: masterkey)
       masterkeySecretName: zitadel-masterkey
-
-      # Sensitive config (DB passwords, initial admin password) — merged at runtime
-      secretConfigName: zitadel-config-secret
 
       configmapConfig:
         ExternalDomain: auth.blackcats.cc
