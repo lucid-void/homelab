@@ -115,7 +115,7 @@ data:
 
     # Wait for Zitadel readiness via the internal service (avoids external DNS dependency)
     echo "Waiting for Zitadel at http://zitadel.auth.svc.cluster.local:8080/debug/healthz ..."
-    until curl -sf --max-time 5 http://zitadel.auth.svc.cluster.local:8080/debug/healthz > /dev/null 2>&1; do
+    until wget -qO- --timeout=5 http://zitadel.auth.svc.cluster.local:8080/debug/healthz > /dev/null 2>&1; do
       echo "  not ready, retrying in 10s..."
       sleep 10
     done
