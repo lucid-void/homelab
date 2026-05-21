@@ -18,9 +18,15 @@ init:
 build-template:
     sops exec-file --input-type binary --filename tmp-file.hcl infra/packer/credentials.sops.pkr.hcl 'packer build --var-file={} infra/packer/Debian13/debian-base.pkr.hcl'
 
-# Validate Packer template (no build)
+# Build Talos base template in Proxmox
+# Update talos_version + talos_schematic_id variables in Talos/talos-base.pkr.hcl before running
+build-talos-template:
+    sops exec-file --input-type binary --filename tmp-file.hcl infra/packer/credentials.sops.pkr.hcl 'packer build --var-file={} infra/packer/Talos/talos-base.pkr.hcl'
+
+# Validate Packer templates (no build)
 validate-template:
-    packer validate infra/packer/
+    packer validate infra/packer/Debian13/debian-base.pkr.hcl
+    packer validate infra/packer/Talos/talos-base.pkr.hcl
 
 # ── OpenTofu ──────────────────────────────────────────────────────────────────
 
