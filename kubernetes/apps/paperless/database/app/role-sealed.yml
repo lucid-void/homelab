@@ -1,6 +1,4 @@
 ---
-# Generated with: kubeseal -f kubernetes/apps/paperless/database/app/role-secret.yml -w kubernetes/apps/paperless/database/app/role-sealed.yml
-# Replace this file by filling in role-secret.yml with the real password and running kubeseal.
 apiVersion: bitnami.com/v1alpha1
 kind: SealedSecret
 metadata:
@@ -8,8 +6,8 @@ metadata:
   namespace: postgres
 spec:
   encryptedData:
-    password: PLACEHOLDER
-    username: PLACEHOLDER
+    password: AgCfwQa2vEPezMA7t7ozOXh9IGP+s1wmHblVH4Yw3bAobZXfLjcYEp2eibJq6OqaZTzZqLrP+4Mmr40vpnec4Ohhig84uB2CNQf4s53K/IlBKIh6Id+sNBi4pqTlCC4iwf+o+0HI6aqQf/JrEwCIrz4RsdCXaCbq7xcoDpJO9AH9rWWswEPJHjOImg36JgQcGA4N827o8aMt9EWzkG/b7PzypyUzblLcTYvVdgdSa91ylFyDlWp0OjsDuF++Aw4J8FLdFIgQPj/G/Ictp0G78jnkRvc0pAxeIJcJkuxaDJarmAHUtI6uRv/jc1/8FUZ0Ie7uwkArxDDCPvS7ix0FLPi91wg4OQRU+6CWgh3xpSOTrY6FU2T4S713MSQMFx9bKuKq5VZ5JwZu7RD+EH8RlP8g+c3UGni++It+bUysAJFyvW1KD/Tt4UTQbUKLH4HY0oXh+Qhc8+4CCxSP+O4hp9pPikzsIg6ycw2Y4NKf5i8kjwZocX5GR+dEo6E1a6ODAmhI6qol53yfQeRfsv6dvVHLiinOqHZJ9WqHpQwJs58Umwev7lIrdLG92HwuIRSb0mRnX2O+LHwcT6MhPMejIoKcNvssK/NDi55VjimSAAfQyuUFJTLdVNIyJ6QoYULDNmCmgtSqC4i8qb5HaLoyJUoT0lPHwbAfhwtxARMGBlKJoSmhVIDBvI5co+8E0eeSm6jyQDPBPB3o+oX9UM0=
+    username: AgCOeJ6Vj7eDZhiEeFNkyqhztUDouQ4vEKHal2vuYYK4xIgZH2Yzd/gqBFNUdaMX101w7jt3IGL9SE9zLNqbLUbyPqxhbl0LhrKFSYW/uEDdNsW3y+2Y+yHUFDA5Cknij+rrX+hUKmBF1jkF7kPbIldioep5AzfNwU/fpvrZYgsoEhxjZHoRldoHMi07/cDwLxPmtWgRCH+0s6Cz0pSm5Ld6T1Z+xwl0dqm8zr9KkSId0pzjbOK3lWt4ksWH1xFOaqywH8ulb2Z3CBhAohVWSGDYFyQbz8B2ngqfo6McsKfUFDPRhO5eEzfUyNsVMCVZQDAnE5zs6epCpM7BeEO5GNAEfz9tHWADgBs/M3FEMTs7zSm9nTG+zEcdQm1nFR3Jz9msR45O6dK7p2wh+aeYFcAJvi4X9q9LaHGWgCIMVPX5HvD5MnxwmWaaOw0lZQV1eHKEXtJaa5/StiBYXI9U61vKVoatQSY48J9KEZ5mMTZX+BVLKSVTCKYhUG/nQlWqHkIPviWaJCkpouFeaid7zLE04wMPW3GAMrBpFj7j4kpGaHk6A3SttI6PfkPvB91mBBQnMwh9Uc37lgnZZ8cTqotiZC7Q8aS0N/JUER+YNa4gDFC76MaKxuQmjnSWMFkKxhXAD8pQqAIivbO30FMuYv0r/rOqAzE3d0gWMuCUztb8wYclgY2xtPqQvFF5hg+PfIUDQyktFOcBQ38=
   template:
     metadata:
       name: paperless-role-secret
