@@ -14,6 +14,7 @@ spec:
     - name: sealed-secrets
   path: ./kubernetes/apps/auth/bootstrap/app
   prune: true
+  force: true
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
