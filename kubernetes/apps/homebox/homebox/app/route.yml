@@ -15,5 +15,5 @@ spec:
     - homebox2.example.com
   rules:
     - backendRefs:
-        - name: homebox-app
+        - name: homebox
           port: 7745

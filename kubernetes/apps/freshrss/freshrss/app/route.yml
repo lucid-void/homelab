@@ -15,5 +15,5 @@ spec:
     - freshrss2.example.com
   rules:
     - backendRefs:
-        - name: freshrss-app
+        - name: freshrss
           port: 80
