@@ -1,0 +1,19 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: homebox
+  namespace: homebox
+  annotations:
+    external-dns.alpha.kubernetes.io/enabled: "true"
+spec:
+  parentRefs:
+    - name: shared
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - homebox2.blackcats.cc
+  rules:
+    - backendRefs:
+        - name: homebox-app
+          port: 7745

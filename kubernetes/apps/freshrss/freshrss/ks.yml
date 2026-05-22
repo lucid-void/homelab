@@ -1,0 +1,23 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app freshrss
+  namespace: flux-system
+spec:
+  targetNamespace: freshrss
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: freshrss-database
+    - name: shared-gateway
+    - name: sealed-secrets
+  path: ./kubernetes/apps/freshrss/freshrss/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: false
+  interval: 30m
+  timeout: 10m

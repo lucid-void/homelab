@@ -1,0 +1,17 @@
+---
+# Generated with: kubeseal -f kubernetes/apps/freshrss/database/app/role-secret.yml -w kubernetes/apps/freshrss/database/app/role-sealed.yml
+# Replace this file by filling in role-secret.yml with the real password and running kubeseal.
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: freshrss-role-secret
+  namespace: postgres
+spec:
+  encryptedData:
+    password: PLACEHOLDER
+    username: PLACEHOLDER
+  template:
+    metadata:
+      name: freshrss-role-secret
+      namespace: postgres
+    type: kubernetes.io/basic-auth
