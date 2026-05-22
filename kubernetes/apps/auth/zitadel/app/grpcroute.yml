@@ -4,6 +4,8 @@ kind: GRPCRoute
 metadata:
   name: zitadel-grpc
   namespace: auth
+  annotations:
+    external-dns.alpha.kubernetes.io/enabled: "true"
 spec:
   parentRefs:
     - name: shared

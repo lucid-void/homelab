@@ -1,6 +1,7 @@
 ---
 sources:
   - gateway-httproute
+  - gateway-grpcroute
 
 provider:
   name: cloudflare
