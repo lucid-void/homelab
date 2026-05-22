@@ -23,6 +23,10 @@ spec:
             - -c
             - CREATE EXTENSION IF NOT EXISTS "vectors"
             - -c
+            - GRANT USAGE ON SCHEMA vectors TO immich
+            - -c
+            - ALTER DEFAULT PRIVILEGES IN SCHEMA vectors GRANT SELECT ON TABLES TO immich
+            - -c
             - CREATE EXTENSION IF NOT EXISTS "vector"
             - -c
             - CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
