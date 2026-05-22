@@ -22,12 +22,54 @@ controlPlane:
         proxy:
           disabled: true
         allowSchedulingOnControlPlanes: true
+        etcd:
+          advertisedSubnets:
+            - 172.16.20.0/24
+          listenSubnets:
+            - 172.16.20.0/24
+      machine:
+        kubelet:
+          nodeIP:
+            validSubnets:
+              - 172.16.20.0/24
+    - |-
+      apiVersion: v1alpha1
+      kind: ExtensionServiceConfig
+      name: lldpd
+      configFiles:
+        - content: |
+            configure lldp portidsubtype ifname
+            configure system description "Talos Node"
+          mountPath: /usr/local/etc/lldpd/lldpd.conf
+    - |-
+      apiVersion: v1alpha1
+      kind: ExtensionServiceConfig
+      name: netbird
+      environment:
+        - NB_SETUP_KEY=70455C93-8E61-4D6D-AC77-A37CD7293B2F
 
 nodes:
   - hostname: k8s-cp-1
     ipAddress: 172.16.20.20
     installDisk: /dev/sda
     controlPlane: true
+    patches:
+      - |-
+        # Netbird (wt0) adds a second IP that containerd picks as the hostNetwork pod IP.
+        # Without this override, kube-apiserver advertises the Netbird IP in endpoints,
+        # breaking ClusterIP routing for any node where Cilium can't route Netbird IPs.
+        cluster:
+          apiServer:
+            extraArgs:
+              advertise-address: 172.16.20.20
+    schematic:
+      customization:
+        systemExtensions:
+          officialExtensions:
+            - siderolabs/lldpd
+            - siderolabs/netbird
+            # - siderolabs/nut-client  # NUT client is disabled on CPs to avoid potential issues with power management during cluster upgrades (e.g. if a CP reboots before draining, it could cause a brief outage)
+            - siderolabs/qemu-guest-agent
     networkInterfaces:
       - interface: ens18
         addresses: [172.16.20.20/24]
@@ -44,6 +86,21 @@ nodes:
     ipAddress: 172.16.20.21
     installDisk: /dev/sda
     controlPlane: true
+    patches:
+      - |-
+        # See comment on k8s-cp-1 patch — same Netbird IP override needed on all CPs.
+        cluster:
+          apiServer:
+            extraArgs:
+              advertise-address: 172.16.20.21
+    schematic:
+      customization:
+        systemExtensions:
+          officialExtensions:
+            - siderolabs/lldpd
+            - siderolabs/netbird
+            # - siderolabs/nut-client
+            - siderolabs/qemu-guest-agent
     networkInterfaces:
       - interface: ens18
         addresses: [172.16.20.21/24]
@@ -60,6 +117,21 @@ nodes:
     ipAddress: 172.16.20.22
     installDisk: /dev/sda
     controlPlane: true
+    patches:
+      - |-
+        # See comment on k8s-cp-1 patch — same Netbird IP override needed on all CPs.
+        cluster:
+          apiServer:
+            extraArgs:
+              advertise-address: 172.16.20.22
+    schematic:
+      customization:
+        systemExtensions:
+          officialExtensions:
+            - siderolabs/lldpd
+            - siderolabs/netbird
+            # - siderolabs/nut-client
+            - siderolabs/qemu-guest-agent
     networkInterfaces:
       - interface: ens18
         addresses: [172.16.20.22/24]
