@@ -35,7 +35,7 @@ spec:
               - |
                 set -e
                 apk add --no-cache unzip wget >/dev/null 2>&1
-                cd /extensions
+                cd /var/www/FreshRSS/extensions
 
                 wget -q -O youlag.zip \
                   https://github.com/civilblur/youlag/releases/download/v4.4.2/youlag-4.4.2.zip
