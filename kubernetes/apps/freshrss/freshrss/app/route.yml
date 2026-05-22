@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - freshrss2.blackcats.cc
+    - rss.blackcats.cc
   rules:
     - backendRefs:
         - name: freshrss
