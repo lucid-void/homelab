@@ -21,6 +21,8 @@ spec:
             - -v
             - ON_ERROR_STOP=1
             - -c
+            - CREATE EXTENSION IF NOT EXISTS "vectors"
+            - -c
             - CREATE EXTENSION IF NOT EXISTS "vector"
             - -c
             - CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
