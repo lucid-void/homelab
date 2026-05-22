@@ -65,6 +65,14 @@ spec:
               SSL:
                 Mode: disable
 
+        Notifications:
+          Email:
+            SMTP:
+              TLS: false
+              Host: mailrise.auth.svc.cluster.local:8025
+              From: zitadel@blackcats.cc
+              FromName: Zitadel
+
         FirstInstance:
           Org:
             Name: Homelab

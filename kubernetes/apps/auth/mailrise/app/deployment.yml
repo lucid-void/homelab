@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailrise
+  namespace: auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mailrise
+  template:
+    metadata:
+      labels:
+        app: mailrise
+    spec:
+      containers:
+        - name: mailrise
+          image: yoryan/mailrise:1.2.0
+          ports:
+            - containerPort: 8025
+              name: smtp
+          volumeMounts:
+            - name: config
+              mountPath: /etc/mailrise
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+      volumes:
+        - name: config
+          secret:
+            secretName: mailrise-config
+            items:
+              - key: mailrise.cfg
+                path: mailrise.cfg
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailrise
+  namespace: auth
+spec:
+  selector:
+    app: mailrise
+  ports:
+    - name: smtp
+      port: 8025
+      targetPort: smtp
