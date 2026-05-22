@@ -94,7 +94,7 @@ data:
             buttonText            = "Login with SSO"
             autoRegister          = true
             mobileOverrideEnabled = true
-            mobileRedirectUri     = "app.immich:///oauth-callback"
+            mobileRedirectUri     = "https://immich2.blackcats.cc/api/oauth/mobile-redirect"
             scope                 = "openid email profile"
             signingAlgorithm      = "RS256"
           }

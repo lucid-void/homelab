@@ -14,15 +14,25 @@ spec:
       labels:
         app: mailrise
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mailrise
-          image: yoryan/mailrise:1.2.0
+          image: yoryan/mailrise:1.4.0
           ports:
             - containerPort: 8025
               name: smtp
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           volumeMounts:
             - name: config
-              mountPath: /etc/mailrise
+              mountPath: /etc/mailrise.conf
+              subPath: mailrise.cfg
               readOnly: true
           resources:
             requests:
@@ -34,9 +44,6 @@ spec:
         - name: config
           secret:
             secretName: mailrise-config
-            items:
-              - key: mailrise.cfg
-                path: mailrise.cfg
 ---
 apiVersion: v1
 kind: Service
