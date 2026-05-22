@@ -1,0 +1,19 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: zitadel
+  namespace: auth
+  annotations:
+    external-dns.alpha.kubernetes.io/enabled: "true"
+spec:
+  parentRefs:
+    - name: shared
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - zitadel.blackcats.cc
+  rules:
+    - backendRefs:
+        - name: zitadel
+          port: 8080
