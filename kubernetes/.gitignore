@@ -7,3 +7,4 @@ talos/clusterconfig/
 **/secret.yml
 **/*.secret.yml
 cluster-secrets.yml
+**/*secret.yml

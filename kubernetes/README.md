@@ -61,19 +61,18 @@ brew install kubectl helm fluxcd/tap/flux
 brew install kubeseal
 ```
 
-**Talos image — generate at [factory.talos.dev](https://factory.talos.dev):**
+**Talos image — managed by talhelper:**
 
-1. Add extensions:
-   - `siderolabs/qemu-guest-agent`
-   - `siderolabs/intel-ucode`
-   - `siderolabs/lldpd`
-   - `siderolabs/netbird`
-   - `siderolabs/nut-client`
-2. Save the **schematic ID** — needed for upgrades and must match `talos_schematic_id` in
-   [`infra/packer/Talos/talos-base.pkr.hcl`](../infra/packer/Talos/talos-base.pkr.hcl):
-   ```
-   ef013c714202a52bc6501ca5cefc6814491c9fd42ac6cf67be46031d31b2e79c
-   ```
+Extensions are declared in `talos/talconfig.yaml` under each node's `schematic.customization.systemExtensions` block.
+Talhelper registers the schematic with factory.talos.dev automatically on `talhelper genconfig` and embeds the resulting image URL in the generated clusterconfig files.
+
+The schematic ID used for Packer must match what talhelper resolves — after running `talhelper genconfig`, grep the generated config for the current ID:
+
+```bash
+grep "metal-installer" kubernetes/talos/clusterconfig/homelab-k8s-k8s-cp-1.yaml
+```
+
+Update `talos_schematic_id` in [`infra/packer/Talos/talos-base.pkr.hcl`](../infra/packer/Talos/talos-base.pkr.hcl) to match.
 
 Packer downloads the ISO directly from factory.talos.dev during Phase 4 — no manual image upload needed.
 
@@ -422,21 +421,59 @@ talosctl apply-config \
   --mode=auto
 ```
 
-### Upgrade Talos
+### Upgrade Talos (version or schematic change)
 
-Get the new installer image from `factory.talos.dev` using the same schematic ID.
-Upgrade one control plane at a time — etcd quorum is maintained throughout.
+The schematic (extensions) is defined in `talos/talconfig.yaml` under each node's `schematic:` block.
+Talhelper registers it with factory.talos.dev and bakes the resulting image URL into the generated clusterconfig.
+
+**Step 1 — update talconfig.yaml and regenerate**
 
 ```bash
-# upgrade one CP at a time
+# edit talos/talconfig.yaml (bump talosVersion, add/remove extensions, etc.)
+cd kubernetes/talos
+talhelper genconfig
+```
+
+**Step 2 — get the installer image URL for each node**
+
+```bash
+grep "metal-installer" clusterconfig/homelab-k8s-k8s-cp-1.yaml
+# e.g. factory.talos.dev/metal-installer/<schematic-id>:v1.x.y
+# use factory.talos.dev/installer/<schematic-id>:v1.x.y for the upgrade command (installer, not metal-installer)
+```
+
+**Step 3 — upgrade one node at a time**
+
+Use `--drain=false` — the CNPG PodDisruptionBudget blocks eviction of the primary pod.
+Upgrade nodes that are *not* holding the CNPG primary first where possible.
+
+```bash
 talosctl upgrade \
   --nodes 172.16.20.20 \
-  --image factory.talos.dev/installer/<schematic-id>:<new-version> \
-  --talosconfig talos/clusterconfig/talosconfig
+  --image factory.talos.dev/installer/<schematic-id>:<version> \
+  --talosconfig kubernetes/talos/clusterconfig/talosconfig \
+  --drain=false
 
-# wait for it to rejoin, then upgrade the next
-talosctl upgrade --nodes 172.16.20.21 ...
-talosctl upgrade --nodes 172.16.20.22 ...
+# wait for the node to come back up, then repeat for .21 and .22
+```
+
+**Step 4 — apply config to deliver extension service configs**
+
+The upgrade reboots the node with the new image, but `ExtensionServiceConfig` documents
+(lldpd, netbird, etc.) must be pushed separately via `apply-config`:
+
+```bash
+talosctl apply-config \
+  --nodes 172.16.20.20 \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-k8s-cp-1.yaml \
+  --talosconfig kubernetes/talos/clusterconfig/talosconfig
+```
+
+If the node stalls at `BOOTING` waiting for extension services, check which services are blocked:
+
+```bash
+talosctl dmesg --nodes 172.16.20.20 --talosconfig kubernetes/talos/clusterconfig/talosconfig | tail -5
+talosctl service ext-netbird --nodes 172.16.20.20 --talosconfig kubernetes/talos/clusterconfig/talosconfig
 ```
 
 Update `talosVersion` in `talos/talconfig.yaml` after all nodes are upgraded.
@@ -544,4 +581,57 @@ kubectl logs -n kube-system -l app.kubernetes.io/name=sealed-secrets
 # Cilium connectivity
 cilium status
 cilium connectivity test
+```
+
+### Netbird (VPN) IP leakage into cluster networking
+
+Netbird adds a `wt0` WireGuard interface with a `100.80.x.x/16` address to every node.
+Several Kubernetes components auto-detect the "primary" node IP and will pick `100.80.x.x` if not constrained.
+The `talconfig.yaml` has three guards to prevent this:
+
+| Component | Guard | Location in talconfig |
+|---|---|---|
+| etcd | `advertisedSubnets`/`listenSubnets: [172.16.20.0/24]` | `controlPlane.patches` |
+| kubelet | `machine.kubelet.nodeIP.validSubnets: [172.16.20.0/24]` | `controlPlane.patches` |
+| kube-apiserver | `cluster.apiServer.extraArgs.advertise-address: <LAN IP>` | per-node `patches` |
+
+**Symptom — kube-apiserver endpoints use Netbird IPs:**
+containerd uses the Netbird IP as `status.podIP` for hostNetwork pods (it reads the host's IP list and picks `100.80.x.x`). The kube-apiserver static pod has `--advertise-address=$(POD_IP)`, so it registers the Netbird IP in the `kubernetes` service endpoints. Pods that land on a Cilium node that can't route Netbird IPs get DNS/API timeouts.
+
+Check: `kubectl get endpointslices -n default` — endpoints must all be LAN IPs.
+Fix: per-node `advertise-address` overrides the `$(POD_IP)` default. Apply config and restart kube-apiserver pods.
+
+**Symptom — CiliumNode has Netbird IP as InternalIP:**
+If Cilium registers cp-N with its Netbird IP, cross-node VXLAN tunnels use the wrong destination. Pods on other nodes can't reach endpoints on cp-N.
+
+Check: `kubectl get ciliumnodes -o wide` — all `INTERNALIP` entries must be LAN IPs.
+Fix: `kubectl delete ciliumnode <node>` — the Cilium agent recreates it with the Kubernetes node's InternalIP (which kubelet now reports correctly via `nodeIP.validSubnets`).
+
+**Symptom — etcd peers use Netbird IPs:**
+etcd cluster loses quorum if peers can't reach each other. One node survives on LAN; others fail.
+Fix: `etcd.advertisedSubnets`/`listenSubnets` in `talconfig.yaml` — apply and reboot the affected nodes.
+Recovery if quorum is already broken: see `force-new-cluster` notes below.
+
+**etcd force-new-cluster (last resort):**
+If etcd has lost quorum, pick the node with the most recent data, add a temporary node-level patch:
+
+```yaml
+# in talconfig.yaml nodes[] entry (remove after recovery)
+patches:
+  - |-
+    cluster:
+      etcd:
+        extraArgs:
+          force-new-cluster: "true"
+```
+
+Apply to that one node, wait for it to become healthy, then wipe `EPHEMERAL` on the other nodes so they rejoin:
+
+```bash
+talosctl reset --system-labels-to-wipe EPHEMERAL \
+  --nodes 172.16.20.21,172.16.20.22 \
+  --talosconfig talos/clusterconfig/talosconfig \
+  --reboot
+
+# After they rejoin, remove force-new-cluster, regenerate, apply to the recovered node
 ```
