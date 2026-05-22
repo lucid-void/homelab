@@ -1,6 +1,4 @@
 ---
-# Generated with: kubeseal -f kubernetes/apps/freshrss/freshrss/app/app-secret.yml -w kubernetes/apps/freshrss/freshrss/app/app-sealed.yml
-# Replace this file by filling in app-secret.yml with the real password and running kubeseal.
 apiVersion: bitnami.com/v1alpha1
 kind: SealedSecret
 metadata:
@@ -8,7 +6,7 @@ metadata:
   namespace: freshrss
 spec:
   encryptedData:
-    DB_PASS: PLACEHOLDER
+    DB_PASS: AgADiP0NjI7t/mR/r/SNb1S06SqSZuaOg+4CG8pqUqCKxQdU5pCAF1DZIyi98WxNRKLWHo3gR5uoNPffRCX7S/UD/RU6+gkfBHVOEfXI13qY1qYvrenYD8A9CvP1K/md4ECuUgVdSHdigx/FWuFaVqHueylKZaNJRBldPJZGHjIp1dnyfj+VctrDiKV3hLIpi+qeTNoiPP8Adom40KcMf/f/FfKQb72DHjjYp1sjF1Z4Q7h2wSY4Ur1HS/FzFb7aq3vsTeFFjS9kcP8FQBrR00AyQ30rIJ23u6eoamSBhr7ia4t5ucTcdkbX3egztL0b34uo+Gm5KxQxrBtkwmY1Vi1NW0c4pwekDsNhpTKA/gEKDZPv2lN1GRl2L99PdVfm2U7PYqCSINBLYBXwVzoS44LHyJSsZp9r7CkbIsk13YyWidlU3JoytEZZf0t5uWtrKBVZ5gRC+WqYZTeRG5/OvR1o3I6eq4GRdfijLJV6mPc/NaGSnsUX7UtWHhcf6TwXPMhSqKeCvsTEr/h4zKBjG1PflzhsGyk169SFj/c6857FQsUBLZ2HxKpdHPGInoO/qjBugTRHTG/BXPJ+GQ/3hwzKu5lNHaAvtpIfeRTzBkS2mTmjWaxybtSezUjV0v53CK/6QNsmT73JA/TG6TJEXYQgUMv6/3MdWMN2p6tjv3lAfSgF/6CsBSW2jpyATmy8CcstIRM+5Q6i8roumI0=
   template:
     metadata:
       name: freshrss-app-secret
