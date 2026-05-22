@@ -1,0 +1,16 @@
+---
+# Generated with: kubeseal -f kubernetes/apps/freshrss/freshrss/app/app-secret.yml -w kubernetes/apps/freshrss/freshrss/app/app-sealed.yml
+# Replace this file by filling in app-secret.yml with the real password and running kubeseal.
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: freshrss-app-secret
+  namespace: freshrss
+spec:
+  encryptedData:
+    DB_PASS: PLACEHOLDER
+  template:
+    metadata:
+      name: freshrss-app-secret
+      namespace: freshrss
+    type: Opaque

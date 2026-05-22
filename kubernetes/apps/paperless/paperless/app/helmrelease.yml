@@ -1,0 +1,115 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: paperless
+  namespace: paperless
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        containers:
+          app:
+            image:
+              repository: ghcr.io/paperless-ngx/paperless-ngx
+              tag: "2.20.15"
+            env:
+              TZ: Europe/Brussels
+              PAPERLESS_DBENGINE: postgresql
+              PAPERLESS_DBHOST: postgres-rw.postgres.svc.cluster.local
+              PAPERLESS_DBPORT: "5432"
+              PAPERLESS_DBNAME: paperless
+              PAPERLESS_DBUSER: paperless
+              PAPERLESS_REDIS: redis://paperless-valkey:6379
+              PAPERLESS_URL: https://paperless2.blackcats.cc
+              PAPERLESS_TIME_ZONE: Europe/Brussels
+              PAPERLESS_OCR_LANGUAGE: eng+fra+nld
+              PAPERLESS_TIKA_ENABLED: "0"
+              PAPERLESS_DATA_DIR: /data
+              PAPERLESS_MEDIA_ROOT: /media
+              PAPERLESS_CONSUMPTION_DIR: /consume
+              USERMAP_UID: "1000"
+              USERMAP_GID: "1000"
+            envFrom:
+              - secretRef:
+                  name: paperless-app-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 8000
+                  initialDelaySeconds: 60
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+            resources:
+              requests:
+                memory: 512Mi
+                cpu: 100m
+              limits:
+                memory: 2Gi
+
+      valkey:
+        containers:
+          app:
+            image:
+              repository: valkey/valkey
+              tag: 8-alpine
+            resources:
+              requests:
+                memory: 64Mi
+                cpu: 10m
+              limits:
+                memory: 256Mi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 8000
+      valkey:
+        controller: valkey
+        ports:
+          redis:
+            port: 6379
+
+    persistence:
+      data:
+        existingClaim: paperless-data
+        advancedMounts:
+          app:
+            app:
+              - path: /data
+      media:
+        existingClaim: paperless-media
+        advancedMounts:
+          app:
+            app:
+              - path: /media
+      consume:
+        existingClaim: paperless-consume
+        advancedMounts:
+          app:
+            app:
+              - path: /consume
