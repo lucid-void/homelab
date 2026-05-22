@@ -41,8 +41,11 @@ spec:
             - /bin/sh
             - -c
             - |
-              IP=$(getent hosts zitadel.auth.svc.cluster.local | awk '{print $1}')
-              echo "$IP zitadel.blackcats.cc" >> /etc/hosts
+              IP=$(nslookup zitadel.auth.svc.cluster.local 2>/dev/null \
+                | awk '/Address/ && !/53/ {match($0,/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/); if (RSTART) print substr($0,RSTART,RLENGTH)}' \
+                | head -1)
+              [ -n "$IP" ] && echo "$IP zitadel.blackcats.cc" >> /etc/hosts \
+                || { echo "ERROR: could not resolve zitadel.auth.svc.cluster.local" >&2; exit 1; }
       containers:
         - name: tofu
           image: ghcr.io/opentofu/opentofu:1.9.1
