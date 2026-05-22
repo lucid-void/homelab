@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./deployment.yml
   - ./config-sealed.yml
+  - ./apprise-patch.yml

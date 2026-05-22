@@ -1,0 +1,143 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apprise-conversion-patch
+  namespace: auth
+data:
+  conversion.py: |
+    # -*- coding: utf-8 -*-
+    # Patched version of apprise/conversion.py
+    # Change from upstream: html_to_text now appends href URLs after link text,
+    # and convert_between uses html_to_markdown for HTML→MARKDOWN so Gotify
+    # renders bare URLs as clickable links when contentType is text/markdown.
+
+    import re
+    from markdown import markdown
+    from .common import NotifyFormat
+    from .URLBase import URLBase
+
+    from html.parser import HTMLParser
+
+
+    def convert_between(from_format, to_format, content):
+        converters = {
+            (NotifyFormat.MARKDOWN, NotifyFormat.HTML): markdown_to_html,
+            (NotifyFormat.TEXT, NotifyFormat.HTML): text_to_html,
+            (NotifyFormat.HTML, NotifyFormat.TEXT): html_to_text,
+            (NotifyFormat.HTML, NotifyFormat.MARKDOWN): html_to_markdown,
+        }
+        convert = converters.get((from_format, to_format))
+        return convert(content) if convert else content
+
+
+    def markdown_to_html(content):
+        return markdown(content)
+
+
+    def text_to_html(content):
+        return URLBase.escape_html(content, convert_new_lines=True)
+
+
+    def html_to_text(content):
+        parser = HTMLConverter()
+        parser.feed(content)
+        parser.close()
+        return parser.converted
+
+
+    def html_to_markdown(content):
+        """Convert HTML to markdown, preserving hyperlinks as bare URLs."""
+        parser = HTMLMarkdownConverter()
+        parser.feed(content)
+        parser.close()
+        return parser.converted
+
+
+    class HTMLConverter(HTMLParser, object):
+        """An HTML to plain text converter tuned for email messages."""
+
+        BLOCK_TAGS = ('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                      'div', 'td', 'th', 'code', 'pre', 'label', 'li',)
+
+        IGNORE_TAGS = (
+            'form', 'input', 'textarea', 'select', 'ul', 'ol', 'style', 'link',
+            'meta', 'title', 'html', 'head', 'script')
+
+        WS_TRIM = re.compile(r'[\s]+', re.DOTALL | re.MULTILINE)
+
+        BLOCK_END = {}
+
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self._do_store = True
+            self._result = []
+            self._current_link = ''
+            self.converted = ""
+
+        def close(self):
+            string = ''.join(self._finalize(self._result))
+            self.converted = string.strip()
+
+        def _finalize(self, result):
+            accum = None
+            for item in result:
+                if item == self.BLOCK_END:
+                    if accum is None:
+                        continue
+                    yield accum.strip() + '\n'
+                    accum = None
+                elif accum is not None:
+                    accum += item
+                else:
+                    accum = item
+            if accum is not None:
+                yield accum.strip()
+
+        def handle_data(self, data, *args, **kwargs):
+            if self._do_store:
+                content = self.WS_TRIM.sub(' ', data)
+                self._result.append(content)
+
+        def handle_starttag(self, tag, attrs):
+            self._do_store = tag not in self.IGNORE_TAGS
+
+            if tag in self.BLOCK_TAGS:
+                self._result.append(self.BLOCK_END)
+
+            if tag == 'a':
+                attr_dict = dict(attrs)
+                self._current_link = attr_dict.get('href', '')
+            elif tag == 'li':
+                self._result.append('- ')
+            elif tag == 'br':
+                self._result.append('\n')
+            elif tag == 'hr':
+                if self._result:
+                    self._result[-1] = self._result[-1].rstrip(' ')
+                self._result.append('\n---\n')
+            elif tag == 'blockquote':
+                self._result.append(' >')
+
+        def handle_endtag(self, tag):
+            self._do_store = True
+
+            if tag in self.BLOCK_TAGS:
+                self._result.append(self.BLOCK_END)
+            elif tag == 'a' and self._current_link:
+                self._result.append(' ({})'.format(self._current_link))
+                self._current_link = ''
+
+
+    class HTMLMarkdownConverter(HTMLConverter):
+        """HTML to markdown converter that emits bare URLs for Gotify auto-linking."""
+
+        def handle_endtag(self, tag):
+            self._do_store = True
+
+            if tag in self.BLOCK_TAGS:
+                self._result.append(self.BLOCK_END)
+            elif tag == 'a' and self._current_link:
+                # Emit the URL on its own line so Gotify auto-links it
+                self._result.append('\n{}\n'.format(self._current_link))
+                self._current_link = ''
