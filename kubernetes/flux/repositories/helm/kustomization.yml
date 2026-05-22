@@ -16,7 +16,7 @@ resources:
   - ./prometheus-community.yml
   - ./sealed-secrets.yml
   - ./spegel.yml
-  # - ./stakater.yml
+  - ./stakater.yml
   # - ./external-dns.yml
   # - ./ingress-nginx.yml
   # - ./k8s-gateway.yml
