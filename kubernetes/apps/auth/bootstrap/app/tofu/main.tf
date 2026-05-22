@@ -18,8 +18,8 @@ terraform {
 
 provider "zitadel" {
   domain       = "zitadel.blackcats.cc"
-  port         = "443"
-  insecure     = false
+  port         = "8080"
+  insecure     = true
   access_token = var.zitadel_pat
 }
 
