@@ -2,7 +2,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app zitadel
+  name: &app mailrise
   namespace: flux-system
 spec:
   targetNamespace: auth
@@ -10,15 +10,12 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   dependsOn:
-    - name: auth-database
-    - name: shared-gateway
     - name: sealed-secrets
-    - name: mailrise
-  path: ./kubernetes/apps/auth/zitadel/app
+  path: ./kubernetes/apps/auth/mailrise/app
   prune: true
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
-  wait: false
+  wait: true
   interval: 30m
-  timeout: 10m
+  timeout: 5m
