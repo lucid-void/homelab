@@ -99,6 +99,8 @@ Commit `.sops.yaml` — it contains only public keys, no secrets.
 ### 4. Create your first encrypted secret file
 
 ```bash
+export SOPS_AGE_SSH_PRIVATE_KEY_FILE=~/.ssh/ed25519
+
 # Ansible secrets
 sops infra/ansible/group_vars/all/secrets.sops.yml
 

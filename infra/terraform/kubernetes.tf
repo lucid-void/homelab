@@ -97,6 +97,7 @@ resource "proxmox_virtual_environment_vm" "k8s_nodes" {
 
   agent {
     enabled = true
+    timeout = "1m"
   }
 
   lifecycle {

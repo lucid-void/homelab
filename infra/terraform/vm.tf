@@ -53,51 +53,16 @@ locals {
       tags       = ["iac", "swarm_manager"]
       dns_records= [
         # services vm (.13)
-        "traefik", "paperless", "immich", "photos", "homebox", "tools", "rss", "gitea", "zitadel", "authelia", "auth",
+        "traefik", "paperless", "photos", "homebox", "tools", "rss", "gitea",
         # db vm (.10)
         "pgadmin", "postgres", "mariadb", "adminer",
         # media vm (.12)
         "sonarr", "radarr", "nzb", "seerr", "prowlarr", "tautulli",
         # monitoring vm (.16)
         "grafana", "prometheus", "loki", "cadvisor", "unifi-poller", "gotify", "status",
-        # game vm (.14)
-        "satisfactory", "crafty",
       ]
       boot_order = 3
       up_delay   = 30
-    }
-    game = {
-      vm_id      = 2014
-      ip_last    = 14
-      vcpus      = 4
-      memory     = 6192
-      disk_gb    = 40
-      tags       = ["iac", "swarm_worker"]
-      dns_records= []
-      boot_order = 5
-      up_delay   = 0
-    }
-    lab = {
-      vm_id      = 2015
-      ip_last    = 15
-      vcpus      = 2
-      memory     = 4096
-      disk_gb    = 40
-      tags       = ["iac", "swarm_worker"]
-      dns_records= []
-      boot_order = 6
-      up_delay   = 0
-    }
-    runner = {
-      vm_id      = 2017
-      ip_last    = 17
-      vcpus      = 2
-      memory     = 4096
-      disk_gb    = 60
-      tags       = ["iac", "runner"]
-      dns_records= []
-      boot_order = 8
-      up_delay   = 0
     }
   }
 }
