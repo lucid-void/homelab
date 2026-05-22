@@ -71,3 +71,61 @@ subjects:
   - kind: ServiceAccount
     name: zitadel-bootstrap
     namespace: auth
+---
+# Allows Terraform to write the OIDC secret into the freshrss namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: zitadel-bootstrap-freshrss
+  namespace: freshrss
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+    resourceNames: ["freshrss-oidc-secret"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: zitadel-bootstrap-freshrss
+  namespace: freshrss
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: zitadel-bootstrap-freshrss
+subjects:
+  - kind: ServiceAccount
+    name: zitadel-bootstrap
+    namespace: auth
+---
+# Allows Terraform to write the OIDC secret into the paperless namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: zitadel-bootstrap-paperless
+  namespace: paperless
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+    resourceNames: ["paperless-oidc-secret"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: zitadel-bootstrap-paperless
+  namespace: paperless
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: zitadel-bootstrap-paperless
+subjects:
+  - kind: ServiceAccount
+    name: zitadel-bootstrap
+    namespace: auth
