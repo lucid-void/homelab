@@ -77,7 +77,7 @@ resource "zitadel_application_oidc" "freshrss" {
   name       = "FreshRSS"
 
   redirect_uris = [
-    "https://freshrss2.blackcats.cc/i/?get=oidc",
+    "https://freshrss2.blackcats.cc/i/oidc/",
   ]
   post_logout_redirect_uris = [
     "https://freshrss2.blackcats.cc",
