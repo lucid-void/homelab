@@ -6,3 +6,4 @@ resources:
   - ./database/ks.yml
   - ./zitadel/ks.yml
   - ./bootstrap/ks.yml
+  - ./mailrise/ks.yml

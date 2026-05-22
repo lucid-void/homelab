@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: mailrise-config
+  namespace: auth
+spec:
+  encryptedData:
+    mailrise.cfg: AgCN/VdV0/8apwRvHGRDSq9oGjY7b/JhtDTBi3e5vcpR3Uk/S2RPueahpWPWx38+ItqUaScMWm3hCeZHXvwe1wo0V21n7yRTMaLMTHSzumMf5mJxqqCXRIIwHowB5jDLrSMwL5zhRJkIpk3AeXUAkGbeOOaGncoawSrGcNdo5m1CfNK9IpjJWqVTcVaTGsF+77deWbeW3qv4KrUusCUw1hCfICLzkgVUdYlS5/9lt9/upP03qneUhAmDEkYeUPp9LRAkcsB4dt/BMIysKKx+67VJMSlxS/jackyFNz82Mr2wTlRT8WJ5gdgygIfxbo3Reu4OneaAk6kHx3CdyfIaMMC5fCoLzC3torORBocrLlqQZtcR1XSvWyYDBE0ykP6us4DM2P6nIwixs7+vaVFash/n/cHvf46Jmyux5SC0Fj/+lV+hD2ms+sj6AOyXwStcH7HlOUl+Fe61kAMnjHQ8Xdb2k823mMGcZlC+PjB99oW7jTrxx1+AHaKJ5xr0cJJ/vWdRyEGQQ7e3Ea11ddmBuGQfOZJqEnhPtwKe85F0Ph+jlcJ7n0z01mEk33T7IQqAQilc5Bl1ibEzV27lYgf4/JOk0N6T8exF9fSakU4iwIwDUO+1m53140R4YrfOqFzBJVf630ZyUKQyofRMplll4nF3eZpp6SU5S+Ty01sGo7GyLtbD19zZh0huXDsXWq0xPNdBl8HEv/zQ7u4dlCv7qMAfuNzuPWZ2AVyvWF643DoKr6vcWgkjswr5hM+pbdPOkstl+eFzIAgqgfhvtlJEg+2G/ROjj4GQsLhovysptQCWbJ4A8dcRbZUXSndF7/R4/reBDSgvkvvO/k44+dlMXlcjJ2CgHR7aqA8=
+  template:
+    metadata:
+      name: mailrise-config
+      namespace: auth
+    type: Opaque

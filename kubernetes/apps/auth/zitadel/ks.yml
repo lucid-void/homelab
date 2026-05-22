@@ -13,6 +13,7 @@ spec:
     - name: auth-database
     - name: shared-gateway
     - name: sealed-secrets
+    - name: mailrise
   path: ./kubernetes/apps/auth/zitadel/app
   prune: true
   sourceRef:
