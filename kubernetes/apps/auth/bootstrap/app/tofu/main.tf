@@ -17,7 +17,7 @@ terraform {
 }
 
 provider "zitadel" {
-  domain       = "zitadel.auth.svc.cluster.local"
+  domain       = "zitadel.blackcats.cc"
   port         = "8080"
   insecure     = true
   access_token = var.zitadel_pat
