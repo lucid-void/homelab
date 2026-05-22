@@ -53,7 +53,7 @@ locals {
       tags       = ["iac", "swarm_manager"]
       dns_records= [
         # services vm (.13)
-        "traefik", "paperless", "photos", "homebox", "tools", "rss", "gitea",
+        "traefik", "homebox", "tools", "gitea",
         # db vm (.10)
         "pgadmin", "postgres", "mariadb", "adminer",
         # media vm (.12)
