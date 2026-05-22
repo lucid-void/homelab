@@ -42,7 +42,9 @@ spec:
               OIDC_PROVIDER_METADATA_URL: "https://zitadel.blackcats.cc/.well-known/openid-configuration"
               OIDC_SCOPES: "openid email profile"
               OIDC_USERNAME_CLAIM: "preferred_username"
-              OIDC_X_FORWARDED_HEADERS: "HTTP_X_FORWARDED_HOST HTTP_X_FORWARDED_PORT HTTP_X_FORWARDED_PROTO"
+              OIDC_REMOTE_USER_CLAIM: "preferred_username"
+              OIDC_X_FORWARDED_HEADERS: "X-Forwarded-Host X-Forwarded-Port X-Forwarded-Proto"
+              OIDC_CLIENT_CRYPTO_KEY: "freshrss-oidc-session-key-blackcats"
             envFrom:
               - secretRef:
                   name: freshrss-app-secret
