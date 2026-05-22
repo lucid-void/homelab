@@ -15,5 +15,5 @@ spec:
     - freshrss2.blackcats.cc
   rules:
     - backendRefs:
-        - name: freshrss-app
+        - name: freshrss
           port: 80
