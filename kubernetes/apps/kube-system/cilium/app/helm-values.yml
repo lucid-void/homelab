@@ -46,6 +46,7 @@ l2announcements:
 
 gatewayAPI:
   enabled: true
+  enableAppProtocol: true
 
 operator:
   replicas: 1
