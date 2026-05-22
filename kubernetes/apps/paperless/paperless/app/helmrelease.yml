@@ -40,6 +40,7 @@ spec:
               PAPERLESS_URL: https://paperless2.blackcats.cc
               PAPERLESS_TIME_ZONE: Europe/Brussels
               PAPERLESS_OCR_LANGUAGE: eng+fra+nld
+              PAPERLESS_OCR_LANGUAGES: "nld fra"
               PAPERLESS_TIKA_ENABLED: "0"
               PAPERLESS_DATA_DIR: /data
               PAPERLESS_MEDIA_ROOT: /media
