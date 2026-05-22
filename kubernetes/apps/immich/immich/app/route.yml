@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - immich2.blackcats.cc
+    - immich.blackcats.cc
   rules:
     - backendRefs:
         - name: immich-server

@@ -19,12 +19,6 @@ spec:
         runAsUser: 65534
         runAsGroup: 65534
         fsGroup: 65534
-      # Bypass gateway for gRPC: connect directly to Zitadel ClusterIP on plain HTTP/2
-      # (gRPC-go 1.67+ enforces ALPN h2 which TLS-offloading gateways don't negotiate)
-      hostAliases:
-        - ip: "10.102.171.8"
-          hostnames:
-            - "zitadel2.blackcats.cc"
       volumes:
         - name: tf-config
           configMap:
