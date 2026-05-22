@@ -1,0 +1,75 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: freshrss
+  namespace: freshrss
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        containers:
+          app:
+            image:
+              repository: freshrss/freshrss
+              tag: "1.29.1"
+            env:
+              TZ: Europe/Brussels
+              FRESHRSS_ENV: production
+              CRON_MIN: "*/20"
+              DB_TYPE: pgsql
+              DB_HOST: postgres-rw.postgres.svc.cluster.local
+              DB_PORT: "5432"
+              DB_BASE: freshrss
+              DB_USER: freshrss
+            envFrom:
+              - secretRef:
+                  name: freshrss-app-secret
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 80
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+            resources:
+              requests:
+                memory: 128Mi
+                cpu: 25m
+              limits:
+                memory: 512Mi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 80
+
+    persistence:
+      data:
+        existingClaim: freshrss-data
+        globalMounts:
+          - path: /var/www/FreshRSS/data

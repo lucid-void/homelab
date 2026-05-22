@@ -38,6 +38,16 @@ spec:
         createdb: true
         passwordSecret:
           name: zitadel-role-secret
+      - name: freshrss
+        login: true
+        inherit: true
+        passwordSecret:
+          name: freshrss-role-secret
+      - name: paperless
+        login: true
+        inherit: true
+        passwordSecret:
+          name: paperless-role-secret
 
   storage:
     size: 20Gi

@@ -1,0 +1,17 @@
+---
+# Generated with: kubeseal -f kubernetes/apps/paperless/paperless/app/app-secret.yml -w kubernetes/apps/paperless/paperless/app/app-sealed.yml
+# Replace this file by filling in app-secret.yml with the real values and running kubeseal.
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: paperless-app-secret
+  namespace: paperless
+spec:
+  encryptedData:
+    PAPERLESS_DBPASS: PLACEHOLDER
+    PAPERLESS_SECRET_KEY: PLACEHOLDER
+  template:
+    metadata:
+      name: paperless-app-secret
+      namespace: paperless
+    type: Opaque
