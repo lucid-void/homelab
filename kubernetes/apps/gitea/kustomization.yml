@@ -5,3 +5,4 @@ resources:
   - ./namespace.yml
   - ./database/ks.yml
   - ./gitea/ks.yml
+  - ./backup/ks.yml
