@@ -17,6 +17,14 @@ spec:
         spec:
           serviceAccountName: paperless-backup
           restartPolicy: Never
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: paperless
+                      app.kubernetes.io/component: app
+                  topologyKey: kubernetes.io/hostname
           securityContext:
             runAsNonRoot: true
             runAsUser: 65534
