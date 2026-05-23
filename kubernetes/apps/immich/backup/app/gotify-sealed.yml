@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gotify-secret
+  namespace: immich
+spec:
+  encryptedData:
+    GOTIFY_TOKEN: AgBbNH7Aj6ER54/SC6jggA0lqPK1yudx/hujZQArvZNsFzIGWkIfWiUEP7V7HuIXjmj8k69Yg4RkDKjcDA2exgZg9HyP2evkbrC6ednmTX9SYi9TriKeYOe+qk8TXWVdx2Ccit4HeBOAOtgbq0/0cRYl8phl1LWIBi788HDqQCtz04dveBQh555KyTvZ8nyViNa3SxVgiREn9x/WlzsBEEg144NyaNR3yng0pVX55ilMpjXPK7zpsyyBJZS8ypOt1aMKGsoHx/XxLV2VVQIL7Ngi5/dabD10FJwLTyxJkeZ1NGGM+83SLlzTxxO7U4WDSsWtoJ/ti3b/rhK0SsSchtjv2EUWBtfAVN+p4CFdyzYoo8OUQ51ed+Fynw+tU2I3tqFKDRjbcphPlRI3oHFggJf6f8y4nJ2G+goP+dMjsnE1qyZ5up+/Fa0/QLr9Ckf+QzHbKKYAmsm5b8lj9OIpf2oIPcuvkG12EGqIq0u1Dth+COGZ/U+I7dYYYPx1TrDSRLYdQjJ5Q3B2BVL5fXdLFLRMSdAhQfavOaG9OPMa4J+jiNzMtMnii3wJCpP2PBWopwXtEASdJsqqka4qVL22M8LwGy9ix8n4BYuZtJEvrUP0oZG+uUUYxgiu/6AS3nJl7Uuo8cKyqzNMJ8DdhvVQkVT1qdWwOwi1B9zM6oIwGUI+rSKMF9JNkyscvjQPNxiqsuGZzkrY6bmbkV3ScHw28dY=
+  template:
+    metadata:
+      name: gotify-secret
+      namespace: immich
+    type: Opaque
