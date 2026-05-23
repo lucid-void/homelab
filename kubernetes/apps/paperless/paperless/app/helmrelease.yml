@@ -39,7 +39,7 @@ spec:
               PAPERLESS_DBNAME: paperless
               PAPERLESS_DBUSER: paperless
               PAPERLESS_REDIS: redis://paperless-valkey:6379
-              PAPERLESS_URL: https://paperless2.blackcats.cc
+              PAPERLESS_URL: https://paperless.blackcats.cc
               PAPERLESS_TIME_ZONE: Europe/Brussels
               PAPERLESS_OCR_LANGUAGE: eng+fra+nld
               PAPERLESS_OCR_LANGUAGES: "nld fra"
@@ -49,13 +49,9 @@ spec:
               PAPERLESS_CONSUMPTION_DIR: /consume
               USERMAP_UID: "1000"
               USERMAP_GID: "1000"
-              PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL: "https"
-              PAPERLESS_ACCOUNT_EMAIL_VERIFICATION: "none"
             envFrom:
               - secretRef:
                   name: paperless-app-secret
-              - secretRef:
-                  name: paperless-oidc-secret
             probes:
               liveness: &probes
                 enabled: true

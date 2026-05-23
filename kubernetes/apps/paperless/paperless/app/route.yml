@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - paperless2.blackcats.cc
+    - paperless.blackcats.cc
   rules:
     - backendRefs:
         - name: paperless-app
