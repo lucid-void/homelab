@@ -17,6 +17,7 @@ spec:
   install:
     remediation:
       retries: 3
+  timeout: 15m
   upgrade:
     cleanupOnFail: true
     remediation:
@@ -43,7 +44,7 @@ spec:
                   httpGet:
                     path: /
                     port: 7745
-                  initialDelaySeconds: 10
+                  initialDelaySeconds: 30
                   periodSeconds: 30
                   timeoutSeconds: 5
                   failureThreshold: 5
