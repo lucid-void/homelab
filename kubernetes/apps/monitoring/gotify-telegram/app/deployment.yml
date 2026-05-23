@@ -29,7 +29,7 @@ spec:
           image: python:3.12-alpine
           command: ["/bin/sh", "-c"]
           args:
-            - "pip install --no-cache-dir --target /tmp/pylib websocket-client -q && PYTHONPATH=/tmp/pylib python /scripts/bridge.py"
+            - "pip install --no-cache-dir --target /tmp/pylib websocket-client -q && PYTHONPATH=/tmp/pylib python -u /scripts/bridge.py"
           envFrom:
             - secretRef:
                 name: gotify-client-secret
