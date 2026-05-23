@@ -1,0 +1,88 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: paperless-backup
+  namespace: paperless
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 14400
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: paperless-backup
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            fsGroup: 65534
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: paperless-data
+                readOnly: true
+            - name: media
+              persistentVolumeClaim:
+                claimName: paperless-media
+                readOnly: true
+            - name: db-dump
+              emptyDir: {}
+            - name: rclone-config
+              secret:
+                secretName: rclone-secret
+                defaultMode: 0440
+            - name: script
+              configMap:
+                name: paperless-backup-script
+                defaultMode: 0755
+          containers:
+            - name: backup
+              image: ghcr.io/lucid-void/backup-tools:v1.0.2
+              command: ["/bin/bash", "/scripts/backup.sh"]
+              envFrom:
+                - secretRef:
+                    name: restic-secret
+                - secretRef:
+                    name: gotify-secret
+                    optional: true
+              env:
+                - name: PGHOST
+                  value: postgres-ro.postgres.svc.cluster.local
+                - name: PGPORT
+                  value: "5432"
+                - name: PGDATABASE
+                  value: paperless
+                - name: PGUSER
+                  value: paperless
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: paperless-app-secret
+                      key: PAPERLESS_DBPASS
+                - name: RCLONE_CONFIG
+                  value: /rclone-config/rclone.conf
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                  readOnly: true
+                - name: media
+                  mountPath: /media
+                  readOnly: true
+                - name: db-dump
+                  mountPath: /db
+                - name: rclone-config
+                  mountPath: /rclone-config
+                  readOnly: true
+                - name: script
+                  mountPath: /scripts
+              resources:
+                requests:
+                  memory: 256Mi
+                  cpu: 100m
+                limits:
+                  memory: 2Gi
