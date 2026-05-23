@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gotify-secret
+  namespace: paperless
+spec:
+  encryptedData:
+    GOTIFY_TOKEN: AgCM6AHWb6dFfGLpNjQXlSQ3DnGH1FGRfsQ6P7q/QzI61nUq+vvWA+MUwS+pq0p+lMZLsS5LRESeMRxDSC802uPnLFOWTKBIBKQRlIuwYk4lYF+sbfuxyXwPGYGmrrpjpGBzVBJV662oOTAt6dJ6mv8IG2w7UABa9/J+uctL3NLZtwh+1Uz4aVF05jJoCm5FlLyDDYxlOklWvcM+ZutM33G1WRE2f9bbovWlCW4nGN9bJ5zlh3kXbaRWWeApr/z0zRpWnkeNI1KG/pxABDgBFzzqDrBK6IXdnluvVGeYdFTXNkay9R+YhFC1j9zg741hEQ/6QXc8eXJY3X4lwlM30oDftULtfbVXo6r082J8rvPavyaEcEUM8Lvm9AtOXwCcTI0mqyAjPR3S89tcRuPh5tEsO9e8XirSken7wpFdrPJM1DLC5/5kCe51wwsSMDFTItSEfSY4FnQaqphE53Sq2rys+YysG8eqoBkTVqNA+7ctRbO3MOeQfN22fZD23dImXpWChoWMKBBbg17ekIwAIYYVUQP36hQ7VGS1Kb2hj86Cy4fCF7yDXNvn7hcQYwfN6suaP4tmVT87jjUnMNy0Qnj/pCKoXnK3tWOC4Sl5XICPD039hZ3PSH5R4ZPZx7DepdsFseiX4mX25vAr70M5/3vBgF+Bii3jelv6bUqgM72R37yGi+zUv1Ntxyt8vyBYWvhFiGgOF0/3WcJxlQZmyhM=
+  template:
+    metadata:
+      name: gotify-secret
+      namespace: paperless
+    type: Opaque
