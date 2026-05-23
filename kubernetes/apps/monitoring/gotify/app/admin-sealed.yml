@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gotify-admin-secret
+  namespace: monitoring
+spec:
+  encryptedData:
+    GOTIFY_DEFAULTUSER_PASS: AgDCZNSIn2qhDNdygBsrB4KEqhDCANdC1It/bv9jh+CamzJS1n7si5OqTlbralQS54DMyXcueo5ugCZ8LGFqCmILCO++JX8nQDk3KroGCCslTzFT1S7WYc2vEyEItqMITzBSpHULBMcgeyD7AJCif+orEaw0E9+gf8DDKK3fqv9mNdGGIEftiaUZYIrgXUb07OA8dk8tdDlt9mTXOhB1NpodJZdh2iLnKr2VJRboaAKL60H9kDPGEvY36A/8lD5l49+V3EJ4mIJgfQEAS+JTfgAWXrFBvNQMwP7tcSo121ZQHzjfBlBmGZuKCOQJ+oQgztDJqgEJ3qSbi1sphZ8OGdImDwXT9VHeD271cJ8arsNTwMdwS8uy2iIBnhv5M1ZhHiAKxe6VlbjQ8z8eWjtWaB7UvH28ACHXtCyeKXl01LMaKYML1iFyv63PhCRNWJViQoqCfhYeoDeer7GynwFEuKr8nnhJShnmc3zbhb/cpfzyoqnqcV3kilv+8ZhP/DhNLpMlQ4FRGPpbZTUdEwUZSkyyxjYrutXFwXQoYLkjozpPydYxjyUaH8lXkSO/PLx7y2S9O39YN9i7SPwHHZmNgpOgl2fJceMRr6oBrnWsuT86n6fCYvBwvLT06H0wBZLabz55vPpxudlwa5amvUn2/WEhLsFXzwiciVJOaR1k0paZ2/uUnw0BoHrA7pdBTfFcJnlO6i5KzNy6KyUF65W1DPzvMq29//A5
+  template:
+    metadata:
+      name: gotify-admin-secret
+      namespace: monitoring
+    type: Opaque

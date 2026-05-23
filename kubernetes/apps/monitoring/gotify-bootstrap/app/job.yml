@@ -1,0 +1,93 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gotify-bootstrap
+  namespace: monitoring
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: gotify-bootstrap
+      securityContext:
+        runAsNonRoot: false
+      containers:
+        - name: bootstrap
+          image: alpine:3.21
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+
+              apk add --no-cache curl jq kubectl >/dev/null 2>&1
+
+              GOTIFY_URL="http://gotify.monitoring.svc.cluster.local"
+
+              echo "Waiting for Gotify..."
+              until curl -sf "${GOTIFY_URL}/health" >/dev/null 2>&1; do sleep 5; done
+              echo "Gotify is ready."
+
+              create_or_get_app_token() {
+                local name="$1" desc="$2"
+                existing=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" \
+                  "${GOTIFY_URL}/application" \
+                  | jq -r ".[] | select(.name == \"${name}\") | .token // empty")
+                if [ -n "$existing" ]; then
+                  echo "$existing"
+                  return
+                fi
+                curl -sf -X POST -u "admin:${GOTIFY_ADMIN_PASS}" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"name\":\"${name}\",\"description\":\"${desc}\"}" \
+                  "${GOTIFY_URL}/application" | jq -r '.token'
+              }
+
+              create_or_get_client_token() {
+                local name="$1"
+                existing=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" \
+                  "${GOTIFY_URL}/client" \
+                  | jq -r ".[] | select(.name == \"${name}\") | .token // empty")
+                if [ -n "$existing" ]; then
+                  echo "$existing"
+                  return
+                fi
+                curl -sf -X POST -u "admin:${GOTIFY_ADMIN_PASS}" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"name\":\"${name}\"}" \
+                  "${GOTIFY_URL}/client" | jq -r '.token'
+              }
+
+              upsert_secret() {
+                local ns="$1" name="$2" key="$3" value="$4"
+                kubectl create secret generic "$name" \
+                  --namespace="$ns" \
+                  --from-literal="${key}=${value}" \
+                  --dry-run=client -o yaml | kubectl apply -f -
+              }
+
+              postgres_token=$(create_or_get_app_token "postgres-backup" "Postgres backup job notifications")
+              immich_token=$(create_or_get_app_token "immich-backup" "Immich backup job notifications")
+              client_token=$(create_or_get_client_token "admin")
+
+              upsert_secret "postgres" "gotify-secret" "GOTIFY_TOKEN" "$postgres_token"
+              upsert_secret "immich"   "gotify-secret" "GOTIFY_TOKEN" "$immich_token"
+              upsert_secret "monitoring" "gotify-client-secret" "CLIENT_TOKEN" "$client_token"
+
+              echo "Bootstrap complete."
+              echo "  postgres-backup app token : ${postgres_token}"
+              echo "  immich-backup app token   : ${immich_token}"
+              echo "  admin client token        : ${client_token}"
+          env:
+            - name: GOTIFY_ADMIN_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: gotify-admin-secret
+                  key: GOTIFY_DEFAULTUSER_PASS
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi
