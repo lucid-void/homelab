@@ -38,7 +38,7 @@ spec:
                 defaultMode: 0755
           containers:
             - name: backup
-              image: ghcr.io/lucid-void/backup-tools:v1.0.1
+              image: ghcr.io/lucid-void/backup-tools:v1.0.2
               command: ["/bin/bash", "/scripts/backup.sh"]
               envFrom:
                 - secretRef:
