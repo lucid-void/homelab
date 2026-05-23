@@ -113,7 +113,7 @@ resource "zitadel_application_oidc" "paperless" {
   name       = "Paperless"
 
   redirect_uris = [
-    "https://paperless.blackcats.cc/accounts/zitadel/login/callback/",
+    "https://paperless.blackcats.cc/accounts/oidc/zitadel/login/callback/",
   ]
   post_logout_redirect_uris = [
     "https://paperless.blackcats.cc",
