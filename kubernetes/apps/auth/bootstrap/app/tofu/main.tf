@@ -77,10 +77,10 @@ resource "zitadel_application_oidc" "freshrss" {
   name       = "FreshRSS"
 
   redirect_uris = [
-    "https://freshrss2.blackcats.cc/i/oidc/",
+    "https://rss.blackcats.cc/i/oidc/",
   ]
   post_logout_redirect_uris = [
-    "https://freshrss2.blackcats.cc",
+    "https://rss.blackcats.cc",
   ]
 
   response_types   = ["OIDC_RESPONSE_TYPE_CODE"]
