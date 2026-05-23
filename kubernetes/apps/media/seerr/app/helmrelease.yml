@@ -1,0 +1,72 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: seerr
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 0
+        pod:
+          securityContext:
+            runAsUser: 2202
+            runAsGroup: 2200
+            fsGroup: 2200
+            runAsNonRoot: true
+        containers:
+          app:
+            image:
+              repository: ghcr.io/seerr-team/seerr
+              tag: "v3.2.0"
+            env:
+              TZ: Europe/Brussels
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/v1/settings/public
+                    port: 5055
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 25m
+              limits:
+                memory: 1Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 5055
+
+    persistence:
+      config:
+        existingClaim: seerr-config
+        globalMounts:
+          - path: /app/config
