@@ -24,6 +24,7 @@ spec:
   values:
     controllers:
       app:
+        replicas: 1
         containers:
           app:
             image:
