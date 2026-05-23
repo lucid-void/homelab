@@ -3,18 +3,41 @@ config:
   kubernetes:
     mode: cluster
 
+  settings:
+    title: Homelab
+    theme: dark
+    color: slate
+    headerStyle: clean
+    useEqualHeights: true
+    layout:
+      Media:
+        columns: 3
+        style: row
+      Documents:
+        columns: 3
+        style: row
+      Infrastructure:
+        columns: 3
+        style: row
+
+  widgets:
+    - datetime:
+        text_size: xl
+        format:
+          timeStyle: short
+          dateStyle: medium
+          hourCycle: h23
+
   services:
-    - Infrastructure:
-        - Proxmox:
-            href: https://pve.blackcats.cc:8006
-            description: Hypervisor
-            icon: proxmox.png
-    - Development:
-        - Gitea:
-            href: https://gitea.blackcats.cc
-            description: Git service
-            icon: gitea.png
     - Media:
+        - Plex:
+            href: https://plex.blackcats.cc
+            description: Media server
+            icon: plex.png
+        - Seerr:
+            href: https://seerr.blackcats.cc
+            description: Request media
+            icon: overseerr.png
         - Sonarr:
             href: https://sonarr.blackcats.cc
             description: TV series
@@ -23,10 +46,45 @@ config:
             href: https://radarr.blackcats.cc
             description: Movies
             icon: radarr.png
-        - Seerr:
-            href: https://seerr.blackcats.cc
-            description: Requests
-            icon: overseerr.png
+        - Prowlarr:
+            href: https://prowlarr.blackcats.cc
+            description: Indexers
+            icon: prowlarr.png
+        - Sabnzbd:
+            href: https://nzb.blackcats.cc
+            description: Downloader
+            icon: sabnzbd.png
+    - Documents:
+        - Paperless:
+            href: https://paperless.blackcats.cc
+            description: Document management
+            icon: paperless-ngx.png
+        - FreshRSS:
+            href: https://rss.blackcats.cc
+            description: RSS reader
+            icon: freshrss.png
+        - Homebox:
+            href: https://homebox.blackcats.cc
+            description: Home inventory
+            icon: homebox.png
+    - Development:
+        - Gitea:
+            href: https://gitea.blackcats.cc
+            description: Git service
+            icon: gitea.png
+    - Infrastructure:
+        - Proxmox:
+            href: https://pve.blackcats.cc:8006
+            description: Hypervisor
+            icon: proxmox.png
+        - Zitadel:
+            href: https://zitadel.blackcats.cc
+            description: Identity & access
+            icon: sh-zitadel
+        - Gotify:
+            href: https://gotify.blackcats.cc
+            description: Notifications
+            icon: gotify.png
 
 ingress:
   main:
