@@ -13,6 +13,22 @@
   "prCreation": "immediate",
   "schedule": ["every weekend"],
 
+  "flux": {
+    "fileMatch": ["kubernetes/.+\\.ya?ml$"]
+  },
+
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Container image repository+tag pairs in bjw-s app-template HelmReleases",
+      "fileMatch": ["kubernetes/.+\\.ya?ml$"],
+      "matchStrings": [
+        "repository: (?<depName>[^\\n]+)\\n\\s+tag: [\"']?(?<currentValue>[^\"'\\n]+)[\"']?"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+
   "packageRules": [
     {
       "description": "Major Docker image bumps — labeled for manual review; image-scan workflow adds a breaking-change warning to the PR comment",
@@ -44,6 +60,12 @@
       "description": "Immich postgres uses a composite version string Renovate cannot parse — skip it",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/immich-app/postgres"],
+      "enabled": false
+    },
+    {
+      "description": "Skip floating 'latest' tags — no meaningful version to track",
+      "matchDatasources": ["docker"],
+      "matchCurrentValue": "latest",
       "enabled": false
     },
     {
