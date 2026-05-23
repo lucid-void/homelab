@@ -37,9 +37,9 @@ spec:
 
     trivy:
       # Standalone mode: pull the vuln DB once at operator startup, reuse for all scans.
-      # Avoids hitting ghcr.io for every pod event.
+      # dbRepository is left at the chart default (aquasec/trivy-db from mirror.gcr.io).
+      # Setting a full ghcr.io/... path here causes double-prefixing: mirror.gcr.io/ghcr.io/...
       mode: standalone
-      dbRepository: ghcr.io/aquasecurity/trivy-db
 
     resources:
       requests:
