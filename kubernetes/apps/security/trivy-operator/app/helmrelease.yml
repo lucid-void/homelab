@@ -22,6 +22,12 @@ spec:
     remediation:
       retries: 3
   values:
+    image:
+      registry: mirror.gcr.io
+      repository: aquasec/trivy-operator
+      # Pinned digest — supply chain hardening; bump alongside chart upgrades
+      tag: "0.30.1@sha256:448484ece65e26f1c7237c8d20dab997f5a8319968286a09e188140b863cf1f9"
+
     operator:
       vulnerabilityScannerEnabled: true
       configAuditScannerEnabled: true
