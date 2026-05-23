@@ -1,0 +1,138 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-report-script
+  namespace: security
+data:
+  report.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    GOTIFY_URL="https://gotify.blackcats.cc"
+
+    # ── Collect vulnerability findings ──────────────────────────────────────
+    vuln_json=$(kubectl get vulnerabilityreports --all-namespaces -o json 2>/dev/null)
+    vuln_findings=$(echo "$vuln_json" | jq -r '
+      .items[]
+      | select(
+          (.report.summary.criticalCount // 0) > 0
+          or (.report.summary.highCount // 0) > 0
+        )
+      | [
+          .metadata.namespace,
+          (.metadata.ownerReferences[0].name // .metadata.name),
+          (.report.summary.criticalCount // 0 | tostring),
+          (.report.summary.highCount // 0 | tostring)
+        ]
+      | @tsv
+    ' 2>/dev/null || echo "")
+
+    # ── Collect config audit findings ────────────────────────────────────────
+    audit_json=$(kubectl get configauditreports --all-namespaces -o json 2>/dev/null)
+    audit_findings=$(echo "$audit_json" | jq -r '
+      .items[]
+      | select(
+          (.report.summary.criticalCount // 0) > 0
+          or (.report.summary.highCount // 0) > 0
+        )
+      | [
+          .metadata.namespace,
+          .metadata.name,
+          (.report.summary.criticalCount // 0 | tostring),
+          (.report.summary.highCount // 0 | tostring)
+        ]
+      | @tsv
+    ' 2>/dev/null || echo "")
+
+    # ── Collect exposed secret findings ──────────────────────────────────────
+    secret_json=$(kubectl get exposedsecretreports --all-namespaces -o json 2>/dev/null)
+    secret_findings=$(echo "$secret_json" | jq -r '
+      .items[]
+      | select((.report.summary.criticalCount // 0) > 0 or (.report.summary.highCount // 0) > 0)
+      | [
+          .metadata.namespace,
+          (.metadata.ownerReferences[0].name // .metadata.name),
+          (.report.summary.criticalCount // 0 | tostring),
+          (.report.summary.highCount // 0 | tostring)
+        ]
+      | @tsv
+    ' 2>/dev/null || echo "")
+
+    # ── Count totals ─────────────────────────────────────────────────────────
+    vuln_count=$(echo "$vuln_findings" | grep -c . 2>/dev/null || echo 0)
+    audit_count=$(echo "$audit_findings" | grep -c . 2>/dev/null || echo 0)
+    secret_count=$(echo "$secret_findings" | grep -c . 2>/dev/null || echo 0)
+    total=$(( vuln_count + audit_count + secret_count ))
+
+    echo "Vuln findings:   $vuln_count"
+    echo "Audit findings:  $audit_count"
+    echo "Secret findings: $secret_count"
+    echo "Total:           $total"
+
+    # ── Silent on pass ───────────────────────────────────────────────────────
+    if [ "$total" -eq 0 ]; then
+      echo "No Critical/High findings — skipping Gotify notification."
+      exit 0
+    fi
+
+    # ── Determine priority ────────────────────────────────────────────────────
+    has_critical=false
+    for findings in "$vuln_findings" "$audit_findings" "$secret_findings"; do
+      while IFS=$'\t' read -r ns name crit high; do
+        [ "$crit" -gt 0 ] 2>/dev/null && has_critical=true && break 2
+      done <<< "$findings"
+    done
+    priority=5
+    $has_critical && priority=7
+
+    # ── Build message body (capped at 20 rows) ────────────────────────────────
+    body=""
+    row=0
+
+    if [ -n "$vuln_findings" ]; then
+      body+="**Vulnerabilities** (${vuln_count} workloads)\n"
+      body+="Namespace | Workload | Crit | High\n"
+      body+="--- | --- | --- | ---\n"
+      while IFS=$'\t' read -r ns name crit high && [ $row -lt 20 ]; do
+        body+="${ns} | ${name} | ${crit} | ${high}\n"
+        row=$(( row + 1 ))
+      done <<< "$vuln_findings"
+      body+="\n"
+    fi
+
+    if [ -n "$audit_findings" ]; then
+      body+="**Config Audit** (${audit_count} resources)\n"
+      body+="Namespace | Resource | Crit | High\n"
+      body+="--- | --- | --- | ---\n"
+      while IFS=$'\t' read -r ns name crit high && [ $row -lt 20 ]; do
+        body+="${ns} | ${name} | ${crit} | ${high}\n"
+        row=$(( row + 1 ))
+      done <<< "$audit_findings"
+      body+="\n"
+    fi
+
+    if [ -n "$secret_findings" ]; then
+      body+="**Exposed Secrets** (${secret_count} workloads)\n"
+      body+="Namespace | Workload | Crit | High\n"
+      body+="--- | --- | --- | ---\n"
+      while IFS=$'\t' read -r ns name crit high && [ $row -lt 20 ]; do
+        body+="${ns} | ${name} | ${crit} | ${high}\n"
+        row=$(( row + 1 ))
+      done <<< "$secret_findings"
+    fi
+
+    # ── Post to Gotify ────────────────────────────────────────────────────────
+    payload=$(jq -n \
+      --arg title "Security: ${total} workloads with Critical/High findings" \
+      --arg message "$(printf '%b' "$body")" \
+      --argjson priority "$priority" \
+      '{title: $title, message: $message, priority: $priority}')
+
+    curl -sf \
+      -X POST "${GOTIFY_URL}/message" \
+      -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$payload"
+
+    echo "Notification sent (priority ${priority})."

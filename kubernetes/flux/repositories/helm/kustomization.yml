@@ -23,5 +23,6 @@ resources:
   - ./gitea-charts.yml
   - ./jameswynn.yml
   - ./zitadel.yml
+  - ./aquasecurity.yml
   # - ./kubernetes-dashboard.yml
   # - ./twin.yml
