@@ -53,13 +53,11 @@ locals {
       tags       = ["iac", "swarm_manager"]
       dns_records= [
         # services vm (.13)
-        "traefik", "homebox", "tools", "gitea",
-        # db vm (.10)
-        "pgadmin", "postgres", "mariadb", "adminer",
+        "traefik",
         # media vm (.12)
-        "sonarr", "radarr", "nzb", "seerr", "prowlarr", "tautulli",
+        # "sonarr", "radarr", "nzb", "seerr", "prowlarr", "tautulli",
         # monitoring vm (.16)
-        "grafana", "prometheus", "loki", "cadvisor", "unifi-poller", "gotify", "status",
+        "grafana", "prometheus", "loki", "cadvisor", "unifi-poller",
       ]
       boot_order = 3
       up_delay   = 30
