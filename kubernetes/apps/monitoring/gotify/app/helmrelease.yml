@@ -29,7 +29,7 @@ spec:
           app:
             image:
               repository: gotify/server
-              tag: "2.6.0"
+              tag: "2.9.1"
             env:
               TZ: Europe/Brussels
               GOTIFY_SERVER_PORT: "80"
