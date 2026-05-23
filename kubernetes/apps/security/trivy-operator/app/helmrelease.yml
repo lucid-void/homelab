@@ -32,6 +32,7 @@ spec:
       vulnerabilityScannerEnabled: true
       configAuditScannerEnabled: true
       scanJobTimeout: 5m
+      scanJobsConcurrentLimit: 2
       # Scan user workloads only; exclude kube-system and flux-system noise
       targetNamespaces: "auth,cert-manager,cnpg-system,democratic-csi,freshrss,gitea,homebox,homepage,immich,media,monitoring,network,paperless,postgres,security"
 
@@ -40,6 +41,14 @@ spec:
       # dbRepository is left at the chart default (aquasec/trivy-db from mirror.gcr.io).
       # Setting a full ghcr.io/... path here causes double-prefixing: mirror.gcr.io/ghcr.io/...
       mode: standalone
+      resources:
+        requests:
+          cpu: 100m
+          memory: 100Mi
+        limits:
+          cpu: 500m
+          memory: 500Mi
+          ephemeral-storage: 2Gi
 
     resources:
       requests:
