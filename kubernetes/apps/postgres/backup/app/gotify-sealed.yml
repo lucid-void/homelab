@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gotify-secret
+  namespace: postgres
+spec:
+  encryptedData:
+    GOTIFY_TOKEN: AgAnxwSBrytxh9XqGNr2ro96LOXHr3DilFAMx7sfV7kI4Bwi4uAGVPns1KryBj0ROYCeXfcPuJcOBLJyFYti4Qx04KezGjqdsvBumO4kiOltFe+Xf/cpuMyF4KeL45+RNTn7bfbWqRKx697RHPa2XQ1k+H7whCqpycIeG/WBp1KriyHhdmuHdT7KypJLk2YmjQCuJ67E7fcn8tB1TKIjoRwz5P1gdtXaxR55CoTgIywe1QuHzfEDXFmX5RIN3lE+3ZydB6FSNfKaYLCDCU8TRsBqHw/4biIOaDqOo9hQwi2jJP1ZIoshLqynybSaQPuJPnR4sJwaFsQmX/4MxYoK4SL8+ZY0NZUq+GLXxmgF4/HtQeUep/0NnKMXnrTGJEuz7F2PTd1t5loz18NJ5QqIzfLLyH8gOg+mRkErSaFlxFD6fo6+I1zA2dqwutW22CP0a3xL0FCeup2L8qszYXCRIQN9JPdj9i7WFHFZjOjJh8xJeK6YQTQg+OteaC3Tb5Q+z2tuVx2CLoow19UGDEI1THdeEIycDo3iJNWciewuifsYuBWas+qdL2Dj+oXhb7nkbPRO6yXuQ6wPAlDv/qI16sOpWTYbqzwzsjgCwkSp7jFr6zTD4WS2uqnzxnbCDns7fpYn8yFjzpTt26FcDL55i6qgrOyENApecW6m85k6tL6qILhy5mD39EWhJqo4/GY8Bjf6tBG18XRfHffGixXFrVw=
+  template:
+    metadata:
+      name: gotify-secret
+      namespace: postgres
+    type: Opaque
