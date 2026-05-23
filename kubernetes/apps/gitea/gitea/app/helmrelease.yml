@@ -63,7 +63,7 @@ spec:
       admin:
         username: admin
         email: admin@blackcats.cc
-        passwordMode: initialSetup
+        passwordMode: initialOnlyNoReset
 
       config:
         database:
