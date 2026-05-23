@@ -30,6 +30,12 @@ spec:
             - name: reporter
               image: ghcr.io/lucid-void/backup-tools:v1.0.2
               command: ["/bin/bash", "/scripts/report.sh"]
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
               envFrom:
                 - secretRef:
                     name: gotify-secret

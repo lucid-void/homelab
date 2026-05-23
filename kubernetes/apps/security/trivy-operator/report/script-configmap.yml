@@ -60,9 +60,11 @@ data:
     ' 2>/dev/null || echo "")
 
     # ── Count totals ─────────────────────────────────────────────────────────
-    vuln_count=$(echo "$vuln_findings" | grep -c . 2>/dev/null || echo 0)
-    audit_count=$(echo "$audit_findings" | grep -c . 2>/dev/null || echo 0)
-    secret_count=$(echo "$secret_findings" | grep -c . 2>/dev/null || echo 0)
+    # grep -c exits 1 on no matches; use || true so $() captures only grep's
+    # own "0" output and doesn't double-print via a second echo.
+    vuln_count=$(echo "$vuln_findings" | grep -c . || true)
+    audit_count=$(echo "$audit_findings" | grep -c . || true)
+    secret_count=$(echo "$secret_findings" | grep -c . || true)
     total=$(( vuln_count + audit_count + secret_count ))
 
     echo "Vuln findings:   $vuln_count"
