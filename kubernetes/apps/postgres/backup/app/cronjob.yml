@@ -37,7 +37,7 @@ spec:
                 name: postgres-backup-databases
           containers:
             - name: backup
-              image: ghcr.io/lucid-void/backup-tools:v1.0.0
+              image: ghcr.io/lucid-void/backup-tools:v1.0.1
               command: ["/bin/bash", "/scripts/backup.sh"]
               envFrom:
                 - secretRef:
