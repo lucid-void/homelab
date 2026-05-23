@@ -9,6 +9,7 @@ csiDriver:
   # should be globally unique for a given cluster
   name: "synology.democratic-csi.nfs-client"
   fsGroupPolicy: File
+  attachRequired: false
 
 storageClasses:
   - name: nfs-client
@@ -112,6 +113,9 @@ driver:
 
 controller:
   enabled: true
+
+  externalAttacher:
+    enabled: false
 
   externalResizer:
     enabled: false
