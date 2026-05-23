@@ -48,6 +48,11 @@ spec:
         inherit: true
         passwordSecret:
           name: paperless-role-secret
+      - name: gitea
+        login: true
+        inherit: true
+        passwordSecret:
+          name: gitea-role-secret
 
   storage:
     size: 20Gi
