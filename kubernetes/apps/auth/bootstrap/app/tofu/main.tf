@@ -153,6 +153,51 @@ resource "kubernetes_secret_v1" "paperless_oidc_secret" {
   }
 }
 
+resource "zitadel_application_oidc" "gitea" {
+  project_id = zitadel_project.homelab.id
+  org_id     = local.org_id
+  name       = "Gitea"
+
+  redirect_uris = [
+    "https://gitea.blackcats.cc/user/oauth2/Zitadel/callback",
+  ]
+  post_logout_redirect_uris = [
+    "https://gitea.blackcats.cc",
+  ]
+
+  response_types   = ["OIDC_RESPONSE_TYPE_CODE"]
+  grant_types      = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
+  app_type         = "OIDC_APP_TYPE_WEB"
+  auth_method_type = "OIDC_AUTH_METHOD_TYPE_POST"
+
+  access_token_type           = "OIDC_TOKEN_TYPE_BEARER"
+  id_token_userinfo_assertion = true
+
+  version  = "OIDC_VERSION_1_0"
+  dev_mode = false
+}
+
+resource "kubernetes_secret_v1" "gitea_oidc_secret" {
+  metadata {
+    name      = "gitea-oidc-secret"
+    namespace = "gitea"
+  }
+  data = {
+    "values.yaml" = yamlencode({
+      gitea = {
+        oauth = [{
+          name            = "Zitadel"
+          provider        = "openidConnect"
+          key             = zitadel_application_oidc.gitea.client_id
+          secret          = zitadel_application_oidc.gitea.client_secret
+          autoDiscoverUrl = "https://zitadel.blackcats.cc/.well-known/openid-configuration"
+          scopes          = "openid email profile"
+        }]
+      }
+    })
+  }
+}
+
 resource "kubernetes_secret_v1" "immich_oidc_config" {
   metadata {
     name      = "immich-oidc-config"

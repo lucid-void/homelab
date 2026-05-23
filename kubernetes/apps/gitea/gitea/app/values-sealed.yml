@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gitea-helm-values
+  namespace: gitea
+spec:
+  encryptedData:
+    values.yaml: AgCQar6hPTTH1YJjf1TMK3SULI3O4JS8uL6vt5wGi0cYpzyGbmUEzlU1LDEgJoNLfmxFc8lrK6BoVy/cCDd+ywg5xAf84AX1ltt9sq1+EPP1lfD84AHBNVBQ2g5dMM3qLk/r+QijR+6cZDf19hZatYhlcEft5r8hda+rXSdo5gIBHJcSj+unX++d/fmRHqYITmwNlc+ePxg83NgxFOi/1lB6J9/D7/ve3yLRlbe2QL1S3HEyChOd6AnDP0//FkkJo1BMJvPQ5YB2967EsBIKrsxpuS/BxmUXTPlcqYzkb+PhyGbNAyHPgVSvQit3MAcDLXIDniSjgrMzYDCITeZKUekvrioNTL6uqDotFc7Uvy8gZ6t1Z3NMTXWdajkzr9yPqJ/mmJ4+N+oLcvBMmUcmflayxLinpadByJVzvi3wSTrKzXAB5ZK95p1HlCMY7/0CSUTndGBMyqfmJsqSNSSR/lZBgDYKzGw+jyKtnGgWfrScZhBeowqHp6PfJS+pd0oOTVkgAINe6M+c0/4Hks2WNuXM1na/5H6+kbTY/SKgkoLZlrWG6eWE8lhk9bZRLYDmAZk90UjoBxwZPTo3HxF/Qh1WWt+YMtsmysJ7PXH7v3JOd02dxNDnG7b14rrVJ4rVPZe2LiGacnBTnPUsfwzlVD2TzSnG8UPqEoV2AEkFTA83Ogj0a7J2GU8bYTJdsJo8v70weQszdH5FxcspqHgk2V2krXDrifqNDaEm+ljL9c90Nk1iBp3GziO9HZDv+xDb2XKXWwf114aGVQjsTWtH7BShdVPWVctEauisIQeu7JNbv97OAXMx9vr0LvhDHnDGJjehcaHBtJ2DnlGMrg==
+  template:
+    metadata:
+      name: gitea-helm-values
+      namespace: gitea
+    type: Opaque
