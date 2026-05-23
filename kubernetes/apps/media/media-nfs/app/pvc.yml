@@ -1,0 +1,37 @@
+# Static PV binding the existing Synology Media share at 172.16.20.2:/volume2/Media.
+# Not provisioned by democratic-csi — this is an existing NFS export, not a k8s-managed subdirectory.
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: media-nfs
+spec:
+  capacity:
+    storage: 2Ti
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  mountOptions:
+    - nfsvers=4.1
+    - hard
+  nfs:
+    server: 172.16.20.2
+    path: /volume2/Media
+  claimRef:
+    name: media-nfs
+    namespace: media
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-nfs
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: media-nfs
+  resources:
+    requests:
+      storage: 2Ti
