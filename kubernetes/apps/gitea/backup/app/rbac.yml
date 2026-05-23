@@ -12,11 +12,11 @@ metadata:
   namespace: gitea
 rules:
   - apiGroups: ["apps"]
-    resources: ["statefulsets"]
+    resources: ["deployments"]
     verbs: ["get", "list", "watch"]
     resourceNames: ["gitea"]
   - apiGroups: ["apps"]
-    resources: ["statefulsets/scale"]
+    resources: ["deployments/scale"]
     verbs: ["get", "update", "patch"]
     resourceNames: ["gitea"]
 ---

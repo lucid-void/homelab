@@ -63,7 +63,7 @@ spec:
       admin:
         username: admin
         email: admin@example.com
-        passwordMode: initialSetup
+        passwordMode: initialOnlyNoReset
 
       config:
         database:
