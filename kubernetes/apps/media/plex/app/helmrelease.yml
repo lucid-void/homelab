@@ -35,6 +35,7 @@ spec:
               PUID: "2202"
               PGID: "2200"
               VERSION: docker
+              ADVERTISE_IP: "https://plex.blackcats.cc:443"
               # PLEX_CLAIM: ""  # set once on first deploy if claiming a new server
             probes:
               liveness: &probes
