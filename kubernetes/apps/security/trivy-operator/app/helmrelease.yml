@@ -1,0 +1,44 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: trivy-operator
+  namespace: security
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: trivy-operator
+      version: "0.32.1"
+      sourceRef:
+        kind: HelmRepository
+        name: aquasecurity
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    operator:
+      vulnerabilityScannerEnabled: true
+      configAuditScannerEnabled: true
+      scanJobTimeout: 5m
+      # Scan user workloads only; exclude kube-system and flux-system noise
+      targetNamespaces: "auth,cert-manager,cnpg-system,democratic-csi,freshrss,gitea,homebox,homepage,immich,media,monitoring,network,paperless,postgres,security"
+
+    trivy:
+      # Standalone mode: pull the vuln DB once at operator startup, reuse for all scans.
+      # Avoids hitting ghcr.io for every pod event.
+      mode: standalone
+      dbRepository: ghcr.io/aquasecurity/trivy-db
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi

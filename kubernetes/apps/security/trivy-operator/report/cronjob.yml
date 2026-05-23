@@ -1,0 +1,45 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: security-report
+  namespace: security
+spec:
+  schedule: "0 8 * * 1"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: security-reporter
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            fsGroup: 65534
+          volumes:
+            - name: script
+              configMap:
+                name: security-report-script
+                defaultMode: 0755
+          containers:
+            - name: reporter
+              image: ghcr.io/lucid-void/backup-tools:v1.0.2
+              command: ["/bin/bash", "/scripts/report.sh"]
+              envFrom:
+                - secretRef:
+                    name: gotify-secret
+                    optional: true
+              volumeMounts:
+                - name: script
+                  mountPath: /scripts
+              resources:
+                requests:
+                  memory: 64Mi
+                  cpu: 50m
+                limits:
+                  memory: 256Mi

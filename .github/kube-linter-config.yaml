@@ -1,0 +1,50 @@
+checks:
+  # Start with the full default check set, then suppress known-acceptable cases.
+  # Add to ignoreObjects as violations are reviewed and accepted.
+  addAllBuiltIn: true
+
+  exclude:
+    # Linuxserver images (sonarr, radarr, prowlarr, sabnzbd) use PUID/PGID env
+    # vars to drop privileges at runtime rather than runAsNonRoot at the pod level.
+    # This is their documented pattern and cannot be changed without forking.
+    - id: "run-as-non-root"
+      objects:
+        - namespace: "media"
+          objectName: "sonarr"
+        - namespace: "media"
+          objectName: "radarr"
+        - namespace: "media"
+          objectName: "prowlarr"
+        - namespace: "media"
+          objectName: "sabnzbd"
+        - namespace: "media"
+          objectName: "plex"
+
+    # gotify-bootstrap Job intentionally runs as root to call kubectl
+    # across namespaces for secret provisioning.
+    - id: "run-as-non-root"
+      objects:
+        - namespace: "monitoring"
+          objectName: "gotify-bootstrap"
+    - id: "no-read-only-root-fs"
+      objects:
+        - namespace: "monitoring"
+          objectName: "gotify-bootstrap"
+
+    # Gotify uses SQLite on its data volume — needs a writable root FS.
+    - id: "no-read-only-root-fs"
+      objects:
+        - namespace: "monitoring"
+          objectName: "gotify"
+
+    # democratic-csi controller requires SYS_ADMIN + privileged for NFS mounts.
+    # Its namespace is explicitly labeled privileged PSS.
+    - id: "run-as-non-root"
+      objects:
+        - namespace: "democratic-csi"
+    - id: "no-read-only-root-fs"
+      objects:
+        - namespace: "democratic-csi"
+    - id: "privileged-container"
+      objects:
+        - namespace: "democratic-csi"
