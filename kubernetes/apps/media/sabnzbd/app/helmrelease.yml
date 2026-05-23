@@ -69,4 +69,4 @@ spec:
       media:
         existingClaim: media-nfs
         globalMounts:
-          - path: /media
+          - path: /Media
