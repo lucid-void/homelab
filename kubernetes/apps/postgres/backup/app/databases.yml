@@ -9,7 +9,6 @@ metadata:
   namespace: postgres
 data:
   databases: |
-    gitea
     paperless
     zitadel
     freshrss
