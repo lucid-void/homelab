@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - homebox2.blackcats.cc
+    - homebox.blackcats.cc
   rules:
     - backendRefs:
         - name: homebox
