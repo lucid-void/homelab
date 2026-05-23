@@ -12,6 +12,8 @@ data:
     NAMESPACE=gitea
     DEPLOYMENT=gitea
     DB_DUMP=/db/gitea.pgdump
+    LOG=/tmp/backup.log
+    exec > >(tee "$LOG") 2>&1
 
     notify_gotify() {
       local title="$1" msg="$2" priority="${3:-5}"
@@ -29,7 +31,9 @@ data:
       if [[ ${exit_code} -eq 0 ]]; then
         notify_gotify "Backup: gitea ✓" "Completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
       else
-        notify_gotify "Backup: gitea ✗" "Failed at $(date -u +%Y-%m-%dT%H:%M:%SZ) (exit ${exit_code})" 8
+        local tail_log
+        tail_log=$(tail -10 "$LOG" 2>/dev/null | awk '{gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s\\n", $0}')
+        notify_gotify "Backup: gitea ✗" "Exit ${exit_code} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n${tail_log}" 8
       fi
     }
     trap cleanup EXIT
