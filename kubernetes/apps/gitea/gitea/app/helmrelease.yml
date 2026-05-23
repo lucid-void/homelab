@@ -61,8 +61,8 @@ spec:
 
     gitea:
       admin:
-        username: admin
-        email: admin@blackcats.cc
+        username: void
+        email: mxmclaeys@gmail.com
         passwordMode: initialOnlyNoReset
 
       config:
