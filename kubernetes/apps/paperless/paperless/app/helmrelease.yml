@@ -49,6 +49,7 @@ spec:
               PAPERLESS_CONSUMPTION_DIR: /consume
               USERMAP_UID: "1000"
               USERMAP_GID: "1000"
+              PAPERLESS_APPS: "allauth.socialaccount.providers.openid_connect"
               PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL: "https"
               PAPERLESS_ACCOUNT_EMAIL_VERIFICATION: "none"
             envFrom:
