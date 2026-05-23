@@ -39,12 +39,12 @@ spec:
 
                 wget -q -O youlag.zip \
                   https://github.com/civilblur/youlag/releases/download/v4.4.2/youlag-4.4.2.zip
-                unzip -q youlag.zip
+                unzip -qo youlag.zip
                 rm youlag.zip
 
                 wget -q -O aisummary.zip \
                   https://github.com/deimosfr/xExtension-AiSummary/archive/refs/tags/v1.1.0.zip
-                unzip -q aisummary.zip
+                unzip -qo aisummary.zip
                 mv xExtension-AiSummary-1.1.0 xExtension-AiSummary
                 rm aisummary.zip
 
