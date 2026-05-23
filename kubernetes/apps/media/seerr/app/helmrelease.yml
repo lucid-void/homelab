@@ -24,7 +24,7 @@ spec:
   values:
     controllers:
       app:
-        replicas: 0
+        replicas: 1
         pod:
           securityContext:
             runAsUser: 2202
