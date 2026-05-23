@@ -13,7 +13,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ""
   mountOptions:
-    - nfsvers=4.1
+    - nfsvers=4
     - hard
   nfs:
     server: 172.16.20.2
