@@ -1,0 +1,75 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: plex
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 0
+        containers:
+          app:
+            image:
+              repository: lscr.io/linuxserver/plex
+              tag: "1.41.7"
+            env:
+              TZ: Europe/Brussels
+              PUID: "2202"
+              PGID: "2200"
+              VERSION: docker
+              # PLEX_CLAIM: ""  # set once on first deploy if claiming a new server
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /identity
+                    port: 32400
+                  initialDelaySeconds: 60
+                  periodSeconds: 30
+                  timeoutSeconds: 10
+                  failureThreshold: 5
+              readiness: *probes
+            resources:
+              requests:
+                memory: 1Gi
+                cpu: 100m
+              limits:
+                memory: 4Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 32400
+
+    persistence:
+      config:
+        existingClaim: plex-config
+        globalMounts:
+          - path: /config
+      media:
+        existingClaim: media-nfs
+        globalMounts:
+          - path: /media
+            readOnly: true
