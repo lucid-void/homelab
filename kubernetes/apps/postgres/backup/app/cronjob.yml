@@ -42,6 +42,8 @@ spec:
               envFrom:
                 - secretRef:
                     name: restic-secret
+                - secretRef:
+                    name: gotify-secret
               env:
                 - name: PGHOST
                   value: postgres-ro.postgres.svc.cluster.local

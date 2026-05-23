@@ -8,3 +8,4 @@ resources:
   - ./cronjob.yml
   - ./restic-sealed.yml
   - ./rclone-sealed.yml
+  - ./gotify-sealed.yml
