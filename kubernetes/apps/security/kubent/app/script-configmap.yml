@@ -1,0 +1,30 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubent-script
+  namespace: security
+data:
+  scan.sh: |
+    #!/bin/bash
+    set -uo pipefail
+
+    GOTIFY_URL="https://gotify.blackcats.cc"
+    KUBENT_VERSION="0.7.3"
+    LOG=$(mktemp)
+
+    curl -sL "https://github.com/doitintl/kube-no-trouble/releases/download/${KUBENT_VERSION}/kubent-${KUBENT_VERSION}-linux-amd64.tar.gz" \
+      | tar -xz -C /usr/local/bin kubent
+
+    if /usr/local/bin/kubent --exit-error -o text >"$LOG" 2>&1; then
+      curl -s -X POST "${GOTIFY_URL}/message" \
+        -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d '{"title":"kubent: clean","message":"No deprecated API versions found.","priority":3}'
+    else
+      body=$(tail -40 "$LOG" | awk '{gsub(/[\\"]/, "\\\\&"); printf "%s\\n", $0}')
+      curl -s -X POST "${GOTIFY_URL}/message" \
+        -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "{\"title\":\"kubent: deprecated APIs found\",\"message\":\"${body}\",\"priority\":8}"
+    fi
