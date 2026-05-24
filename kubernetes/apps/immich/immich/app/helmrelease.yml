@@ -34,6 +34,11 @@ spec:
               DB_PORT: "5432"
               DB_DATABASE_NAME: immich
               DB_USERNAME: immich
+              DB_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: immich-role-secret
+                    key: password
               DB_VECTOR_EXTENSION: pgvector
               REDIS_HOSTNAME: immich-valkey
               REDIS_PORT: "6379"

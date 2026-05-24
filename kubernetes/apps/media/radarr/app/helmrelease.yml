@@ -39,9 +39,11 @@ spec:
               RADARR__POSTGRES__USER: radarr
               RADARR__POSTGRES__MAINDB: radarr
               RADARR__POSTGRES__LOGDB: radarr-log
-            envFrom:
-              - secretRef:
-                  name: radarr-db-secret
+              RADARR__POSTGRES__PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: radarr-role-secret
+                    key: password
             probes:
               liveness: &probes
                 enabled: true

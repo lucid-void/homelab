@@ -24,5 +24,6 @@ resources:
   - ./jameswynn.yml
   - ./zitadel.yml
   - ./aquasecurity.yml
+  - ./reflector.yml
   # - ./kubernetes-dashboard.yml
   # - ./twin.yml

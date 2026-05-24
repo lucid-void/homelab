@@ -39,9 +39,11 @@ spec:
               SONARR__POSTGRES__USER: sonarr
               SONARR__POSTGRES__MAINDB: sonarr
               SONARR__POSTGRES__LOGDB: sonarr-log
-            envFrom:
-              - secretRef:
-                  name: sonarr-db-secret
+              SONARR__POSTGRES__PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: sonarr-role-secret
+                    key: password
             probes:
               liveness: &probes
                 enabled: true
