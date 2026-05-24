@@ -18,9 +18,7 @@ spec:
           serviceAccountName: security-reporter
           restartPolicy: Never
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 65534
-            fsGroup: 65534
+            runAsNonRoot: false
           volumes:
             - name: script
               configMap:
@@ -32,12 +30,6 @@ spec:
               command: ["/bin/sh", "-c"]
               args:
                 - apk add --no-cache bash curl jq kubectl >/dev/null 2>&1 && exec /bin/bash /scripts/report.sh
-              securityContext:
-                allowPrivilegeEscalation: false
-                capabilities:
-                  drop: ["ALL"]
-                seccompProfile:
-                  type: RuntimeDefault
               envFrom:
                 - secretRef:
                     name: gotify-secret
