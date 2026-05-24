@@ -31,6 +31,7 @@ spec:
     operator:
       vulnerabilityScannerEnabled: true
       configAuditScannerEnabled: true
+      infraAssessmentScannerEnabled: false
       scanJobTimeout: 5m
       scanJobsConcurrentLimit: 2
       # Scan user workloads only; exclude kube-system and flux-system noise
