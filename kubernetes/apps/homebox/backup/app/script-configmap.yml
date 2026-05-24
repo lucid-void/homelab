@@ -10,7 +10,7 @@ data:
     set -euo pipefail
 
     NAMESPACE=homebox
-    DEPLOYMENT=homebox-app
+    DEPLOYMENT=homebox
     LOG=/tmp/backup.log
     exec > >(tee "$LOG") 2>&1
 
