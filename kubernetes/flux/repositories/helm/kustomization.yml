@@ -25,5 +25,6 @@ resources:
   - ./zitadel.yml
   - ./aquasecurity.yml
   - ./reflector.yml
+  - ./descheduler.yml
   # - ./kubernetes-dashboard.yml
   # - ./twin.yml
