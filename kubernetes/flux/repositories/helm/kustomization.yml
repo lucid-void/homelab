@@ -26,5 +26,6 @@ resources:
   - ./aquasecurity.yml
   - ./reflector.yml
   - ./descheduler.yml
+  - ./fairwinds.yml
   # - ./kubernetes-dashboard.yml
   # - ./twin.yml
