@@ -86,6 +86,13 @@ config:
             description: Notifications
             icon: gotify.png
 
+resources:
+  requests:
+    memory: 64Mi
+    cpu: 25m
+  limits:
+    memory: 256Mi
+
 ingress:
   main:
     enabled: false
