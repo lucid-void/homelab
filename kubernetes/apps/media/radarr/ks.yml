@@ -12,6 +12,7 @@ spec:
   dependsOn:
     - name: media-nfs
     - name: shared-gateway
+    - name: radarr-database
   path: ./kubernetes/apps/media/radarr/app
   prune: true
   sourceRef:
