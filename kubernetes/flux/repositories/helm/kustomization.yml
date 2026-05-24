@@ -11,7 +11,7 @@ resources:
   - ./jetstack.yml
   # - ./metrics-server.yml
   # - ./netdata.yml
-  # - ./openebs.yml
+  - ./openebs.yml
   # - ./postfinance.yml
   - ./prometheus-community.yml
   - ./sealed-secrets.yml

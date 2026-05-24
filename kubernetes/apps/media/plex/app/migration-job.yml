@@ -1,0 +1,36 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: plex-config-migration
+  namespace: media
+spec:
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
+      volumes:
+        - name: source
+          persistentVolumeClaim:
+            claimName: plex-config
+        - name: dest
+          persistentVolumeClaim:
+            claimName: plex-config-local
+      containers:
+        - name: migrate
+          image: alpine:3.21
+          command:
+            - sh
+            - -c
+            - |
+              apk add --no-cache rsync
+              echo "Starting migration: $(du -sh /source | cut -f1) to copy"
+              rsync -av /source/ /dest/
+              echo "Done. Destination size: $(du -sh /dest | cut -f1)"
+          volumeMounts:
+            - name: source
+              mountPath: /source
+            - name: dest
+              mountPath: /dest

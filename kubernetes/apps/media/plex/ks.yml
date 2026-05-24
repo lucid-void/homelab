@@ -12,6 +12,7 @@ spec:
   dependsOn:
     - name: media-nfs
     - name: shared-gateway
+    - name: openebs
   path: ./kubernetes/apps/media/plex/app
   prune: true
   sourceRef:
