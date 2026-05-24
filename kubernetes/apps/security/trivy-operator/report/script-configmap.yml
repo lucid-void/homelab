@@ -5,38 +5,53 @@ metadata:
   name: security-report-script
   namespace: security
 data:
+  # Reads a Trivy CRD list (JSON on stdin), outputs TSV rows for Critical/High items.
+  # Usage: kubectl get <crd> --all-namespaces -o json | python3 /scripts/extract.py (owner|self)
+  # backup-tools image has no jq; Python is used throughout.
+  extract.py: |
+    import json, sys
+
+    use_owner = sys.argv[1] == "owner"
+    data = json.load(sys.stdin)
+    for item in data.get("items", []):
+        s = item.get("report", {}).get("summary", {})
+        crit = s.get("criticalCount", 0)
+        high = s.get("highCount", 0)
+        if crit > 0 or high > 0:
+            ns = item["metadata"]["namespace"]
+            refs = item["metadata"].get("ownerReferences", [])
+            name = refs[0]["name"] if (use_owner and refs) else item["metadata"]["name"]
+            print(f"{ns}\t{name}\t{crit}\t{high}")
+
+  # Builds the Gotify JSON payload.
+  # Usage: python3 /scripts/build_payload.py <body_file> <total> <priority>
+  build_payload.py: |
+    import json, sys
+
+    body_file, total, priority = sys.argv[1], sys.argv[2], int(sys.argv[3])
+    with open(body_file) as f:
+        message = f.read()
+    print(json.dumps({
+        "title": f"Security: {total} workloads with Critical/High findings",
+        "message": message,
+        "priority": priority,
+    }))
+
   report.sh: |
     #!/bin/bash
     set -euo pipefail
 
     GOTIFY_URL="https://gotify.blackcats.cc"
 
-    # ── python3 helper: extract Critical/High rows as TSV ────────────────────
-    # backup-tools image does not have jq; use python3 instead.
-    EXTRACT_PY='
-import json, sys
-use_owner = sys.argv[1] == "owner"
-data = json.load(sys.stdin)
-for item in data.get("items", []):
-    s = item.get("report", {}).get("summary", {})
-    crit = s.get("criticalCount", 0)
-    high = s.get("highCount", 0)
-    if crit > 0 or high > 0:
-        ns = item["metadata"]["namespace"]
-        refs = item["metadata"].get("ownerReferences", [])
-        name = refs[0]["name"] if (use_owner and refs) else item["metadata"]["name"]
-        print(f"{ns}\t{name}\t{crit}\t{high}")
-'
-
     # ── Collect findings ──────────────────────────────────────────────────────
     vuln_findings=$(kubectl get vulnerabilityreports --all-namespaces -o json 2>/dev/null \
-      | python3 -c "$EXTRACT_PY" owner 2>/dev/null || true)
+      | python3 /scripts/extract.py owner 2>/dev/null || true)
 
     audit_findings=$(kubectl get configauditreports --all-namespaces -o json 2>/dev/null \
-      | python3 -c "$EXTRACT_PY" self 2>/dev/null || true)
+      | python3 /scripts/extract.py self 2>/dev/null || true)
 
     secret_findings=$(kubectl get exposedsecretreports --all-namespaces -o json 2>/dev/null \
-      | python3 -c "$EXTRACT_PY" owner 2>/dev/null || true)
+      | python3 /scripts/extract.py owner 2>/dev/null || true)
 
     # ── Count totals ─────────────────────────────────────────────────────────
     # grep -c exits 1 on no matches; use || true so $() captures only grep's
@@ -104,19 +119,8 @@ for item in data.get("items", []):
     fi
 
     # ── Post to Gotify ────────────────────────────────────────────────────────
-    # Write body to temp file; pass total/priority as env vars to avoid quoting
     printf '%b' "$body" > /tmp/report_body.txt
-
-    payload=$(REPORT_TOTAL="$total" REPORT_PRIORITY="$priority" python3 -c "
-import json, os
-with open('/tmp/report_body.txt') as f:
-    message = f.read()
-print(json.dumps({
-    'title': 'Security: ' + os.environ['REPORT_TOTAL'] + ' workloads with Critical/High findings',
-    'message': message,
-    'priority': int(os.environ['REPORT_PRIORITY']),
-}))
-")
+    payload=$(python3 /scripts/build_payload.py /tmp/report_body.txt "$total" "$priority")
 
     curl -sf \
       -X POST "${GOTIFY_URL}/message" \
