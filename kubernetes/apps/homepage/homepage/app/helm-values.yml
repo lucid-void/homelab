@@ -85,6 +85,14 @@ config:
             href: https://gotify.example.com
             description: Notifications
             icon: gotify.png
+        - Gatus:
+            href: https://gatus.example.com
+            description: Status monitoring
+            icon: gatus.png
+        - Goldilocks:
+            href: https://goldilocks.example.com
+            description: VPA recommendations
+            icon: sh-goldilocks
 
 resources:
   requests:
