@@ -85,6 +85,14 @@ config:
             href: https://gotify.blackcats.cc
             description: Notifications
             icon: gotify.png
+        - Gatus:
+            href: https://gatus.blackcats.cc
+            description: Status monitoring
+            icon: gatus.png
+        - Goldilocks:
+            href: https://goldilocks.blackcats.cc
+            description: VPA recommendations
+            icon: sh-goldilocks
 
 resources:
   requests:
