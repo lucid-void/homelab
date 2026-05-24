@@ -34,6 +34,14 @@ spec:
               TZ: Europe/Brussels
               PUID: "2202"
               PGID: "2200"
+              RADARR__POSTGRES__HOST: postgres-rw.postgres.svc.cluster.local
+              RADARR__POSTGRES__PORT: "5432"
+              RADARR__POSTGRES__USER: radarr
+              RADARR__POSTGRES__MAINDB: radarr
+              RADARR__POSTGRES__LOGDB: radarr-log
+            envFrom:
+              - secretRef:
+                  name: radarr-db-secret
             probes:
               liveness: &probes
                 enabled: true

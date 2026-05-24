@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: radarr-db-secret
+  namespace: media
+spec:
+  encryptedData:
+    RADARR__POSTGRES__PASSWORD: AgC6/O+YPDqT3XW2ds5Ynwss9OnRWudZoEVGaJ+p+vkxXJZlenZU5rvGbgv7K/TG42+j/k3UuYttsEQTujzTYfUpjWgs0NEsqlnOEeNEYGHpqsXl5y38wJHMKtjFUKXNyaoeN+VB2DvcEMH1NpbS/TlrQ8fDcrWzc28R0NBmUgheluoAu7YSdu2GoF6cCZmZrkgIWkpzOIWW7X58ebxxn/VLlcvgPJP6ysJclDl42caafdRgFD26V64/G/TNIXvrrQyIabFFqGAZsqklGsr8frQy58ngLqANimiNZeiEtANzVgTaDgXHA2YQu+MdRityk0zJtVqZoo38DTXo239+XCsBl2aTKNOmltYBR9uMjHjKzdHJz7REv2KHkOCE9KsuaRDtmJiMLRk6O+5RbvU9vX8NZ/5tb7chl47r9SQU+NdtkA2TOkpXTgysYNYHv67ejMaCGInQk7JnkS8BcZ/G/bmYE99ZtMoEpVlY67+XIRDU+lsxaZCqVqbcspFV8imjzAVGsD5dOvj9py7XoZNKLPhZRvH5kdYj+izm+nM4Qo5HmmTNUBIrKTh9QYEL03U+vBlwRs0eSOInIqFPKg5IjGqy8yOG7018NJexmm+l+d36f6poR5vZORKOpgrk1mrVFDzTY01ZAjTaK1BOT88FyuyF77GioxuoGrQSMk1KvgY3awHEP/tvJD7NMG7nHc6F/OIoT7N7kpBmf5bAYFbZCph8w1r1s3E5qw==
+  template:
+    metadata:
+      name: radarr-db-secret
+      namespace: media
+    type: Opaque
