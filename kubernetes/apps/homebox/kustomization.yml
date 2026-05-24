@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./namespace.yml
   - ./homebox/ks.yml
+  - ./backup/ks.yml

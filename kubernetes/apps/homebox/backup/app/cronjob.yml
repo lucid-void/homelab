@@ -1,0 +1,72 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: homebox-backup
+  namespace: homebox
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 14400
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: homebox-backup
+          restartPolicy: Never
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: homebox
+                      app.kubernetes.io/component: app
+                  topologyKey: kubernetes.io/hostname
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            fsGroup: 65534
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: homebox-data
+                readOnly: true
+            - name: rclone-config
+              secret:
+                secretName: rclone-secret
+                defaultMode: 0440
+            - name: script
+              configMap:
+                name: homebox-backup-script
+                defaultMode: 0755
+          containers:
+            - name: backup
+              image: ghcr.io/lucid-void/backup-tools:v1.0.2
+              command: ["/bin/bash", "/scripts/backup.sh"]
+              envFrom:
+                - secretRef:
+                    name: restic-secret
+                - secretRef:
+                    name: gotify-secret
+                    optional: true
+              env:
+                - name: RCLONE_CONFIG
+                  value: /rclone-config/rclone.conf
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                  readOnly: true
+                - name: rclone-config
+                  mountPath: /rclone-config
+                  readOnly: true
+                - name: script
+                  mountPath: /scripts
+              resources:
+                requests:
+                  memory: 128Mi
+                  cpu: 50m
+                limits:
+                  memory: 512Mi
