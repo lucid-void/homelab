@@ -1,0 +1,40 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gitea-db-bootstrap
+  namespace: gitea
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: gitea-db-bootstrap
+      containers:
+        - name: bootstrap
+          image: alpine:3.21
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              apk add --no-cache kubectl >/dev/null 2>&1
+
+              kubectl create secret generic gitea-db-env \
+                --namespace=gitea \
+                --from-literal="GITEA__database__PASSWD=${DB_PASSWORD}" \
+                --dry-run=client -o yaml | kubectl apply -f -
+
+              echo "gitea-db-env secret created/updated."
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-role-secret
+                  key: password
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi

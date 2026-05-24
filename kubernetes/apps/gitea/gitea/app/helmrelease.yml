@@ -59,6 +59,10 @@ spec:
       limits:
         memory: 512Mi
 
+    extraEnvFrom:
+      - secretRef:
+          name: gitea-db-env
+
     gitea:
       admin:
         username: void

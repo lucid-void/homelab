@@ -11,6 +11,7 @@ spec:
       app.kubernetes.io/name: *app
   dependsOn:
     - name: gitea-database
+    - name: gitea-db-bootstrap
     - name: shared-gateway
     - name: sealed-secrets
     - name: zitadel-bootstrap
