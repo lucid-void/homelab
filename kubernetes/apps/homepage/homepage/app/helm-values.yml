@@ -92,7 +92,7 @@ config:
         - Goldilocks:
             href: https://goldilocks.example.com
             description: VPA recommendations
-            icon: sh-goldilocks
+            icon: goldilocks.png
 
 resources:
   requests:
