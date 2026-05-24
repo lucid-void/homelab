@@ -1,0 +1,141 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatus-config
+  namespace: monitoring
+data:
+  config.yaml: |
+    storage:
+      type: sqlite
+      path: /data/gatus.db
+
+    web:
+      port: 8080
+
+    ui:
+      title: Homelab Status
+      header: Homelab Status
+
+    alerting:
+      gotify:
+        server-url: http://gotify.monitoring.svc.cluster.local
+        token: "${GOTIFY_TOKEN}"
+        default-alert:
+          enabled: true
+          failure-threshold: 2
+          success-threshold: 2
+
+    endpoints:
+      - name: Homepage
+        group: infrastructure
+        url: https://home.blackcats.cc
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Gotify
+        group: infrastructure
+        url: https://gotify.blackcats.cc/health
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Zitadel
+        group: infrastructure
+        url: https://zitadel.blackcats.cc/debug/ready
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Gitea
+        group: infrastructure
+        url: https://gitea.blackcats.cc
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Immich
+        group: apps
+        url: https://immich.blackcats.cc/api/server/ping
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[BODY].res == pong"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Paperless
+        group: apps
+        url: https://paperless.blackcats.cc
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: FreshRSS
+        group: apps
+        url: https://rss.blackcats.cc
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Homebox
+        group: apps
+        url: https://homebox.blackcats.cc
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Plex
+        group: media
+        url: https://plex.blackcats.cc/identity
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Sonarr
+        group: media
+        url: https://sonarr.blackcats.cc/ping
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Radarr
+        group: media
+        url: https://radarr.blackcats.cc/ping
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Prowlarr
+        group: media
+        url: https://prowlarr.blackcats.cc/ping
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: SABnzbd
+        group: media
+        url: https://nzb.blackcats.cc
+        interval: 1m
+        conditions:
+          - "[STATUS] < 400"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Seerr
+        group: media
+        url: https://seerr.blackcats.cc/api/v1/status
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
