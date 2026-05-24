@@ -21,6 +21,7 @@ locals {
       dns_records= []
       boot_order = 2
       up_delay   = 0
+      started    = false
     }
     monitoring = {
       vm_id      = 2011
@@ -32,6 +33,7 @@ locals {
       dns_records= []
       boot_order = 7
       up_delay   = 15
+      started    = false
     }
     media = {
       vm_id      = 2012
@@ -43,6 +45,7 @@ locals {
       dns_records= [] #sabnzbd, flaresolver, plex
       boot_order = 4
       up_delay   = 15
+      started    = false
     }
     services = {
       vm_id      = 2013
@@ -61,6 +64,7 @@ locals {
       ]
       boot_order = 3
       up_delay   = 30
+      started    = false
     }
   }
 }
@@ -76,6 +80,7 @@ resource "proxmox_virtual_environment_vm" "nodes" { #TODO update template accord
   name      = each.key
   node_name = local.node_name
   tags      = each.value.tags
+  started   = each.value.started
 
 
   clone {
