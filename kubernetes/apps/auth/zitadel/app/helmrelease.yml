@@ -26,6 +26,18 @@ spec:
       name: zitadel-helm-values
       valuesKey: values.yaml
   values:
+    env:
+      - name: ZITADEL_DATABASE_POSTGRES_USER_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: zitadel-role-secret
+            key: password
+      - name: ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: zitadel-role-secret
+            key: password
+
     replicaCount: 1
 
     # bitnami/kubectl has no version tags — only latest and digests.

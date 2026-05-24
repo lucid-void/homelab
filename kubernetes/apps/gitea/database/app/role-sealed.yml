@@ -12,4 +12,9 @@ spec:
     metadata:
       name: gitea-role-secret
       namespace: postgres
+      annotations:
+        reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+        reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "gitea"
+        reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+        reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "gitea"
     type: kubernetes.io/basic-auth
