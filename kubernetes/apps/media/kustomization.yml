@@ -5,6 +5,7 @@ resources:
   - ./namespace.yml
   - ./media-nfs/ks.yml
   - ./sonarr/ks.yml
+  - ./radarr/database/ks.yml
   - ./radarr/ks.yml
   - ./prowlarr/ks.yml
   - ./sabnzbd/ks.yml

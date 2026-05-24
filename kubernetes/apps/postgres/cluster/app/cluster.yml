@@ -53,6 +53,11 @@ spec:
         inherit: true
         passwordSecret:
           name: gitea-role-secret
+      - name: radarr
+        login: true
+        inherit: true
+        passwordSecret:
+          name: radarr-role-secret
 
   storage:
     size: 20Gi
