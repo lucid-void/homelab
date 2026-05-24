@@ -11,53 +11,32 @@ data:
 
     GOTIFY_URL="https://gotify.blackcats.cc"
 
-    # ── Collect vulnerability findings ──────────────────────────────────────
-    vuln_json=$(kubectl get vulnerabilityreports --all-namespaces -o json 2>/dev/null)
-    vuln_findings=$(echo "$vuln_json" | jq -r '
-      .items[]
-      | select(
-          (.report.summary.criticalCount // 0) > 0
-          or (.report.summary.highCount // 0) > 0
-        )
-      | [
-          .metadata.namespace,
-          (.metadata.ownerReferences[0].name // .metadata.name),
-          (.report.summary.criticalCount // 0 | tostring),
-          (.report.summary.highCount // 0 | tostring)
-        ]
-      | @tsv
-    ' 2>/dev/null || echo "")
+    # ── python3 helper: extract Critical/High rows as TSV ────────────────────
+    # backup-tools image does not have jq; use python3 instead.
+    EXTRACT_PY='
+import json, sys
+use_owner = sys.argv[1] == "owner"
+data = json.load(sys.stdin)
+for item in data.get("items", []):
+    s = item.get("report", {}).get("summary", {})
+    crit = s.get("criticalCount", 0)
+    high = s.get("highCount", 0)
+    if crit > 0 or high > 0:
+        ns = item["metadata"]["namespace"]
+        refs = item["metadata"].get("ownerReferences", [])
+        name = refs[0]["name"] if (use_owner and refs) else item["metadata"]["name"]
+        print(f"{ns}\t{name}\t{crit}\t{high}")
+'
 
-    # ── Collect config audit findings ────────────────────────────────────────
-    audit_json=$(kubectl get configauditreports --all-namespaces -o json 2>/dev/null)
-    audit_findings=$(echo "$audit_json" | jq -r '
-      .items[]
-      | select(
-          (.report.summary.criticalCount // 0) > 0
-          or (.report.summary.highCount // 0) > 0
-        )
-      | [
-          .metadata.namespace,
-          .metadata.name,
-          (.report.summary.criticalCount // 0 | tostring),
-          (.report.summary.highCount // 0 | tostring)
-        ]
-      | @tsv
-    ' 2>/dev/null || echo "")
+    # ── Collect findings ──────────────────────────────────────────────────────
+    vuln_findings=$(kubectl get vulnerabilityreports --all-namespaces -o json 2>/dev/null \
+      | python3 -c "$EXTRACT_PY" owner 2>/dev/null || true)
 
-    # ── Collect exposed secret findings ──────────────────────────────────────
-    secret_json=$(kubectl get exposedsecretreports --all-namespaces -o json 2>/dev/null)
-    secret_findings=$(echo "$secret_json" | jq -r '
-      .items[]
-      | select((.report.summary.criticalCount // 0) > 0 or (.report.summary.highCount // 0) > 0)
-      | [
-          .metadata.namespace,
-          (.metadata.ownerReferences[0].name // .metadata.name),
-          (.report.summary.criticalCount // 0 | tostring),
-          (.report.summary.highCount // 0 | tostring)
-        ]
-      | @tsv
-    ' 2>/dev/null || echo "")
+    audit_findings=$(kubectl get configauditreports --all-namespaces -o json 2>/dev/null \
+      | python3 -c "$EXTRACT_PY" self 2>/dev/null || true)
+
+    secret_findings=$(kubectl get exposedsecretreports --all-namespaces -o json 2>/dev/null \
+      | python3 -c "$EXTRACT_PY" owner 2>/dev/null || true)
 
     # ── Count totals ─────────────────────────────────────────────────────────
     # grep -c exits 1 on no matches; use || true so $() captures only grep's
@@ -125,11 +104,19 @@ data:
     fi
 
     # ── Post to Gotify ────────────────────────────────────────────────────────
-    payload=$(jq -n \
-      --arg title "Security: ${total} workloads with Critical/High findings" \
-      --arg message "$(printf '%b' "$body")" \
-      --argjson priority "$priority" \
-      '{title: $title, message: $message, priority: $priority}')
+    # Write body to temp file; pass total/priority as env vars to avoid quoting
+    printf '%b' "$body" > /tmp/report_body.txt
+
+    payload=$(REPORT_TOTAL="$total" REPORT_PRIORITY="$priority" python3 -c "
+import json, os
+with open('/tmp/report_body.txt') as f:
+    message = f.read()
+print(json.dumps({
+    'title': 'Security: ' + os.environ['REPORT_TOTAL'] + ' workloads with Critical/High findings',
+    'message': message,
+    'priority': int(os.environ['REPORT_PRIORITY']),
+}))
+")
 
     curl -sf \
       -X POST "${GOTIFY_URL}/message" \
