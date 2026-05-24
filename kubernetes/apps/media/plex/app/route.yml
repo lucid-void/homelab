@@ -15,5 +15,5 @@ spec:
     - plex.blackcats.cc
   rules:
     - backendRefs:
-        - name: plex
+        - name: plex-app
           port: 32400

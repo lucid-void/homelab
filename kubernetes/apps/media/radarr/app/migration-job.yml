@@ -1,0 +1,46 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: radarr-sqlite-migration
+  namespace: media
+spec:
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 2202
+        runAsGroup: 2200
+        fsGroup: 2200
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: radarr-config
+      containers:
+        - name: pgloader
+          image: ghcr.io/roxedus/pgloader:latest
+          env:
+            - name: PG_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: radarr-db-secret
+                  key: RADARR__POSTGRES__PASSWORD
+          command:
+            - sh
+            - -c
+            - |
+              cat > /tmp/radarr.load << EOF
+              LOAD DATABASE
+                FROM sqlite:///config/radarr.db
+                INTO postgresql://radarr:${PG_PASS}@postgres-rw.postgres.svc.cluster.local/radarr
+              WITH data only,
+                   truncate,
+                   reset sequences,
+                   quote identifiers
+              ;
+              EOF
+              pgloader --verbose /tmp/radarr.load
+          volumeMounts:
+            - name: config
+              mountPath: /config
