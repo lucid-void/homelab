@@ -1,0 +1,28 @@
+popeye:
+  # Mute findings that are expected/noise for this cluster
+  overrides:
+    # POP-1109: single endpoint per service — homelab runs single replicas by design
+    - code: 1109
+      severity: 1
+
+  excludes:
+    # Talos doesn't create these built-in controller ServiceAccounts
+    rbac.authorization.k8s.io/v1/clusterrolebindings:
+      - name: "rx:^system:controller:"
+      - name: "system:kube-dns"
+
+    # Cilium metrics endpoints use non-standard port naming that Popeye can't resolve
+    # Spegel services have correct pods but Popeye label-matching false-positives
+    v1/services:
+      - name: "kube-system/cilium-agent"
+      - name: "kube-system/cilium-operator"
+      - name: "kube-system/spegel"
+      - name: "kube-system/spegel-bootstrap"
+      - name: "kube-system/spegel-registry"
+
+    # cert-manager and external-dns legitimately need API server credential automounting
+    v1/serviceaccounts:
+      - name: "cert-manager/cert-manager"
+      - name: "cert-manager/cert-manager-cainjector"
+      - name: "cert-manager/cert-manager-webhook"
+      - name: "network/external-dns"

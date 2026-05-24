@@ -111,6 +111,10 @@ driver:
 #
 # Uncomment the lines/sections below appropriate for your desired use-case
 
+node:
+  driver:
+    image: ghcr.io/democratic-csi/democratic-csi:v1.9.5
+
 controller:
   enabled: true
 
@@ -128,6 +132,7 @@ controller:
   hostIPC: true
 
   driver:
+    image: ghcr.io/democratic-csi/democratic-csi:v1.9.5
     securityContext:
       allowPrivilegeEscalation: true
       capabilities:

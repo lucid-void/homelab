@@ -29,6 +29,12 @@ spec:
             image:
               repository: alpine
               tag: "3.23"
+            resources:
+              requests:
+                memory: 64Mi
+                cpu: 50m
+              limits:
+                memory: 256Mi
             command:
               - /bin/sh
               - -c
