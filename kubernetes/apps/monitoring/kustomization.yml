@@ -6,3 +6,4 @@ resources:
   - ./gotify/ks.yml
   - ./gotify-bootstrap/ks.yml
   - ./gotify-telegram/ks.yml
+  - ./gatus/ks.yml

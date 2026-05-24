@@ -72,13 +72,15 @@ spec:
               paperless_token=$(create_or_get_app_token "paperless-backup" "Paperless backup job notifications")
               gitea_token=$(create_or_get_app_token "gitea-backup" "Gitea backup job notifications")
               security_token=$(create_or_get_app_token "security-scanner" "Trivy weekly security report")
+              gatus_token=$(create_or_get_app_token "gatus" "Gatus health monitoring alerts")
               client_token=$(create_or_get_client_token "admin")
 
-              upsert_secret "postgres"  "gotify-secret" "GOTIFY_TOKEN" "$postgres_token"
-              upsert_secret "immich"    "gotify-secret" "GOTIFY_TOKEN" "$immich_token"
-              upsert_secret "paperless" "gotify-secret" "GOTIFY_TOKEN" "$paperless_token"
-              upsert_secret "gitea"     "gotify-secret" "GOTIFY_TOKEN" "$gitea_token"
-              upsert_secret "security"  "gotify-secret" "GOTIFY_TOKEN" "$security_token"
+              upsert_secret "postgres"   "gotify-secret"       "GOTIFY_TOKEN" "$postgres_token"
+              upsert_secret "immich"     "gotify-secret"       "GOTIFY_TOKEN" "$immich_token"
+              upsert_secret "paperless"  "gotify-secret"       "GOTIFY_TOKEN" "$paperless_token"
+              upsert_secret "gitea"      "gotify-secret"       "GOTIFY_TOKEN" "$gitea_token"
+              upsert_secret "security"   "gotify-secret"       "GOTIFY_TOKEN" "$security_token"
+              upsert_secret "monitoring" "gatus-gotify-secret" "GOTIFY_TOKEN" "$gatus_token"
               upsert_secret "monitoring" "gotify-client-secret" "CLIENT_TOKEN" "$client_token"
 
               echo "Bootstrap complete."
@@ -86,6 +88,7 @@ spec:
               echo "  immich-backup app token    : ${immich_token}"
               echo "  paperless-backup app token : ${paperless_token}"
               echo "  gitea-backup app token     : ${gitea_token}"
+              echo "  gatus app token            : ${gatus_token}"
               echo "  admin client token         : ${client_token}"
           env:
             - name: GOTIFY_ADMIN_PASS
