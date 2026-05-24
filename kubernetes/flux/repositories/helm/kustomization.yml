@@ -28,5 +28,6 @@ resources:
   - ./descheduler.yml
   - ./fairwinds.yml
   - ./falcosecurity.yml
+  - ./k8s-cleaner.yml
   # - ./kubernetes-dashboard.yml
   # - ./twin.yml

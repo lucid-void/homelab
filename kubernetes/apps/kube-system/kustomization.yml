@@ -13,3 +13,4 @@ resources:
   - ./spegel/ks.yml
   - ./sealed-secrets/ks.yml
   - ./descheduler/ks.yml
+  - ./k8s-cleaner/ks.yml
