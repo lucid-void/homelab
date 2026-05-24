@@ -1,0 +1,46 @@
+---
+apiVersion: apps.projectsveltos.io/v1alpha1
+kind: Cleaner
+metadata:
+  name: succeeded-pods
+spec:
+  schedule: "0 */6 * * *"
+  resourcePolicySet:
+    resourceSelectors:
+      - kind: Pod
+        group: ""
+        version: v1
+    aggregatedSelection: |
+      function evaluate(resources)
+        local toDelete = {}
+        for _, resource in ipairs(resources) do
+          if resource.status ~= nil and resource.status.phase == "Succeeded" then
+            table.insert(toDelete, resource)
+          end
+        end
+        return {resources = toDelete}
+      end
+  action: Delete
+---
+apiVersion: apps.projectsveltos.io/v1alpha1
+kind: Cleaner
+metadata:
+  name: failed-pods
+spec:
+  schedule: "30 */6 * * *"
+  resourcePolicySet:
+    resourceSelectors:
+      - kind: Pod
+        group: ""
+        version: v1
+    aggregatedSelection: |
+      function evaluate(resources)
+        local toDelete = {}
+        for _, resource in ipairs(resources) do
+          if resource.status ~= nil and resource.status.phase == "Failed" then
+            table.insert(toDelete, resource)
+          end
+        end
+        return {resources = toDelete}
+      end
+  action: Delete
