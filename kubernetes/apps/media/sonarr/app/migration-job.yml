@@ -1,0 +1,46 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sonarr-sqlite-migration
+  namespace: media
+spec:
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 2202
+        runAsGroup: 2200
+        fsGroup: 2200
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: sonarr-config
+      containers:
+        - name: pgloader
+          image: ghcr.io/roxedus/pgloader:latest
+          env:
+            - name: PG_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: sonarr-db-secret
+                  key: SONARR__POSTGRES__PASSWORD
+          command:
+            - sh
+            - -c
+            - |
+              cat > /tmp/sonarr.load << EOF
+              LOAD DATABASE
+                FROM sqlite:///config/sonarr.db
+                INTO postgresql://sonarr:${PG_PASS}@postgres-rw.postgres.svc.cluster.local/sonarr
+              WITH data only,
+                   truncate,
+                   reset sequences,
+                   quote identifiers
+              ;
+              EOF
+              pgloader --verbose /tmp/sonarr.load
+          volumeMounts:
+            - name: config
+              mountPath: /config

@@ -15,5 +15,5 @@ spec:
     - plex.example.com
   rules:
     - backendRefs:
-        - name: plex
+        - name: plex-app
           port: 32400
