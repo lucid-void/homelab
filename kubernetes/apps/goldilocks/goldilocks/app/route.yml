@@ -16,4 +16,4 @@ spec:
   rules:
     - backendRefs:
         - name: goldilocks-dashboard
-          port: 8080
+          port: 80
