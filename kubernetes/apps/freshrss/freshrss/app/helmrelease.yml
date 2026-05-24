@@ -62,6 +62,11 @@ spec:
               DB_PORT: "5432"
               DB_BASE: freshrss
               DB_USER: freshrss
+              DB_PASS:
+                valueFrom:
+                  secretKeyRef:
+                    name: freshrss-role-secret
+                    key: password
               OIDC_ENABLED: "1"
               OIDC_PROVIDER_METADATA_URL: "https://zitadel.blackcats.cc/.well-known/openid-configuration"
               OIDC_SCOPES: "openid email profile"
@@ -70,8 +75,6 @@ spec:
               OIDC_X_FORWARDED_HEADERS: "X-Forwarded-Host X-Forwarded-Port X-Forwarded-Proto"
               OIDC_CLIENT_CRYPTO_KEY: "freshrss-oidc-session-key-blackcats"
             envFrom:
-              - secretRef:
-                  name: freshrss-app-secret
               - secretRef:
                   name: freshrss-oidc-secret
             probes:

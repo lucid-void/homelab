@@ -38,6 +38,11 @@ spec:
               PAPERLESS_DBPORT: "5432"
               PAPERLESS_DBNAME: paperless
               PAPERLESS_DBUSER: paperless
+              PAPERLESS_DBPASS:
+                valueFrom:
+                  secretKeyRef:
+                    name: paperless-role-secret
+                    key: password
               PAPERLESS_REDIS: redis://paperless-valkey:6379
               PAPERLESS_URL: https://paperless.blackcats.cc
               PAPERLESS_TIME_ZONE: Europe/Brussels
