@@ -1,0 +1,68 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homebox-backup-script
+  namespace: homebox
+data:
+  backup.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    NAMESPACE=homebox
+    DEPLOYMENT=homebox-app
+    LOG=/tmp/backup.log
+    exec > >(tee "$LOG") 2>&1
+
+    notify_gotify() {
+      local title="$1" msg="$2" priority="${3:-5}"
+      curl -sf -X POST "https://gotify.blackcats.cc/message" \
+        -H "Content-Type: application/json" \
+        -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+        -d "{\"title\":\"${title}\",\"message\":\"${msg}\",\"priority\":${priority}}" \
+        >/dev/null || true
+    }
+
+    cleanup() {
+      local exit_code=$?
+      echo "[backup] Scaling ${DEPLOYMENT} back to 1 replica..."
+      kubectl scale deployment/${DEPLOYMENT} -n ${NAMESPACE} --replicas=1 || true
+      if [[ ${exit_code} -eq 0 ]]; then
+        notify_gotify "Backup: homebox ✓" "Completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      else
+        local tail_log
+        tail_log=$(tail -10 "$LOG" 2>/dev/null | awk '{gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s\\n", $0}')
+        notify_gotify "Backup: homebox ✗" "Exit ${exit_code} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n${tail_log}" 8
+      fi
+    }
+    trap cleanup EXIT
+
+    echo "[backup] Starting at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    # Scale down so SQLite is in a consistent state before backing up
+    echo "[backup] Scaling down ${DEPLOYMENT}..."
+    kubectl scale deployment/${DEPLOYMENT} -n ${NAMESPACE} --replicas=0
+    kubectl rollout status deployment/${DEPLOYMENT} -n ${NAMESPACE} --timeout=120s
+    echo "[backup] ${DEPLOYMENT} is down"
+
+    # Init restic repo on Filen if this is the first run
+    if ! restic cat config &>/dev/null; then
+      echo "[backup] Initialising new restic repository on Filen..."
+      restic init
+    fi
+
+    # Back up the data directory (contains homebox.db SQLite file)
+    echo "[backup] Running restic backup..."
+    restic backup /data \
+      --tag "$(date +%Y-%m-%d)" \
+      --tag homebox \
+      --verbose
+
+    echo "[backup] Pruning old snapshots..."
+    restic forget --keep-daily 30 --prune
+
+    echo "[backup] Checking repository integrity..."
+    restic check --read-data-subset=1/10
+
+    echo "[backup] Done at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    # trap fires here → scale back up

@@ -1,0 +1,35 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: homebox-backup
+  namespace: homebox
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: homebox-backup
+  namespace: homebox
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+    resourceNames: ["homebox-app"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "update", "patch"]
+    resourceNames: ["homebox-app"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: homebox-backup
+  namespace: homebox
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: homebox-backup
+subjects:
+  - kind: ServiceAccount
+    name: homebox-backup
+    namespace: homebox
