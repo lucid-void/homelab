@@ -27,5 +27,6 @@ resources:
   - ./reflector.yml
   - ./descheduler.yml
   - ./fairwinds.yml
+  - ./falcosecurity.yml
   # - ./kubernetes-dashboard.yml
   # - ./twin.yml

@@ -73,6 +73,7 @@ spec:
               gitea_token=$(create_or_get_app_token "gitea-backup" "Gitea backup job notifications")
               homebox_token=$(create_or_get_app_token "homebox-backup" "Homebox backup job notifications")
               security_token=$(create_or_get_app_token "security-scanner" "Trivy weekly security report")
+              falco_token=$(create_or_get_app_token "falco" "Falco runtime security alerts")
               gatus_token=$(create_or_get_app_token "gatus" "Gatus health monitoring alerts")
               client_token=$(create_or_get_client_token "admin")
 
@@ -82,6 +83,7 @@ spec:
               upsert_secret "paperless"  "gotify-secret"       "GOTIFY_TOKEN" "$paperless_token"
               upsert_secret "gitea"      "gotify-secret"       "GOTIFY_TOKEN" "$gitea_token"
               upsert_secret "security"   "gotify-secret"       "GOTIFY_TOKEN" "$security_token"
+              upsert_secret "security"   "falco-gotify-secret" "GOTIFY_TOKEN" "$falco_token"
               upsert_secret "monitoring" "gatus-gotify-secret" "GOTIFY_TOKEN" "$gatus_token"
               upsert_secret "monitoring" "gotify-client-secret" "CLIENT_TOKEN" "$client_token"
 
@@ -92,6 +94,7 @@ spec:
               echo "  paperless-backup app token : ${paperless_token}"
               echo "  gitea-backup app token     : ${gitea_token}"
               echo "  gatus app token            : ${gatus_token}"
+              echo "  falco app token            : ${falco_token}"
               echo "  admin client token         : ${client_token}"
           env:
             - name: GOTIFY_ADMIN_PASS
