@@ -59,6 +59,14 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
+      - name: Goldilocks
+        group: infrastructure
+        url: https://goldilocks.blackcats.cc
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
       - name: Immich
         group: apps
         url: https://immich.blackcats.cc/api/server/ping
@@ -81,7 +89,7 @@ data:
         url: https://rss.blackcats.cc
         interval: 1m
         conditions:
-          - "[STATUS] == 200"
+          - "[STATUS] == 401"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
       - name: Homebox
