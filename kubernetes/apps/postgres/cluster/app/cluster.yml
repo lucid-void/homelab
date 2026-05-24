@@ -58,6 +58,11 @@ spec:
         inherit: true
         passwordSecret:
           name: radarr-role-secret
+      - name: sonarr
+        login: true
+        inherit: true
+        passwordSecret:
+          name: sonarr-role-secret
 
   storage:
     size: 20Gi

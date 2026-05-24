@@ -34,6 +34,14 @@ spec:
               TZ: Europe/Brussels
               PUID: "2202"
               PGID: "2200"
+              SONARR__POSTGRES__HOST: postgres-rw.postgres.svc.cluster.local
+              SONARR__POSTGRES__PORT: "5432"
+              SONARR__POSTGRES__USER: sonarr
+              SONARR__POSTGRES__MAINDB: sonarr
+              SONARR__POSTGRES__LOGDB: sonarr-log
+            envFrom:
+              - secretRef:
+                  name: sonarr-db-secret
             probes:
               liveness: &probes
                 enabled: true
