@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
   - ./namespace.yml
   - ./database/ks.yml
+  - ./db-bootstrap/ks.yml
   - ./gitea/ks.yml
   - ./backup/ks.yml
