@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - ./namespace.yml
   - ./media-nfs/ks.yml
+  - ./sonarr/database/ks.yml
   - ./sonarr/ks.yml
   - ./radarr/database/ks.yml
   - ./radarr/ks.yml

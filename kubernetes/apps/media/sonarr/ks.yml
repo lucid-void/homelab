@@ -12,6 +12,7 @@ spec:
   dependsOn:
     - name: media-nfs
     - name: shared-gateway
+    - name: sonarr-database
   path: ./kubernetes/apps/media/sonarr/app
   prune: true
   sourceRef:

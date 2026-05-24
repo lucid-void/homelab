@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: sonarr-db-secret
+  namespace: media
+spec:
+  encryptedData:
+    SONARR__POSTGRES__PASSWORD: AgCZ4iXsOn7YsZCYujc2ObwbpZFytN61ui8al7w+Dzh7jDSF/F76tVvvGM4tBfXnSP75uQ5IWbBu94acB4l+Kj20iWCPUEvF60sJ48gW56ozinvm97rYzaA+fS8XZkEqQlbcp22ZhSfsMZvYnM+23GC6a/tJ/Enken5+OuitPoXCFT/2BCh2jCLEId7oMfRUbT96NvsGxQpHUL8yS280l+dEKsXjY5OCqfKO5jLOs/jfaP7AC9n3iXxZqT2ewsviZJEc+Hi02JCe/iiJ3blwKeL5i+uHSlaCcZKOq0ziaZ0+Dd3F3GKhX2ramCAkI9vFjdIVh8a9rVp5sVtFuX78dLDOCfFh+iKhA0oLPZztrGzM9sJNBoFEtuakepkL/NBaN03UyMj5+b13m4qq9OP2TnUhkLfD9xuV6P0nt9RkpvYl/7EGeLehSPlLqr6tkmRa3NVz6y3flTXCg4v+wt4gniOvtm9ONBI85Vn3hfMOofLxcT7zokpEMZETcj5g9UPucU151qeaYMikeiAek+Ae8umEN/qjuQebi8LMWpc3ag4tvqHX4wew4CQka9MmLMDV8RURzKe6C+a4nmlZQXnUCuMJ/BOCxfRulSMl2WDKOSHplQNZ9aH7Bvkfmfvhxa/LJNCtZ8IS2THyPw3q1fvI1vtIdl8695UZR1h1NlmKZnc06MBWVZKhJMaJq5KWN9ZTEGS1cdxAUbulnbYoeKaQNA95xp3d38xxGvM=
+  template:
+    metadata:
+      name: sonarr-db-secret
+      namespace: media
+    type: Opaque
