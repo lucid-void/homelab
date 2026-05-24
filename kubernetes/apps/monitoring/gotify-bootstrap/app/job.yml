@@ -71,10 +71,12 @@ spec:
               immich_token=$(create_or_get_app_token "immich-backup" "Immich backup job notifications")
               paperless_token=$(create_or_get_app_token "paperless-backup" "Paperless backup job notifications")
               gitea_token=$(create_or_get_app_token "gitea-backup" "Gitea backup job notifications")
+              homebox_token=$(create_or_get_app_token "homebox-backup" "Homebox backup job notifications")
               security_token=$(create_or_get_app_token "security-scanner" "Trivy weekly security report")
               gatus_token=$(create_or_get_app_token "gatus" "Gatus health monitoring alerts")
               client_token=$(create_or_get_client_token "admin")
 
+              upsert_secret "homebox"    "gotify-secret"       "GOTIFY_TOKEN" "$homebox_token"
               upsert_secret "postgres"   "gotify-secret"       "GOTIFY_TOKEN" "$postgres_token"
               upsert_secret "immich"     "gotify-secret"       "GOTIFY_TOKEN" "$immich_token"
               upsert_secret "paperless"  "gotify-secret"       "GOTIFY_TOKEN" "$paperless_token"
@@ -84,6 +86,7 @@ spec:
               upsert_secret "monitoring" "gotify-client-secret" "CLIENT_TOKEN" "$client_token"
 
               echo "Bootstrap complete."
+              echo "  homebox-backup app token   : ${homebox_token}"
               echo "  postgres-backup app token  : ${postgres_token}"
               echo "  immich-backup app token    : ${immich_token}"
               echo "  paperless-backup app token : ${paperless_token}"
