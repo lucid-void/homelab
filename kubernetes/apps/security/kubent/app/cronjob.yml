@@ -1,0 +1,44 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kubent
+  namespace: security
+spec:
+  schedule: "0 8 * * 1"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: kubent
+          restartPolicy: Never
+          volumes:
+            - name: script
+              configMap:
+                name: kubent-script
+                defaultMode: 0755
+          containers:
+            - name: kubent
+              image: alpine:3.21
+              command: ["/bin/sh", "-c"]
+              args:
+                - apk add --no-cache bash curl >/dev/null 2>&1 && exec /bin/bash /scripts/scan.sh
+              envFrom:
+                - secretRef:
+                    name: gotify-secret
+                    optional: true
+              volumeMounts:
+                - name: script
+                  mountPath: /scripts
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
