@@ -28,8 +28,10 @@ spec:
                 defaultMode: 0755
           containers:
             - name: reporter
-              image: ghcr.io/lucid-void/backup-tools:v1.0.2
-              command: ["/bin/bash", "/scripts/report.sh"]
+              image: alpine:3.21
+              command: ["/bin/sh", "-c"]
+              args:
+                - apk add --no-cache bash curl jq kubectl >/dev/null 2>&1 && exec /bin/bash /scripts/report.sh
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities:
