@@ -2,8 +2,4 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ./pvc.yml
-  - ./pvc-local.yml
-  - ./migration-job.yml
   - ./helmrelease.yml
-  - ./route.yml
