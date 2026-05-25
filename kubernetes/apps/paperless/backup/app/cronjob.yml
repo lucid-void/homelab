@@ -70,8 +70,8 @@ spec:
                 - name: PGPASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: paperless-app-secret
-                      key: PAPERLESS_DBPASS
+                      name: paperless-role-secret
+                      key: password
                 - name: RCLONE_CONFIG
                   value: /rclone-config/rclone.conf
               volumeMounts:

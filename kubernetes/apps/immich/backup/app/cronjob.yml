@@ -58,8 +58,8 @@ spec:
                 - name: PGPASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: immich-app-secret
-                      key: DB_PASSWORD
+                      name: immich-role-secret
+                      key: password
                 - name: RCLONE_CONFIG
                   value: /rclone-config/rclone.conf
               volumeMounts:
