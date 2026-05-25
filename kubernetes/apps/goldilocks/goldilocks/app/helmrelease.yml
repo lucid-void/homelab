@@ -35,7 +35,6 @@ spec:
     dashboard:
       flags:
         on-by-default: true
-        exclude-namespaces: "kube-system,flux-system,kube-public,kube-node-lease,default,goldilocks"
       replicaCount: 1
       resources:
         requests:
