@@ -1,6 +1,0 @@
----
-nfs_mounts:
-  - path: /mnt/backups
-    src: "{{ nfs_server }}:/volume2/backups"
-  - path: /mnt/media
-    src: "{{ nfs_server }}:/volume2/Media"

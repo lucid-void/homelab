@@ -48,11 +48,6 @@ variable "proxmox_skip_tls_verify" {
   default   = false
 }
 
-variable "packer_template_vm_id" {
-  type        = number
-  description = "VM ID of the Debian Packer base template in Proxmox"
-}
-
 variable "talos_template_vm_id" {
   type        = number
   default     = 9001
