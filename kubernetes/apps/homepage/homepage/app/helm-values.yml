@@ -67,6 +67,10 @@ config:
             href: https://homebox.blackcats.cc
             description: Home inventory
             icon: homebox.png
+        - Degoog:
+            href: https://degoog.blackcats.cc
+            description: Search engine aggregator
+            icon: mdi-magnify
     - Development:
         - Gitea:
             href: https://gitea.blackcats.cc
