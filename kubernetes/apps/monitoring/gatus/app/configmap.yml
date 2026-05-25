@@ -100,6 +100,14 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
+      - name: Degoog
+        group: apps
+        url: https://degoog.blackcats.cc
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
       - name: Plex
         group: media
         url: https://plex.blackcats.cc/identity
