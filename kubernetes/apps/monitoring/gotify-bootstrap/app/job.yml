@@ -67,6 +67,7 @@ spec:
                   --dry-run=client -o yaml | kubectl apply -f -
               }
 
+              etcd_snapshot_token=$(create_or_get_app_token "etcd-snapshot" "etcd snapshot backup notifications")
               postgres_token=$(create_or_get_app_token "postgres-backup" "Postgres backup job notifications")
               immich_token=$(create_or_get_app_token "immich-backup" "Immich backup job notifications")
               paperless_token=$(create_or_get_app_token "paperless-backup" "Paperless backup job notifications")
@@ -77,6 +78,7 @@ spec:
               gatus_token=$(create_or_get_app_token "gatus" "Gatus health monitoring alerts")
               client_token=$(create_or_get_client_token "admin")
 
+              upsert_secret "kube-system" "gotify-secret"        "GOTIFY_TOKEN" "$etcd_snapshot_token"
               upsert_secret "homebox"    "gotify-secret"       "GOTIFY_TOKEN" "$homebox_token"
               upsert_secret "postgres"   "gotify-secret"       "GOTIFY_TOKEN" "$postgres_token"
               upsert_secret "immich"     "gotify-secret"       "GOTIFY_TOKEN" "$immich_token"
@@ -88,6 +90,7 @@ spec:
               upsert_secret "monitoring" "gotify-client-secret" "CLIENT_TOKEN" "$client_token"
 
               echo "Bootstrap complete."
+              echo "  etcd-snapshot app token    : ${etcd_snapshot_token}"
               echo "  homebox-backup app token   : ${homebox_token}"
               echo "  postgres-backup app token  : ${postgres_token}"
               echo "  immich-backup app token    : ${immich_token}"

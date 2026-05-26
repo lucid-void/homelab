@@ -14,3 +14,4 @@ resources:
   - ./sealed-secrets/ks.yml
   - ./descheduler/ks.yml
   - ./k8s-cleaner/ks.yml
+  - ./etcd-snapshot/ks.yml
