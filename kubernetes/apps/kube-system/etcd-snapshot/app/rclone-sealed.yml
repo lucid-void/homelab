@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: rclone-secret
+  namespace: kube-system
+spec:
+  encryptedData:
+    rclone.conf: AgAKwI7i47jZSNpwi8B0Zd1qcUalHaJhrDygK7h/l0Ptw4/Qwh/knGpWDzqoHpSx5xPIS1+cRbVpgDzgs9D3u79XH9RAUF/FNJqROpxsAB47uDT08p7MZ6/Hgj+jBEXvr38jdLLB9IebsP/Hxjo7UD9PW/jxP8+u9uXgGUi28rwzKt+k0WueAy8T7Zq80iOsgmpJXoSXd2N0759gjI5eTpBJt2CFt3oLT9Yo0yKmZP8x2iifkSXaIBpP5ZKOwa1b2YfuVzySHWoOzMEzHG/V1ELF2MmaZt/1vuvalEadxTs8LUBd+iSN2Qa35NFH4nAQHkRUszlZ2bdZ/6OzJrSNUhTaVKhi96VHJOdCJARq8aip1APREKofViaN8akjP7hA3+kvNVou8v5X4kUT7or93Gr6qT2H2+km7VUHpn6dhYf3pHdEPmUtSahdfZK/JXwEGbc+zfN0TglvcjsrIHgJMbnErZOurRekCzHW58zIEdq/QC8dRE08qPwAqQ9yONy2E7o3F7AxO9tzpvZ3+OY7uke1yc9YXY5UW6UcPRQ4+ep35kZbjKng3JHVpY+AbnpG56XuP6/4Hzb6BYYuM3woMn50gEUNA+VJOzhLu7lAdr1HdiFxbpvlGyY0jXygh2UfSRjdu2ICWoL9YSz7Jd2eWXAT08563USeuzlbP6djiMjoUgUoo2OxWYaWdnQeHHRc8R4FCHz9iUUI5Ine3HxOmBFKcNMZL3ZvZjyk8ffNzKY7r6cNdKb5pa2pGWrMRfClIiCymfiCJQ7rWOmoSjABCQaip2Gqz6uomWbFeO8Php4pB1OvUbI3/q0sa+Lmf9j4iPg6wtSWgOQUrzIUmcGaC89PBkfsOM3v4fsfJZmdUD2YKLfZJbGhtUIEEcw7qOU2ZGv+2y5fV71w0tFuv+v17571pasYsNOf1ivu6qtdHR0At/8nWAo75D6hYPDe5Iutg9rC7hnwoEbk9O3r8kny0QSp446tAVqHUYDphw5Xo2yAhJD1JgjFekJEZ7XUmTw=
+  template:
+    metadata:
+      name: rclone-secret
+      namespace: kube-system
+    type: Opaque
