@@ -85,3 +85,61 @@ subjects:
   - kind: ServiceAccount
     name: zitadel-bootstrap
     namespace: auth
+---
+# Allows zitadel-bootstrap Terraform job to write OIDC config into the immich namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: zitadel-bootstrap-immich
+  namespace: immich
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+    resourceNames: ["immich-oidc-config"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: zitadel-bootstrap-immich
+  namespace: immich
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: zitadel-bootstrap-immich
+subjects:
+  - kind: ServiceAccount
+    name: zitadel-bootstrap
+    namespace: auth
+---
+# Allows zitadel-bootstrap Terraform job to write Grafana OIDC secret into the monitoring namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: zitadel-bootstrap-monitoring
+  namespace: monitoring
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+    resourceNames: ["grafana-oidc-secret"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: zitadel-bootstrap-monitoring
+  namespace: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: zitadel-bootstrap-monitoring
+subjects:
+  - kind: ServiceAccount
+    name: zitadel-bootstrap
+    namespace: auth
