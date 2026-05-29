@@ -163,14 +163,16 @@ spec:
     kubeApiServer:
       enabled: true
 
+    # Talos binds controller-manager, scheduler, and etcd metrics to localhost
+    # only — vmagent cannot reach them from outside the node.
     kubeControllerManager:
-      enabled: true
+      enabled: false
 
     kubeScheduler:
-      enabled: true
+      enabled: false
 
     kubeEtcd:
-      enabled: true
+      enabled: false
 
     coreDns:
       enabled: true
