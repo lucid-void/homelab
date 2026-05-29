@@ -53,12 +53,16 @@ spec:
     vmagent:
       enabled: true
       spec:
+        scrapeInterval: 60s
+        additionalArgs:
+          promscrape.kubernetesSDCheckInterval: 2m
+          promscrape.maxDroppedTargets: "10"
         resources:
           requests:
             memory: 128Mi
             cpu: 50m
           limits:
-            cpu: 500m
+            cpu: 250m
             memory: 512Mi
 
     # ---------------------------------------------------------------------------
