@@ -198,6 +198,41 @@ resource "kubernetes_secret_v1" "gitea_oidc_secret" {
   }
 }
 
+resource "zitadel_application_oidc" "grafana" {
+  project_id = zitadel_project.homelab.id
+  org_id     = local.org_id
+  name       = "Grafana"
+
+  redirect_uris = [
+    "https://grafana.blackcats.cc/login/generic_oauth",
+  ]
+  post_logout_redirect_uris = [
+    "https://grafana.blackcats.cc",
+  ]
+
+  response_types   = ["OIDC_RESPONSE_TYPE_CODE"]
+  grant_types      = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
+  app_type         = "OIDC_APP_TYPE_WEB"
+  auth_method_type = "OIDC_AUTH_METHOD_TYPE_BASIC"
+
+  access_token_type           = "OIDC_TOKEN_TYPE_BEARER"
+  id_token_userinfo_assertion = true
+
+  version  = "OIDC_VERSION_1_0"
+  dev_mode = false
+}
+
+resource "kubernetes_secret_v1" "grafana_oidc_secret" {
+  metadata {
+    name      = "grafana-oidc-secret"
+    namespace = "monitoring"
+  }
+  data = {
+    GF_AUTH_GENERIC_OAUTH_CLIENT_ID     = zitadel_application_oidc.grafana.client_id
+    GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET = zitadel_application_oidc.grafana.client_secret
+  }
+}
+
 resource "kubernetes_secret_v1" "immich_oidc_config" {
   metadata {
     name      = "immich-oidc-config"

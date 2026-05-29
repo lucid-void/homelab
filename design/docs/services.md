@@ -52,7 +52,10 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | Gotify | monitoring | HelmRelease | `gotify.blackcats.cc` | SealedSecret admin creds | `gotify/server:2.6.0`; SQLite on `nfs-client` PVC; push notifications hub |
 | gotify-bootstrap | monitoring | Job | — | — | Creates app/client tokens via Gotify REST API; writes `gotify-secret` into each app namespace; idempotent |
 | gotify-telegram | monitoring | Deployment | — | — | Python WebSocket bridge: Gotify `/stream` → Telegram Bot API; priority colours: 🔴 ≥8, 🟡 ≥5, 🟢 <5 |
+| am-gotify-bridge | monitoring | Deployment | — | — | Python HTTP bridge: AlertManager webhook → Gotify; listens :5000; reads `gotify-secret`; priority 8 firing / 5 resolved |
 | Gatus | monitoring | HelmRelease | `gatus.blackcats.cc` | Zitadel OIDC | HTTP/HTTPS health checks + cert expiry for all services |
+| VictoriaMetrics Stack | monitoring | HelmRelease | — | — | `victoria-metrics-k8s-stack` v0.76.0; includes VMSingle (30Gi openebs-hostpath), VMAgent, VMAlert, AlertManager, Grafana, kube-state-metrics, node-exporter |
+| Grafana | monitoring | HelmRelease (subchart) | `grafana.blackcats.cc` | Zitadel OIDC | Dashboards for VictoriaMetrics data; credentials from `grafana-oidc-secret` (written by Terraform bootstrap) |
 
 ---
 

@@ -1,0 +1,179 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vm-stack
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: victoria-metrics-k8s-stack
+      version: "0.76.0"
+      sourceRef:
+        kind: HelmRepository
+        name: victoria-metrics
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    # ---------------------------------------------------------------------------
+    # VictoriaMetrics Single — TSDB (replaces Prometheus)
+    # ---------------------------------------------------------------------------
+    vmsingle:
+      enabled: true
+      spec:
+        retentionPeriod: "3"
+        storage:
+          storageClassName: openebs-hostpath
+          resources:
+            requests:
+              storage: 30Gi
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 100m
+          limits:
+            memory: 1500Mi
+
+    # VMCluster not needed — single-node is sufficient for homelab
+    vmcluster:
+      enabled: false
+
+    # ---------------------------------------------------------------------------
+    # VMAgent — metrics scraping
+    # ---------------------------------------------------------------------------
+    vmagent:
+      enabled: true
+      spec:
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: 50m
+          limits:
+            memory: 512Mi
+
+    # ---------------------------------------------------------------------------
+    # VMAlert — alert rule evaluation
+    # ---------------------------------------------------------------------------
+    vmalert:
+      enabled: true
+      spec:
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 10m
+          limits:
+            memory: 256Mi
+
+    # ---------------------------------------------------------------------------
+    # AlertManager — routes vmalert → am-gotify-bridge → Gotify
+    # ---------------------------------------------------------------------------
+    alertmanager:
+      enabled: true
+      spec:
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 10m
+          limits:
+            memory: 128Mi
+        storage:
+          storageClassName: openebs-hostpath
+          resources:
+            requests:
+              storage: 1Gi
+      config:
+        global:
+          resolve_timeout: 5m
+        route:
+          receiver: gotify
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 12h
+          group_by: ["alertname", "namespace"]
+        receivers:
+          - name: gotify
+            webhook_configs:
+              - url: http://am-gotify-bridge.monitoring.svc.cluster.local:5000/webhook
+                send_resolved: true
+
+    # ---------------------------------------------------------------------------
+    # Grafana — dashboards (Zitadel OIDC, credentials from grafana-oidc-secret)
+    # ---------------------------------------------------------------------------
+    grafana:
+      enabled: true
+      envFromSecret: grafana-oidc-secret
+      persistence:
+        enabled: true
+        storageClassName: nfs-client
+        size: 2Gi
+      "grafana.ini":
+        server:
+          root_url: https://grafana.blackcats.cc
+        users:
+          auto_assign_org_role: Admin
+        auth:
+          disable_login_form: false
+        auth.generic_oauth:
+          enabled: "true"
+          name: Zitadel
+          allow_sign_up: "true"
+          client_id: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_ID}
+          client_secret: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}
+          scopes: openid email profile
+          auth_url: https://zitadel.blackcats.cc/oauth/v2/authorize
+          token_url: https://zitadel.blackcats.cc/oauth/v2/token
+          api_url: https://zitadel.blackcats.cc/oidc/v1/userinfo
+          use_pkce: "true"
+          auto_login: "false"
+      resources:
+        requests:
+          memory: 256Mi
+          cpu: 50m
+        limits:
+          memory: 512Mi
+
+    # ---------------------------------------------------------------------------
+    # VictoriaLogs — not enabled (future work)
+    # ---------------------------------------------------------------------------
+    vlogs:
+      enabled: false
+
+    vlsingle:
+      enabled: false
+
+    # ---------------------------------------------------------------------------
+    # Bundled exporters
+    # ---------------------------------------------------------------------------
+    kube-state-metrics:
+      enabled: true
+
+    prometheus-node-exporter:
+      enabled: true
+
+    # Kubelet / API server / etcd scraping
+    kubelet:
+      enabled: true
+
+    kubeApiServer:
+      enabled: true
+
+    kubeControllerManager:
+      enabled: true
+
+    kubeScheduler:
+      enabled: true
+
+    kubeEtcd:
+      enabled: true
+
+    coreDns:
+      enabled: true
