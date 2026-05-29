@@ -99,11 +99,6 @@ spec:
           group_interval: 5m
           repeat_interval: 12h
           group_by: ["alertname", "namespace"]
-          routes:
-            - matchers:
-                - alertname="NodeNetworkTransmitErrs"
-                - device=~"wt.+"
-              receiver: blackhole
         receivers:
           - name: gotify
             webhook_configs:
