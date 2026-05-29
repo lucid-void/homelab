@@ -85,11 +85,6 @@ spec:
             cpu: 10m
           limits:
             memory: 128Mi
-        storage:
-          storageClassName: openebs-hostpath
-          resources:
-            requests:
-              storage: 1Gi
       config:
         global:
           resolve_timeout: 5m
