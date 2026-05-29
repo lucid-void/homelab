@@ -7,3 +7,5 @@ resources:
   - ./gotify-bootstrap/ks.yml
   - ./gotify-telegram/ks.yml
   - ./gatus/ks.yml
+  - ./am-gotify-bridge/ks.yml
+  - ./vm-stack/ks.yml
