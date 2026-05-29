@@ -2,9 +2,7 @@
 site/
 
 # AI
-.claude/
 .superpowers/
-design/
 
 # Python
 __pycache__/
