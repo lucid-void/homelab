@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./helmrelease.yml
   - ./httproute.yml
+  - ./vmrules.yml
