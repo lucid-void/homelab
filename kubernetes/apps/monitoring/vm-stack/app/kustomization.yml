@@ -5,3 +5,4 @@ resources:
   - ./helmrelease.yml
   - ./httproute.yml
   - ./vmrules.yml
+  - ./alertmanager-config.yml

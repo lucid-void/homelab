@@ -1,0 +1,21 @@
+---
+# Drop NodeNetworkTransmitErrs on WireGuard interfaces (wt0).
+# Cilium WireGuard encryption creates wt0 on each node; TX errors are expected.
+# Using VMAlertmanagerConfig because the operator strips inline routes from the
+# base config secret when merging — CRs are the correct way to add sub-routes.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlertmanagerConfig
+metadata:
+  name: suppress-wireguard-errs
+  namespace: monitoring
+spec:
+  route:
+    receiver: blackhole
+    matchers:
+      - name: alertname
+        value: NodeNetworkTransmitErrs
+      - name: device
+        value: "wt.+"
+        matchType: =~
+  receivers:
+    - name: blackhole
