@@ -13,10 +13,14 @@ talhelper = "latest"
 helm = "latest"
 flux2 = "latest"
 kubeseal = "latest"
+kubeconform = "latest"
 helm-diff = { version = "latest", bin = "diff", bin_path = "diff/bin", rename_exe = "helm-diff" }
 gh = "latest"
+yq = "latest"
+kustomize = "latest"
+trivy = "latest"
+gitleaks = "latest"
 
 [hooks]
 postinstall = "pip install -r requirements.txt"
-# /home/void/.local/share/mise/installs/ansible/13.4.0/venvs/ansible/bin/python -m pip install requests
 
