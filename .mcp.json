@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "kubernetes": {
+      "command": "mcp-server-kubernetes",
+      "args": [],
+      "env": {
+        "KUBECONFIG": "/home/void/.kube/config",
+        "PATH": "/home/void/.local/share/mise/shims:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      }
+    }
+  }
+}
