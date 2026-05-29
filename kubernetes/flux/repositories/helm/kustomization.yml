@@ -29,5 +29,6 @@ resources:
   - ./fairwinds.yml
   - ./falcosecurity.yml
   - ./k8s-cleaner.yml
+  - ./victoria-metrics.yml
   # - ./kubernetes-dashboard.yml
   # - ./twin.yml
