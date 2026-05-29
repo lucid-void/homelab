@@ -58,6 +58,7 @@ spec:
             memory: 128Mi
             cpu: 50m
           limits:
+            cpu: 500m
             memory: 512Mi
 
     # ---------------------------------------------------------------------------
@@ -152,6 +153,25 @@ spec:
     # ---------------------------------------------------------------------------
     kube-state-metrics:
       enabled: true
+      collectors:
+        - pods
+        - deployments
+        - replicasets
+        - statefulsets
+        - daemonsets
+        - nodes
+        - namespaces
+        - persistentvolumeclaims
+        - horizontalpodautoscalers
+        - jobs
+        - cronjobs
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
 
     prometheus-node-exporter:
       enabled: true
