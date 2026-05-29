@@ -99,11 +99,17 @@ spec:
           group_interval: 5m
           repeat_interval: 12h
           group_by: ["alertname", "namespace"]
+          routes:
+            - matchers:
+                - alertname="NodeNetworkTransmitErrs"
+                - device=~"wt.+"
+              receiver: blackhole
         receivers:
           - name: gotify
             webhook_configs:
               - url: http://am-gotify-bridge.monitoring.svc.cluster.local:5000/webhook
                 send_resolved: true
+          - name: blackhole
 
     # ---------------------------------------------------------------------------
     # Grafana — dashboards (Zitadel OIDC, credentials from grafana-oidc-secret)
