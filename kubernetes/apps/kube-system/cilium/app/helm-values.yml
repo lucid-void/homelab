@@ -51,11 +51,11 @@ gatewayAPI:
 operator:
   replicas: 1
   prometheus:
-    enabled: true
+    enabled: false
     serviceMonitor:
-      enabled: true
+      enabled: false
 
 prometheus:
-  enabled: true
+  enabled: false
   serviceMonitor:
-    enabled: true
+    enabled: false
