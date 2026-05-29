@@ -12,10 +12,7 @@ spec:
   route:
     receiver: blackhole
     matchers:
-      - name: alertname
-        value: NodeNetworkTransmitErrs
-      - name: device
-        value: "wt.+"
-        matchType: =~
+      - 'alertname="NodeNetworkTransmitErrs"'
+      - 'device=~"wt.+"'
   receivers:
     - name: blackhole
