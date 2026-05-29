@@ -129,6 +129,8 @@ spec:
           api_url: https://zitadel.blackcats.cc/oidc/v1/userinfo
           use_pkce: "true"
           auto_login: "false"
+      service:
+        port: 3000
       resources:
         requests:
           memory: 256Mi
