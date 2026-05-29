@@ -13,6 +13,12 @@
 # ---------------------------------------------------------------------------
 
 locals {
+  node_name  = var.proxmox_node
+  bridge     = var.proxmox_network_bridge
+  gateway    = "172.16.20.254"
+  dns_server = "172.16.20.254"
+  domain     = "blackcats.cc"
+  
   k8s_nodes = {
     k8s-cp-1 = {
       vm_id       = 2020
