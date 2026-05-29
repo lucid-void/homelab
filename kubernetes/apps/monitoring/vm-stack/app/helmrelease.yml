@@ -54,7 +54,7 @@ spec:
       enabled: true
       spec:
         scrapeInterval: 60s
-        additionalArgs:
+        extraArgs:
           promscrape.kubernetesSDCheckInterval: 2m
           promscrape.maxDroppedTargets: "10"
         resources:
