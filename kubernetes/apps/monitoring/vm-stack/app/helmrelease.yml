@@ -172,3 +172,10 @@ spec:
 
     coreDns:
       enabled: true
+
+    # Disable admission webhooks — operator validates CRs in-process without
+    # webhooks; disabling avoids the chicken-and-egg where the webhook server
+    # isn't ready when the operator CRs are first applied during install.
+    victoria-metrics-operator:
+      admissionWebhooks:
+        enabled: false
