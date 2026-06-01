@@ -11,7 +11,6 @@ spec:
       app.kubernetes.io/name: *app
   dependsOn:
     - name: shared-gateway
-    - name: zitadel-bootstrap
     - name: am-gotify-bridge
   path: ./kubernetes/apps/monitoring/vm-stack/app
   prune: true
