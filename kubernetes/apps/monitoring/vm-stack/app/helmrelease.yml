@@ -55,8 +55,9 @@ spec:
       spec:
         scrapeInterval: 60s
         extraArgs:
-          promscrape.kubernetesSDCheckInterval: 2m
+          promscrape.kubernetesSDCheckInterval: 5m
           promscrape.maxDroppedTargets: "10"
+          promscrape.maxConcurrency: "4"
         resources:
           requests:
             memory: 128Mi
@@ -101,17 +102,24 @@ spec:
           group_by: ["alertname", "namespace"]
           routes:
             - matchers:
+                - severity="none"
+              receiver: blackhole
+            - matchers:
                 - severity="info"
               receiver: blackhole
             - matchers:
                 - alertname="NodeNetworkTransmitErrs"
                 - device=~"wt.+"
               receiver: blackhole
+            - matchers:
+                - alertname="KubeAPIErrorBudgetBurn"
+              receiver: gotify
+              repeat_interval: 24h
         receivers:
           - name: gotify
             webhook_configs:
               - url: http://am-gotify-bridge.monitoring.svc.cluster.local:5000/webhook
-                send_resolved: true
+                send_resolved: false
           - name: blackhole
 
     # ---------------------------------------------------------------------------
