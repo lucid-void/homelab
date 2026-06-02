@@ -57,7 +57,6 @@ spec:
         extraArgs:
           promscrape.kubernetesSDCheckInterval: 5m
           promscrape.maxDroppedTargets: "10"
-          promscrape.maxConcurrency: "4"
         resources:
           requests:
             memory: 128Mi
@@ -203,6 +202,31 @@ spec:
 
     kubeApiServer:
       enabled: true
+      # The apiserver /metrics endpoint is the single highest-cardinality scrape and
+      # lands CPU on the control plane that is already under leader-election pressure.
+      # Scrape it less often (3m) and drop the heaviest histogram buckets.
+      vmScrape:
+        spec:
+          endpoints:
+            - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+              port: https
+              scheme: https
+              interval: "3m"
+              tlsConfig:
+                caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                serverName: kubernetes
+              metricRelabelConfigs:
+                - action: drop
+                  sourceLabels: [__name__]
+                  regex: "apiserver_request_duration_seconds_bucket|apiserver_request_sli_duration_seconds_bucket|apiserver_response_sizes_bucket|apiserver_request_body_size_bytes_bucket|apiserver_response_body_size_bytes_bucket|apiserver_watch_events_sizes_bucket|workqueue_queue_duration_seconds_bucket|workqueue_work_duration_seconds_bucket"
+          jobLabel: component
+          namespaceSelector:
+            matchNames:
+              - default
+          selector:
+            matchLabels:
+              component: apiserver
+              provider: kubernetes
 
     # Talos binds controller-manager, scheduler, and etcd metrics to localhost
     # only — vmagent cannot reach them from outside the node.
