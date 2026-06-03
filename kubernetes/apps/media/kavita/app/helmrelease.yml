@@ -1,0 +1,111 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kavita
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        annotations:
+          # Restart Kavita when the Terraform-written OIDC secret is (re)created, so the
+          # initContainer re-merges the credentials into appsettings.json.
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          # Kavita reads OIDC ONLY from /config/appsettings.json (key OpenIdConnectSettings);
+          # it does not bind env vars. Idempotently merge the Zitadel client creds into the file.
+          # Skips cleanly when the secret is absent (first boot before zitadel-bootstrap runs).
+          oidc-config:
+            image:
+              repository: alpine
+              tag: "3.21"
+            command:
+              - /bin/sh
+              - -c
+              - |
+                set -eu
+                apk add --no-cache jq >/dev/null 2>&1
+                F=/config/appsettings.json
+                [ -f "$F" ] || echo '{}' > "$F"
+                if [ -n "${OIDC_CLIENT_ID:-}" ] && [ -n "${OIDC_CLIENT_SECRET:-}" ]; then
+                  tmp=$(mktemp)
+                  jq --arg a "$OIDC_AUTHORITY" --arg c "$OIDC_CLIENT_ID" --arg s "$OIDC_CLIENT_SECRET" \
+                    '.OpenIdConnectSettings = {Authority:$a, ClientId:$c, Secret:$s, CustomScopes:[]}' \
+                    "$F" > "$tmp" && mv "$tmp" "$F"
+                  echo "OIDC credentials merged into appsettings.json"
+                else
+                  echo "kavita-oidc-secret not present yet; skipping OIDC config"
+                fi
+            env:
+              OIDC_AUTHORITY: https://zitadel.blackcats.cc
+            # OIDC_CLIENT_ID / OIDC_CLIENT_SECRET come from the Terraform-written secret.
+            # Non-optional (app-template strips secretRef.optional): on a fresh cluster the pod
+            # waits in CreateContainerConfigError until zitadel-bootstrap writes the secret, then
+            # starts automatically. Reloader (annotation above) restarts it on credential rotation.
+            envFrom:
+              - secretRef:
+                  name: kavita-oidc-secret
+        containers:
+          app:
+            image:
+              repository: lscr.io/linuxserver/kavita
+              tag: "0.9.0"
+            env:
+              TZ: Europe/Brussels
+              PUID: "2202"
+              PGID: "2200"
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 5000
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 15
+              readiness: *probes
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 25m
+              limits:
+                memory: 1Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 5000
+
+    persistence:
+      config:
+        existingClaim: kavita-config
+        globalMounts:
+          - path: /config
+      media:
+        existingClaim: media-nfs
+        globalMounts:
+          - path: /data
+            subPath: Manga
+            readOnly: true
