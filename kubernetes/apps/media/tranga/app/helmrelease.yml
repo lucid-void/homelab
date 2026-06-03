@@ -1,0 +1,123 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tranga
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      # Backend API + downloader. Talks to CNPG Postgres, writes manga to the media share.
+      # Upstream publishes only rolling channel tags (no semver) — `latest` is the stable channel.
+      api:
+        replicas: 1
+        pod:
+          securityContext:
+            runAsUser: 2202
+            runAsGroup: 2200
+            fsGroup: 2200
+            runAsNonRoot: true
+        containers:
+          app:
+            image:
+              repository: glax/tranga-api
+              tag: "latest"
+            env:
+              TZ: Europe/Brussels
+              POSTGRES_HOST: postgres-rw.postgres.svc.cluster.local:5432
+              POSTGRES_DB: tranga
+              POSTGRES_USER: tranga
+              POSTGRES_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: tranga-role-secret
+                    key: password
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 6531
+                  initialDelaySeconds: 45
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 15
+              readiness: *probes
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 25m
+              limits:
+                memory: 1Gi
+      # Static Nuxt frontend served by nginx; nginx reverse-proxies /api/ to the backend.
+      website:
+        replicas: 1
+        containers:
+          app:
+            image:
+              repository: glax/tranga-website
+              tag: "latest"
+            env:
+              API_URL: http://tranga-api:6531
+            probes:
+              liveness: &web-probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 80
+                  initialDelaySeconds: 15
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 10
+              readiness: *web-probes
+            resources:
+              requests:
+                memory: 32Mi
+                cpu: 10m
+              limits:
+                memory: 128Mi
+
+    service:
+      api:
+        controller: api
+        ports:
+          http:
+            port: 6531
+      website:
+        controller: website
+        ports:
+          http:
+            port: 80
+
+    persistence:
+      config:
+        existingClaim: tranga-config
+        advancedMounts:
+          api:
+            app:
+              - path: /usr/share/tranga-api
+      media:
+        existingClaim: media-nfs
+        advancedMounts:
+          api:
+            app:
+              - path: /Manga
+                subPath: Manga

@@ -1,0 +1,11 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: tranga
+  namespace: postgres
+spec:
+  name: tranga
+  cluster:
+    name: postgres
+  owner: tranga
