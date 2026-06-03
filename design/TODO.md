@@ -10,37 +10,6 @@ Known gaps, planned work, and items that need verification.
 
 ---
 
-## Recently Completed
-
-### etcd Snapshot CronJob
-
-Implemented in `kubernetes/apps/kube-system/etcd-snapshot/`. Daily CronJob at 01:00 — downloads `talosctl` at runtime (pinned to cluster Talos version), tries CP nodes `.20 → .21 → .22` in order, uploads via restic to `rclone:filen:backups/restic/etcd-snapshot` (30-day retention). All three SealedSecrets sealed and committed.
-
-Gotify bootstrap updated — `kube-system/gotify-secret` provisioned (token `GOTIFY_TOKEN` written by gotify-bootstrap Job). Job was immutable so the old completed job was deleted and Flux recreated it.
-
-### Flux 2.8.8 upgrade — OCIRepository CRD storage migration
-
-**Resolved.** After upgrading to Flux 2.8.8, the `ocirepositories` CRD dropped `v1beta2` from `spec.versions` but the existing `flux-manifests` OCIRepository object was still stored in etcd as v1beta2. The API server could no longer serve or delete it.
-
-Fix applied:
-1. Temporarily added a minimal v1beta2 entry (permissive schema) back to the CRD spec + `status.storedVersions`
-2. Re-applied all OCIRepository objects to trigger re-storage as v1
-3. Removed v1beta2 from CRD spec and storedVersions
-4. Updated `kubernetes/flux/config/flux.yml` to use `apiVersion: source.toolkit.fluxcd.io/v1`
-5. Pushed and reconciled — all kustomizations recovered
-
-### README restructure — split into README + INSTALLATION
-
-Top-level `README.md` previously described only the Swarm/IaC side (Authentik/Authelia, PBS, no mention of k8s). `kubernetes/README.md` carried the full 14-phase bootstrap but referenced Traefik and the old `flux/infrastructure/controllers/configs/` layout.
-
-Resolution:
-- `README.md` rewritten as a light project introduction (what runs here, stack table, repo layout, where to find things). References `design/` for detail.
-- `INSTALLATION.md` created at repo root — bootstrap procedure ported from `kubernetes/README.md` with Traefik replaced by Cilium Gateway API, directory layout updated to the current flat `kubernetes/apps/` structure, and the helmfile phase updated to reflect what it actually installs (prometheus-operator-crds + Cilium + Spegel + Sealed Secrets).
-- `kubernetes/README.md` deleted.
-- The valuable Netbird-IP-leakage troubleshooting section is preserved in `INSTALLATION.md`.
-
----
-
 ## Known Broken
 
 *(nothing currently)*
@@ -97,10 +66,6 @@ Falco events route to Gotify, then a Python WebSocket bridge forwards to Telegra
 
 ## Future Work
 
-### Monitoring stack migration — Grafana + VictoriaMetrics
-
-The existing Prometheus + Loki + Grafana stack runs on the Docker Swarm Monitoring VM (`.11`). It currently scrapes k8s nodes via `node_exporter`. Planned approach: migrate in-cluster with **VictoriaMetrics** (replacing Prometheus) + **Grafana** (keeping dashboards), replacing the Swarm-based stack entirely. VictoriaMetrics is drop-in compatible with Prometheus scrape configs and PromQL, so existing dashboards and alert rules carry over. No action until ready to migrate.
-
 ### Per-namespace NetworkPolicies
 
 Cilium supports L7 NetworkPolicies. Currently no `NetworkPolicy` or `CiliumNetworkPolicy` resources are deployed — all pods can reach all other pods. Adding default-deny + per-namespace allow rules would mirror the Swarm overlay isolation model.
@@ -113,10 +78,6 @@ Cilium supports L7 NetworkPolicies. Currently no `NetworkPolicy` or `CiliumNetwo
 ### nftables host firewall on k8s nodes
 
 Same as the broader homelab plan: default-deny inbound, SSH/node_exporter/Promtail allowlist, per-host service overrides. Not yet implemented on k8s nodes.
-
-### Image automation (Renovate)
-
-Renovate is active and opens PRs for Helm chart and image tag updates. No Flux `ImageRepository` / `ImageUpdateAutomation` configured — Renovate covers this.
 
 ### Zitadel break-glass / account recovery runbook
 
@@ -158,7 +119,7 @@ Immich is pinned to v2.7.5 with kysely migrations (see memory: `project_immich_m
 
 Immich library and the static `/volume2/Media` share both grow uncapped. No quota, no alert before Synology pool fills, no tiering plan. A full pool stops all DB writes cluster-wide.
 
-**Action:** Add Synology pool-usage alert (via the existing synology-exporter on the Swarm monitoring VM) at 80% and 90%; consider per-namespace `ResourceQuota` for PVC storage.
+**Action:** Add a Synology pool-usage alert (synology metrics → the in-cluster VictoriaMetrics stack) at 80% and 90%; consider per-namespace `ResourceQuota` for PVC storage.
 
 ### Immutable / second-offsite backup tier
 
@@ -168,9 +129,9 @@ Restic on Filen with 30-day retention is not immutable. A cluster compromise (or
 
 ### Centralized log retention in cluster
 
-Loki still runs on the Swarm monitoring VM; k8s container logs live ephemerally in `/var/log/pods/` on each node and are editable by anyone who roots a node. No forensic trail for Falco events beyond the real-time Gotify push.
+The in-cluster VictoriaMetrics stack handles metrics, but **VictoriaLogs is not enabled** (`vlogs` is commented out in the vm-stack HelmRelease). k8s container logs live ephemerally in `/var/log/pods/` on each node and are editable by anyone who roots a node. No forensic trail for Falco events beyond the real-time Gotify push.
 
-**Action:** Either extend Loki scrape to cover k8s nodes more durably (Promtail DaemonSet writing to the Swarm Loki), or bring the migration to in-cluster VictoriaLogs forward. Tied to the monitoring stack migration above.
+**Action:** Enable VictoriaLogs (`vlogs`) in the vm-stack HelmRelease and ship node/pod logs to it for durable, queryable retention.
 
 ### Image digest pinning / signature verification
 
@@ -204,7 +165,6 @@ Sealed Secrets key rotation is intentionally disabled (`ARCHITECTURE.md` decisio
 
 | Service | What it adds |
 |---|---|
-| ~~**Renovate**~~ | ~~Auto-PRs to bump Helm chart versions and image tags~~ — **already active** |
 | **MinIO** | On-prem S3-compatible object store; unlocks Loki object storage mode, Grafana Tempo, and Velero without cloud deps |
 | **Velero** | Kubernetes-native PVC snapshot + resource backup; cluster-level DR to complement per-app CronJob backups |
 | **Grafana Tempo** | Distributed tracing backend; closes the observability triangle alongside existing metrics (Prometheus) + logs (Loki) |
