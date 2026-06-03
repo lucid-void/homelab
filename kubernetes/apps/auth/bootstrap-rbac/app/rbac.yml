@@ -143,3 +143,32 @@ subjects:
   - kind: ServiceAccount
     name: zitadel-bootstrap
     namespace: auth
+---
+# Allows zitadel-bootstrap Terraform job to write Kavita OIDC secret into the media namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: zitadel-bootstrap-media
+  namespace: media
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+    resourceNames: ["kavita-oidc-secret"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: zitadel-bootstrap-media
+  namespace: media
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: zitadel-bootstrap-media
+subjects:
+  - kind: ServiceAccount
+    name: zitadel-bootstrap
+    namespace: auth
