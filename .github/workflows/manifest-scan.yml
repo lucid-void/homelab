@@ -7,7 +7,7 @@ name: Manifest Scan
 #   kube-linter — delta gate: fails only if the PR *introduces* new
 #                 misconfiguration violations vs. the base branch.
 #                 Existing violations are shown in the PR comment but
-#                 do not block merging (same philosophy as image-scan.yml).
+#                 do not block merging.
 #
 # Required status check name for branch protection: "Manifest Scan Passed"
 
