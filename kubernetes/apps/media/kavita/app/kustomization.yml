@@ -5,3 +5,5 @@ resources:
   - ./pvc.yml
   - ./helmrelease.yml
   - ./route.yml
+  - ./admin-sealed.yml
+  - ./bootstrap.yml
