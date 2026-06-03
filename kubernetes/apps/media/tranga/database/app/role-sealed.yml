@@ -1,0 +1,20 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: tranga-role-secret
+  namespace: postgres
+spec:
+  encryptedData:
+    password: AgBu0UgXXSpPT2ZWj/FV3Ar8Ou3W78FsNorGfFjjcpZXQuSELSBsLPc6sDj6rLQycLgz7ksnWXfu181w4PAibZhIT2vGq/533uTACV1WXJeM4rFvjEgr746xBHqhzf6oBk01msHFme56q+V3624SqgQYCJGvgSQZyB/AhpATZVQSe0Z8zWryGgdbak8rlLsrp3fva0ZdktmCSl8ZlzfoW+F6rRCoceNwPYHKapNtsocPFmVrquren1UV2ehDSG0GPqgOi+jcyLJp+EQudGOEqgaRXFMr/HwxddBBIRFf/Zmxf5AFsopywk4k9xD+XuveTTwqIG92aYv48bBgBkKdxDpUdh96Y+K+wYYAQCVy9WSvwkM8LqyH4yMRFmSOXGgWGyNDtZ3UvCGJsPDXhaOW/hqpKtOHJ8pipXZZQ8aOM9Dra6yf23QOeIq6ck1Enftuu7zFk0rHJa32R9+YxiaT8wgseQuwNJp9oRO3Q3+K2GmZhq86CrQkGm/agg0YDkYlke0Xh1ztbCxp2xRqYrWU7LLz+FLAacIdj7elrLLZzVGZHCZrnUvksZbXQNxrEnxSf89P9gR6XPD1zt4Nf0H0nG+ce5wrD5vJcSWzjdSzf8AI5sGssUpF2yNxK9qvMB3qX03VP0EAquu333giwpqCoUM3JF7yD/eKAFHbLuuTxEKjNpI1k63/E7rlhXXb73Fnvhv8Y5COMvnU0W8O7SXCW6HXaMoYIh073xc=
+    username: AgCNH28dIXuAo+Kx32Dr+x4ID9t6Yns+5ekvpKl3QsjGkNqk3k8tB4S7mqjLxcwdrqjLacWvkmxZsz9hlFH9AwzL/lFsQffUjtFEVeFaIuIB6pywy8t1N+S811juCEU0k25UdyfgDvYs9p8YHtPTJpz0T8cWJTDEG067s3yw9R2V7zEKbqTXdVmsyxQ9cDjbmqLFdx6+7VuCuvt9IPlX6iyos/2O5eJ2n0HaQP2VKsqn3fzsoeVB5sb4peL3ZE21KyKjXmSmmIiVve9D+d0RXMnAuUWhq+uwIVp91AMGigXWi+zy0ayIOYWOSX4LmnH8FQQJKEUKxC1RAeIebwTGRDSPHN5gxZnDqktGQNqR3msqkzHkCwdtiRsb28xSSwPMtyOQNL5UvwonA6dpyv858jR4uOYL+HRV6slpNVg8gQdjcSoe0NjIxt+tHXUHf8FIf8AAFZcfApUC6fWygeqmWjAfXDICUPnPV8YSodyngyfKZh8WoafEjnnC7j2gCl5OcfPOx1CigkX7zsVi9CQuMXn0w46zOLlrvhJWnMajCuX6iRo2plMzjUVN5DjyA6gQuD8HMMImRj/WcRnXSI4G36sCfBKPShsGhoaZaZvuvw2c7wVZynyOgmzGrSmVdHjxmowjr0nnwOO+wZWtGn+p5vqrJ54S0PBt9cuPP86hHlc05cg02ZKOL6/zOvPDCpau5l06Pny8Qnc=
+  template:
+    metadata:
+      name: tranga-role-secret
+      namespace: postgres
+      annotations:
+        reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+        reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "media"
+        reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+        reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "media"
+    type: kubernetes.io/basic-auth

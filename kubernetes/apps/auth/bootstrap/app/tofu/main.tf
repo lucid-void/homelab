@@ -233,6 +233,44 @@ resource "kubernetes_secret_v1" "grafana_oidc_secret" {
   }
 }
 
+resource "zitadel_application_oidc" "kavita" {
+  project_id = zitadel_project.homelab.id
+  org_id     = local.org_id
+  name       = "Kavita"
+
+  redirect_uris = [
+    "https://kavita.blackcats.cc/signin-oidc",
+  ]
+  post_logout_redirect_uris = [
+    "https://kavita.blackcats.cc/login",
+  ]
+
+  response_types   = ["OIDC_RESPONSE_TYPE_CODE"]
+  grant_types      = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
+  app_type         = "OIDC_APP_TYPE_WEB"
+  auth_method_type = "OIDC_AUTH_METHOD_TYPE_POST"
+
+  access_token_type           = "OIDC_TOKEN_TYPE_BEARER"
+  id_token_userinfo_assertion = true
+
+  version  = "OIDC_VERSION_1_0"
+  dev_mode = false
+}
+
+# Kavita reads OIDC creds only from /config/appsettings.json (key OpenIdConnectSettings),
+# which it manages itself. The Kavita HelmRelease runs an initContainer that merges these
+# flat values into that file. Authority is set statically in the HelmRelease.
+resource "kubernetes_secret_v1" "kavita_oidc_secret" {
+  metadata {
+    name      = "kavita-oidc-secret"
+    namespace = "media"
+  }
+  data = {
+    OIDC_CLIENT_ID     = zitadel_application_oidc.kavita.client_id
+    OIDC_CLIENT_SECRET = zitadel_application_oidc.kavita.client_secret
+  }
+}
+
 resource "kubernetes_secret_v1" "immich_oidc_config" {
   metadata {
     name      = "immich-oidc-config"
