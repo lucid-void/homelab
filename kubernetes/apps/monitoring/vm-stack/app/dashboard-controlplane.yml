@@ -1,0 +1,135 @@
+---
+# Control-plane stability / flap-diagnosis dashboard.
+# Auto-loaded by the Grafana sidecar (label grafana_dashboard: "1").
+# Focused on the kube-controller-manager / kube-scheduler leader-election
+# flapping investigation — see design/monitoring-stabilization.md.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-controlplane-stability
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  controlplane-stability.json: |
+    {
+      "uid": "cp-flap-diagnosis",
+      "title": "Control-Plane Stability / Flap Diagnosis",
+      "tags": ["control-plane", "etcd", "leader-election"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-3h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "label": "Data source",
+            "type": "datasource",
+            "query": "prometheus",
+            "current": { "text": "VictoriaMetrics", "value": "VictoriaMetrics" },
+            "hide": 0,
+            "refresh": 1
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Leader-election holder (1 = leader) — transitions = flaps",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+          "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 10 }, "min": 0, "max": 1 }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "leader_election_master_status{name=~\".*(controller-manager|scheduler).*\"}", "legendFormat": "{{name}} @ {{instance}}" }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "cm/scheduler -> apiserver request latency p99 (lease path)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "lastNotNull"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.99, sum by (le, job) (rate(rest_client_request_duration_seconds_bucket{job=~\".*(controller-manager|scheduler).*\"}[5m])))", "legendFormat": "p99 {{job}}" }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "cm/scheduler -> apiserver errors & throttling (4xx/5xx, incl 429 APF)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+          "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (job, code) (rate(rest_client_requests_total{job=~\".*(controller-manager|scheduler).*\", code=~\"[45]..\"}[5m]))", "legendFormat": "{{job}} {{code}}" }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Node CPU pressure (PSI some, stalled-time rate)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "mean"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "rate(node_pressure_cpu_waiting_seconds_total[5m])", "legendFormat": "{{instance}}" }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Node I/O pressure (PSI some, stalled-time rate)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "mean"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "rate(node_pressure_io_waiting_seconds_total[5m])", "legendFormat": "{{instance}}" }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "apiserver in-flight requests (saturation / APF)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+          "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (instance, request_kind) (apiserver_current_inflight_requests)", "legendFormat": "{{instance}} {{request_kind}}" }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "apiserver -> etcd request rate by operation",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+          "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (operation) (rate(etcd_requests_total[5m]))", "legendFormat": "{{operation}}" }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "Control-plane pod restarts (10m) — flap fallout",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 7, "w": 24, "x": 0, "y": 30 },
+          "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["sum"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"kube-system\", pod=~\"(kube-controller-manager|kube-scheduler|kube-apiserver|etcd).*\"}[10m])", "legendFormat": "{{pod}}" }
+          ]
+        }
+      ]
+    }
