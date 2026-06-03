@@ -63,6 +63,9 @@ edit-packer-secrets:
 edit-tf-secrets:
     sops infra/terraform/secrets.sops.tfvars
 
+edit-talos-secrets:
+    sops kubernetes/talos/talsecret.sops.yaml
+
 # Verify secrets are decryptable
 verify-secrets:
     sops -d infra/terraform/secrets.sops.tfvars > /dev/null && echo "terraform secrets OK"
