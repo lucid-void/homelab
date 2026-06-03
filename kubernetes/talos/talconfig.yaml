@@ -70,7 +70,7 @@ controlPlane:
       kind: ExtensionServiceConfig
       name: netbird
       environment:
-        - NB_SETUP_KEY=70455C93-8E61-4D6D-AC77-A37CD7293B2F
+        - NB_SETUP_KEY=${NB_SETUP_KEY}
 
 nodes:
   - hostname: k8s-cp-1
