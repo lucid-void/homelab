@@ -150,7 +150,7 @@ Tofu clones the Talos template and creates the three k8s VMs.
 **Before running:** add static DHCP leases on the UDM SE for the fixed MAC addresses
 below. Talos does not use cloud-init — IP addressing on first boot comes from DHCP.
 The static lease must match the `ipAddress` in `talconfig.yaml` so that the first
-`talhelper apply` can reach each node at its expected address.
+`talosctl apply-config` can reach each node at its expected address.
 
 | Node | MAC | IP |
 |---|---|---|
@@ -158,7 +158,7 @@ The static lease must match the `ipAddress` in `talconfig.yaml` so that the firs
 | `k8s-cp-2` | `BC:24:11:00:21:00` | `172.16.20.21` |
 | `k8s-cp-3` | `BC:24:11:00:22:00` | `172.16.20.22` |
 
-After the first `talhelper apply`, the static IP is written into the Talos machine
+After the first `talosctl apply-config`, the static IP is written into the Talos machine
 config and persists independently of DHCP. The DHCP reservation is only needed for
 first-boot reachability.
 
@@ -174,13 +174,40 @@ reachable on port 50000 (unauthenticated).
 
 ## Phase 6 — Apply Talos machine configs
 
+Push each node its generated config from `clusterconfig/`. On first apply the nodes
+have no PKI, so `--insecure` is required (talks to maintenance-mode API on port 50000):
+
 ```bash
-talhelper apply
+cd kubernetes/talos/
+
+talosctl apply-config --insecure \
+  --nodes 172.16.20.20 --endpoints 172.16.20.20 \
+  --file clusterconfig/homelab-k8s-k8s-cp-1.yaml
+
+talosctl apply-config --insecure \
+  --nodes 172.16.20.21 --endpoints 172.16.20.21 \
+  --file clusterconfig/homelab-k8s-k8s-cp-2.yaml
+
+talosctl apply-config --insecure \
+  --nodes 172.16.20.22 --endpoints 172.16.20.22 \
+  --file clusterconfig/homelab-k8s-k8s-cp-3.yaml
 ```
 
-On first apply the nodes have no PKI — talhelper adds `--insecure` automatically.
 Each node reboots after receiving its config; the static IP becomes permanent after
 reboot (DHCP is no longer involved).
+
+**Updating an already-running node** (e.g. after a `talhelper genconfig` change): drop
+`--insecure` and add `--talosconfig clusterconfig/talosconfig` so talosctl authenticates
+with the cluster PKI. Talos applies non-disruptive changes in place; only machine-level
+changes trigger a reboot.
+
+```bash
+talosctl apply-config \
+  --nodes 172.16.20.20 --endpoints 172.16.20.20 \
+  --file clusterconfig/homelab-k8s-k8s-cp-1.yaml \
+  --talosconfig clusterconfig/talosconfig
+# repeat for .21 / cp-2 and .22 / cp-3
+```
 
 ---
 
@@ -407,8 +434,13 @@ Only needed if all three control planes are lost simultaneously (full cluster wi
 # 1. reprovision all three VMs via Tofu
 just apply
 
-# 2. push Talos config to all nodes
-talhelper apply
+# 2. push Talos config to all nodes (maintenance mode — --insecure)
+talosctl apply-config --insecure --nodes 172.16.20.20 --endpoints 172.16.20.20 \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-k8s-cp-1.yaml
+talosctl apply-config --insecure --nodes 172.16.20.21 --endpoints 172.16.20.21 \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-k8s-cp-2.yaml
+talosctl apply-config --insecure --nodes 172.16.20.22 --endpoints 172.16.20.22 \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-k8s-cp-3.yaml
 
 # 3. re-bootstrap etcd from scratch (run on ONE node only)
 talosctl bootstrap \

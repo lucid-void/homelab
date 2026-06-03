@@ -19,14 +19,15 @@ Self-hosted services for daily use, all behind a single OIDC provider:
 | Documents | Paperless-ngx |
 | Media | Plex, Sonarr, Radarr, Prowlarr, SABnzbd, Seerr |
 | Reading | FreshRSS |
-| Code / Git | Gitea + Gitea Actions runner |
+| Code / Git | Gitea (self-hosted, mirrored from GitHub) |
 | Inventory | Homebox |
 | Identity | Zitadel (single OIDC provider for everything above) |
 | Dashboard | Homepage |
 | Observability | Gatus, Goldilocks, Gotify, Falco, Trivy Operator, kubent |
 | De-Google | freshrss, immich, gitea, paperless (the `degoog` stack) |
 
-Legacy on Docker Swarm: Plex (until GPU passthrough is wired into k8s), Netbird, ZeroTier.
+Netbird (primary VPN) runs as a Talos extension on every cluster node. ZeroTier (gaming)
+is the only workload left outside the cluster, on a small VM via plain Docker Compose.
 
 ---
 
@@ -49,8 +50,7 @@ Legacy on Docker Swarm: Plex (until GPU passthrough is wired into k8s), Netbird,
 | DNS | UDM SE (local override for `*.blackcats.cc`) + external-dns to Cloudflare |
 | Remote access | Netbird (primary VPN), ZeroTier (gaming) |
 | VM provisioning | Packer (Debian + Talos templates) + OpenTofu |
-| Host config (non-Talos) | Ansible |
-| CI / CD | Gitea Actions on a self-hosted LXC runner |
+| CI / CD | GitHub Actions (image builds → GHCR, manifest + security scans) + Renovate |
 
 No port forwarding on the WAN. All external hostnames resolve to internal IPs;
 access requires LAN, Netbird, or ZeroTier.
@@ -69,10 +69,8 @@ Homelab/
 │   └── images/              # custom container images (built in CI, pushed to GHCR)
 ├── infra/
 │   ├── packer/              # Debian + Talos VM templates
-│   ├── terraform/           # VM + DNS provisioning (OpenTofu)
-│   └── ansible/             # host configuration for non-Talos nodes
-├── stacks/                  # Docker Swarm compose files (legacy)
-├── .gitea/workflows/        # CI pipelines (lint, plan, drift)
+│   └── terraform/           # VM + DNS + Zitadel OIDC provisioning (OpenTofu)
+├── .github/workflows/       # CI: image builds, manifest + security scans
 ├── design/                  # design specs, runbook, decisions (operator-only)
 ├── INSTALLATION.md          # cluster bootstrap procedure (Phase 1 → live cluster)
 ├── justfile                 # task runner
@@ -103,21 +101,21 @@ Kubernetes tooling (`kubectl`, `flux`, `kubeseal`, `talosctl`, `talhelper`, `hel
 mise install
 ```
 
-For the IaC side, install `packer`, `opentofu`, `ansible`, `sops`, `age`, and `just`
+For the IaC side, install `packer`, `opentofu`, `sops`, `age`, and `just`
 through your package manager.
 
 ---
 
 ## CI / CD
 
-Pipelines run on a self-hosted Gitea Actions runner at `172.16.20.17`. The repository
-is mirrored from GitHub to Gitea on a 10-minute schedule.
+Pipelines run on GitHub Actions. Renovate opens dependency-bump PRs for Helm charts and
+image tags.
 
 | Workflow | Trigger | Job |
 |---|---|---|
-| `lint.yml` | push to `main` | packer validate · tflint · ansible-lint · kubeconform |
-| `plan.yml` | manual | `tofu plan -out=tfplan` |
-| `drift.yml` | weekly | `tofu plan` + `ansible --check --diff` → Gotify |
+| `manifest-scan.yml` | PR touching `kubernetes/**` | kubeconform (hard gate) + kube-linter (delta gate) |
+| `backup-tools.yml` | push to `kubernetes/images/backup-tools/**` | build + push image → GHCR |
+| `postgres-cnpg-immich.yml` | push to `kubernetes/images/postgres-cnpg-immich/**` | build + push image → GHCR |
 
-**`tofu apply` is never automated.** Cluster state is reconciled by Flux on every push;
-the IaC layer is always applied manually after reviewing the plan.
+**Nothing is auto-applied to the cluster.** Flux reconciles cluster state from `main`;
+`tofu apply` is always run manually after reviewing the plan.
