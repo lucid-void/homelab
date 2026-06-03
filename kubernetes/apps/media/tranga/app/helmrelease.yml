@@ -42,6 +42,10 @@ spec:
               TZ: Europe/Brussels
               # Tranga falls back to FlareSolverr on Cloudflare 403s; it auto-appends /v1.
               FLARESOLVERR_URL: http://tranga-flaresolverr:8191
+              # Tranga's bundled Chromium (for JS-rendered chapter pages) needs a writable
+              # HOME; the image's default HOME=/ is read-only for uid 2202, so Chromium's
+              # crashpad fails to launch ("--database is required"). Point HOME at an emptyDir.
+              HOME: /home/tranga
               POSTGRES_HOST: postgres-rw.postgres.svc.cluster.local:5432
               POSTGRES_DB: tranga
               POSTGRES_USER: tranga
@@ -158,3 +162,10 @@ spec:
             app:
               - path: /Manga
                 subPath: Manga
+      # Writable HOME for the bundled Chromium profile / crashpad (ephemeral).
+      browser:
+        type: emptyDir
+        advancedMounts:
+          api:
+            app:
+              - path: /home/tranga
