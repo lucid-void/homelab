@@ -232,11 +232,29 @@ spec:
     # cm + scheduler are reachable: --bind-address=0.0.0.0 is set via Talos
     # extraArgs (must also be added to talconfig.yaml so it survives a
     # talhelper regen — applied imperatively 2026-06-03).
+    # Talos serves cm/scheduler metrics with a cert valid only for localhost,
+    # but vmagent scrapes them by node IP — so skip TLS verification.
     kubeControllerManager:
       enabled: true
+      vmScrape:
+        spec:
+          endpoints:
+            - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+              port: http-metrics
+              scheme: https
+              tlsConfig:
+                insecureSkipVerify: true
 
     kubeScheduler:
       enabled: true
+      vmScrape:
+        spec:
+          endpoints:
+            - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+              port: http-metrics
+              scheme: https
+              tlsConfig:
+                insecureSkipVerify: true
 
     # etcd stays disabled: Talos won't restart etcd via API to apply
     # listen-metrics-urls (needs a node reboot, and it's unconfirmed Talos
