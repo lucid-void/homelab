@@ -228,14 +228,20 @@ spec:
               component: apiserver
               provider: kubernetes
 
-    # Talos binds controller-manager, scheduler, and etcd metrics to localhost
-    # only — vmagent cannot reach them from outside the node.
+    # Control-plane component metrics.
+    # cm + scheduler are reachable: --bind-address=0.0.0.0 is set via Talos
+    # extraArgs (must also be added to talconfig.yaml so it survives a
+    # talhelper regen — applied imperatively 2026-06-03).
     kubeControllerManager:
-      enabled: false
+      enabled: true
 
     kubeScheduler:
-      enabled: false
+      enabled: true
 
+    # etcd stays disabled: Talos won't restart etcd via API to apply
+    # listen-metrics-urls (needs a node reboot, and it's unconfirmed Talos
+    # renders it). The kube-apiserver already exposes etcd_request_duration_seconds
+    # for etcd latency, so a dedicated etcd scrape isn't required for now.
     kubeEtcd:
       enabled: false
 
