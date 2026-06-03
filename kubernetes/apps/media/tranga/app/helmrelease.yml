@@ -40,6 +40,8 @@ spec:
               tag: "latest"
             env:
               TZ: Europe/Brussels
+              # Tranga falls back to FlareSolverr on Cloudflare 403s; it auto-appends /v1.
+              FLARESOLVERR_URL: http://tranga-flaresolverr:8191
               POSTGRES_HOST: postgres-rw.postgres.svc.cluster.local:5432
               POSTGRES_DB: tranga
               POSTGRES_USER: tranga
@@ -94,6 +96,36 @@ spec:
                 cpu: 10m
               limits:
                 memory: 128Mi
+      # Chrome-based proxy that solves Cloudflare challenges for protected connectors
+      # (WeebCentral, Bato, etc.). Runs as root (Chrome) — own pod, no securityContext.
+      flaresolverr:
+        replicas: 1
+        containers:
+          app:
+            image:
+              repository: ghcr.io/flaresolverr/flaresolverr
+              tag: "v3.5.0"
+            env:
+              TZ: Europe/Brussels
+              LOG_LEVEL: info
+            probes:
+              liveness: &fs-probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 8191
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 10
+              readiness: *fs-probes
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 50m
+              limits:
+                memory: 1Gi
 
     service:
       api:
@@ -106,6 +138,11 @@ spec:
         ports:
           http:
             port: 80
+      flaresolverr:
+        controller: flaresolverr
+        ports:
+          http:
+            port: 8191
 
     persistence:
       config:

@@ -1,0 +1,55 @@
+---
+# Registers the first Kavita user, which automatically becomes the admin
+# (POST /api/account/register only acts when no admin exists — idempotent).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kavita-bootstrap
+  namespace: media
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          image: alpine:3.21
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              apk add --no-cache curl >/dev/null 2>&1
+              BASE="http://kavita:5000"
+
+              echo "Waiting for Kavita to be ready..."
+              for i in $(seq 1 60); do
+                code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/health" || true)
+                [ "$code" = "200" ] && { echo "Kavita is up."; break; }
+                echo "  ($i) health=$code, retrying in 5s..."
+                sleep 5
+              done
+
+              echo "Registering admin user '${KAVITA_ADMIN_USERNAME}'..."
+              resp=$(printf '{"username":"%s","email":"%s","password":"%s"}' \
+                       "$KAVITA_ADMIN_USERNAME" "$KAVITA_ADMIN_EMAIL" "$KAVITA_ADMIN_PASSWORD" \
+                     | curl -s -w '\n%{http_code}' -X POST "$BASE/api/account/register" \
+                         -H 'Content-Type: application/json' --data @-)
+              code=$(echo "$resp" | tail -1)
+              body=$(echo "$resp" | sed '$d')
+
+              case "$code" in
+                200|201) echo "Admin account created." ;;
+                400)     echo "Register returned 400 (admin already exists) — treating as done. Body: $body" ;;
+                *)       echo "Unexpected response ($code): $body"; exit 1 ;;
+              esac
+              echo "kavita-bootstrap complete."
+          envFrom:
+            - secretRef:
+                name: kavita-admin-secret
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 25m
+            limits:
+              memory: 64Mi
