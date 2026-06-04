@@ -1,6 +1,7 @@
 ---
-# Registers the first Kavita user, which automatically becomes the admin
-# (POST /api/account/register only acts when no admin exists — idempotent).
+# Bootstraps Kavita: (1) registers the first user (auto-admin), and
+# (2) enables OIDC account provisioning so Zitadel users can self-register.
+# Both steps are idempotent — safe to re-run.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -19,7 +20,7 @@ spec:
           args:
             - |
               set -eu
-              apk add --no-cache curl >/dev/null 2>&1
+              apk add --no-cache curl jq >/dev/null 2>&1
               BASE="http://kavita:5000"
 
               echo "Waiting for Kavita to be ready..."
@@ -36,20 +37,53 @@ spec:
                      | curl -s -w '\n%{http_code}' -X POST "$BASE/api/account/register" \
                          -H 'Content-Type: application/json' --data @-)
               code=$(echo "$resp" | tail -1)
-              body=$(echo "$resp" | sed '$d')
-
               case "$code" in
                 200|201) echo "Admin account created." ;;
-                400)     echo "Register returned 400 (admin already exists) — treating as done. Body: $body" ;;
-                *)       echo "Unexpected response ($code): $body"; exit 1 ;;
+                400)     echo "Register returned 400 (admin already exists) — ok." ;;
+                *)       echo "Unexpected register response ($code): $(echo "$resp" | sed '$d')"; exit 1 ;;
               esac
+
+              # --- OIDC account provisioning -------------------------------------
+              # Kavita keeps these toggles in its DB (not appsettings.json), so they
+              # can't be set via env — configure them through the admin API. Skips
+              # cleanly if kavita-oidc-secret isn't present yet (pre zitadel-bootstrap).
+              if [ -z "${OIDC_CLIENT_SECRET:-}" ]; then
+                echo "kavita-oidc-secret absent; skipping OIDC provisioning config."
+              else
+                TOKEN=$(printf '{"username":"%s","password":"%s"}' \
+                          "$KAVITA_ADMIN_USERNAME" "$KAVITA_ADMIN_PASSWORD" \
+                        | curl -s -X POST "$BASE/api/account/login" \
+                            -H 'Content-Type: application/json' --data @- | jq -r '.token // empty')
+                if [ -z "$TOKEN" ]; then
+                  echo "WARN: admin login failed; skipping OIDC config."
+                else
+                  LIBS=$(curl -s "$BASE/api/library/libraries" -H "Authorization: Bearer $TOKEN" \
+                         | jq -c '[.[].id]' 2>/dev/null || echo '[]')
+                  # UpdateSettings writes Authority/ClientId/Secret back to appsettings.json,
+                  # and GET masks the secret — so re-inject the real one from the k8s secret.
+                  curl -s "$BASE/api/settings" -H "Authorization: Bearer $TOKEN" \
+                    | jq --arg s "$OIDC_CLIENT_SECRET" --argjson libs "$LIBS" '
+                        .oidcConfig.provisionAccounts=true
+                        | .oidcConfig.requireVerifiedEmail=false
+                        | .oidcConfig.defaultRoles=["Login"]
+                        | .oidcConfig.defaultLibraries=$libs
+                        | .oidcConfig.secret=$s' \
+                    | curl -s -o /dev/null -w 'OIDC provisioning -> %{http_code}\n' \
+                        -X POST "$BASE/api/settings" -H "Authorization: Bearer $TOKEN" \
+                        -H 'Content-Type: application/json' --data @- \
+                    || echo "WARN: OIDC settings POST failed (non-fatal)."
+                fi
+              fi
               echo "kavita-bootstrap complete."
           envFrom:
             - secretRef:
                 name: kavita-admin-secret
+            - secretRef:
+                name: kavita-oidc-secret
+                optional: true
           resources:
             requests:
               memory: 32Mi
               cpu: 25m
             limits:
-              memory: 64Mi
+              memory: 96Mi
