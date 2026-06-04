@@ -1,0 +1,125 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: suwayomi
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      # Suwayomi-Server: manga downloader using the Tachiyomi/Mihon extension ecosystem.
+      # Embedded H2 DB (no CNPG). Runs as uid 2202/gid 2200 to write the media share;
+      # the image grants o+rwx on /home/suwayomi so arbitrary UIDs work.
+      app:
+        replicas: 1
+        pod:
+          securityContext:
+            runAsUser: 2202
+            runAsGroup: 2200
+            fsGroup: 2200
+            runAsNonRoot: true
+        containers:
+          app:
+            image:
+              repository: ghcr.io/suwayomi/suwayomi-server
+              tag: "v2.2.2100"
+            env:
+              TZ: Europe/Brussels
+              BIND_PORT: "4567"
+              DOWNLOAD_AS_CBZ: "true"
+              AUTH_MODE: none
+              FLARESOLVERR_ENABLED: "true"
+              FLARESOLVERR_URL: http://suwayomi-flaresolverr:8191
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 4567
+                  initialDelaySeconds: 60
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 15
+              readiness: *probes
+            resources:
+              requests:
+                memory: 512Mi
+                cpu: 50m
+              limits:
+                memory: 2Gi
+      # Chrome-based proxy for Cloudflare-gated sources (runs as root, own pod).
+      flaresolverr:
+        replicas: 1
+        containers:
+          app:
+            image:
+              repository: ghcr.io/flaresolverr/flaresolverr
+              tag: "v3.5.0"
+            env:
+              TZ: Europe/Brussels
+              LOG_LEVEL: info
+            probes:
+              liveness: &fs-probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 8191
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 10
+              readiness: *fs-probes
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 50m
+              limits:
+                memory: 1Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 4567
+      flaresolverr:
+        controller: flaresolverr
+        ports:
+          http:
+            port: 8191
+
+    persistence:
+      # Data dir: H2 DB, settings, installed extensions, thumbnails.
+      config:
+        existingClaim: suwayomi-config
+        advancedMounts:
+          app:
+            app:
+              - path: /home/suwayomi/.local/share/Tachidesk
+      # Downloads land on the Synology Media share (Manga/) so Kavita can read them.
+      # Nested mount inside the data dir at the downloads subfolder.
+      downloads:
+        existingClaim: media-nfs
+        advancedMounts:
+          app:
+            app:
+              - path: /home/suwayomi/.local/share/Tachidesk/downloads
+                subPath: Manga

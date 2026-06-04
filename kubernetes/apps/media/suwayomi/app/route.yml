@@ -1,0 +1,19 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: suwayomi
+  namespace: media
+  annotations:
+    external-dns.alpha.kubernetes.io/enabled: "true"
+spec:
+  parentRefs:
+    - name: shared
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - suwayomi.blackcats.cc
+  rules:
+    - backendRefs:
+        - name: suwayomi-app
+          port: 4567
