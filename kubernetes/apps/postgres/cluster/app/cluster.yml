@@ -63,11 +63,6 @@ spec:
         inherit: true
         passwordSecret:
           name: sonarr-role-secret
-      - name: tranga
-        login: true
-        inherit: true
-        passwordSecret:
-          name: tranga-role-secret
 
   storage:
     size: 20Gi
