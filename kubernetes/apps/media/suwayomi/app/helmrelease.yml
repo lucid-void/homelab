@@ -46,6 +46,9 @@ spec:
               AUTH_MODE: none
               FLARESOLVERR_ENABLED: "true"
               FLARESOLVERR_URL: http://suwayomi-flaresolverr:8191
+              # Seed the Keiyoushi extension repo (maintained Tachiyomi/Mihon extensions).
+              # Suwayomi ships with no repos by default; this makes sources installable.
+              EXTENSION_REPOS: '["https://github.com/keiyoushi/extensions/tree/repo"]'
             probes:
               liveness: &probes
                 enabled: true

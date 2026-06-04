@@ -155,3 +155,19 @@ data:
         conditions:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Suwayomi
+        group: media
+        url: https://suwayomi.example.com
+        interval: 1m
+        conditions:
+          - "[STATUS] < 400"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Kavita
+        group: media
+        url: https://kavita.example.com/api/health
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
