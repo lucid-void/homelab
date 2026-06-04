@@ -12,6 +12,5 @@ resources:
   - ./sabnzbd/ks.yml
   - ./seerr/ks.yml
   - ./plex/ks.yml
-  - ./tranga/database/ks.yml
-  - ./tranga/ks.yml
+  - ./suwayomi/ks.yml
   - ./kavita/ks.yml
