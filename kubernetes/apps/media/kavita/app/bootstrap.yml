@@ -65,7 +65,9 @@ spec:
                     | jq --arg s "$OIDC_CLIENT_SECRET" --argjson libs "$LIBS" '
                         .oidcConfig.provisionAccounts=true
                         | .oidcConfig.requireVerifiedEmail=false
-                        | .oidcConfig.defaultRoles=["Admin"]
+                        | .oidcConfig.defaultRoles=["Login"]
+                        | .oidcConfig.defaultAgeRestriction=-1
+                        | .oidcConfig.defaultIncludeUnknowns=true
                         | .oidcConfig.defaultLibraries=$libs
                         | .oidcConfig.secret=$s' \
                     | curl -s -o /dev/null -w 'OIDC provisioning -> %{http_code}\n' \
