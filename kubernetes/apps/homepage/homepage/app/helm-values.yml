@@ -54,6 +54,14 @@ config:
             href: https://nzb.blackcats.cc
             description: Downloader
             icon: sabnzbd.png
+        - Suwayomi:
+            href: https://suwayomi.blackcats.cc
+            description: Manga downloader
+            icon: suwayomi.png
+        - Kavita:
+            href: https://kavita.blackcats.cc
+            description: Manga reader
+            icon: kavita.png
     - Documents:
         - Paperless:
             href: https://paperless.blackcats.cc
