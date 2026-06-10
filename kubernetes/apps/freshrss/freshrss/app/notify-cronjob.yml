@@ -1,0 +1,139 @@
+---
+# Polls FreshRSS's GReader API every 10 minutes for articles tagged with a
+# dedicated label (default "notify") and pushes each new one to Gotify, which
+# in turn fans out to Telegram via the existing gotify-telegram bridge.
+#
+# "Interesting" is defined entirely inside FreshRSS: create a label (e.g.
+# "notify") and one or more Filtering actions (per-feed or global) that
+# auto-apply that label to matching articles — e.g. an action with rule
+# `intitle:keyword` and "Tag the article with label: notify".
+#
+# Dedup is by GReader item id, persisted on the freshrss-notify-state PVC.
+# First run seeds the state silently (no backfill flood).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: freshrss-notify
+  namespace: freshrss
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 3600
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            runAsNonRoot: true
+          containers:
+            - name: notify
+              image: alpine:3.21
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  apk add --no-cache curl jq >/dev/null 2>&1
+
+                  GREADER="${FRESHRSS_URL}/api/greader.php"
+                  STATE=/state/seen.txt
+                  PRIORITY="${PRIORITY:-5}"
+                  GOTIFY_TOKEN="${GOTIFY_TOKEN:-}"
+
+                  # --- authenticate (GReader ClientLogin) ---
+                  AUTH=$(curl -sf \
+                    --data-urlencode "Email=${FRESHRSS_USER}" \
+                    --data-urlencode "Passwd=${FRESHRSS_API_PASSWORD}" \
+                    "${GREADER}/accounts/ClientLogin" \
+                    | sed -n 's/^Auth=//p' | tr -d '\r')
+                  if [ -z "$AUTH" ]; then
+                    echo "ERROR: GReader ClientLogin failed (check FRESHRSS_USER / API password)."
+                    exit 1
+                  fi
+
+                  # --- fetch the most recent items in the label stream ---
+                  STREAM="user/-/label/${NOTIFY_LABEL}"
+                  RESP=$(curl -sf -H "Authorization: GoogleLogin auth=${AUTH}" \
+                    "${GREADER}/reader/api/0/stream/contents/${STREAM}?output=json&n=50")
+                  echo "$RESP" | jq -c '.items[]?' > /tmp/items.jsonl || true
+
+                  # --- first run: seed state, do not notify ---
+                  if [ ! -f "$STATE" ]; then
+                    jq -r '.id' /tmp/items.jsonl > "$STATE" 2>/dev/null || : > "$STATE"
+                    echo "First run: seeded $(wc -l < "$STATE") item id(s), not notifying."
+                    exit 0
+                  fi
+
+                  if [ -z "$GOTIFY_TOKEN" ]; then
+                    echo "GOTIFY_TOKEN not set yet (gotify-bootstrap pending) — skipping this run."
+                    exit 0
+                  fi
+
+                  sent=0
+                  while IFS= read -r item; do
+                    [ -n "$item" ] || continue
+                    id=$(printf '%s' "$item" | jq -r '.id')
+                    if grep -qxF "$id" "$STATE"; then
+                      continue
+                    fi
+                    title=$(printf '%s' "$item" | jq -r '.title // "(untitled)"')
+                    url=$(printf '%s' "$item" | jq -r '.canonical[0].href // .alternate[0].href // ""')
+                    feed=$(printf '%s' "$item" | jq -r '.origin.title // ""')
+
+                    body=$(printf '%s\n\n%s' "$feed" "$url")
+                    payload=$(jq -nc \
+                      --arg t "$title" \
+                      --arg m "$body" \
+                      --arg u "$url" \
+                      --argjson p "$PRIORITY" \
+                      '{title:$t, message:$m, priority:$p,
+                        extras:{"client::notification":{click:{url:$u}}}}')
+
+                    if curl -sf -X POST -H "Content-Type: application/json" \
+                        -d "$payload" \
+                        "${GOTIFY_URL}/message?token=${GOTIFY_TOKEN}" >/dev/null; then
+                      echo "$id" >> "$STATE"
+                      sent=$((sent + 1))
+                    else
+                      echo "WARN: failed to post to Gotify: ${title}"
+                    fi
+                  done < /tmp/items.jsonl
+
+                  # keep state bounded
+                  tail -n 2000 "$STATE" > "$STATE.tmp" && mv "$STATE.tmp" "$STATE"
+                  echo "Done. Notified ${sent} new article(s)."
+              env:
+                - name: FRESHRSS_URL
+                  value: http://freshrss.freshrss.svc.cluster.local
+                - name: GOTIFY_URL
+                  value: http://gotify.monitoring.svc.cluster.local
+                - name: NOTIFY_LABEL
+                  value: notify
+                - name: PRIORITY
+                  value: "5"
+              envFrom:
+                - secretRef:
+                    name: freshrss-notify-secret
+                - secretRef:
+                    name: gotify-secret
+                    optional: true
+              resources:
+                requests:
+                  memory: 64Mi
+                  cpu: 50m
+                limits:
+                  memory: 128Mi
+              volumeMounts:
+                - name: state
+                  mountPath: /state
+          volumes:
+            - name: state
+              persistentVolumeClaim:
+                claimName: freshrss-notify-state
