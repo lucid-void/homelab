@@ -103,14 +103,14 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | SABnzbd | `nzb.blackcats.cc` | `lscr.io/linuxserver/sabnzbd:4.5.1` | Config PVC (`nfs-client`) + `media-nfs` |
 | Seerr | `seerr.blackcats.cc` | `ghcr.io/seerr-team/seerr:v3.2.0` | Config PVC (`nfs-client`) — pod `securityContext` instead of PUID/PGID |
 | Plex | `plex.blackcats.cc` | `lscr.io/linuxserver/plex:1.41.7` | Config PVC (`openebs-hostpath`, pinned to k8s-cp-1) + `media-nfs` (readOnly) |
-| Tranga | `tranga.blackcats.cc` | `glax/tranga-api:latest` + `glax/tranga-website:latest` | `tranga-config` PVC (`nfs-client`) + `media-nfs` subPath `Manga`; CNPG Postgres (`tranga` DB) |
+| Suwayomi | `suwayomi.blackcats.cc` | `ghcr.io/suwayomi/suwayomi-server:v2.2.2100` (+ `flaresolverr` v3.5.0) | `suwayomi-config` PVC (`nfs-client`, embedded H2) + `media-nfs` subPath `Manga` (downloads) |
 | Kavita | `kavita.blackcats.cc` | `lscr.io/linuxserver/kavita:0.9.0` | `kavita-config` PVC (`nfs-client`, internal SQLite) + `media-nfs` subPath `Manga` (readOnly) |
 
 Plex uses `openebs-hostpath` for its config PVC — SQLite WAL locking errors occur over NFS. Config is on local disk on whichever node the PVC first bound to (k8s-cp-1).
 
 Sonarr and Radarr use CNPG Postgres (migrated from SQLite; migration Jobs in `kubernetes/apps/media/sonarr/app/migration-job.yml` and `radarr/`).
 
-**Manga stack** — Tranga downloads/monitors manga (Tachiyomi-style sources, mangal-free; actively maintained), Kavita reads it. Tranga is a split frontend/backend: the `website` (nginx) reverse-proxies `/api/` to the `api` controller via `API_URL`, so only `tranga-website:80` is exposed; the `api` controller is internal and talks to CNPG over separate `POSTGRES_HOST/DB/USER/PASSWORD` env (`tranga-role-secret` reflected into `media`). Both Tranga and Kavita write/read `/volume2/Media/Manga/` (PUID/PGID `2202`/`2200`). Tranga images publish only rolling channel tags (no semver) — `latest` is the stable channel, an accepted deviation from the image-pin policy. A **FlareSolverr** controller (`tranga-flaresolverr:8191`) in the Tranga HelmRelease solves Cloudflare challenges so protected connectors return chapter lists. Kavita's first admin is provisioned by the `kavita-bootstrap` Job (creds in `kavita-admin-secret`); subsequent users come from Zitadel OIDC.
+**Manga stack** — Suwayomi-Server downloads manga via the Tachiyomi/Mihon extension ecosystem (hundreds of sources installed at runtime), Kavita reads it. (Tranga was tried first but removed — its 4-connector set couldn't reliably source licensed English titles like Witch Hat Atelier.) Suwayomi is a single HelmRelease with two controllers: `app` (`suwayomi-app:4567`, embedded H2 — no CNPG) and `flaresolverr` (`suwayomi-flaresolverr:8191`) for Cloudflare-gated sources. Config is all env (`DOWNLOAD_AS_CBZ=true`, `AUTH_MODE=none`, `FLARESOLVERR_*`). Runs as uid/gid `2202`/`2200`; data dir on `suwayomi-config`, with `media-nfs` subPath `Manga` nested-mounted at `…/Tachidesk/downloads` so CBZs land on `/volume2/Media/Manga/` for Kavita. Kavita's first admin is provisioned by the `kavita-bootstrap` Job (creds in `kavita-admin-secret`); subsequent users come from Zitadel OIDC.
 
 ---
 
