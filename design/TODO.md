@@ -18,25 +18,22 @@ Known gaps, planned work, and items that need verification.
 
 ## Stale / Needs Update
 
-*(nothing currently)*
+### Kavita missing from README service list
+
+Kavita is **already deployed** (manga stack, `media` namespace — see `.claude/CLAUDE.md` and
+`design/docs/services.md`), but the top-level README's service inventory doesn't list it, and it
+lingered in the Service Candidates table below as if un-built. Removed from candidates; **add Kavita
+to the README/service inventory** so docs match reality.
 
 ---
 
 ## Needs Verification
-
-### Goldilocks and Gatus OIDC callback URIs
-
-`docs/services.md` lists these as "TBD" — the OIDC redirect URIs for Goldilocks and Gatus have not been confirmed. Verify in the Zitadel console or check the HelmRelease values.
 
 ### CNPG WAL archiving
 
 CNPG currently does base backups only — WAL archiving is not configured. Without WAL archiving, point-in-time recovery is not possible; recovery is limited to the last daily snapshot.
 
 **Consider:** adding `backup.barmanObjectStore` to the CNPG Cluster spec for WAL archiving to Synology or Filen.
-
-### Homepage configuration
-
-The `homepage` HelmRelease uses a ConfigMap for all configuration. Current contents of the ConfigMap have not been audited — some entries may point to services that have moved from Swarm to k8s (with changed hostnames) or been decommissioned.
 
 ### Backup restore actually works
 
@@ -66,6 +63,51 @@ Falco events route to Gotify, then a Python WebSocket bridge forwards to Telegra
 
 ## Future Work
 
+### Flux GitOps reconciliation alerting (notification-controller)
+
+**The meta-hole.** The cluster has `vmalert → Alertmanager → Gotify` for *metrics*, but Flux's own
+notification-controller has **no `Provider`/`Alert` resources anywhere in the repo**. A HelmRelease
+stuck in "install retries exhausted", or a Kustomization that fails to build, just sits there
+silently until someone happens to run `flux get ks -A`. This is the meta-gap: the system that
+*deploys* the alerting stack can fail without alerting. It's the cheapest, highest-value addition
+currently available — ~30 lines of YAML.
+
+**Action:** Add one `Provider` (kind `generic` webhook → Gotify; notification-controller speaks
+generic webhook and Gotify accepts it) plus one `Alert` watching `Kustomization` **and**
+`HelmRelease` across all namespaces at `eventSeverity: error`. Closes the gap where the thing that
+deploys your alerting can fail silently.
+
+### Migrate per-app backup CronJobs to VolSync
+
+The five backup CronJobs (immich, paperless, gitea, homebox, postgres) work, but they're imperative
+scripts wearing GitOps clothes — five copies of similar logic, each a custom image. **VolSync**'s
+restic mover gives the same restic→rclone-compatible result as a declarative `ReplicationSource`
+per PVC, with built-in scheduling, pruning, and a `ReplicationDestination` CRD that makes *restores*
+declarative too. That directly addresses the "Backup restore actually works" item above: restore
+becomes a manifest you can rehearse, not a runbook you improvise.
+
+(Why VolSync over Velero: Velero's main value is cluster-*resource* backup, which Git already covers
+in this setup. For PVC data the declarative restic flow is the better fit — so VolSync is the better
+first move; Velero stays a "maybe later" for full-cluster DR.)
+
+**Action:** Pilot VolSync on one PVC matching the existing restic repo layout
+(`rclone:filen:backups/restic/{name}`), prove a restore via `ReplicationDestination`, then migrate
+the rest. Pair with the Immich restore drill.
+
+### Dedicated CNPG cluster for Zitadel (blast-radius isolation)
+
+Zitadel — the single OIDC provider gating Immich, Paperless, Gitea, FreshRSS, Goldilocks, Gatus —
+currently shares the one CNPG cluster with six other app databases. Seven DBs in one Postgres is
+fine for FreshRSS and Homebox; it's questionable for the thing that gates *everything*. A CNPG
+failover hiccup or a major-version upgrade gone wrong takes down auth for every service
+simultaneously — including the dashboards you'd use to debug it. A dedicated **single-instance CNPG
+cluster for Zitadel** (with its own `barmanObjectStore` once MinIO exists) isolates the blast radius
+and decouples Zitadel from the shared-cluster Postgres 16→17 upgrade problem (see "Postgres major
+version upgrade plan").
+
+**Action:** Stand up a separate CNPG `Cluster` for Zitadel; migrate the `zitadel` database via
+logical dump+restore; repoint Zitadel; give it an independent WAL-archiving target once MinIO lands.
+
 ### Per-namespace NetworkPolicies
 
 Cilium supports L7 NetworkPolicies. Currently no `NetworkPolicy` or `CiliumNetworkPolicy` resources are deployed — all pods can reach all other pods. Adding default-deny + per-namespace allow rules would mirror the Swarm overlay isolation model.
@@ -74,6 +116,12 @@ Cilium supports L7 NetworkPolicies. Currently no `NetworkPolicy` or `CiliumNetwo
 1. `postgres` namespace — allow ingress only from declared app namespaces; combined with cleartext intra-cluster Postgres traffic, any pod RCE currently = full DB access
 2. `auth` namespace (Zitadel) — allow ingress only from gateway + OIDC clients
 3. `cert-manager`, `flux-system`, `kube-system` — restrict egress and cross-namespace ingress
+
+**Prerequisite — observe before enforcing:** writing default-deny policies blind is how Zitadel
+breaks at 11pm. Enable **Hubble UI** first (effectively free — Cilium is already running), watch
+actual flows for ~a week, then derive `CiliumNetworkPolicy` for the `postgres` and `auth`
+namespaces from *observed* traffic instead of guesswork. (See Service Candidates ordering — Hubble
+UI is sequenced specifically as the gate to this work.)
 
 ### nftables host firewall on k8s nodes
 
@@ -161,28 +209,63 @@ Sealed Secrets key rotation is intentionally disabled (`ARCHITECTURE.md` decisio
 
 ## Service Candidates
 
+### Recommended implementation order
+
+Dependency-aware ordering rather than the raw lists below:
+
+1. **MinIO first** — it unlocks the CNPG fix. WAL archiving / PITR is the scariest single gap (one
+   shared Postgres backing seven apps incl. Zitadel, currently dump-only). MinIO on OpenEBS hostpath
+   (or Synology iSCSI) gives an S3 target for `backup.barmanObjectStore`, taking the Postgres story
+   from "yesterday's dump" to point-in-time recovery. It *also* unblocks Velero/VolSync and
+   VictoriaLogs object storage later. **Deploy it for CNPG, not as an abstract building block.**
+2. **Hubble UI second** — the prerequisite to the NetworkPolicies work (see Future Work). Effectively
+   free since Cilium is already running. Enable it, watch real flows for a week, then write
+   `CiliumNetworkPolicy` for `postgres`/`auth` from observed traffic instead of guessing.
+3. **Vaultwarden third** — the most glaring *functional* gap in a degoog stack that already covers
+   identity, photos, docs, and RSS. Fits existing patterns exactly: CNPG database, Sealed Secret,
+   HTTPRoute, restic CronJob. **Caveat:** make it the first app you run a full restore drill on —
+   even before the Immich drill above — because a password vault you can't restore is worse than no
+   vault.
+4. **Kyverno fourth, scoped narrowly** — deploy it to *resolve the image-provenance decision* (see
+   "Image digest pinning / signature verification"), not as a general policy engine. A single
+   `verifyImages` policy for `ghcr.io/lucid-void/*` (cosign-sign the two custom images in the
+   existing GitHub Actions workflows) plus a registry allowlist gets ~90% of the value with minimal
+   admission-webhook blast radius. **Exclude `kube-system` and `flux-system` from enforcement** so a
+   Kyverno outage can't brick reconciliation.
+
+**Deprioritized (with reasons):**
+- **Harbor** — Spegel already provides pull-through caching and registry-outage resilience; Harbor
+  adds a stateful service to babysit for marginal gain.
+- **Tempo / OpenTelemetry Collector** — no instrumented apps emit traces today; it'd be a backend
+  with nothing to ingest. Revisit only once apps emit spans.
+- **Headlamp** — fine, but k9s via mise costs zero cluster resources for the same day-to-day
+  inspection.
+
+**Lowest-friction frontend wins:** **Navidrome** and **Audiobookshelf** — the `media` namespace, NFS
+PV, and Gateway patterns already exist, so these are near-drop-in.
+
 ### Backend / Infrastructure
 
 | Service | What it adds |
 |---|---|
-| **MinIO** | On-prem S3-compatible object store; unlocks Loki object storage mode, Grafana Tempo, and Velero without cloud deps |
-| **Velero** | Kubernetes-native PVC snapshot + resource backup; cluster-level DR to complement per-app CronJob backups |
-| **Grafana Tempo** | Distributed tracing backend; closes the observability triangle alongside existing metrics (Prometheus) + logs (Loki) |
-| **OpenTelemetry Collector** | Unified pipeline to collect/route traces, metrics, and logs; makes adding Tempo and future backends cleaner |
-| **Kyverno** | Policy-as-code admission controller; enforces resource limits, allowed image registries, no-privileged rules — complements Falco |
-| **Hubble UI** | Already running Cilium — Hubble gives real-time network flow visualization and service dependency maps at no extra cost |
-| **Harbor** | Private OCI registry with proxy cache and Trivy integration; reduces ghcr.io dependency and improves pull reliability |
+| **MinIO** | **① Do first.** On-prem S3-compatible object store; unlocks CNPG WAL archiving / PITR (`barmanObjectStore`), plus Velero/VolSync and VictoriaLogs object storage. Deploy *for CNPG* first |
+| **Hubble UI** | **② Do second.** Cilium already running — real-time network flow visualization + service maps at no extra cost; the prerequisite for writing NetworkPolicies from observed traffic |
+| **Kyverno** | **④ Scoped only.** Policy-as-code admission controller; use it narrowly to enforce image provenance (`verifyImages` for `ghcr.io/lucid-void/*` + registry allowlist), **excluding `kube-system`/`flux-system`** |
+| **VolSync** | Declarative restic backup/restore per PVC (`ReplicationSource`/`ReplicationDestination`); replaces the five imperative per-app backup CronJobs with GitOps-native, restore-rehearsable manifests — see Future Work |
+| **Velero** | Kubernetes-native PVC snapshot + resource backup; cluster-level DR. _Lower priority — cluster resources are already in Git; prefer VolSync for PVC data_ |
+| **Grafana Tempo** | _Deprioritized — no instrumented apps emit traces yet, so it'd be a backend with nothing to ingest._ Distributed tracing backend; revisit once apps emit spans |
+| **OpenTelemetry Collector** | _Deprioritized (same reason as Tempo)._ Unified pipeline to collect/route traces, metrics, and logs |
+| **Harbor** | _Deprioritized — Spegel already gives pull-through caching + registry-outage resilience; Harbor is a stateful service to babysit for marginal gain._ Private OCI registry with proxy cache + Trivy |
 | **KEDA** | Event-driven autoscaling; scale jobs based on queue depth rather than CPU (useful for media transcoding or backup queues) |
-| **Headlamp** | Lightweight web-based Kubernetes dashboard; friendlier than raw kubectl for day-to-day inspection |
+| **Headlamp** | _Deprioritized — k9s via mise gives the same day-to-day inspection at zero cluster cost._ Lightweight web-based Kubernetes dashboard |
 
 ### Frontend / User Applications
 
 | Service | What it replaces / adds |
 |---|---|
-| **Vaultwarden** | Bitwarden-compatible password manager — the most obvious gap in a degoogled stack |
-| **Navidrome** | Self-hosted music streaming with Subsonic API; every mobile client just works |
-| **Audiobookshelf** | Audiobooks + podcasts in one app; self-hosted Audible + Pocket Casts replacement |
-| **Kavita** | Digital library for books, comics, and manga — companion to the existing media stack |
+| **Vaultwarden** | **③ Do third.** Bitwarden-compatible password manager — the most obvious functional gap in the degoog stack. Fits existing patterns (CNPG + Sealed Secret + HTTPRoute + restic CronJob). **Run its full restore drill before Immich's** |
+| **Navidrome** | _Lowest-friction win — `media` ns + NFS PV + Gateway patterns already exist._ Self-hosted music streaming with Subsonic API; every mobile client just works |
+| **Audiobookshelf** | _Lowest-friction win (same reason as Navidrome)._ Audiobooks + podcasts in one app; self-hosted Audible + Pocket Casts replacement |
 | **Stirling PDF** | Browser-based PDF tools (merge, split, OCR, compress); replaces half a dozen disposable web tools |
 | **Mealie** | Recipe manager with meal planning and grocery lists |
 | **Actual Budget** | Local-first personal finance; YNAB-style zero-based budgeting with no cloud sync required |
