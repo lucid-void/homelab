@@ -116,9 +116,11 @@ spec:
               repeat_interval: 24h
         receivers:
           - name: gotify
-            webhook_configs:
-              - url: http://am-gotify-bridge.monitoring.svc.cluster.local:5000/webhook
-                send_resolved: false
+            # TEMPORARILY DISABLED — Gotify notifications paused.
+            # Re-enable by uncommenting the webhook_configs block below.
+            # webhook_configs:
+            #   - url: http://am-gotify-bridge.monitoring.svc.cluster.local:5000/webhook
+            #     send_resolved: false
           - name: blackhole
 
     # ---------------------------------------------------------------------------
