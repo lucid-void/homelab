@@ -28,11 +28,15 @@ spec:
       template:
         spec:
           restartPolicy: Never
+          # apk add at container startup needs root; the nfs-client /state PVC
+          # is exported 0777 so root writes fine. Mirrors gotify-bootstrap and
+          # the other alpine+apk jobs (all run as root). Running as uid 1000 /
+          # runAsNonRoot here silently broke `apk add` (exit before any output).
           securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
+            runAsUser: 0
+            runAsGroup: 0
             fsGroup: 1000
-            runAsNonRoot: true
+            runAsNonRoot: false
           containers:
             - name: notify
               image: alpine:3.21
