@@ -20,33 +20,33 @@ locals {
   domain     = "blackcats.cc"
   
   k8s_nodes = {
-    k8s-cp-1 = {
+    cp-1 = {
       vm_id       = 2020
-      ip_last     = 20
+      ip_last     = 11
       vcpus       = 8
-      memory      = 16384
+      memory      = 20480
       disk_gb     = 60
-      mac_address = "BC:24:11:00:20:00"
+      mac_address = "BC:24:11:01:20:00"
       tags        = ["k8s_cp"]
       dns_records = []
     }
-    k8s-cp-2 = {
+    cp-2 = {
       vm_id       = 2021
-      ip_last     = 21
+      ip_last     = 12
       vcpus       = 8
-      memory      = 16384
+      memory      = 20480
       disk_gb     = 60
-      mac_address = "BC:24:11:00:21:00"
+      mac_address = "BC:24:11:01:21:00"
       tags        = ["k8s_cp"]
       dns_records = []
     }
-    k8s-cp-3 = {
+    cp-3 = {
       vm_id       = 2022
-      ip_last     = 22
+      ip_last     = 13
       vcpus       = 8
-      memory      = 16384
+      memory      = 20480
       disk_gb     = 60
-      mac_address = "BC:24:11:00:22:00"
+      mac_address = "BC:24:11:01:22:00"
       tags        = ["k8s_cp"]
       dns_records = []
     }
@@ -134,5 +134,5 @@ resource "cloudflare_dns_record" "k8s_vip" {
   name    = "k8s"
   type    = "A"
   ttl     = 3600
-  content = "172.16.20.19"
+  content = "172.16.20.10"
 }
