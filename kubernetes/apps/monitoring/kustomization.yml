@@ -9,3 +9,4 @@ resources:
   - ./gatus/ks.yml
   - ./am-gotify-bridge/ks.yml
   - ./vm-stack/ks.yml
+  - ./proxmox-monitoring/ks.yml
