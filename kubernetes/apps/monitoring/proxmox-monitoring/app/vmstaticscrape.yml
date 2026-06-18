@@ -1,0 +1,67 @@
+---
+# Static scrapes of the Proxmox host (MS-A2, 172.16.20.3) — which lives OUTSIDE the
+# Talos cluster, so in-cluster node-exporter cannot see its physical NVMe, host XFS
+# filesystem, or LVM-thin pool. The exporters below run as systemd services ON the
+# host; see ./README.md for the install steps. Plaintext over the internal VLAN
+# (consistent with the cluster's "cleartext on internal VLAN — accepted risk" rule).
+#
+# vmagent has selectAllByDefault=true, so these are picked up automatically.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMStaticScrape
+metadata:
+  name: proxmox-node
+  namespace: monitoring
+spec:
+  jobName: proxmox-node
+  targetEndpoints:
+    # node_exporter — host CPU/mem/load/filesystem + disk I/O latency (the metric
+    # that would have exposed the pre-migration etcd fsync stalls), plus textfile
+    # collector output: LVM-thin pool fill % and kernel disk-corruption counter.
+    - targets:
+        - 172.16.20.3:9100
+      labels:
+        instance: pve-msa2
+      scheme: http
+      path: /metrics
+      interval: 60s
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMStaticScrape
+metadata:
+  name: proxmox-smartctl
+  namespace: monitoring
+spec:
+  jobName: proxmox-smartctl
+  targetEndpoints:
+    # smartctl_exporter — SMART health for the host NVMe/SSD: pass/fail self-test,
+    # reallocated/pending/uncorrectable sectors, NVMe media errors, wear %, temp.
+    - targets:
+        - 172.16.20.3:9633
+      labels:
+        instance: pve-msa2
+      scheme: http
+      path: /metrics
+      interval: 60s
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMStaticScrape
+metadata:
+  name: proxmox-pve
+  namespace: monitoring
+spec:
+  jobName: proxmox-pve
+  targetEndpoints:
+    # prometheus-pve-exporter — Proxmox VE API metrics: guest states, node status,
+    # and storage usage (incl. the local-lvm thin pool). Multi-target exporter:
+    # vmagent hits /pve?target=127.0.0.1 and the exporter queries the PVE API on
+    # the host itself (token auth configured in /etc/prometheus/pve.yml).
+    - targets:
+        - 172.16.20.3:9221
+      labels:
+        instance: pve-msa2
+      scheme: http
+      path: /pve
+      params:
+        target:
+          - "127.0.0.1"
+      interval: 60s
