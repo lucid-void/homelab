@@ -5,6 +5,3 @@ resources:
   - ./pvc.yml
   - ./helmrelease.yml
   - ./route.yml
-  - ./notify-pvc.yml
-  - ./notify-cronjob.yml
-  - ./notify-sealed.yml
