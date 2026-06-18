@@ -13,6 +13,11 @@ data:
     GOTIFY_URL = os.environ.get("GOTIFY_URL", "http://gotify.monitoring.svc.cluster.local")
     GOTIFY_TOKEN = os.environ["GOTIFY_TOKEN"]
 
+    # Map Alertmanager severity label -> Gotify priority (8+ = high / plays a
+    # sound on the client). Unlabelled firing alerts fall back to 8; resolved
+    # notices are low priority.
+    SEVERITY_PRIORITY = {"critical": 9, "warning": 6, "info": 4}
+
     def post_gotify(title, message, priority):
       url = f"{GOTIFY_URL}/message?token={GOTIFY_TOKEN}"
       body = json.dumps({"title": title, "message": message, "priority": priority}).encode()
@@ -29,13 +34,15 @@ data:
           data = json.loads(self.rfile.read(length))
           for alert in data.get("alerts", []):
             name = alert.get("labels", {}).get("alertname", "Alert")
+            severity = alert.get("labels", {}).get("severity", "")
             summary = alert.get("annotations", {}).get("summary", "")
             desc = alert.get("annotations", {}).get("description", "")
             message = "\n".join(filter(None, [summary, desc])) or name
             if alert.get("status") == "resolved":
-              post_gotify(f"RESOLVED: {name}", message, 5)
+              post_gotify(f"RESOLVED: {name}", message, 4)
             else:
-              post_gotify(f"ALERT: {name}", message, 8)
+              title = f"ALERT [{severity}]: {name}" if severity else f"ALERT: {name}"
+              post_gotify(title, message, SEVERITY_PRIORITY.get(severity, 8))
           self.send_response(200)
         except Exception as e:
           print(f"[bridge] {e}")

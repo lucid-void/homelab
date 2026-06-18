@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./vmstaticscrape.yml
   - ./vmrules.yml
+  - ./dashboard.yml
