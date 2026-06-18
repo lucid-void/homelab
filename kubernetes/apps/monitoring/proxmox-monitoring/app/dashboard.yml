@@ -54,7 +54,7 @@ data:
           "type": "stat",
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
-          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "red", "value": 0.9 } ] } }, "overrides": [] },
+          "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
           "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
           "targets": [
             { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_percentage_used", "legendFormat": "{{device}} used" },
