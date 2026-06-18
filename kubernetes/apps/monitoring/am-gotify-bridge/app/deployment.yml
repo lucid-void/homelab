@@ -4,6 +4,10 @@ kind: Deployment
 metadata:
   name: am-gotify-bridge
   namespace: monitoring
+  annotations:
+    # Restart the bridge when the script ConfigMap changes (it's loaded once at
+    # process start, so a volume remount alone wouldn't re-read it).
+    reloader.stakater.com/auto: "true"
 spec:
   replicas: 1
   selector:
