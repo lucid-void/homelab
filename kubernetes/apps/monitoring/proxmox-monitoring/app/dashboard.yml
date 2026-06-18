@@ -1,0 +1,214 @@
+---
+# Proxmox host & disk-health dashboard.
+# Auto-loaded by the Grafana sidecar (label grafana_dashboard: "1"), same as
+# the control-plane dashboard. Visualises every metric the proxmox-monitoring
+# scrapes collect: SMART, NVMe wear, disk latency, LVM-thin fill, kernel
+# corruption counter, host resources, and PVE guest/storage state.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-proxmox
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  proxmox-host-disk.json: |
+    {
+      "uid": "proxmox-host-disk",
+      "title": "Proxmox Host & Disk Health",
+      "tags": ["proxmox", "disk", "smart", "node"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "1m",
+      "time": { "from": "now-6h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "label": "Data source",
+            "type": "datasource",
+            "query": "prometheus",
+            "current": { "text": "VictoriaMetrics", "value": "VictoriaMetrics" },
+            "hide": 0,
+            "refresh": 1
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "SMART health (OK / FAILED)",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+          "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "0": { "text": "FAILED", "color": "red" }, "1": { "text": "OK", "color": "green" } } } ], "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+          "options": { "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_smart_status", "legendFormat": "{{device}}", "instant": true }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "NVMe endurance used / spare remaining",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "red", "value": 0.9 } ] } }, "overrides": [] },
+          "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_percentage_used", "legendFormat": "{{device}} used" },
+            { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_available_spare", "legendFormat": "{{device}} spare" }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Kernel disk-corruption events (cumulative)",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+          "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(node_disk_corruption_events_total{job=\"proxmox-node\"})", "legendFormat": "corruption/IO errors" }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Bad sectors (reallocated / pending / uncorrectable)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+          "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_attribute{attribute_name=~\"Reallocated_Sector_Ct|Current_Pending_Sector|Offline_Uncorrectable|Reported_Uncorrect\",attribute_value_type=\"raw\"}", "legendFormat": "{{device}} {{attribute_name}}" }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "NVMe media errors & critical warning",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+          "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_media_errors", "legendFormat": "{{device}} media_errors" },
+            { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_critical_warning", "legendFormat": "{{device}} critical_warning" }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "Disk service latency (write = etcd fsync canary)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "mean"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "rate(node_disk_write_time_seconds_total{job=\"proxmox-node\"}[5m]) / rate(node_disk_writes_completed_total{job=\"proxmox-node\"}[5m])", "legendFormat": "{{device}} write" },
+            { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "rate(node_disk_read_time_seconds_total{job=\"proxmox-node\"}[5m]) / rate(node_disk_reads_completed_total{job=\"proxmox-node\"}[5m])", "legendFormat": "{{device}} read" }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "Disk throughput",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+          "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "mean"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "rate(node_disk_read_bytes_total{job=\"proxmox-node\"}[5m])", "legendFormat": "{{device}} read" },
+            { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "rate(node_disk_written_bytes_total{job=\"proxmox-node\"}[5m])", "legendFormat": "{{device}} write" }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "LVM-thin pool fill (data / metadata %)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+          "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10 }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 75 }, { "color": "red", "value": 85 } ] } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_lvm_thinpool_data_percent{job=\"proxmox-node\"}", "legendFormat": "{{vg}}/{{lv}} data" },
+            { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_lvm_thinpool_metadata_percent{job=\"proxmox-node\"}", "legendFormat": "{{vg}}/{{lv}} metadata" }
+          ]
+        },
+        {
+          "id": 9,
+          "title": "Disk temperature",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+          "fieldConfig": { "defaults": { "unit": "celsius", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "mean"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "smartctl_device_temperature{temperature_type=\"current\"}", "legendFormat": "{{device}}" }
+          ]
+        },
+        {
+          "id": 10,
+          "title": "Host load average",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 30 },
+          "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_load1{job=\"proxmox-node\"}", "legendFormat": "load1" },
+            { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_load15{job=\"proxmox-node\"}", "legendFormat": "load15" }
+          ]
+        },
+        {
+          "id": 11,
+          "title": "Host memory available",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 30 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "node_memory_MemAvailable_bytes{job=\"proxmox-node\"} / node_memory_MemTotal_bytes{job=\"proxmox-node\"}", "legendFormat": "available" }
+          ]
+        },
+        {
+          "id": 12,
+          "title": "Host filesystem usage",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 30 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 10 }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.9 } ] } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "1 - (node_filesystem_avail_bytes{job=\"proxmox-node\",fstype!~\"tmpfs|overlay|squashfs|ramfs\"} / node_filesystem_size_bytes{job=\"proxmox-node\",fstype!~\"tmpfs|overlay|squashfs|ramfs\"})", "legendFormat": "{{mountpoint}}" }
+          ]
+        },
+        {
+          "id": 13,
+          "title": "PVE guests up (1 = running)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 37 },
+          "fieldConfig": { "defaults": { "min": 0, "max": 1, "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "pve_up{job=\"proxmox-pve\"}", "legendFormat": "{{id}}" }
+          ]
+        },
+        {
+          "id": 14,
+          "title": "PVE storage usage",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 37 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 10 }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.85 } ] } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "pve_disk_usage_bytes{job=\"proxmox-pve\"} / pve_disk_size_bytes{job=\"proxmox-pve\"}", "legendFormat": "{{id}}" }
+          ]
+        }
+      ]
+    }
