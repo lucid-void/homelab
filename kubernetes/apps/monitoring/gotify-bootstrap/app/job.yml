@@ -77,7 +77,6 @@ spec:
               falco_token=$(create_or_get_app_token "falco" "Falco runtime security alerts")
               gatus_token=$(create_or_get_app_token "gatus" "Gatus health monitoring alerts")
               alertmanager_token=$(create_or_get_app_token "alertmanager" "AlertManager firing rule notifications")
-              freshrss_token=$(create_or_get_app_token "freshrss-notify" "FreshRSS labeled-article notifications")
               client_token=$(create_or_get_client_token "admin")
 
               upsert_secret "kube-system" "gotify-secret"        "GOTIFY_TOKEN" "$etcd_snapshot_token"
@@ -90,7 +89,6 @@ spec:
               upsert_secret "security"   "falco-gotify-secret" "GOTIFY_TOKEN" "$falco_token"
               upsert_secret "monitoring" "gatus-gotify-secret" "GOTIFY_TOKEN" "$gatus_token"
               upsert_secret "monitoring" "gotify-secret"       "GOTIFY_TOKEN" "$alertmanager_token"
-              upsert_secret "freshrss"   "gotify-secret"       "GOTIFY_TOKEN" "$freshrss_token"
               upsert_secret "monitoring" "gotify-client-secret" "CLIENT_TOKEN" "$client_token"
 
               echo "Bootstrap complete."
@@ -103,7 +101,6 @@ spec:
               echo "  gatus app token            : ${gatus_token}"
               echo "  falco app token            : ${falco_token}"
               echo "  alertmanager app token     : ${alertmanager_token}"
-              echo "  freshrss-notify app token  : ${freshrss_token}"
               echo "  admin client token         : ${client_token}"
           env:
             - name: GOTIFY_ADMIN_PASS
