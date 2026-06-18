@@ -1,0 +1,22 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app proxmox-monitoring
+  namespace: flux-system
+spec:
+  targetNamespace: monitoring
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  # Needs the VictoriaMetrics operator CRDs (VMStaticScrape / VMRule) from vm-stack.
+  dependsOn:
+    - name: vm-stack
+  path: ./kubernetes/apps/monitoring/proxmox-monitoring/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: false
+  interval: 30m
+  timeout: 10m

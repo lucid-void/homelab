@@ -116,11 +116,13 @@ spec:
               repeat_interval: 24h
         receivers:
           - name: gotify
-            # TEMPORARILY DISABLED — Gotify notifications paused.
-            # Re-enable by uncommenting the webhook_configs block below.
-            # webhook_configs:
-            #   - url: http://am-gotify-bridge.monitoring.svc.cluster.local:5000/webhook
-            #     send_resolved: false
+            # Re-enabled 2026-06-18: the control-plane flapping that caused the
+            # original alert storm was resolved by the Proxmox XFS/LVM reinstall.
+            # Alerts now flow again (needed so the Proxmox host/disk alerts
+            # actually deliver). To silence, comment out webhook_configs.
+            webhook_configs:
+              - url: http://am-gotify-bridge.monitoring.svc.cluster.local:5000/webhook
+                send_resolved: false
           - name: blackhole
 
     # ---------------------------------------------------------------------------

@@ -1,0 +1,216 @@
+---
+# Alerts for the Proxmox host + its disks. All route through Alertmanager →
+# am-gotify-bridge → Gotify (the gotify webhook must be enabled in the vm-stack
+# HelmRelease — it was re-enabled alongside this work).
+#
+# Metric sources:
+#   smartctl_*  → smartctl_exporter (:9633)
+#   node_*      → node_exporter (:9100), incl. textfile metrics:
+#                   node_lvm_thinpool_data_percent / _metadata_percent
+#                   node_disk_corruption_events_total
+#   pve_*       → prometheus-pve-exporter (:9221)
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: proxmox-host
+  namespace: monitoring
+spec:
+  groups:
+    # -----------------------------------------------------------------------
+    # Host reachability + filesystem + disk latency
+    # -----------------------------------------------------------------------
+    - name: proxmox-host
+      rules:
+        - alert: ProxmoxExporterDown
+          expr: up{job=~"proxmox-.+"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Proxmox host exporter is down
+            description: >
+              Scrape target {{ $labels.job }} on {{ $labels.instance }}
+              ({{ $labels.instance }}) has been down for 5m. The Proxmox host
+              may be offline — which would take the whole Talos cluster with it —
+              or the exporter service has stopped.
+
+        - alert: ProxmoxFilesystemAlmostFull
+          expr: >
+            node_filesystem_avail_bytes{job="proxmox-node",fstype!~"tmpfs|overlay|squashfs|ramfs"}
+            / node_filesystem_size_bytes{job="proxmox-node",fstype!~"tmpfs|overlay|squashfs|ramfs"}
+            < 0.10
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Proxmox host filesystem almost full
+            description: >
+              {{ $labels.mountpoint }} on the Proxmox host is below 10% free
+              ({{ $value | humanizePercentage }} available).
+
+        - alert: ProxmoxDiskWriteLatencyHigh
+          # Mean write service time per I/O. Sustained high write latency on the
+          # host disk is exactly the condition that stalled etcd's WAL fsync
+          # before the migration — watch this one closely.
+          expr: >
+            rate(node_disk_write_time_seconds_total{job="proxmox-node"}[5m])
+            / rate(node_disk_writes_completed_total{job="proxmox-node"}[5m])
+            > 0.1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Proxmox host disk write latency high
+            description: >
+              Mean write latency on {{ $labels.device }} is
+              {{ $value | humanizeDuration }} (>100ms) over 10m. This is the
+              host-side I/O stall pattern that previously destabilised etcd.
+
+    # -----------------------------------------------------------------------
+    # SMART — physical disk health / predictive failure
+    # -----------------------------------------------------------------------
+    - name: proxmox-smart
+      rules:
+        - alert: SmartDeviceHealthFailed
+          expr: smartctl_device_smart_status == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: SMART self-assessment FAILED
+            description: >
+              {{ $labels.device }} on {{ $labels.instance }} reports SMART
+              status FAILED — the drive is failing. Replace it and verify backups.
+
+        - alert: SmartReallocatedSectors
+          expr: >
+            smartctl_device_attribute{attribute_name="Reallocated_Sector_Ct",attribute_value_type="raw"} > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: SMART reallocated sectors detected
+            description: >
+              {{ $labels.device }} has {{ $value }} reallocated sectors — early
+              sign of media wear/failure.
+
+        - alert: SmartPendingOrUncorrectableSectors
+          expr: >
+            smartctl_device_attribute{attribute_name=~"Current_Pending_Sector|Offline_Uncorrectable|Reported_Uncorrect",attribute_value_type="raw"} > 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: SMART pending/uncorrectable sectors detected
+            description: >
+              {{ $labels.device }} reports {{ $value }} for
+              {{ $labels.attribute_name }} — unreadable sectors, a strong
+              data-corruption / impending-failure signal.
+
+        - alert: NvmeMediaErrors
+          expr: smartctl_device_media_errors > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: NVMe media/data-integrity errors detected
+            description: >
+              {{ $labels.device }} reports {{ $value }} NVMe media errors —
+              the controller detected uncorrectable data-integrity errors.
+
+        - alert: NvmeCriticalWarning
+          expr: smartctl_device_critical_warning > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: NVMe critical warning flag set
+            description: >
+              {{ $labels.device }} raised an NVMe critical warning (bitfield
+              {{ $value }}) — spare low, reliability degraded, read-only, or
+              over-temperature.
+
+        - alert: NvmeWearHigh
+          expr: smartctl_device_percentage_used > 0.8
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: NVMe endurance running out
+            description: >
+              {{ $labels.device }} has used {{ $value | humanizePercentage }}
+              of its rated write endurance. Plan a replacement.
+
+        - alert: SmartTemperatureHigh
+          expr: smartctl_device_temperature{temperature_type="current"} > 70
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Disk temperature high
+            description: >
+              {{ $labels.device }} is at {{ $value }}°C (>70°C) for 15m.
+
+    # -----------------------------------------------------------------------
+    # LVM-thin pool — exhaustion causes I/O errors / corruption
+    # -----------------------------------------------------------------------
+    - name: proxmox-lvm-thin
+      rules:
+        - alert: LvmThinPoolDataHigh
+          expr: node_lvm_thinpool_data_percent{job="proxmox-node"} > 85
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: LVM-thin pool data almost full
+            description: >
+              Thin pool {{ $labels.vg }}/{{ $labels.lv }} data usage is
+              {{ $value }}%. At 100% the pool goes read-only and guests (incl.
+              the Talos VMs) hit I/O errors / corruption.
+
+        - alert: LvmThinPoolMetadataHigh
+          expr: node_lvm_thinpool_metadata_percent{job="proxmox-node"} > 80
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: LVM-thin pool metadata almost full
+            description: >
+              Thin pool {{ $labels.vg }}/{{ $labels.lv }} metadata usage is
+              {{ $value }}%. Metadata exhaustion corrupts the pool and is far
+              harder to recover from than data exhaustion.
+
+    # -----------------------------------------------------------------------
+    # Kernel-logged disk corruption / I/O errors (textfile collector)
+    # -----------------------------------------------------------------------
+    - name: proxmox-corruption
+      rules:
+        - alert: DiskCorruptionDetected
+          expr: increase(node_disk_corruption_events_total{job="proxmox-node"}[10m]) > 0
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: Kernel logged disk corruption / I/O errors
+            description: >
+              The Proxmox host kernel logged {{ $value }} new disk
+              corruption / I/O-error line(s) in the last 10m (pattern
+              {{ $labels.pattern }}). Inspect /var/log/disk-corruption.log on
+              172.16.20.3 and run a filesystem check.
+
+    # -----------------------------------------------------------------------
+    # Proxmox VE storage usage (pve-exporter)
+    # -----------------------------------------------------------------------
+    - name: proxmox-pve
+      rules:
+        - alert: ProxmoxStorageAlmostFull
+          expr: >
+            pve_disk_usage_bytes{job="proxmox-pve"} / pve_disk_size_bytes{job="proxmox-pve"} > 0.85
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: Proxmox storage almost full
+            description: >
+              PVE storage {{ $labels.id }} is
+              {{ $value | humanizePercentage }} full.
