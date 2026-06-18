@@ -131,15 +131,19 @@ spec:
               over-temperature.
 
         - alert: NvmeWearHigh
-          expr: smartctl_device_percentage_used > 0.8
+          # smartctl_exporter reports percentage_used as a RAW INTEGER percent
+          # (1 = 1%, 100 = 100%), not a 0-1 fraction. So the threshold is on the
+          # 0-100 scale and the value is printed with a literal % — do NOT use
+          # humanizePercentage here (it would multiply by 100, e.g. 1 → "100%").
+          expr: smartctl_device_percentage_used > 80
           for: 1h
           labels:
             severity: warning
           annotations:
             summary: NVMe endurance running out
             description: >
-              {{ $labels.device }} has used {{ $value | humanizePercentage }}
-              of its rated write endurance. Plan a replacement.
+              {{ $labels.device }} has used {{ $value }}% of its rated write
+              endurance. Plan a replacement.
 
         - alert: SmartTemperatureHigh
           expr: smartctl_device_temperature{temperature_type="current"} > 70
