@@ -39,8 +39,8 @@ controlPlane:
           listenSubnets:
             - 172.16.20.0/24
           # Plaintext metrics listener for vmagent scraping (internal VLAN).
-          # NOTE: takes effect only on a node reboot — Talos cannot restart
-          # etcd via API. kubeEtcd scrape stays disabled until then.
+          # Took effect after a node reboot (Talos cannot restart etcd via API);
+          # the kubeEtcd scrape is now enabled in the vm-stack HelmRelease.
           extraArgs:
             listen-metrics-urls: http://0.0.0.0:2381
         # Expose controller-manager + scheduler metrics off localhost so
