@@ -37,3 +37,18 @@ spec:
   resources:
     requests:
       storage: 5Gi
+---
+# ProtonMail Bridge keychain/config (.gnupg, .password-store, .config/protonmail).
+# Migrated from /opt/volumes/paperless/protonmail-bridge on the old Docker host.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: protonmail-bridge-config
+  namespace: paperless
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 2Gi
