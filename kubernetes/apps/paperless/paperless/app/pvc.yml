@@ -37,23 +37,3 @@ spec:
   resources:
     requests:
       storage: 5Gi
----
-# ProtonMail Bridge keychain/config (.gnupg, .password-store, .config/protonmail).
-# MUST be local storage (openebs-hostpath), NOT nfs-client: the bridge rotates its
-# Proton refresh token on every use and rewrites vault.enc constantly. On NFS the
-# rotated token written by the login pod is not what the serving pod reads back
-# (client-side caching across pods), so the session dies on the first pod handoff
-# with "Invalid refresh token". Local disk (like the old Docker bind mount) fixes it.
-# Node-local: the PV pins to one node; a permanent node loss means a one-time re-login.
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: protonmail-bridge-config
-  namespace: paperless
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: openebs-hostpath
-  resources:
-    requests:
-      storage: 2Gi
