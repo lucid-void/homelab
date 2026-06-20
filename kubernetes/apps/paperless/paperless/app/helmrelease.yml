@@ -105,7 +105,11 @@ spec:
           app:
             image:
               repository: shenxn/protonmail-bridge
-              tag: "3.19.0-1"
+              # -build (compiled from source, no runtime auto-update). The -1 tag runs
+              # Proton's official binary which self-updates at startup ("A new version
+              # was installed") and loses its session across pod restarts in k8s. The
+              # -build variant has a fixed binary, so the login survives restarts.
+              tag: "3.19.0-build"
             # apt-get hack installs libfido2 so the bridge CLI starts cleanly, then
             # runs the image's entrypoint which launches the bridge non-interactively.
             command:
