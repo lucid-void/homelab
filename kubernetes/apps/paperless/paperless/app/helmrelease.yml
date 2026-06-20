@@ -95,34 +95,6 @@ spec:
               limits:
                 memory: 256Mi
 
-      # ProtonMail Bridge — exposes the Proton account as local IMAP/SMTP so
-      # Paperless can consume documents from email. Migrated from the old Docker
-      # host (shenxn/protonmail-bridge). Keychain lives on the bridge-config PVC;
-      # the Proton login is one-time runtime state, done via `kubectl exec`, not GitOps.
-      protonmail-bridge:
-        replicas: 1
-        containers:
-          app:
-            image:
-              repository: shenxn/protonmail-bridge
-              # -build (compiled from source, no runtime auto-update). The -1 tag runs
-              # Proton's official binary which self-updates at startup ("A new version
-              # was installed") and loses its session across pod restarts in k8s. The
-              # -build variant has a fixed binary, so the login survives restarts.
-              tag: "3.19.0-build"
-            # apt-get hack installs libfido2 so the bridge CLI starts cleanly, then
-            # runs the image's entrypoint which launches the bridge non-interactively.
-            command:
-              - /bin/bash
-              - -c
-              - apt-get update && apt-get install -y libfido2-dev libcbor-dev libfido2-1 && bash /protonmail/entrypoint.sh
-            resources:
-              requests:
-                memory: 128Mi
-                cpu: 25m
-              limits:
-                memory: 512Mi
-
     service:
       app:
         controller: app
@@ -134,13 +106,6 @@ spec:
         ports:
           redis:
             port: 6379
-      protonmail-bridge:
-        controller: protonmail-bridge
-        ports:
-          smtp:
-            port: 25
-          imap:
-            port: 143
 
     persistence:
       data:
@@ -161,9 +126,3 @@ spec:
           app:
             app:
               - path: /consume
-      bridge-config:
-        existingClaim: protonmail-bridge-config
-        advancedMounts:
-          protonmail-bridge:
-            app:
-              - path: /root
