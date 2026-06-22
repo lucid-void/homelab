@@ -19,10 +19,13 @@ spec:
         runAsUser: 65534
         runAsGroup: 65534
         fsGroup: 65534
-      # gRPC-go 1.67+ enforces ALPN h2; the Cilium Gateway does not advertise it
-      # in the TLS handshake, so port 443 fails. Connect directly to the Zitadel
-      # Service on port 8080 (h2c). Zitadel identifies its instance by the Host
-      # header so the domain must stay zitadel.blackcats.cc, not the svc DNS name.
+      # Connect directly to the Zitadel Service on port 8080 (h2c) rather than via
+      # the Gateway. Historically the Cilium Gateway advertised no ALPN protocol so
+      # gRPC-go 1.67+ (which enforces ALPN h2) failed on port 443; that is now fixed
+      # cluster-wide (gatewayAPI.enableAlpn: true), but the direct path is retained
+      # because it also avoids any external DNS/cert dependency during bootstrap.
+      # Zitadel identifies its instance by the Host header so the domain must stay
+      # zitadel.blackcats.cc, not the svc DNS name.
       # The ClusterIP is stable for the lifetime of the Service; if it ever changes
       # (Service deleted+recreated), update with:
       #   kubectl get svc zitadel -n auth -o jsonpath='{.spec.clusterIP}'
