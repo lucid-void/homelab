@@ -8,10 +8,10 @@ Canonical reference for AI agents working on this cluster. Last updated: 2026-05
 
 | Node | IP | Role | Spec |
 |---|---|---|---|
-| k8s-cp-1 | 172.16.20.20 | Control plane + workloads | 4 vCPU, 16 GB RAM, 60 GB disk |
-| k8s-cp-2 | 172.16.20.21 | Control plane + workloads | 4 vCPU, 16 GB RAM, 60 GB disk |
-| k8s-cp-3 | 172.16.20.22 | Control plane + workloads | 4 vCPU, 16 GB RAM, 60 GB disk |
-| API VIP | 172.16.20.19 | Kubernetes API server endpoint | Floats via leader election |
+| cp-1 | 172.16.20.11 | Control plane + workloads | 4 vCPU, 16 GB RAM, 60 GB disk |
+| cp-2 | 172.16.20.12 | Control plane + workloads | 4 vCPU, 16 GB RAM, 60 GB disk |
+| cp-3 | 172.16.20.13 | Control plane + workloads | 4 vCPU, 16 GB RAM, 60 GB disk |
+| API VIP | 172.16.20.10 | Kubernetes API server endpoint | Floats via leader election |
 | Gateway VIP | 172.16.20.50 | Ingress for all HTTP/HTTPS | Cilium L2 announcement |
 
 **OS:** Talos Linux v1.13.2 | **k8s:** v1.36.1 | **Cluster name:** `homelab-k8s`
@@ -182,4 +182,4 @@ Full inventory with storage details: `docs/services.md`.
 
 **Trivy Operator dbRepository:** Do not override with a full `ghcr.io/...` path — the chart prepends the registry, causing double-prefix. Leave at chart default.
 
-**etcd snapshot CronJob** (`kube-system/etcd-snapshot`, daily 01:00): downloads `talosctl` at runtime (version pinned in script — update alongside Talos upgrades), tries CP nodes `.20 → .21 → .22` in order, uploads via restic to `rclone:filen:backups/restic/etcd-snapshot`. Three SealedSecrets required: `restic-secret` (RESTIC_PASSWORD + RESTIC_REPOSITORY), `rclone-secret` (rclone.conf with Filen creds), `talosconfig-secret` (talosconfig file from `~/.talos/config`). Gotify `optional: true` — kube-system not yet in gotify-bootstrap token list.
+**etcd snapshot CronJob** (`kube-system/etcd-snapshot`, daily 01:00): downloads `talosctl` at runtime (version pinned in script — update alongside Talos upgrades), tries CP nodes `.11 → .12 → .13` in order, uploads via restic to `rclone:filen:backups/restic/etcd-snapshot`. Three SealedSecrets required: `restic-secret` (RESTIC_PASSWORD + RESTIC_REPOSITORY), `rclone-secret` (rclone.conf with Filen creds), `talosconfig-secret` (talosconfig file from `~/.talos/config`). Gotify `optional: true` — kube-system not yet in gotify-bootstrap token list.

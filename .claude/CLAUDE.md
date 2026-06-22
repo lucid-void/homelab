@@ -71,7 +71,7 @@ on cluster storage, never on the media share.
 ### Platform & networking
 | Topic | Decision |
 |---|---|
-| Compute platform | Talos Linux k8s cluster, FluxCD GitOps. 3 control planes (`.20`–`.22`, schedulable), API VIP `.19`, Gateway VIP `.50`. No dedicated workers. |
+| Compute platform | Talos Linux k8s cluster, FluxCD GitOps. 3 control planes `cp-1/2/3` (`.11`–`.13`, schedulable), API VIP `.10`, Gateway VIP `.50`. No dedicated workers. |
 | Ingress | Cilium Gateway API only — `HTTPRoute`/`GRPCRoute` → `shared` Gateway in `gateway` namespace. Never `Ingress` objects. No Traefik. |
 | DNS | UDM SE at `.254` — local overrides for *.blackcats.cc, ad blocking, upstream to 1.1.1.1; external-dns writes Cloudflare A records → internal IPs. |
 | Internet exposure | Cloudflare DNS used only for valid TLS certs (DNS-01); all A records → internal IPs; no port forwarding on UDM SE; remote access requires Netbird VPN. No Cloudflare proxy. |
@@ -102,6 +102,7 @@ on cluster storage, never on the media share.
 | Immich OAuth | Zitadel Web app type + `/api/oauth/mobile-redirect` endpoint as redirect URI (proxies to `app.immich:///oauth-callback`); Web type required because Native type rejects https:// redirect URIs. |
 | Immich user migration | Must transfer `asset` + `album` + `person` rows; omitting `person` breaks mobile sync (FK violation on `asset_face_entity`). |
 | Plex | Runs in k8s (`media` namespace, `replicas: 1`, `lscr.io/linuxserver/plex`). Web via HTTPRoute; direct/GDM via a `pool-b` LoadBalancer at `172.16.20.51:32400` (`ADVERTISE_IP` set accordingly). Transcoding is CPU-only today — no GPU device plugin wired in yet. |
+| Proxmox OIDC | Proxmox VE is **bare metal (172.16.20.3), not a k8s workload** — the Zitadel app + `proxmox-oidc-secret` are still provisioned by `zitadel-bootstrap` Terraform, but the secret lands in the **`auth` namespace** (no consumer pod; it's a retrieval mechanism). Cross-ns RBAC role `zitadel-bootstrap-auth` in `bootstrap-rbac`. Redirect URI = Proxmox web UI **base URL, no path** (`https://pve.blackcats.cc:8006` + `:443`); `auth_method_type = BASIC` (proxmox-openid Rust crate uses `client_secret_basic`). Credentials are entered into a Proxmox OIDC realm manually via `pveum` (see RUNBOOK) — **never front Proxmox behind the cluster Gateway** (circular dependency: Gateway runs on VMs this host hypervises). |
 
 ### Kubernetes stack
 | Topic | Decision |
@@ -138,18 +139,19 @@ on cluster storage, never on the media share.
 | Descheduler | Deployed in `kube-system` via `kubernetes-sigs/descheduler` chart v0.36.0 (HelmRepository: `https://kubernetes-sigs.github.io/descheduler/`). Runs as a CronJob every 5 minutes with default policies. Depends on `cilium` Flux Kustomization. |
 | kubent | Weekly CronJob in `security` namespace (Monday 08:00, alongside `security-report`). Uses `alpine:3.21` + downloads `ghcr.io/doitintl/kube-no-trouble` v0.7.3 binary at runtime. ClusterRole grants read-all access for deprecated API detection. Posts pass/fail to Gotify via `gotify-secret` (`optional: true`). Run `kubectl create job --from=cronjob/kubent` before any Talos/k8s upgrade. |
 | Monitoring stack | VictoriaMetrics (vm-stack) + Grafana in the `monitoring` namespace, with alerting routed to Gotify. `monitoring` namespace has PSA `privileged`. Replaces the former Swarm Prometheus/Loki/Grafana stack. |
-| FreshRSS notifications | `freshrss-notify` CronJob (every 10 min, `freshrss` ns, `alpine:3.21` + curl/jq) polls FreshRSS's **GReader API** (`/api/greader.php`) for the `notify` **label stream** (`user/-/label/notify`) and POSTs each new article to Gotify (→ Telegram via the bridge). "Interesting" = FreshRSS **Filtering actions** that auto-apply the `notify` label. Auth: GReader `ClientLogin` with a FreshRSS **API password** (Profile → API management; separate from OIDC) stored in `freshrss-notify-secret` SealedSecret (`FRESHRSS_USER`/`FRESHRSS_API_PASSWORD`). Dedup by GReader item id on the `freshrss-notify-state` nfs-client PVC; **first run seeds state silently** (no backfill flood). Gotify token from `gotify-secret` in `freshrss` ns (app token `freshrss-notify` from `gotify-bootstrap`, `optional: true`). No k8s RBAC needed (HTTP-only). |
+| Cilium Gateway ALPN | Cilium Helm values **must** set `gatewayAPI.enableAlpn: true` (in `kubernetes/apps/kube-system/cilium/app/helm-values.yml`). Without it the Envoy HTTPS listener negotiates **no** ALPN protocol — curl/browsers fall back to HTTP/1.1, but strict clients fail the TLS handshake (`server did not agree on a protocol`). This broke (a) the Zitadel bootstrap (gRPC needs h2 — old workaround: hit the Service ClusterIP:8080 directly) and (b) external OIDC clients like Proxmox `proxmox-openid` ("Failed to contact token endpoint: Request failed"). Diagnose with `curl -v --http2 https://<host>/... 2>&1 | grep -i alpn`. |
+| Cilium MTU (jumbo frames) | Cilium values set `MTU: 9000` **explicitly**; node `ens18` pinned to `mtu: 9000` in `talconfig.yaml` (Proxmox tap already 9000 via `infra/terraform/kubernetes.tf`, propagated to the guest by virtio `host_mtu`). **Must be explicit:** Cilium's MTU auto-detection otherwise picks the Netbird `wt0` interface (MTU 1280) — the talconfig Netbird IP guards don't cover MTU detection — and throttles ALL pod traffic to ~1200–1280 byte frames (`cilium_vxlan`/pod `lxc*` = 1280, `cilium_wg0` = 1200). Verify the Proxmox bridge supports 9000 (all 3 CPs are VMs on the same host, so inter-node pod/VXLAN traffic rides the bridge, not the physical switch). Diagnose with `talosctl get links -o yaml \| grep -iE 'id:\|mtu:'`. |
 
 ## IP map (quick reference)
 
 ```
 172.16.20.2    Synology RS1219+   — physical, NFS storage only (Btrfs /volume2)
-172.16.20.3    Proxmox MS-A2      — physical, hypervisor (hosts the Talos VMs)
+172.16.20.3    Proxmox MS-A2      — physical, hypervisor (LVM-thin; hosts the Talos VMs)
 172.16.20.4    DGX Spark          — physical, GPU box, WOL (not a k8s node)
-172.16.20.19   API VIP            — kube-apiserver endpoint (floats via leader election)
-172.16.20.20   k8s-cp-1           — Talos control plane (schedulable, runs workloads)
-172.16.20.21   k8s-cp-2           — Talos control plane (schedulable, runs workloads)
-172.16.20.22   k8s-cp-3           — Talos control plane (schedulable, runs workloads)
+172.16.20.10   API VIP            — kube-apiserver endpoint (floats via leader election)
+172.16.20.11   cp-1               — Talos control plane (schedulable, runs workloads)
+172.16.20.12   cp-2               — Talos control plane (schedulable, runs workloads)
+172.16.20.13   cp-3               — Talos control plane (schedulable, runs workloads)
 172.16.20.23   VPN VM             — ZeroTier (plain compose, outside cluster)
 172.16.20.50   Gateway VIP        — pool-a, shared Gateway ingress (Cilium L2)
 172.16.20.51   pool-b             — direct LoadBalancer services (e.g. Plex)

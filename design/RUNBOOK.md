@@ -41,7 +41,7 @@ talhelper genconfig
 
 After generation, get the schematic ID for Packer:
 ```bash
-grep "metal-installer" clusterconfig/homelab-k8s-k8s-cp-1.yaml
+grep "metal-installer" clusterconfig/homelab-k8s-cp-1.yaml
 # → factory.talos.dev/metal-installer/<schematic-id>:v1.x.y
 ```
 Update `talos_schematic_id` in `infra/packer/Talos/talos-base.pkr.hcl` to match.
@@ -61,9 +61,9 @@ Add static DHCP leases on UDM SE for these MACs before running:
 
 | Node | MAC | IP |
 |---|---|---|
-| k8s-cp-1 | `BC:24:11:00:20:00` | 172.16.20.20 |
-| k8s-cp-2 | `BC:24:11:00:21:00` | 172.16.20.21 |
-| k8s-cp-3 | `BC:24:11:00:22:00` | 172.16.20.22 |
+| cp-1 | `BC:24:11:01:20:00` | 172.16.20.11 |
+| cp-2 | `BC:24:11:01:21:00` | 172.16.20.12 |
+| cp-3 | `BC:24:11:01:22:00` | 172.16.20.13 |
 
 ```bash
 just plan && just apply
@@ -83,8 +83,8 @@ First apply requires `--insecure` (no PKI yet — talhelper adds this automatica
 
 ```bash
 talosctl bootstrap \
-  --nodes 172.16.20.20 \
-  --endpoints 172.16.20.20 \
+  --nodes 172.16.20.11 \
+  --endpoints 172.16.20.11 \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig
 ```
 
@@ -92,8 +92,8 @@ talosctl bootstrap \
 
 ```bash
 talosctl health \
-  --nodes 172.16.20.20,172.16.20.21,172.16.20.22 \
-  --endpoints 172.16.20.20 \
+  --nodes 172.16.20.11,172.16.20.12,172.16.20.13 \
+  --endpoints 172.16.20.11 \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig
 ```
 
@@ -101,8 +101,8 @@ talosctl health \
 
 ```bash
 talosctl kubeconfig \
-  --nodes 172.16.20.20 \
-  --endpoints 172.16.20.19 \
+  --nodes 172.16.20.11 \
+  --endpoints 172.16.20.10 \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig
 # merges into ~/.kube/config; API server endpoint is the VIP
 
@@ -203,8 +203,8 @@ talhelper apply
 
 # or target a single node
 talosctl apply-config \
-  --nodes 172.16.20.21 \
-  --file kubernetes/talos/clusterconfig/homelab-k8s-k8s-cp-2.yaml \
+  --nodes 172.16.20.12 \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-cp-2.yaml \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig \
   --mode=auto
 ```
@@ -218,22 +218,22 @@ Roll one node at a time. etcd quorum is maintained throughout.
 talhelper genconfig
 
 # 2. Get installer image URL
-grep "metal-installer" kubernetes/talos/clusterconfig/homelab-k8s-k8s-cp-1.yaml
+grep "metal-installer" kubernetes/talos/clusterconfig/homelab-k8s-cp-1.yaml
 # use "installer" not "metal-installer" in the upgrade command
 
 # 3. Upgrade one node at a time
 talosctl upgrade \
-  --nodes 172.16.20.20 \
+  --nodes 172.16.20.11 \
   --image factory.talos.dev/installer/<schematic-id>:<version> \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig \
   --drain=false   # --drain=false required: CNPG PodDisruptionBudget blocks eviction
 
-# Wait for node to rejoin, then repeat for .21 and .22
+# Wait for node to rejoin, then repeat for .12 and .13
 
 # 4. Apply config to deliver ExtensionServiceConfig documents
 talosctl apply-config \
-  --nodes 172.16.20.20 \
-  --file kubernetes/talos/clusterconfig/homelab-k8s-k8s-cp-1.yaml \
+  --nodes 172.16.20.11 \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-cp-1.yaml \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig
 ```
 
@@ -249,7 +249,7 @@ Run after all nodes are on the new Talos version:
 
 ```bash
 talosctl upgrade-k8s \
-  --nodes 172.16.20.20 \
+  --nodes 172.16.20.11 \
   --to <new-k8s-version> \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig
 ```
@@ -289,6 +289,113 @@ kubectl delete job gotify-bootstrap -n monitoring
 flux reconcile kustomization gotify-bootstrap   # Flux recreates it
 ```
 
+### Configure Proxmox SSO via Zitadel OIDC
+
+The `zitadel-bootstrap` Job registers a `Proxmox VE` OIDC app and writes the
+credentials to the `proxmox-oidc-secret` Secret in the `auth` namespace (Proxmox is
+bare metal, outside the cluster, so nothing in-cluster consumes it). Read them out:
+
+```bash
+kubectl get secret proxmox-oidc-secret -n auth \
+  -o jsonpath='{.data.OIDC_CLIENT_ID}'     | base64 -d; echo
+kubectl get secret proxmox-oidc-secret -n auth \
+  -o jsonpath='{.data.OIDC_CLIENT_SECRET}' | base64 -d; echo
+```
+
+On the Proxmox host, create the OpenID Connect realm (or use Datacenter → Realms → Add):
+
+```bash
+pveum realm add zitadel --type openid \
+  --issuer-url https://zitadel.blackcats.cc \
+  --client-id <OIDC_CLIENT_ID> \
+  --client-key <OIDC_CLIENT_SECRET> \
+  --username-claim email \
+  --autocreate 1 \
+  --default 0
+```
+
+Then add a Proxmox ACL/user mapping for the autocreated `<user>@zitadel` accounts.
+
+**Redirect URI:** Proxmox sends the web UI base URL (no path) as the OIDC redirect.
+The Zitadel app registers both `https://pve.blackcats.cc:8006` and
+`https://pve.blackcats.cc`, so login works on the default port or on 443.
+
+**Serving Proxmox on 443 (optional):** Proxmox's `pveproxy` only listens on 8006 and
+the port is not configurable through supported means. To reach it at `https://pve.blackcats.cc`
+add a host-level redirect on the Proxmox node (persist via `/etc/network/interfaces`
+`post-up` or an nftables ruleset):
+
+```bash
+nft add rule ip nat prerouting tcp dport 443 redirect to :8006
+```
+
+Do **not** front Proxmox behind the cluster Gateway (172.16.20.50) — that creates a
+circular dependency, since the Gateway runs on the VMs this host hypervises.
+
+---
+
+## Planned Maintenance Shutdown
+
+Full power-down for hardware work (cabling, NAS fans, Proxmox host maintenance).
+etcd lives on each node's **local Talos disk** (the Proxmox VM disk), not the NAS — so a
+clean Talos shutdown is all that's needed to protect cluster state. etcd data is only ever
+at risk if a node's `EPHEMERAL`/`STATE` partition is wiped. **Do not `talosctl reset` or
+`tofu destroy` these nodes — only shut them down.**
+
+### Shut down
+
+Bring the **cluster down before the NAS**. CNPG Postgres data is on `nfs-client` (the
+Synology `kubernetes.nfs` share), so this order lets Postgres checkpoint cleanly while NFS
+is still mounted.
+
+```bash
+# Halts all three CPs concurrently: stops pods (SIGTERM + grace),
+# unmounts volumes, flushes + stops etcd, powers off the VM.
+mise exec -- talosctl shutdown \
+  --nodes 172.16.20.11,172.16.20.12,172.16.20.13 \
+  --talosconfig kubernetes/talos/clusterconfig/talosconfig
+```
+
+A *shutdown* does **not** call etcd `MemberRemove` — the 3-member list is preserved on
+disk, so the nodes simply re-form quorum on next boot. No bootstrap or `force-new-cluster`
+needed afterward.
+
+- **No cordon/drain** — pointless for a full shutdown, and the CNPG PodDisruptionBudget
+  blocks eviction anyway.
+- If `clusterconfig/` isn't present, run `mise exec -- talhelper genconfig` in
+  `kubernetes/talos/` first.
+
+Then power off the Synology and do the hardware work.
+
+### Start back up
+
+Startup is automatic — the bootstrap phases above are only for a from-zero rebuild.
+
+The VM resource (`infra/terraform/kubernetes.tf`) does not set `on_boot`, and the
+`bpg/proxmox` provider defaults it to `true`. So:
+
+| What you powered off | Restart |
+|---|---|
+| VMs only (Proxmox host stayed up) | Stay off — start manually: `qm start 2020 2021 2022`, or Proxmox UI |
+| The whole Proxmox host | VMs autostart with the host → Talos boots → etcd quorum recovers → kubelet → Flux reconciles |
+
+**Bring the NAS up before the cluster.** Proxmox can't sequence its VM startup against the
+external Synology, so if the cluster boots first, CNPG and NFS-backed apps crashloop until
+NFS is serving, then self-heal (etcd/Talos itself is on local disk and unaffected). Either
+power the NAS on first, or add a blind `startup { up_delay = N }` block in `kubernetes.tf`
+to delay the VMs after host boot.
+
+Verify after boot:
+
+```bash
+mise exec -- talosctl health \
+  --nodes 172.16.20.11,172.16.20.12,172.16.20.13 \
+  --endpoints 172.16.20.11 \
+  --talosconfig kubernetes/talos/clusterconfig/talosconfig
+mise exec -- kubectl get nodes
+mise exec -- flux get kustomizations
+```
+
 ---
 
 ## Recovery Procedures
@@ -303,8 +410,8 @@ just apply
 
 # 2. Apply Talos config to rebuilt node (--insecure: no PKI on fresh VM)
 talosctl apply-config \
-  --nodes 172.16.20.21 --insecure \
-  --file kubernetes/talos/clusterconfig/homelab-k8s-k8s-cp-2.yaml
+  --nodes 172.16.20.12 --insecure \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-cp-2.yaml
 
 # 3. Node contacts existing etcd and rejoins automatically
 kubectl get nodes --watch   # NotReady → Ready
@@ -323,14 +430,14 @@ talhelper apply
 
 # 3. Re-bootstrap etcd (ONE node only)
 talosctl bootstrap \
-  --nodes 172.16.20.20 \
-  --endpoints 172.16.20.20 \
+  --nodes 172.16.20.11 \
+  --endpoints 172.16.20.11 \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig
 
 # 4. Get fresh kubeconfig
 talosctl kubeconfig \
-  --nodes 172.16.20.20 \
-  --endpoints 172.16.20.19 \
+  --nodes 172.16.20.11 \
+  --endpoints 172.16.20.10 \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig
 
 # 5. Restore Sealed Secrets key (before Flux reconciles SealedSecrets)
@@ -367,7 +474,7 @@ Apply, wait for it to be healthy, then wipe EPHEMERAL on the other nodes so they
 
 ```bash
 talosctl reset --system-labels-to-wipe EPHEMERAL \
-  --nodes 172.16.20.21,172.16.20.22 \
+  --nodes 172.16.20.12,172.16.20.13 \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig \
   --reboot
 ```
