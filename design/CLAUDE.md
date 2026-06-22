@@ -101,7 +101,7 @@ All k8s tooling (`kubectl`, `flux`, `kubeseal`, `talosctl`, `talhelper`, `helm`,
 mise exec -- kubectl get pods -n <namespace>
 mise exec -- flux get kustomizations
 mise exec -- kubeseal --cert kubernetes/flux/pub-cert.pem --format yaml < /tmp/secret.yaml > sealed.yml
-mise exec -- talosctl -n 172.16.20.20 dmesg
+mise exec -- talosctl -n 172.16.20.11 dmesg
 ```
 
 Or activate the mise shims for the session:

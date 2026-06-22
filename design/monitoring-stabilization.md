@@ -16,7 +16,7 @@
   `context deadline exceeded` / `Failed to contact API server`; operator logged
   `leader election lost`.
 - Firing alerts: `KubeAPIErrorBudgetBurn` (×2), `KubeClientErrors` (~1.1% errors vs
-  `172.16.20.20:6443`), `KubeDeploymentRolloutStuck`, `KubePodCrashLooping`,
+  `172.16.20.11:6443`), `KubeDeploymentRolloutStuck`, `KubePodCrashLooping`,
   `ServiceDown`, `TargetDown`, plus operator `ReconcileErrors` / `LogErrors`.
 
 ## Root-cause analysis
@@ -68,10 +68,18 @@ cardinality apiserver/workqueue histogram buckets via `metricRelabelConfigs`. Lo
 apiserver render CPU and TSDB cardinality. (Modest stability impact; mainly storage.)
 ~~Phase 1 #2 — scope Grafana sidecars~~ — dropped: already namespace-scoped (see above).
 
-### Phase 2 — gain visibility (Talos machine-config change; needs explicit OK)
+### Phase 2 — gain visibility (Talos machine-config change)  ✅ (done 2026-06-18)
 Expose etcd / controller-manager / scheduler metrics (Talos: etcd `listen-metrics-urls`,
 the others `bind-address=0.0.0.0`) and enable the chart scrapes. Read-only, reversible.
-Then measure etcd commit/fsync latency and apiserver APF rejections to **confirm or
+- **cm + scheduler** (`bind-address=0.0.0.0`): scrapes enabled 2026-06-03 (chart
+  auto-discovers the static mirror pods → node IPs; `insecureSkipVerify` since Talos
+  serves the metrics TLS cert for localhost only).
+- **etcd** (`listen-metrics-urls: http://0.0.0.0:2381`): the arg took effect after a node
+  reboot; verified reachable on all 3 CPs 2026-06-18 and the `kubeEtcd` scrape enabled.
+  etcd has no static mirror pod on Talos, so the control-plane IPs are listed explicitly
+  in `kubeEtcd.endpoints` and the scrape targets `:2381` over plaintext http.
+
+Now measure etcd commit/fsync latency and apiserver APF rejections to **confirm or
 refute** "monitoring request volume destabilizes the control plane."
 
 ### Phase 3 — durable fix (based on Phase 2 data)
@@ -101,7 +109,7 @@ apiserver via KubePrism `127.0.0.1:7445` times out) and restart.
 
 **Leading hypothesis:** CPU contention on the 4-vCPU control-plane nodes (they run the
 control plane + all workloads). Calm-moment snapshot: loadavg 3.2–3.4/4, PSI cpu "some"
-avg60 ~10% on .21. `CPUThrottlingHigh` firing. Periodic spikes (Trivy scans, Falco,
+avg60 ~10% on .12. `CPUThrottlingHigh` firing. Periodic spikes (Trivy scans, Falco,
 backups, image GC) likely push apiserver latency past the 5s lease deadline.
 
 ### Overnight flap-rate measurement — baseline reset 2026-06-02 ~21:09 UTC
@@ -136,7 +144,7 @@ Morning snapshot shifted the diagnosis from CPU to **disk I/O**:
 - Flaps are **correlated** — all 6 control-plane components (cm + scheduler ×3 nodes)
   restarted in a 4-min window (07:14–07:18), implying a shared dependency (etcd/disk),
   not independent per-node CPU contention.
-- **`vmsingle` (the VictoriaMetrics TSDB) runs on `k8s-cp-3` / `172.16.20.22`, the etcd
+- **`vmsingle` (the VictoriaMetrics TSDB) runs on `cp-3` / `172.16.20.13`, the etcd
   leader**, and etcd + the TSDB share the same physical disk: `/var` is `/dev/sda4` on a
   single `sda` per node; both `/var/lib/etcd` and `openebs-hostpath` live under `/var`.
   There is no dedicated etcd disk.
@@ -180,9 +188,9 @@ stopped leading. So **etcd itself intermittently fails to service requests**, ye
 signature of **raft not committing in time** (quorum/peer/CPU-scheduling), not local disk
 or apply latency. We've exhausted black-box (PSI/logs) inference.
 
-### Next step — Phase 2 is now REQUIRED (not optional)
-Expose etcd / controller-manager / scheduler metrics (Talos: etcd `listen-metrics-urls`,
-the others `bind-address=0.0.0.0`) and scrape them. Decisive metrics to look at:
+### Next step — Phase 2 done (2026-06-18): etcd/cm/scheduler now scraped
+All three control-plane scrapes are enabled (see Phase 2 above). With etcd metrics now
+flowing, look at the decisive metrics at flap time:
 - `etcd_server_proposals_pending`, `etcd_server_proposals_failed_total`
 - `etcd_network_peer_round_trip_time_seconds` (peer RTT → network/raft)
 - `etcd_disk_backend_commit_duration_seconds`, `etcd_disk_wal_fsync_duration_seconds`
