@@ -8,10 +8,10 @@
 | Proxmox MS-A2 | 172.16.20.3 | Hypervisor |
 | DGX Spark | 172.16.20.4 | GPU workstation (WOL-managed) |
 | `.5–.9` | reserved | Future physical devices |
-| k8s-cp-1 | 172.16.20.20 | Talos control plane + workloads |
-| k8s-cp-2 | 172.16.20.21 | Talos control plane + workloads |
-| k8s-cp-3 | 172.16.20.22 | Talos control plane + workloads |
-| k8s API VIP | 172.16.20.19 | API server endpoint (floats via leader election) |
+| cp-1 | 172.16.20.11 | Talos control plane + workloads |
+| cp-2 | 172.16.20.12 | Talos control plane + workloads |
+| cp-3 | 172.16.20.13 | Talos control plane + workloads |
+| k8s API VIP | 172.16.20.10 | API server endpoint (floats via leader election) |
 | Gateway VIP | 172.16.20.50 | Cilium L2 announcement — `shared` Gateway |
 | Pool-B VIP | 172.16.20.51 | Cilium L2 announcement — direct LoadBalancer services |
 | UDM SE | 172.16.20.254 | Gateway, DHCP, DNS resolver, ad blocking |
@@ -20,7 +20,7 @@
 **Service CIDR:** `10.96.0.0/12`
 **Cluster domain:** `blackcats.cc`
 
-The k8s VMs (`.20`–`.22`) are in the same `/24` as the rest of the homelab. No separate VLAN. The existing Docker Swarm VMs (`.10`–`.17`) are untouched.
+The k8s control planes (`.11`–`.13`) and the API VIP (`.10`) are in the same `/24` as the rest of the homelab — no separate VLAN. (Swarm is retired; the cluster is the primary platform.)
 
 ---
 
@@ -32,10 +32,11 @@ Cilium is the CNI, kube-proxy replacement, and Gateway API controller.
 |---|---|
 | Routing mode | VXLAN encapsulation |
 | Encryption | WireGuard node-to-node (`encryption.type: wireguard`) |
-| kube-proxy replacement | Full (`kubeProxyReplacement: true`, `k8sServiceHost: 172.16.20.19`) |
+| MTU | Jumbo frames — `MTU: 9000` set **explicitly** in Cilium values. The node NIC `ens18` is pinned to `mtu: 9000` in `talconfig.yaml` (and the Proxmox tap is 9000 in `infra/terraform/kubernetes.tf`). **Must be explicit:** Cilium's MTU auto-detection otherwise latches onto the Netbird `wt0` interface (1280) and throttles all pod traffic to ~1200–1280 byte frames. Cilium subtracts VXLAN + WireGuard overhead for pod/tunnel interfaces. Requires bridge/switch jumbo support end-to-end. |
+| kube-proxy replacement | Full (`kubeProxyReplacement: true`, `k8sServiceHost: localhost`, `k8sServicePort: 7445` — KubePrism, VIP-independent) |
 | Hubble | Enabled — relay + UI |
 | L2 Announcements | Enabled (`l2announcements.enabled: true`) |
-| Gateway API | Enabled (`gatewayAPI.enabled: true`, `enableAppProtocol: true`) |
+| Gateway API | Enabled (`gatewayAPI.enabled: true`, `enableAppProtocol: true`, `enableAlpn: true`) |
 | IPAM mode | Kubernetes |
 | Operator replicas | 1 |
 
@@ -115,6 +116,8 @@ GatewayClass: cilium  (kube-system, controller: io.cilium/gateway-controller)
 ```
 
 The Gateway accepts routes from all namespaces (`allowedRoutes.namespaces.from: All`).
+
+**ALPN:** Cilium is configured with `gatewayAPI.enableAlpn: true` (in `kubernetes/apps/kube-system/cilium/app/helm-values.yml`). Without it the Envoy HTTPS listener negotiates *no* ALPN protocol — tolerant clients (browsers, curl) silently fall back to HTTP/1.1, but strict clients fail the TLS handshake. This previously broke the Zitadel bootstrap (gRPC requires h2) and external OIDC clients such as Proxmox's `proxmox-openid` (token-endpoint call failed with "Failed to contact token endpoint: Request failed"). With ALPN enabled the listener advertises `h2` + `http/1.1`.
 
 Manifests: `kubernetes/apps/gateway/`
 

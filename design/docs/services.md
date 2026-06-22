@@ -41,7 +41,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 |---|---|---|---|---|---|
 | Zitadel | auth | HelmRelease | `auth.blackcats.cc` | Self (OIDC provider) | Single user store; Go binary backed by CNPG Postgres; gRPC-Web via Cilium GRPCRoute + h2c |
 | Mailrise | auth | Deployment | — | — | SMTP→Apprise relay for Zitadel email notifications |
-| Zitadel bootstrap | auth | Job | — | — | Provisions OIDC clients for all apps via Terraform + Zitadel API; writes `*-oidc-secret` Secrets into app namespaces |
+| Zitadel bootstrap | auth | Job | — | — | Provisions OIDC clients for all apps via Terraform + Zitadel API; writes `*-oidc-secret` Secrets into app namespaces (incl. `proxmox-oidc-secret` in `auth` for the external Proxmox host) |
 
 ---
 
@@ -102,11 +102,11 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | Prowlarr | `prowlarr.blackcats.cc` | `lscr.io/linuxserver/prowlarr:1.36.3` | Config PVC (`nfs-client`) |
 | SABnzbd | `nzb.blackcats.cc` | `lscr.io/linuxserver/sabnzbd:4.5.1` | Config PVC (`nfs-client`) + `media-nfs` |
 | Seerr | `seerr.blackcats.cc` | `ghcr.io/seerr-team/seerr:v3.2.0` | Config PVC (`nfs-client`) — pod `securityContext` instead of PUID/PGID |
-| Plex | `plex.blackcats.cc` | `lscr.io/linuxserver/plex:1.41.7` | Config PVC (`openebs-hostpath`, pinned to k8s-cp-1) + `media-nfs` (readOnly) |
+| Plex | `plex.blackcats.cc` | `lscr.io/linuxserver/plex:1.41.7` | Config PVC (`openebs-hostpath`, pinned to cp-1) + `media-nfs` (readOnly) |
 | Suwayomi | `suwayomi.blackcats.cc` | `ghcr.io/suwayomi/suwayomi-server:v2.2.2100` (+ `flaresolverr` v3.5.0) | `suwayomi-config` PVC (`nfs-client`, embedded H2) + `media-nfs` subPath `Manga` (downloads) |
 | Kavita | `kavita.blackcats.cc` | `lscr.io/linuxserver/kavita:0.9.0` | `kavita-config` PVC (`nfs-client`, internal SQLite) + `media-nfs` subPath `Manga` (readOnly) |
 
-Plex uses `openebs-hostpath` for its config PVC — SQLite WAL locking errors occur over NFS. Config is on local disk on whichever node the PVC first bound to (k8s-cp-1).
+Plex uses `openebs-hostpath` for its config PVC — SQLite WAL locking errors occur over NFS. Config is on local disk on whichever node the PVC first bound to (cp-1).
 
 Sonarr and Radarr use CNPG Postgres (migrated from SQLite; migration Jobs in `kubernetes/apps/media/sonarr/app/migration-job.yml` and `radarr/`).
 
@@ -123,5 +123,6 @@ Sonarr and Radarr use CNPG Postgres (migrated from SQLite; migration Jobs in `ku
 | FreshRSS | `https://rss.blackcats.cc/i/oidc/` | Apache mod_auth_openidc; NOT `/i/?get=oidc` |
 | Gitea | `https://gitea.blackcats.cc/user/oauth2/Zitadel/callback` | Provider name segment is case-sensitive |
 | Kavita | `https://kavita.blackcats.cc/signin-oidc` | ASP.NET OIDC middleware path; creds read from `/config/appsettings.json` (`OpenIdConnectSettings`), merged in by an initContainer |
+| Proxmox VE | `https://pve.blackcats.cc:8006` (+ `:443`) | Bare-metal host (172.16.20.3), not in-cluster. Redirect = web UI base URL (no path); `client_secret_basic`. Creds in `auth/proxmox-oidc-secret`, copied into a Proxmox OIDC realm manually (`pveum`). See RUNBOOK. |
 | Goldilocks | TBD | Standard OIDC redirect |
 | Gatus | TBD | Standard OIDC redirect |
