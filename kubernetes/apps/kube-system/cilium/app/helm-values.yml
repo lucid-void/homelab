@@ -3,6 +3,13 @@ kubeProxyReplacement: true
 k8sServiceHost: localhost
 k8sServicePort: 7445
 
+# Jumbo frames. The Talos node NICs are provisioned at MTU 9000 (infra/terraform/
+# kubernetes.tf); pin Cilium's datapath MTU to match instead of relying on
+# auto-detection. Cilium subtracts tunnel + WireGuard overhead automatically for
+# the pod/tunnel interfaces. Requires a cilium agent restart + pod recreation to
+# take effect on existing workloads.
+MTU: 9000
+
 ipam:
   mode: kubernetes
 
@@ -47,6 +54,11 @@ l2announcements:
 gatewayAPI:
   enabled: true
   enableAppProtocol: true
+  # Advertise ALPN (h2, http/1.1) on Gateway TLS listeners. Without this the Envoy
+  # listener negotiates no ALPN protocol, so strict clients fail the handshake:
+  # gRPC (h2-required) and proxmox-openid's token-endpoint call both break, while
+  # tolerant clients like curl silently fall back to HTTP/1.1. See design/AI_CONTEXT.md.
+  enableAlpn: true
 
 operator:
   replicas: 1
