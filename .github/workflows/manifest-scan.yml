@@ -65,10 +65,20 @@ jobs:
         id: kubeconform
         run: |
           set +e
+          # Skip non-manifest YAML that lives under kubernetes/ but has no
+          # 'kind' key (Helm values, kustomize transformer configs, helmfile,
+          # popeye config, and the Talos machine-config tree). kubeconform
+          # treats these as parse errors ("missing 'kind' key"), which
+          # -ignore-missing-schemas does NOT suppress.
           output=$(kubeconform \
             -strict \
             -ignore-missing-schemas \
             -kubernetes-version "$KUBERNETES_VERSION" \
+            -ignore-filename-pattern 'helm-values\.ya?ml$' \
+            -ignore-filename-pattern 'kustomizeconfig\.ya?ml$' \
+            -ignore-filename-pattern 'helmfile\.ya?ml$' \
+            -ignore-filename-pattern 'popeye-spinach\.ya?ml$' \
+            -ignore-filename-pattern 'kubernetes/talos/' \
             -summary \
             -output json \
             kubernetes/ 2>&1)
