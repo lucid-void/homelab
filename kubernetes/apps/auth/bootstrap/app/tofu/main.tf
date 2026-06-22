@@ -271,6 +271,55 @@ resource "kubernetes_secret_v1" "kavita_oidc_secret" {
   }
 }
 
+resource "zitadel_application_oidc" "proxmox" {
+  project_id = zitadel_project.homelab.id
+  org_id     = local.org_id
+  name       = "Proxmox VE"
+
+  # Proxmox uses the web UI base URL (no path) as the OIDC redirect target.
+  # Register both :8006 (default) and :443 so login works whether or not a
+  # host-level 443->8006 redirect is in place. Proxmox lives outside the
+  # cluster (172.16.20.3) — do NOT front it behind the k8s Gateway (circular
+  # dependency: the Gateway runs on the VMs this host hypervises).
+  redirect_uris = [
+    "https://pve.blackcats.cc:8006",
+    "https://pve.blackcats.cc",
+  ]
+  post_logout_redirect_uris = [
+    "https://pve.blackcats.cc:8006",
+    "https://pve.blackcats.cc",
+  ]
+
+  response_types = ["OIDC_RESPONSE_TYPE_CODE"]
+  grant_types    = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
+  app_type       = "OIDC_APP_TYPE_WEB"
+  # proxmox-openid (Rust openidconnect crate) authenticates at the token
+  # endpoint with HTTP Basic (client_secret_basic) by default.
+  auth_method_type = "OIDC_AUTH_METHOD_TYPE_BASIC"
+
+  access_token_type           = "OIDC_TOKEN_TYPE_BEARER"
+  id_token_userinfo_assertion = true
+
+  version  = "OIDC_VERSION_1_0"
+  dev_mode = false
+}
+
+# Proxmox is bare metal, not a k8s workload — nothing in-cluster consumes this.
+# Written to the auth namespace purely as a retrieval mechanism; copy the values
+# into the Proxmox OpenID Connect realm (see design/RUNBOOK.md):
+#   kubectl get secret proxmox-oidc-secret -n auth -o jsonpath='{.data.OIDC_CLIENT_SECRET}' | base64 -d
+resource "kubernetes_secret_v1" "proxmox_oidc_secret" {
+  metadata {
+    name      = "proxmox-oidc-secret"
+    namespace = "auth"
+  }
+  data = {
+    ISSUER_URL         = "https://zitadel.blackcats.cc"
+    OIDC_CLIENT_ID     = zitadel_application_oidc.proxmox.client_id
+    OIDC_CLIENT_SECRET = zitadel_application_oidc.proxmox.client_secret
+  }
+}
+
 resource "kubernetes_secret_v1" "immich_oidc_config" {
   metadata {
     name      = "immich-oidc-config"
