@@ -20,6 +20,7 @@ spec:
           args:
             - |
               set -eu
+              set -o pipefail
 
               apk add --no-cache curl jq kubectl >/dev/null 2>&1
 
@@ -29,34 +30,51 @@ spec:
               until curl -sf "${GOTIFY_URL}/health" >/dev/null 2>&1; do sleep 5; done
               echo "Gotify is ready."
 
+              # Fail fast on bad admin credentials. Otherwise every authenticated
+              # call 401s and each token silently resolves to empty — the failure
+              # mode that knocked out all notifications for days.
+              if ! curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" "${GOTIFY_URL}/current/user" >/dev/null; then
+                echo "FATAL: admin auth to Gotify failed — gotify-admin-secret does not match the Gotify admin password" >&2
+                exit 1
+              fi
+              echo "Admin auth OK."
+
+              # Returns a non-empty token on stdout, or aborts the job. Diagnostics
+              # go to stderr so they are never captured as the token value.
               create_or_get_app_token() {
-                local name="$1" desc="$2"
-                existing=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" \
+                local name="$1" desc="$2" token
+                token=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" \
                   "${GOTIFY_URL}/application" \
-                  | jq -r ".[] | select(.name == \"${name}\") | .token // empty")
-                if [ -n "$existing" ]; then
-                  echo "$existing"
-                  return
+                  | jq -r ".[] | select(.name == \"${name}\") | .token // empty") || true
+                if [ -z "$token" ]; then
+                  token=$(curl -sf -X POST -u "admin:${GOTIFY_ADMIN_PASS}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"name\":\"${name}\",\"description\":\"${desc}\"}" \
+                    "${GOTIFY_URL}/application" | jq -r '.token // empty') || true
                 fi
-                curl -sf -X POST -u "admin:${GOTIFY_ADMIN_PASS}" \
-                  -H "Content-Type: application/json" \
-                  -d "{\"name\":\"${name}\",\"description\":\"${desc}\"}" \
-                  "${GOTIFY_URL}/application" | jq -r '.token'
+                if [ -z "$token" ]; then
+                  echo "FATAL: could not obtain app token for '${name}'" >&2
+                  exit 1
+                fi
+                printf '%s' "$token"
               }
 
               create_or_get_client_token() {
-                local name="$1"
-                existing=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" \
+                local name="$1" token
+                token=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" \
                   "${GOTIFY_URL}/client" \
-                  | jq -r ".[] | select(.name == \"${name}\") | .token // empty")
-                if [ -n "$existing" ]; then
-                  echo "$existing"
-                  return
+                  | jq -r ".[] | select(.name == \"${name}\") | .token // empty") || true
+                if [ -z "$token" ]; then
+                  token=$(curl -sf -X POST -u "admin:${GOTIFY_ADMIN_PASS}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"name\":\"${name}\"}" \
+                    "${GOTIFY_URL}/client" | jq -r '.token // empty') || true
                 fi
-                curl -sf -X POST -u "admin:${GOTIFY_ADMIN_PASS}" \
-                  -H "Content-Type: application/json" \
-                  -d "{\"name\":\"${name}\"}" \
-                  "${GOTIFY_URL}/client" | jq -r '.token'
+                if [ -z "$token" ]; then
+                  echo "FATAL: could not obtain client token for '${name}'" >&2
+                  exit 1
+                fi
+                printf '%s' "$token"
               }
 
               upsert_secret() {
@@ -91,17 +109,20 @@ spec:
               upsert_secret "monitoring" "gotify-secret"       "GOTIFY_TOKEN" "$alertmanager_token"
               upsert_secret "monitoring" "gotify-client-secret" "CLIENT_TOKEN" "$client_token"
 
-              echo "Bootstrap complete."
-              echo "  etcd-snapshot app token    : ${etcd_snapshot_token}"
-              echo "  homebox-backup app token   : ${homebox_token}"
-              echo "  postgres-backup app token  : ${postgres_token}"
-              echo "  immich-backup app token    : ${immich_token}"
-              echo "  paperless-backup app token : ${paperless_token}"
-              echo "  gitea-backup app token     : ${gitea_token}"
-              echo "  gatus app token            : ${gatus_token}"
-              echo "  falco app token            : ${falco_token}"
-              echo "  alertmanager app token     : ${alertmanager_token}"
-              echo "  admin client token         : ${client_token}"
+              # Reaching here means every token above validated non-empty.
+              # Print names only — never the token values (these land in pod logs).
+              echo "Bootstrap complete. Provisioned tokens:"
+              echo "  etcd-snapshot    ✓"
+              echo "  homebox-backup   ✓"
+              echo "  postgres-backup  ✓"
+              echo "  immich-backup    ✓"
+              echo "  paperless-backup ✓"
+              echo "  gitea-backup     ✓"
+              echo "  security-scanner ✓"
+              echo "  gatus            ✓"
+              echo "  falco            ✓"
+              echo "  alertmanager     ✓"
+              echo "  admin client     ✓"
           env:
             - name: GOTIFY_ADMIN_PASS
               valueFrom:
