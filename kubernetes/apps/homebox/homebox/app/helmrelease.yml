@@ -36,6 +36,14 @@ spec:
               HBOX_MODE: production
               HBOX_STORAGE_DATA: /data
               HBOX_LOG_LEVEL: info
+              # Required since homebox 0.26.x — ≥32-byte pepper for hashing API
+              # keys; app panics on startup without it. Stable secret (rotating
+              # it invalidates all issued API keys). From homebox-secret SealedSecret.
+              HBOX_AUTH_API_KEY_PEPPER:
+                valueFrom:
+                  secretKeyRef:
+                    name: homebox-secret
+                    key: HBOX_AUTH_API_KEY_PEPPER
             probes:
               liveness: &probes
                 enabled: true
