@@ -126,6 +126,27 @@ spec:
           - name: blackhole
 
     # ---------------------------------------------------------------------------
+    # Grafana datasources
+    # The chart default ships a second datasource of type
+    # `victoriametrics-metrics-datasource`, which requires a Grafana plugin that
+    # is NOT installed by default (chart leaves `grafana.plugins` commented out).
+    # Grafana 13+ treats a provisioned datasource whose plugin is missing as a
+    # FATAL provisioning error ("data source not found") and crash-loops. We drop
+    # that datasource and keep only the Prometheus-compatible one — VictoriaMetrics
+    # speaks the Prometheus API, so every dashboard works, with no boot-time
+    # dependency on grafana.com plugin downloads. (Alertmanager datasource is a
+    # separate key and stays at chart default.)
+    # ---------------------------------------------------------------------------
+    defaultDatasources:
+      victoriametrics:
+        datasources:
+          - name: VictoriaMetrics
+            type: prometheus
+            access: proxy
+            uid: VictoriaMetrics
+            isDefault: true
+
+    # ---------------------------------------------------------------------------
     # Grafana — dashboards (Zitadel OIDC, credentials from grafana-oidc-secret)
     # ---------------------------------------------------------------------------
     grafana:
