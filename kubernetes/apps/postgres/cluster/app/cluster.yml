@@ -63,6 +63,11 @@ spec:
         inherit: true
         passwordSecret:
           name: sonarr-role-secret
+      - name: romm
+        login: true
+        inherit: true
+        passwordSecret:
+          name: romm-role-secret
 
   storage:
     size: 20Gi
