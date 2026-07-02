@@ -307,11 +307,19 @@ spec:
       enabled: true
 
     defaultRules:
-      disabled:
-        NodeNetworkTransmitErrs: true
-        # Re-added size-aware in vmrules.yml — the built-in guards only on
-        # in-use bytes > 100 MiB, which flaps at our scale (see etcd-custom).
-        etcdDatabaseHighFragmentationRatio: true
+      # Disable specific built-in alerts. This chart keys overrides under
+      # rules.<AlertName>.enabled — it has NO `disabled:` map (that field is
+      # silently ignored, leaving the built-in live alongside the replacement).
+      # Both are replaced by tuned custom VMRules in vmrules.yml.
+      rules:
+        # Built-in has no device exclusions; wt0 (Cilium WireGuard) reports
+        # expected TX errors — replaced by node-network-custom.
+        NodeNetworkTransmitErrs:
+          enabled: false
+        # Built-in guards only on in-use bytes > 100 MiB, which flaps at our
+        # scale — replaced by size-aware etcd-custom (fires at 1.5 GiB file).
+        etcdDatabaseHighFragmentationRatio:
+          enabled: false
 
     # Disable admission webhooks — operator validates CRs in-process without
     # webhooks; disabling avoids the chicken-and-egg where the webhook server
