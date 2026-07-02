@@ -309,6 +309,9 @@ spec:
     defaultRules:
       disabled:
         NodeNetworkTransmitErrs: true
+        # Re-added size-aware in vmrules.yml — the built-in guards only on
+        # in-use bytes > 100 MiB, which flaps at our scale (see etcd-custom).
+        etcdDatabaseHighFragmentationRatio: true
 
     # Disable admission webhooks — operator validates CRs in-process without
     # webhooks; disabling avoids the chicken-and-egg where the webhook server

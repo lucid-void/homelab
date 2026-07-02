@@ -332,6 +332,47 @@ nft add rule ip nat prerouting tcp dport 443 redirect to :8006
 Do **not** front Proxmox behind the cluster Gateway (172.16.20.50) — that creates a
 circular dependency, since the Gateway runs on the VMs this host hypervises.
 
+### Defragment etcd (`etcdDatabaseHighFragmentationRatio`)
+
+etcd is copy-on-write with MVCC: every write creates a new revision, and
+auto-compaction reclaims old revisions *logically* but never shrinks the on-disk
+file — freed pages stay allocated to etcd as internal free space. Over time the DB
+file grows to ~2× its live data. All three members replicate the same writes via
+Raft, so they fragment in lockstep (the alert names one node, but all three are
+affected). This is **cosmetic** until the file approaches etcd's ~2 GiB quota
+(default; not overridden in `talconfig.yaml`) — at which point etcd goes read-only
+until defragged. Only `defrag` returns free pages to the OS.
+
+The `etcdDatabaseHighFragmentationRatio` alert is tuned to fire only when it
+matters: the upstream rule guards on in-use bytes > 100 MiB (which flaps at our
+scale), so it's disabled in the vm-stack HelmRelease and replaced by the
+`etcd-custom` VMRule (`kubernetes/apps/monitoring/vm-stack/app/vmrules.yml`), which
+fires only when the **allocated file** exceeds **1.5 GiB (75% of the 2 GiB quota)**
+*and* is still < 50% in use. If you ever raise `quota-backend-bytes`, bump that
+guard to match.
+
+```bash
+export TALOSCONFIG=kubernetes/talos/clusterconfig/talosconfig
+
+# 1. Check IN USE % and find the LEADER
+mise exec -- talosctl -n 172.16.20.11,172.16.20.12,172.16.20.13 etcd status
+
+# 2. Confirm there is no NOSPACE alarm (empty output = clean)
+mise exec -- talosctl -n 172.16.20.11,172.16.20.12,172.16.20.13 etcd alarm list
+
+# 3. Defrag ONE node at a time — followers first, LEADER LAST (keeps quorum 2/3).
+#    Each defrag briefly blocks that member's reads/writes (sub-second at our size).
+mise exec -- talosctl -n <follower-1> etcd defrag
+mise exec -- talosctl -n <follower-2> etcd defrag
+mise exec -- talosctl -n <leader>     etcd defrag
+
+# 4. If a NOSPACE alarm was set (DB hit the quota), clear it AFTER defragging:
+mise exec -- talosctl -n 172.16.20.11,172.16.20.12,172.16.20.13 etcd alarm disarm
+```
+
+Each member should drop back to ~100% in-use after its defrag. This is an
+operational action — nothing to commit.
+
 ---
 
 ## Planned Maintenance Shutdown
