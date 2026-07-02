@@ -26,3 +26,43 @@ spec:
               {{ $labels.instance }} interface {{ $labels.device }} has encountered
               {{ printf "%.0f" $value }} transmit errors in the last two minutes.
             runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodenetworktransmiterrs
+---
+# Size-aware replacement for the upstream etcdDatabaseHighFragmentationRatio
+# (disabled via defaultRules.disabled in helmrelease.yml). The built-in rule
+# guards only on in-use bytes > 100 MiB, so at our scale (~220 MB DB file /
+# ~95 MB in use against etcd's default 2 GiB quota) it flaps on/off for a
+# cosmetic condition — compaction frees pages but doesn't return them to the
+# OS; only defrag shrinks the file. Fragmentation only matters as the allocated
+# file approaches the quota, so we re-guard on the *total* on-disk size
+# (> 1.5 GiB = 75% of the 2 GiB quota), leaving headroom to defrag before
+# etcd would go read-only. Remediation: `talosctl etcd defrag`, one node at a
+# time, followers first / leader last (keeps quorum 2/3).
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: etcd-custom
+  namespace: monitoring
+spec:
+  groups:
+    - name: etcd-custom
+      rules:
+        - alert: etcdDatabaseHighFragmentationRatio
+          expr: >
+            (
+              last_over_time(etcd_mvcc_db_total_size_in_use_in_bytes{job=~".*etcd.*"}[5m])
+              / last_over_time(etcd_mvcc_db_total_size_in_bytes{job=~".*etcd.*"}[5m])
+            ) < 0.5
+            and
+            etcd_mvcc_db_total_size_in_bytes{job=~".*etcd.*"} > 1610612736
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: etcd DB file is over 1.5 GiB and less than 50% in use — defragment before it nears the 2 GiB quota.
+            description: >
+              etcd cluster "{{ $labels.job }}": the allocated database file on
+              {{ $labels.instance }} has grown past 1.5 GiB and only
+              {{ $value | humanizePercentage }} of it is in use. Run defragmentation
+              (talosctl etcd defrag, one node at a time, followers first / leader
+              last) to reclaim space before the file approaches etcd's 2 GiB quota.
+            runbook_url: https://etcd.io/docs/v3.5/op-guide/maintenance/#defragmentation
