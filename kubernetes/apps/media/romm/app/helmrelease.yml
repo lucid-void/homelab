@@ -1,0 +1,120 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: romm
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      # ROM manager: scans a library, fetches box art/metadata (IGDB/ScreenScraper/
+      # Hasheous), serves a web UI, and exposes the library to Tinfoil/DBI on a
+      # modded Switch. Single controller "app" → Deployment/Service named "romm".
+      # The image runs as root and ignores PUID/PGID (rommapp/romm#1302), so no
+      # securityContext override — it primarily *reads* the media share.
+      app:
+        replicas: 1
+        annotations:
+          # Restart when the Terraform-written OIDC secret is (re)created so RomM
+          # picks up the Zitadel credentials. Absent secret => OIDC simply off.
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: rommapp/romm
+              tag: "4.9.2"
+            env:
+              TZ: Europe/Brussels
+              # --- Database (external CNPG Postgres) ---
+              ROMM_DB_DRIVER: postgresql
+              DB_HOST: postgres-rw.postgres.svc.cluster.local
+              DB_PORT: "5432"
+              DB_NAME: romm
+              DB_USER: romm
+              DB_PASSWD:
+                valueFrom:
+                  secretKeyRef:
+                    name: romm-role-secret
+                    key: password
+              # Session/JWT signing key — must stay stable (openssl rand -hex 32).
+              ROMM_AUTH_SECRET_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: romm-secret
+                    key: ROMM_AUTH_SECRET_KEY
+              # Keyless metadata source so scans work before IGDB creds are added.
+              HASHEOUS_API_ENABLED: "true"
+            envFrom:
+              # OIDC_ENABLED/PROVIDER/CLIENT_ID/CLIENT_SECRET/REDIRECT_URI/
+              # SERVER_APPLICATION_URL — all written by zitadel-bootstrap Terraform.
+              # optional: on a fresh cluster RomM boots with OIDC disabled (local
+              # admin via the first-run setup wizard) until the secret appears.
+              - secretRef:
+                  name: romm-oidc-secret
+                  optional: true
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 8080
+                  initialDelaySeconds: 45
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 15
+              readiness: *probes
+            resources:
+              requests:
+                memory: 512Mi
+                cpu: 50m
+              limits:
+                memory: 2Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 8080
+
+    persistence:
+      # config.yml, IGDB/ScreenScraper artwork cache, uploaded saves & states.
+      config:
+        existingClaim: romm-config
+        globalMounts:
+          - path: /romm/config
+            subPath: config
+          - path: /romm/resources
+            subPath: resources
+          - path: /romm/assets
+            subPath: assets
+      # Embedded Valkey job queue/cache — ephemeral, regenerated on restart.
+      # Kept off NFS to avoid AOF/fsync locking issues over the share.
+      redis:
+        type: emptyDir
+        globalMounts:
+          - path: /redis-data
+      # ROM library on the Synology Media share (Games/). RomM expects the roms
+      # under <library>/roms/<platform>/ — e.g. Games/roms/switch/*.nsp.
+      library:
+        existingClaim: media-nfs
+        globalMounts:
+          - path: /romm/library
+            subPath: Games

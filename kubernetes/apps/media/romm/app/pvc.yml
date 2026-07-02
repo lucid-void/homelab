@@ -1,0 +1,16 @@
+---
+# RomM working data: config.yml, IGDB/ScreenScraper artwork cache (/romm/resources),
+# uploaded saves & states (/romm/assets), and the embedded Valkey persistence
+# (/redis-data). The ROM library itself lives on the Synology Media share, not here.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: romm-config
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 20Gi

@@ -14,3 +14,5 @@ resources:
   - ./plex/ks.yml
   - ./suwayomi/ks.yml
   - ./kavita/ks.yml
+  - ./romm/database/ks.yml
+  - ./romm/ks.yml
