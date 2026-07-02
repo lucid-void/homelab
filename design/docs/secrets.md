@@ -118,6 +118,22 @@ postgres/<app>-role-secret  →  key: password
 
 These are the **single source of truth** for database passwords. They are not SealedSecrets — CNPG manages them directly.
 
+### Onboarding a new app database (full recipe)
+
+A CNPG `Database` CR alone is **not enough** — its `owner` role must exist first, and
+the role only exists if it's declared in the cluster's `managed.roles`. Miss this and the
+app crashloops with `password authentication failed` / the Database reports
+`role "<app>" does not exist`. All four steps are required:
+
+1. **Managed role** — add an entry to `managed.roles` in
+   `kubernetes/apps/postgres/cluster/app/cluster.yml` (`name`, `login: true`,
+   `passwordSecret.name: <app>-role-secret`). *This is what actually creates the role.*
+2. **Role password** — `<app>-role-secret` SealedSecret in the `postgres` namespace,
+   with the Reflector annotations below to mirror it into the app namespace.
+3. **Database CR** — a `Database` resource (`owner: <app>`) in the app's `database/app/`.
+4. **Backup** — add `<app>` to `kubernetes/apps/postgres/backup/app/databases.yml`
+   (unless the app has its own quiesced backup CronJob).
+
 ### Cross-Namespace Access via Reflector
 
 Apps need the DB password in their own namespace. **Reflector** (in `kube-system`) mirrors the secret automatically.
