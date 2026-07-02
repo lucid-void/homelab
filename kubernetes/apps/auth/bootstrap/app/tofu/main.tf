@@ -271,6 +271,51 @@ resource "kubernetes_secret_v1" "kavita_oidc_secret" {
   }
 }
 
+resource "zitadel_application_oidc" "romm" {
+  project_id = zitadel_project.homelab.id
+  org_id     = local.org_id
+  name       = "RomM"
+
+  redirect_uris = [
+    "https://romm.blackcats.cc/api/oauth/openid",
+  ]
+  post_logout_redirect_uris = [
+    "https://romm.blackcats.cc/",
+  ]
+
+  response_types = ["OIDC_RESPONSE_TYPE_CODE"]
+  grant_types    = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
+  app_type       = "OIDC_APP_TYPE_WEB"
+  # RomM's OIDC guide specifies HTTP Basic (client_secret_basic).
+  auth_method_type = "OIDC_AUTH_METHOD_TYPE_BASIC"
+
+  access_token_type = "OIDC_TOKEN_TYPE_BEARER"
+  # "User Info inside ID Token" — RomM resolves the email claim from the ID token.
+  id_token_userinfo_assertion = true
+
+  version  = "OIDC_VERSION_1_0"
+  dev_mode = false
+}
+
+# RomM reads every OIDC_* var from the environment. The HelmRelease consumes this
+# Secret via an optional envFrom, so its mere presence enables OIDC (and its
+# absence on a fresh cluster leaves RomM on local-account auth). Reloader restarts
+# RomM when this Secret is created/rotated.
+resource "kubernetes_secret_v1" "romm_oidc_secret" {
+  metadata {
+    name      = "romm-oidc-secret"
+    namespace = "media"
+  }
+  data = {
+    OIDC_ENABLED                = "true"
+    OIDC_PROVIDER               = "Zitadel"
+    OIDC_CLIENT_ID              = zitadel_application_oidc.romm.client_id
+    OIDC_CLIENT_SECRET          = zitadel_application_oidc.romm.client_secret
+    OIDC_REDIRECT_URI           = "https://romm.blackcats.cc/api/oauth/openid"
+    OIDC_SERVER_APPLICATION_URL = "https://zitadel.blackcats.cc"
+  }
+}
+
 resource "zitadel_application_oidc" "proxmox" {
   project_id = zitadel_project.homelab.id
   org_id     = local.org_id
