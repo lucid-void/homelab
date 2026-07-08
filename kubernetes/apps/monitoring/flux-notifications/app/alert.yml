@@ -1,0 +1,97 @@
+---
+# Closes the GitOps "meta-hole": the cluster alerts on metrics (vmalert →
+# Alertmanager → Gotify), but the controller that DEPLOYS that alerting stack —
+# Flux — could fail silently. A HelmRelease stuck in "install retries exhausted"
+# or a Kustomization that won't build just sat there until someone ran
+# `flux get ks -A`. This Alert forwards every error-severity Flux event to Gotify.
+#
+# Flux has NO namespace wildcard for eventSources (notification-controller#784),
+# so cluster-wide coverage is built from two layers:
+#
+#   1. Kustomization / '*' / flux-system — the GAPLESS BACKSTOP. Every app in this
+#      repo is deployed by a Flux Kustomization object, and they ALL live in
+#      flux-system (ks.yml files set `namespace: flux-system` + `targetNamespace`).
+#      Each uses `wait: true`, so ANY app failure — including a broken HelmRelease
+#      in any namespace — eventually fails its parent Kustomization's health check
+#      and fires here. This one entry alone catches everything; new namespaces are
+#      covered automatically.
+#
+#   2. HelmRelease / '*' / <namespace> — the FAST, SPECIFIC layer. HelmRelease
+#      objects live in their app namespaces (via targetNamespace), and the
+#      helm-controller emits errors ("upgrade retries exhausted", etc.) directly,
+#      without waiting for the parent Kustomization timeout. There is no namespace
+#      wildcard, so each namespace that holds a HelmRelease is listed explicitly.
+#
+# MAINTENANCE: when you add a HelmRelease in a NEW namespace, add a HelmRelease
+# entry below for faster/specific alerts. Forgetting is not catastrophic — layer 1
+# (the Kustomization backstop) still catches the failure, just via the slower
+# parent-Kustomization path. Grep: `grep -rl 'kind: HelmRelease' kubernetes/apps`.
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: flux-failures
+  namespace: monitoring
+spec:
+  providerRef:
+    name: gotify
+  eventSeverity: error
+  eventSources:
+    # Layer 1 — gapless backstop (all Kustomization objects live in flux-system).
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+    # Layer 2 — direct HelmRelease errors, one entry per namespace that has one.
+    - kind: HelmRelease
+      name: "*"
+      namespace: auth
+    - kind: HelmRelease
+      name: "*"
+      namespace: cert-manager
+    - kind: HelmRelease
+      name: "*"
+      namespace: cnpg-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: degoog
+    - kind: HelmRelease
+      name: "*"
+      namespace: democratic-csi
+    - kind: HelmRelease
+      name: "*"
+      namespace: freshrss
+    - kind: HelmRelease
+      name: "*"
+      namespace: gitea
+    - kind: HelmRelease
+      name: "*"
+      namespace: goldilocks
+    - kind: HelmRelease
+      name: "*"
+      namespace: homebox
+    - kind: HelmRelease
+      name: "*"
+      namespace: homepage
+    - kind: HelmRelease
+      name: "*"
+      namespace: immich
+    - kind: HelmRelease
+      name: "*"
+      namespace: kube-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: media
+    - kind: HelmRelease
+      name: "*"
+      namespace: monitoring
+    - kind: HelmRelease
+      name: "*"
+      namespace: network
+    - kind: HelmRelease
+      name: "*"
+      namespace: openebs
+    - kind: HelmRelease
+      name: "*"
+      namespace: paperless
+    - kind: HelmRelease
+      name: "*"
+      namespace: security

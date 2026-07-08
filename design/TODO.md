@@ -63,20 +63,6 @@ Falco events route to Gotify, then a Python WebSocket bridge forwards to Telegra
 
 ## Future Work
 
-### Flux GitOps reconciliation alerting (notification-controller)
-
-**The meta-hole.** The cluster has `vmalert → Alertmanager → Gotify` for *metrics*, but Flux's own
-notification-controller has **no `Provider`/`Alert` resources anywhere in the repo**. A HelmRelease
-stuck in "install retries exhausted", or a Kustomization that fails to build, just sits there
-silently until someone happens to run `flux get ks -A`. This is the meta-gap: the system that
-*deploys* the alerting stack can fail without alerting. It's the cheapest, highest-value addition
-currently available — ~30 lines of YAML.
-
-**Action:** Add one `Provider` (kind `generic` webhook → Gotify; notification-controller speaks
-generic webhook and Gotify accepts it) plus one `Alert` watching `Kustomization` **and**
-`HelmRelease` across all namespaces at `eventSeverity: error`. Closes the gap where the thing that
-deploys your alerting can fail silently.
-
 ### Migrate per-app backup CronJobs to VolSync
 
 The five backup CronJobs (immich, paperless, gitea, homebox, postgres) work, but they're imperative

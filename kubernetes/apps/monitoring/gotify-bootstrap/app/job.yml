@@ -95,6 +95,7 @@ spec:
               falco_token=$(create_or_get_app_token "falco" "Falco runtime security alerts")
               gatus_token=$(create_or_get_app_token "gatus" "Gatus health monitoring alerts")
               alertmanager_token=$(create_or_get_app_token "alertmanager" "AlertManager firing rule notifications")
+              flux_token=$(create_or_get_app_token "flux" "Flux GitOps reconciliation failures")
               client_token=$(create_or_get_client_token "admin")
 
               upsert_secret "kube-system" "gotify-secret"        "GOTIFY_TOKEN" "$etcd_snapshot_token"
@@ -108,6 +109,12 @@ spec:
               upsert_secret "monitoring" "gatus-gotify-secret" "GOTIFY_TOKEN" "$gatus_token"
               upsert_secret "monitoring" "gotify-secret"       "GOTIFY_TOKEN" "$alertmanager_token"
               upsert_secret "monitoring" "gotify-client-secret" "CLIENT_TOKEN" "$client_token"
+              # Flux notification-controller Provider (flux-notifications) auths to
+              # Gotify with this header. Lives in `monitoring` (the Provider's own
+              # namespace — secretRef resolves there). Key is `headers` (not
+              # GOTIFY_TOKEN) because the generic webhook provider reads the token
+              # from an HTTP header, formatted as YAML `Header: value`.
+              upsert_secret "monitoring" "flux-gotify"        "headers" "X-Gotify-Key: $flux_token"
 
               # Reaching here means every token above validated non-empty.
               # Print names only — never the token values (these land in pod logs).
@@ -122,6 +129,7 @@ spec:
               echo "  gatus            ✓"
               echo "  falco            ✓"
               echo "  alertmanager     ✓"
+              echo "  flux             ✓"
               echo "  admin client     ✓"
           env:
             - name: GOTIFY_ADMIN_PASS
