@@ -24,6 +24,18 @@ spec:
     parameters:
       max_connections: "200"
 
+  # Sized off observed usage (postgres-1 ~1.0Gi, postgres-2 ~1.4Gi working set incl.
+  # page cache; CPU near-idle with bursts on vector-index builds). Memory request is
+  # set above steady-state usage so Postgres is never a low-priority eviction target
+  # when a leaky neighbour pressures the node — this DB gates all OIDC auth.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
   managed:
     roles:
       - name: immich
