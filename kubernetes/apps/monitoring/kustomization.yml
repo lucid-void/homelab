@@ -5,6 +5,7 @@ resources:
   - ./namespace.yml
   - ./gotify/ks.yml
   - ./gotify-bootstrap/ks.yml
+  - ./flux-notifications/ks.yml
   - ./gotify-telegram/ks.yml
   - ./gatus/ks.yml
   - ./am-gotify-bridge/ks.yml

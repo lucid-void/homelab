@@ -89,7 +89,9 @@ Zitadel bootstrap Job provisions OIDC clients via Terraform + Zitadel API. Write
 
 **CNPG DB passwords:** `{app}-role-secret` in `postgres` namespace (CNPG-managed) → mirrored to app namespace by Reflector. Apps reference `secretKeyRef: {name: myapp-role-secret, key: password}`.
 
-**Gotify tokens:** plain k8s Secrets written by `gotify-bootstrap` Job (not SealedSecrets). `optional: true` on backup CronJob references.
+**Gotify tokens:** plain k8s Secrets written by `gotify-bootstrap` Job (not SealedSecrets). `optional: true` on backup CronJob references. Includes the `flux` app token → `monitoring/flux-gotify` (`headers` key, not `GOTIFY_TOKEN`) consumed by the `flux-notifications` Provider.
+
+**Flux failure alerting:** `flux-notifications` (in `monitoring`) = one generic-webhook `Provider` → Gotify + one `Alert` at `eventSeverity: error` watching `Kustomization` (cluster-wide via flux-system, the gapless backstop) and `HelmRelease` (per app namespace). Closes the meta-hole where Flux — which deploys the metrics-alerting stack — could itself fail silently.
 
 ---
 

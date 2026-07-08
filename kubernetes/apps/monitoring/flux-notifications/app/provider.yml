@@ -1,0 +1,24 @@
+---
+# Sends Flux notification-controller events to Gotify. Flux has no native Gotify
+# provider, but its `generic` webhook POSTs a JSON body containing a `message`
+# field — which is exactly what Gotify's POST /message requires (it ignores the
+# extra Flux fields). Auth is the Gotify app token, supplied as an X-Gotify-Key
+# header via the secretRef (see below); the token never lives in git.
+#
+# Caveat: the generic payload carries no Gotify `priority`, so messages land at
+# priority 0. They still appear in Gotify and are forwarded to Telegram by
+# gotify-telegram (no priority filter), just with the low-priority (green) emoji.
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: gotify
+  namespace: monitoring
+spec:
+  type: generic
+  address: http://gotify.monitoring.svc.cluster.local/message
+  secretRef:
+    # Written by the gotify-bootstrap Job as a plain Secret with a `headers` key
+    # holding `X-Gotify-Key: <app-token>`. optional-style self-heal: the Provider
+    # reports NotReady until the Job creates it, then reconciles (dependsOn in ks.yml
+    # orders this after gotify-bootstrap so the window is effectively zero).
+    name: flux-gotify
