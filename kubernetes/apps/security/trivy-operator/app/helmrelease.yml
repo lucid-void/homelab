@@ -26,7 +26,7 @@ spec:
       registry: mirror.gcr.io
       repository: aquasec/trivy-operator
       # Pinned digest — supply chain hardening; bump alongside chart upgrades
-      tag: "0.31.2@sha256:0c0ba96661ea2783785f29eccfdb6d59a45d85e2b9a14bc5d1de85f835241b2c"
+      tag: "0.32.0@sha256:d4a61c4607e2931bd2615bf3bcf8912669d11d194c44c77edd413e6301b50c5b"
 
     operator:
       vulnerabilityScannerEnabled: true
