@@ -5,24 +5,31 @@ metadata:
   name: kubent-script
   namespace: security
 data:
-  scan.sh: |
-    #!/bin/bash
-    set -uo pipefail
-
+  # The kubent initContainer wrote its findings to /work/kubent.out (text, or
+  # absent/empty when the cluster is clean). This container only reads that file
+  # and reports the result to Gotify. It also echoes the findings to stdout so
+  # `kubectl logs -c notify` still shows them for manual pre-upgrade prechecks.
+  notify.sh: |
+    #!/bin/sh
     GOTIFY_URL="https://gotify.blackcats.cc"
-    KUBENT_VERSION="0.7.3"
-    LOG=$(mktemp)
+    OUT="/work/kubent.out"
 
-    curl -sL "https://github.com/doitintl/kube-no-trouble/releases/download/${KUBENT_VERSION}/kubent-${KUBENT_VERSION}-linux-amd64.tar.gz" \
-      | tar -xz -C /usr/local/bin kubent
+    echo "===== kubent output ====="
+    [ -f "$OUT" ] && cat "$OUT"
+    echo "========================="
 
-    if /usr/local/bin/kubent --exit-error -o text >"$LOG" 2>&1; then
+    content=""
+    [ -f "$OUT" ] && content=$(tr -d '[:space:]' < "$OUT")
+
+    if [ -z "$content" ]; then
+      echo "kubent: clean"
       curl -s -X POST "${GOTIFY_URL}/message" \
         -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
         -H "Content-Type: application/json" \
         -d '{"title":"kubent: clean","message":"No deprecated API versions found.","priority":3}'
     else
-      body=$(tail -40 "$LOG" | awk '{gsub(/[\\"]/, "\\\\&"); printf "%s\\n", $0}')
+      echo "kubent: deprecated APIs found"
+      body=$(tail -40 "$OUT" | awk '{gsub(/[\\"]/, "\\\\&"); printf "%s\\n", $0}')
       curl -s -X POST "${GOTIFY_URL}/message" \
         -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
         -H "Content-Type: application/json" \
