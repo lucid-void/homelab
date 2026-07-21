@@ -28,7 +28,7 @@ spec:
           app:
             image:
               repository: ghcr.io/immich-app/immich-server
-              tag: v2.7.5
+              tag: v3.0.3
             env:
               DB_HOSTNAME: postgres-rw.postgres.svc.cluster.local
               DB_PORT: "5432"
@@ -39,7 +39,11 @@ spec:
                   secretKeyRef:
                     name: immich-role-secret
                     key: password
-              DB_VECTOR_EXTENSION: pgvector
+              # DB_VECTOR_EXTENSION intentionally unset: on v3 Immich auto-detects the
+              # vector extension, preferring VectorChord (vchord) over pgvector. Immich
+              # blocks *changing* this value but migrates when it is absent — this is the
+              # documented pgvector→VectorChord path for external Postgres. vchord + pgvector
+              # are both present in the CNPG image and shared_preload_libraries.
               REDIS_HOSTNAME: immich-valkey
               REDIS_PORT: "6379"
               MACHINE_LEARNING_URL: http://immich-machine-learning:3003
@@ -74,7 +78,7 @@ spec:
           app:
             image:
               repository: ghcr.io/immich-app/immich-machine-learning
-              tag: v2.7.5
+              tag: v3.0.3
             env:
               MACHINE_LEARNING_CACHE_FOLDER: /cache
             resources:

@@ -28,6 +28,13 @@ spec:
             - ALTER DEFAULT PRIVILEGES IN SCHEMA vectors GRANT SELECT ON TABLES TO immich
             - -c
             - CREATE EXTENSION IF NOT EXISTS "vector"
+            # Immich v3 migrates embeddings from pgvector to VectorChord (vchord). vchord
+            # is built on pgvector, so ensure pgvector is current, then create vchord.
+            # Both are idempotent; ALTER ... UPDATE is a no-op when already at the latest.
+            - -c
+            - ALTER EXTENSION "vector" UPDATE
+            - -c
+            - CREATE EXTENSION IF NOT EXISTS vchord CASCADE
             - -c
             - CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
             - -c
