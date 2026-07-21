@@ -30,7 +30,7 @@ spec:
           app:
             image:
               repository: ghcr.io/degoog-org/degoog
-              tag: "0.22.0"
+              tag: "0.23.0"
             env:
               TZ: Europe/Brussels
             probes:
