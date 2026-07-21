@@ -6,7 +6,7 @@ metadata:
   namespace: postgres
 spec:
   # Give Flux time to observe completion before TTL deletes the Job.
-  # Idempotent: all statements use IF NOT EXISTS, so re-runs on reconcile are safe.
+  # Idempotent (IF [NOT] EXISTS / ALTER ... UPDATE), so re-runs on reconcile are safe.
   ttlSecondsAfterFinished: 300
   activeDeadlineSeconds: 600
   backoffLimit: 10
@@ -20,12 +20,12 @@ spec:
             - psql
             - -v
             - ON_ERROR_STOP=1
+            # Legacy pgvecto.rs ("vectors") is fully replaced by VectorChord — drop it.
+            # Idempotent: a no-op on a fresh DB where it was never created.
             - -c
-            - CREATE EXTENSION IF NOT EXISTS "vectors"
+            - DROP EXTENSION IF EXISTS vectors CASCADE
             - -c
-            - GRANT USAGE ON SCHEMA vectors TO immich
-            - -c
-            - ALTER DEFAULT PRIVILEGES IN SCHEMA vectors GRANT SELECT ON TABLES TO immich
+            - DROP SCHEMA IF EXISTS vectors CASCADE
             - -c
             - CREATE EXTENSION IF NOT EXISTS "vector"
             # Immich v3 migrates embeddings from pgvector to VectorChord (vchord). vchord
