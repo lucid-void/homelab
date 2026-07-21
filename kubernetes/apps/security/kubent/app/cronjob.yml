@@ -13,6 +13,9 @@ spec:
     spec:
       activeDeadlineSeconds: 300
       backoffLimit: 0
+      # Self-clean finished (incl. failed) jobs after a day so a genuine kubent
+      # error doesn't linger as a failed Job object re-tripping KubeJobFailed.
+      ttlSecondsAfterFinished: 86400
       template:
         spec:
           serviceAccountName: kubent
@@ -22,19 +25,22 @@ spec:
               configMap:
                 name: kubent-script
                 defaultMode: 0755
-          containers:
-            - name: kubent
-              image: alpine:3.21
-              command: ["/bin/sh", "-c"]
+            - name: work
+              emptyDir: {}
+          # Run the official kubent binary from its published (scratch) image —
+          # no runtime apk/GitHub download. Findings are written to a shared
+          # file; no --exit-error so "deprecated APIs found" doesn't fail the
+          # job (that's a Gotify message, not a job failure). A real kubent
+          # error still exits non-zero and surfaces as a failed job.
+          initContainers:
+            - name: scan
+              image: ghcr.io/doitintl/kube-no-trouble:0.7.3
               args:
-                - apk add --no-cache bash curl >/dev/null 2>&1 && exec /bin/bash /scripts/scan.sh
-              envFrom:
-                - secretRef:
-                    name: gotify-secret
-                    optional: true
+                - --output=text
+                - --output-file=/work/kubent.out
               volumeMounts:
-                - name: script
-                  mountPath: /scripts
+                - name: work
+                  mountPath: /work
               resources:
                 requests:
                   cpu: 50m
@@ -42,3 +48,23 @@ spec:
                 limits:
                   cpu: 200m
                   memory: 128Mi
+          containers:
+            - name: notify
+              image: curlimages/curl:8.11.1
+              command: ["/bin/sh", "/scripts/notify.sh"]
+              envFrom:
+                - secretRef:
+                    name: gotify-secret
+                    optional: true
+              volumeMounts:
+                - name: script
+                  mountPath: /scripts
+                - name: work
+                  mountPath: /work
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
