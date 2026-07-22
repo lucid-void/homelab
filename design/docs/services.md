@@ -30,7 +30,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 
 | Service | Namespace | Kind | Auth | Notes |
 |---|---|---|---|---|
-| CNPG cluster `postgres` | postgres | Cluster (CNPG) | Per-DB roles | 2 instances (1 primary + 1 replica); custom image with VectorChord + pgvector; connects via `postgres-rw.postgres.svc.cluster.local:5432` |
+| CNPG cluster `postgres` | postgres | Cluster (CNPG) | Per-DB roles | 2 instances (1 primary + 1 replica); custom image with pgvector + VectorChord (Immich vector search on VectorChord); connects via `postgres-rw.postgres.svc.cluster.local:5432` |
 | postgres-backup | postgres | CronJob | — | Daily 03:30; dumps all k8s DBs; restic → rclone-filen |
 
 ---
@@ -77,7 +77,7 @@ The `security` namespace has `pod-security.kubernetes.io/enforce: privileged` �
 
 | Service | Namespace | Kind | Hostname | Auth | Storage |
 |---|---|---|---|---|---|
-| Immich | immich | HelmRelease | `immich.example.com` | Zitadel OIDC (Web app type) | `nfs-client` PVC (library); CNPG Postgres |
+| Immich | immich | HelmRelease | `immich.example.com` | Zitadel OIDC (Web app type) | `nfs-client` PVC (library); CNPG Postgres (VectorChord embeddings) |
 | immich-backup | immich | CronJob | — | — | Daily 03:00; Postgres dump + library PVC; restic → rclone-filen |
 | Paperless-ngx | paperless | HelmRelease | `paperless.example.com` | Zitadel OIDC (django-allauth 65.x) | `nfs-client` PVCs (data + media); CNPG Postgres |
 | paperless-backup | paperless | CronJob | — | — | Daily 04:00; Postgres dump + data/media PVCs; restic → rclone-filen |
@@ -106,10 +106,13 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | Plex | `plex.example.com` | `lscr.io/linuxserver/plex:1.41.7` | Config PVC (`openebs-hostpath`, pinned to cp-1) + `media-nfs` (readOnly) |
 | Suwayomi | `suwayomi.example.com` | `ghcr.io/suwayomi/suwayomi-server:v2.2.2100` (+ `flaresolverr` v3.5.0) | `suwayomi-config` PVC (`nfs-client`, embedded H2) + `media-nfs` subPath `Manga` (downloads) |
 | Kavita | `kavita.example.com` | `lscr.io/linuxserver/kavita:0.9.0` | `kavita-config` PVC (`nfs-client`, internal SQLite) + `media-nfs` subPath `Manga` (readOnly) |
+| RomM | `romm.example.com` | `rommapp/romm:4.9.2` | `romm-config` PVC (`nfs-client`) + `media-nfs` subPath `Games` (ROM library) — CNPG Postgres for the app DB |
 
 Plex uses `openebs-hostpath` for its config PVC — SQLite WAL locking errors occur over NFS. Config is on local disk on whichever node the PVC first bound to (cp-1).
 
 Sonarr and Radarr use CNPG Postgres (migrated from SQLite; migration Jobs in `kubernetes/apps/media/sonarr/app/migration-job.yml` and `radarr/`).
+
+**RomM** (game ROM manager, à la Sonarr/Radarr for consoles) scans a ROM library, fetches box art/metadata, and serves the library to Tinfoil/DBI on a modded Switch. Single `app-template` controller (`app` → Deployment/Service `romm`, port 8080). External CNPG Postgres (`ROMM_DB_DRIVER=postgresql`, password mirrored from `romm-role-secret`); embedded Valkey persists to an `emptyDir` at `/redis-data` (kept off NFS). Library on `media-nfs` subPath `Games` at `/romm/library` — organise ROMs as `Games/roms/<platform>/…` (e.g. `Games/roms/switch/*.nsp`). Unlike the linuxserver media apps, the `rommapp/romm` image runs as **root** and ignores `PUID/PGID` ([rommapp/romm#1302](https://github.com/rommapp/romm/issues/1302)) — it primarily reads the share. `ROMM_AUTH_SECRET_KEY` (session signing) comes from the `romm-secret` SealedSecret; `HASHEOUS_API_ENABLED=true` gives keyless metadata out of the box, IGDB creds (Twitch dev app) are an optional add-on. OIDC via Zitadel is enabled purely by the presence of `romm-oidc-secret` (Terraform-written, optional `envFrom`); the first user is created through RomM's own setup wizard.
 
 **Manga stack** — Suwayomi-Server downloads manga via the Tachiyomi/Mihon extension ecosystem (hundreds of sources installed at runtime), Kavita reads it. (Tranga was tried first but removed — its 4-connector set couldn't reliably source licensed English titles like Witch Hat Atelier.) Suwayomi is a single HelmRelease with two controllers: `app` (`suwayomi-app:4567`, embedded H2 — no CNPG) and `flaresolverr` (`suwayomi-flaresolverr:8191`) for Cloudflare-gated sources. Config is all env (`DOWNLOAD_AS_CBZ=true`, `AUTH_MODE=none`, `FLARESOLVERR_*`). Runs as uid/gid `2202`/`2200`; data dir on `suwayomi-config`, with `media-nfs` subPath `Manga` nested-mounted at `…/Tachidesk/downloads` so CBZs land on `/volume2/Media/Manga/` for Kavita. Kavita's first admin is provisioned by the `kavita-bootstrap` Job (creds in `kavita-admin-secret`); subsequent users come from Zitadel OIDC.
 
@@ -124,6 +127,7 @@ Sonarr and Radarr use CNPG Postgres (migrated from SQLite; migration Jobs in `ku
 | FreshRSS | `https://rss.example.com/i/oidc/` | Apache mod_auth_openidc; NOT `/i/?get=oidc` |
 | Gitea | `https://gitea.example.com/user/oauth2/Zitadel/callback` | Provider name segment is case-sensitive |
 | Kavita | `https://kavita.example.com/signin-oidc` | ASP.NET OIDC middleware path; creds read from `/config/appsettings.json` (`OpenIdConnectSettings`), merged in by an initContainer |
+| RomM | `https://romm.example.com/api/oauth/openid` | Web app / `client_secret_basic`; needs "User Info inside ID Token" enabled in Zitadel. All `OIDC_*` vars written into `media/romm-oidc-secret` by Terraform bootstrap |
 | Proxmox VE | `https://pve.example.com:8006` (+ `:443`) | Bare-metal host (172.16.20.3), not in-cluster. Redirect = web UI base URL (no path); `client_secret_basic`. Creds in `auth/proxmox-oidc-secret`, copied into a Proxmox OIDC realm manually (`pveum`). See RUNBOOK. |
 | Goldilocks | TBD | Standard OIDC redirect |
 | Gatus | TBD | Standard OIDC redirect |

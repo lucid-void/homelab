@@ -80,7 +80,7 @@ See `docs/storage.md` for the full reference. Summary:
 
 ## Databases
 
-One shared CloudNativePG cluster (`postgres` namespace, 2 instances). Custom image `ghcr.io/lucid-void/postgres-cnpg-immich` bundles VectorChord + pgvector for Immich. All databases in the cluster use this image.
+One shared CloudNativePG cluster (`postgres` namespace, 2 instances). Custom image `ghcr.io/lucid-void/postgres-cnpg-immich` bundles pgvector + VectorChord; the cluster loads `shared_preload_libraries: [vchord.so]`. Immich's vector search runs on **VectorChord** (`vchord`) — `DB_VECTOR_EXTENSION` is left unset in the HelmRelease so Immich auto-selects VectorChord over pgvector. (pgvecto.rs was removed after the v3 migration.) All databases in the cluster use this image.
 
 Per-database roles managed by CNPG `spec.managed.roles`. DB passwords live in `{app}-role-secret` in the `postgres` namespace, mirrored to app namespaces by Reflector.
 
@@ -147,7 +147,7 @@ All jobs: `ghcr.io/lucid-void/backup-tools` image, restic over rclone-filen, 30-
 | Storage default | democratic-csi NFS (not iSCSI) | NFS driver simpler (no Synology REST API); handles CNPG; controller-side mount avoids node-level NFS issues |
 | Local storage | OpenEBS hostpath | SQLite workloads (Plex) need local disk; simpler than local-path-provisioner; `extraMounts` patch already applied |
 | Database | Shared CNPG cluster | Reduces PVC count and operational overhead vs per-app clusters; per-database roles provide isolation |
-| CNPG image | Custom (VectorChord + pgvector) | Immich requires pgvector extensions; single image used for all databases in cluster |
+| CNPG image | Custom (pgvector + VectorChord) | Immich vector search runs on VectorChord (pgvector also bundled); single image used for all databases in cluster |
 | Secrets | Sealed Secrets | GitOps-compatible; encrypted ciphertext safe to commit; no external key management infrastructure |
 | Talos secrets | SOPS + age | Reuses existing homelab SOPS infrastructure; no new key management |
 | Key rotation | Disabled | Single stable key simplifies backup/restore; re-sealing all secrets on rotation would be significant churn |
