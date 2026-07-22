@@ -58,8 +58,20 @@ spec:
                   secretKeyRef:
                     name: romm-secret
                     key: ROMM_AUTH_SECRET_KEY
-              # Keyless metadata source so scans work before IGDB creds are added.
+              # Keyless metadata source. Hash-based only, so it can never match
+              # switch/switch-2 — both are in RomM's NON_HASHABLE_PLATFORMS
+              # (backend/handler/filesystem/roms_handler.py), meaning no md5/sha1/
+              # crc is ever computed for them on any scan type. Kept on for the
+              # hashable platforms.
               HASHEOUS_API_ENABLED: "true"
+              # Pulls blawar/titledb into the Valkey cache so a Switch title ID in
+              # a filename resolves to the canonical game name before it is handed
+              # to a metadata provider. Off by default upstream; without it
+              # _switch_productid_format() logs "Could not find the Switch
+              # productID index file in cache" and falls back to the raw filename.
+              # Cron default 04:00; task is manual_run so it can be kicked from the
+              # UI (Administration → Tasks) instead of waiting.
+              ENABLE_SCHEDULED_UPDATE_SWITCH_TITLEDB: "true"
               # v5 gate on OIDC auto-registration. Upstream defaults to "true";
               # pinned here so a future default flip can't silently close (or
               # open) self-registration. True is required for first login —
@@ -74,6 +86,17 @@ spec:
               # admin via the first-run setup wizard) until the secret appears.
               - secretRef:
                   name: romm-oidc-secret
+                  optional: true
+              # IGDB_CLIENT_ID/IGDB_CLIENT_SECRET from a Twitch developer app
+              # (igdb-sealed.yml). Name-based matching — the only source that can
+              # identify switch/switch-2 titles, since those platforms are never
+              # hashed and Hasheous is hash-only. NOTE: app-template v3.7.3 strips
+              # `optional` from envFrom.secretRef on regular containers as well as
+              # initContainers, so this reference is effectively mandatory — the
+              # SealedSecret must exist or the pod sits in
+              # CreateContainerConfigError. Keep both in the same commit.
+              - secretRef:
+                  name: romm-igdb-secret
                   optional: true
             probes:
               liveness: &probes
