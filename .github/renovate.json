@@ -35,6 +35,11 @@
 
   "packageRules": [
     {
+      "description": "Gateway API CRDs are only as usable as the controller that reads them. Cilium 1.19.6 (latest) documents support for Gateway API v1.4.1 and builds against v1.4.0-rc.2; we already run v1.5.1, one minor ahead. Hold at 1.5.x until Cilium declares support for a newer bundle — see design/docs/networking.md.",
+      "matchPackageNames": ["gateway-api", "kubernetes-sigs/gateway-api"],
+      "allowedVersions": "<1.6.0"
+    },
+    {
       "description": "Major Docker image bumps — labeled for manual review; image-scan workflow adds a breaking-change warning to the PR comment",
       "matchDatasources": ["docker"],
       "matchUpdateTypes": ["major"],
