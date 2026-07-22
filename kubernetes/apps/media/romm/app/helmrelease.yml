@@ -87,6 +87,17 @@ spec:
               - secretRef:
                   name: romm-oidc-secret
                   optional: true
+              # IGDB_CLIENT_ID/IGDB_CLIENT_SECRET from a Twitch developer app
+              # (igdb-sealed.yml). Name-based matching — the only source that can
+              # identify switch/switch-2 titles, since those platforms are never
+              # hashed and Hasheous is hash-only. NOTE: app-template v3.7.3 strips
+              # `optional` from envFrom.secretRef on regular containers as well as
+              # initContainers, so this reference is effectively mandatory — the
+              # SealedSecret must exist or the pod sits in
+              # CreateContainerConfigError. Keep both in the same commit.
+              - secretRef:
+                  name: romm-igdb-secret
+                  optional: true
             probes:
               liveness: &probes
                 enabled: true
