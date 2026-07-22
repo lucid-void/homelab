@@ -13,7 +13,7 @@ spec:
       serviceAccountName: gitea-db-bootstrap
       containers:
         - name: bootstrap
-          image: alpine:3.21
+          image: alpine:3.24
           command: ["/bin/sh", "-c"]
           args:
             - |
