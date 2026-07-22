@@ -14,18 +14,24 @@
   "schedule": ["every weekend"],
 
   "flux": {
-    "fileMatch": ["kubernetes/.+\\.ya?ml$"]
+    "managerFilePatterns": [
+      "/kubernetes/.+\\.ya?ml$/"
+    ]
   },
 
   "kubernetes": {
-    "fileMatch": ["kubernetes/.+\\.ya?ml$"]
+    "managerFilePatterns": [
+      "/kubernetes/.+\\.ya?ml$/"
+    ]
   },
 
   "customManagers": [
     {
       "customType": "regex",
       "description": "Container image repository+tag pairs in bjw-s app-template HelmReleases",
-      "fileMatch": ["kubernetes/.+\\.ya?ml$"],
+      "managerFilePatterns": [
+        "/kubernetes/.+\\.ya?ml$/"
+      ],
       "matchStrings": [
         "repository: (?<depName>[^\\n]+)\\n\\s+tag: [\"']?(?<currentValue>[^\"'\\n]+)[\"']?"
       ],
