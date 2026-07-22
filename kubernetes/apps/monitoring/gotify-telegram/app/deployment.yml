@@ -4,6 +4,10 @@ kind: Deployment
 metadata:
   name: gotify-telegram
   namespace: monitoring
+  annotations:
+    # Gotify 3 discloses tokens only at creation/rotation, so a Gotify DB reset
+    # mints a brand new CLIENT_TOKEN. Restart the bridge when it changes.
+    reloader.stakater.com/auto: "true"
 spec:
   replicas: 1
   selector:

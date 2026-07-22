@@ -289,6 +289,26 @@ kubectl delete job gotify-bootstrap -n monitoring
 flux reconcile kustomization gotify-bootstrap   # Flux recreates it
 ```
 
+The Job logs one line per token showing which path it took:
+
+```
+  immich-backup: reused (app 4)     # app exists and the Secret still holds its token
+  falco: rotated (app 8)            # app exists but the Secret was gone → new token
+  gatus: created                    # app did not exist → new token
+  admin client: reused (client 1)
+```
+
+After a Gotify **DB reset** every line reads `created` and every token changes.
+Long-running consumers that hold a token in their environment need a restart —
+`gotify-telegram` carries `reloader.stakater.com/auto`, but `falcosidekick` does
+not, so restart it manually:
+
+```bash
+kubectl rollout restart deployment/falco-falcosidekick -n security
+```
+
+Backup CronJobs need nothing: they read the Secret at job start.
+
 ### Configure Proxmox SSO via Zitadel OIDC
 
 The `zitadel-bootstrap` Job registers a `Proxmox VE` OIDC app and writes the
