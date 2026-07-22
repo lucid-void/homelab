@@ -104,6 +104,30 @@ Gateway API CRDs are installed from the upstream `kubernetes-sigs/gateway-api` g
 
 Manifests: `kubernetes/flux/repositories/git/gateway-api.yml`, `kubernetes/apps/kube-system/gateway-api/`
 
+### Version constraint — pinned to 1.5.x
+
+**Do not bump the Gateway API bundle past 1.5.x without checking Cilium first.** The CRDs are only as useful as the controller reading them, and Cilium is that controller:
+
+| | Gateway API |
+|---|---|
+| Cilium 1.19.6 (latest release) documents | v1.4.1 |
+| Cilium 1.19.6 builds against (`go.mod`) | v1.4.0-rc.2 |
+| Installed here | **v1.5.1** — already one minor ahead, working |
+
+Renovate raised v1.6.1 (#113). It was declined and Renovate is constrained to `<1.6.0` in `.github/renovate.json`, because it would put us two minors ahead of the only implementation we run, in exchange for nothing: this cluster uses only core `Gateway` / `HTTPRoute` / `GRPCRoute`, and none of the 1.6 additions (`retry` validation, `sessionPersistence`, GA `TCPRoute`/`UDPRoute`, `BackendTLSPolicy`, `ReferenceGrant`, `ListenerSet`, `XBackend`).
+
+To check before revisiting:
+
+```bash
+# what does the Cilium release actually claim?
+curl -s https://raw.githubusercontent.com/cilium/cilium/v<ver>/go.mod | grep sigs.k8s.io/gateway-api
+```
+
+Two mechanical notes for whenever the bump does happen:
+
+- The `gateway-api` Kustomization is `prune: true`, so a bundle that *removes* a CRD would delete it. v1.6.1 only adds one (`xbackends`), but this must be re-checked per bump.
+- The bundle installs an enforcing `ValidatingAdmissionPolicy` (`safe-upgrades.gateway.networking.k8s.io`) that rejects installing bundles older than v1.5.0 and experimental CRDs on top of standard-channel ones. It does **not** block forward upgrades — but it does block rolling back below 1.5.0 without deleting the policy first.
+
 ### Hierarchy
 
 ```
