@@ -114,7 +114,7 @@ Manifests: `kubernetes/apps/openebs/`
 
 CloudNativePG provisions one `nfs-client` PVC per cluster instance. The shared `postgres` cluster has 2 instances = 2 PVCs.
 
-The custom Postgres image (`ghcr.io/lucid-void/postgres-cnpg-immich`) bundles VectorChord + pgvector — required for Immich's vector search. All databases in the cluster use this image.
+The custom Postgres image (`ghcr.io/lucid-void/postgres-cnpg-immich`) bundles pgvector + VectorChord — Immich's vector search runs on VectorChord (`vchord`). All databases in the cluster use this image.
 
 WAL archiving is not yet configured — base backup only via `ScheduledBackup` resource targeting an NFS PVC. See TODO.md.
 

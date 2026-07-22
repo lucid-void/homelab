@@ -240,7 +240,8 @@ talosctl apply-config \
 **Before any upgrade:** run kubent to check for deprecated APIs:
 ```bash
 kubectl create job --from=cronjob/kubent kubent-precheck -n security
-kubectl logs -n security -l job-name=kubent-precheck -f
+# findings are echoed by the notify container (the scan runs as an initContainer)
+kubectl logs -n security -l job-name=kubent-precheck -c notify -f
 ```
 
 ### Upgrade Kubernetes
