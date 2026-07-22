@@ -49,8 +49,8 @@ Every service is reachable only on the internal network or via Netbird VPN.
 
 | Service | Namespace | Kind | Hostname | Auth | Notes |
 |---|---|---|---|---|---|
-| Gotify | monitoring | HelmRelease | `gotify.blackcats.cc` | SealedSecret admin creds | `gotify/server:2.6.0`; SQLite on `nfs-client` PVC; push notifications hub |
-| gotify-bootstrap | monitoring | Job | — | — | Creates app/client tokens via Gotify REST API; writes `gotify-secret` into each app namespace; idempotent |
+| Gotify | monitoring | HelmRelease | `gotify.blackcats.cc` | SealedSecret admin creds | `gotify/server:3.0.0`; SQLite on `nfs-client` PVC; push notifications hub |
+| gotify-bootstrap | monitoring | Job | — | — | Creates app/client tokens via Gotify REST API; writes `gotify-secret` into each app namespace; idempotent — Gotify 3 only discloses tokens on create/rotate, so the destination Secret is the source of truth and is reused when present |
 | flux-notifications | monitoring | Provider + Alert | — | — | Flux notification-controller `Provider` (generic webhook → Gotify) + `Alert` at `eventSeverity: error`. Closes the "meta-hole": Flux itself can't fail silently. Watches `Kustomization` cluster-wide (all in flux-system — gapless backstop) + `HelmRelease` per app namespace. Token: `flux` app token in `monitoring/flux-gotify` (`headers: X-Gotify-Key`, written by gotify-bootstrap) |
 | gotify-telegram | monitoring | Deployment | — | — | Python WebSocket bridge: Gotify `/stream` → Telegram Bot API; priority colours: 🔴 ≥8, 🟡 ≥5, 🟢 <5 |
 | am-gotify-bridge | monitoring | Deployment | — | — | Python HTTP bridge: AlertManager webhook → Gotify; listens :5000; reads `gotify-secret`; priority 8 firing / 5 resolved |
