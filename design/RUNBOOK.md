@@ -257,6 +257,71 @@ talosctl upgrade-k8s \
 
 Update `kubernetesVersion` in `talconfig.yaml` after upgrading.
 
+### Upgrade Flux
+
+Flux upgrades itself. Both pinned versions must be bumped **together**, or the
+bootstrap path drifts from the running cluster:
+
+| File | What it drives |
+|---|---|
+| `kubernetes/flux/config/flux.yml` | `OCIRepository` tag — the running cluster |
+| `kubernetes/bootstrap/flux/kustomization.yml` | `?ref=` — only used when bootstrapping from zero |
+
+The `flux` Kustomization then applies the new manifests over the live controllers.
+
+**Before bumping across a minor version, check for removed APIs.** Flux v2.9.0
+removed `image.toolkit.fluxcd.io/v1beta2` and `notification.toolkit.fluxcd.io/v1beta2`.
+Having no *objects* on the dead version is not sufficient — the CRD also has to
+have stopped *storing* it:
+
+```bash
+kubectl get crd -o json | jq -r '.items[]
+  | select(.spec.group|test("toolkit.fluxcd.io"))
+  | select(.status.storedVersions[]?=="v1beta2")
+  | "\(.metadata.name) stored=\(.status.storedVersions|join(","))"'
+```
+
+Any CRD listed here blocks the upgrade, and the failure is a dry-run error on the
+`flux` Kustomization rather than anything visibly broken:
+
+```
+CustomResourceDefinition/imagepolicies.image.toolkit.fluxcd.io dry-run failed (Invalid):
+  status.storedVersions[0]: Invalid value: "v1beta2": missing from spec.versions;
+  v1beta2 was previously a storage version, and must remain in spec.versions until a
+  storage migration ensures no data remains persisted in v1beta2
+```
+
+Kubernetes refuses to drop a version that is still in `status.storedVersions`, even
+with zero objects of that kind. Confirm there is genuinely no data, then clear the
+stale marker:
+
+```bash
+# 1. must print "No resources found" for every affected kind
+kubectl get imagepolicies,imagerepositories,imageupdateautomations -A
+
+# 2. drop the dead version from the stored list
+for c in imagepolicies imagerepositories imageupdateautomations; do
+  kubectl patch crd $c.image.toolkit.fluxcd.io --subresource=status \
+    --type=merge -p '{"status":{"storedVersions":["v1"]}}'
+done
+
+# 3. retry
+flux reconcile kustomization flux
+```
+
+If objects *do* exist on the dead version, rewrite them first
+(`kubectl get <kind> -A -o yaml | kubectl apply -f -`) so they are re-persisted at
+the current storage version, then patch. This was needed once, going 2.8.8 → 2.9.2;
+the `notification.toolkit.fluxcd.io` CRDs were already storing only `v1beta3`/`v1`
+and needed nothing.
+
+Verify:
+
+```bash
+flux version          # distribution should match the new tag
+kubectl get pods -n flux-system
+```
+
 ### Add a New Secret
 
 ```bash
