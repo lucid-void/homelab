@@ -50,7 +50,7 @@ spec:
                   memory: 128Mi
           containers:
             - name: notify
-              image: curlimages/curl:8.11.1
+              image: curlimages/curl:8.21.0
               command: ["/bin/sh", "/scripts/notify.sh"]
               envFrom:
                 - secretRef:
