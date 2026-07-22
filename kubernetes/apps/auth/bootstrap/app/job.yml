@@ -42,7 +42,7 @@ spec:
           emptyDir: {}
       containers:
         - name: tofu
-          image: ghcr.io/opentofu/opentofu:1.9.1
+          image: ghcr.io/opentofu/opentofu:1.12.5
           command:
             - /bin/sh
             - /tf-config/run.sh
