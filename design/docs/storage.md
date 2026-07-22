@@ -116,7 +116,9 @@ CloudNativePG provisions one `nfs-client` PVC per cluster instance. The shared `
 
 The custom Postgres image (`ghcr.io/lucid-void/postgres-cnpg-immich`) bundles pgvector + VectorChord — Immich's vector search runs on VectorChord (`vchord`). All databases in the cluster use this image.
 
-WAL archiving is not yet configured — base backup only via `ScheduledBackup` resource targeting an NFS PVC. See TODO.md.
+**No CNPG-native backup is configured** — there is no `ScheduledBackup`, no `Backup`, and no `barmanObjectStore`, so there is no WAL archiving and no point-in-time recovery. The only database backup is the `postgres-backup` CronJob (03:30), which takes logical `pg_dump`s from the read replica and ships them to Filen via restic. See TODO.md.
+
+A side benefit: CloudNativePG 1.31 removes in-tree Barman Cloud support, and this cluster is unaffected because it never used it.
 
 ---
 
