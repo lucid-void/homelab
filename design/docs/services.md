@@ -106,7 +106,7 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | Plex | `plex.blackcats.cc` | `lscr.io/linuxserver/plex:1.41.7` | Config PVC (`openebs-hostpath`, pinned to cp-1) + `media-nfs` (readOnly) |
 | Suwayomi | `suwayomi.blackcats.cc` | `ghcr.io/suwayomi/suwayomi-server:v2.2.2100` (+ `flaresolverr` v3.5.0) | `suwayomi-config` PVC (`nfs-client`, embedded H2) + `media-nfs` subPath `Manga` (downloads) |
 | Kavita | `kavita.blackcats.cc` | `lscr.io/linuxserver/kavita:0.9.0` | `kavita-config` PVC (`nfs-client`, internal SQLite) + `media-nfs` subPath `Manga` (readOnly) |
-| RomM | `romm.blackcats.cc` | `rommapp/romm:4.9.2` | `romm-config` PVC (`nfs-client`) + `media-nfs` subPath `Games` (ROM library) — CNPG Postgres for the app DB |
+| RomM | `romm.blackcats.cc` | `rommapp/romm:5.0.0` | `romm-config` PVC (`nfs-client`) + `media-nfs` subPath `Games` (ROM library) + `emptyDir` at `/redis-data` — CNPG Postgres for the app DB |
 
 Plex uses `openebs-hostpath` for its config PVC — SQLite WAL locking errors occur over NFS. Config is on local disk on whichever node the PVC first bound to (cp-1).
 
@@ -127,7 +127,7 @@ Sonarr and Radarr use CNPG Postgres (migrated from SQLite; migration Jobs in `ku
 | FreshRSS | `https://rss.blackcats.cc/i/oidc/` | Apache mod_auth_openidc; NOT `/i/?get=oidc` |
 | Gitea | `https://gitea.blackcats.cc/user/oauth2/Zitadel/callback` | Provider name segment is case-sensitive |
 | Kavita | `https://kavita.blackcats.cc/signin-oidc` | ASP.NET OIDC middleware path; creds read from `/config/appsettings.json` (`OpenIdConnectSettings`), merged in by an initContainer |
-| RomM | `https://romm.blackcats.cc/api/oauth/openid` | Web app / `client_secret_basic`; needs "User Info inside ID Token" enabled in Zitadel. All `OIDC_*` vars written into `media/romm-oidc-secret` by Terraform bootstrap |
+| RomM | `https://romm.blackcats.cc/api/oauth/openid` | Web app / `client_secret_basic`; needs "User Info inside ID Token" enabled in Zitadel. All `OIDC_*` vars written into `media/romm-oidc-secret` by Terraform bootstrap — except `OIDC_ALLOW_REGISTRATION` (new in v5, pinned to `true` in the HelmRelease), which must stay true for a Zitadel user's first login to create the RomM account |
 | Proxmox VE | `https://pve.blackcats.cc:8006` (+ `:443`) | Bare-metal host (172.16.20.3), not in-cluster. Redirect = web UI base URL (no path); `client_secret_basic`. Creds in `auth/proxmox-oidc-secret`, copied into a Proxmox OIDC realm manually (`pveum`). See RUNBOOK. |
 | Goldilocks | TBD | Standard OIDC redirect |
 | Gatus | TBD | Standard OIDC redirect |

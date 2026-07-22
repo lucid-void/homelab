@@ -38,7 +38,7 @@ spec:
           app:
             image:
               repository: rommapp/romm
-              tag: "4.9.2"
+              tag: "5.0.0"
             env:
               TZ: Europe/Brussels
               # --- Database (external CNPG Postgres) ---
@@ -60,6 +60,13 @@ spec:
                     key: ROMM_AUTH_SECRET_KEY
               # Keyless metadata source so scans work before IGDB creds are added.
               HASHEOUS_API_ENABLED: "true"
+              # v5 gate on OIDC auto-registration. Upstream defaults to "true";
+              # pinned here so a future default flip can't silently close (or
+              # open) self-registration. True is required for first login —
+              # Zitadel is the only user store, so a RomM account only exists
+              # once its Zitadel user has signed in once. Not written by
+              # zitadel-bootstrap Terraform, so this does not fight romm-oidc-secret.
+              OIDC_ALLOW_REGISTRATION: "true"
             envFrom:
               # OIDC_ENABLED/PROVIDER/CLIENT_ID/CLIENT_SECRET/REDIRECT_URI/
               # SERVER_APPLICATION_URL — all written by zitadel-bootstrap Terraform.
