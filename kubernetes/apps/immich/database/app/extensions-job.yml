@@ -15,7 +15,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: psql
-          image: ghcr.io/cloudnative-pg/postgresql:17-bookworm
+          image: ghcr.io/cloudnative-pg/postgresql:18-bookworm
           command:
             - psql
             - -v
