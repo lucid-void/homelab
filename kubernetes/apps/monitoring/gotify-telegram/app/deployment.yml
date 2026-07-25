@@ -30,7 +30,7 @@ spec:
             defaultMode: 0755
       containers:
         - name: bridge
-          image: python:3.12-alpine
+          image: python:3.14-alpine
           command: ["/bin/sh", "-c"]
           args:
             - "pip install --no-cache-dir --target /tmp/pylib websocket-client -q && PYTHONPATH=/tmp/pylib python -u /scripts/bridge.py"
