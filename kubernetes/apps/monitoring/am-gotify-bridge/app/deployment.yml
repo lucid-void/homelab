@@ -30,7 +30,7 @@ spec:
             defaultMode: 0755
       containers:
         - name: bridge
-          image: python:3.12-alpine
+          image: python:3.14-alpine
           command: ["python", "-u", "/scripts/bridge.py"]
           envFrom:
             - secretRef:
