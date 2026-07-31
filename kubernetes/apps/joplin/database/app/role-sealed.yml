@@ -1,0 +1,20 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: joplin-role-secret
+  namespace: postgres
+spec:
+  encryptedData:
+    password: AgDRBi0HFnbrmw2OzeTQ4FDm4IhLjqGDjuF/NRZ7qKhsunx8YLKtn/AiJLWvGngf+nzO2MP5xUb5FDSQQw+5YdLqD5WfFw7Ix/qAzNtFSiasAaIrTU2PjXA+dBtXwXwuMRuC1m8mVDl+Z/vdvHXi+c+L2vaXyKUUSNvqQjSyIJxttkdZSUWvQzpuaLZf3oLEEXh5i+XqxivtcF9yats8WBFxgqjFc1D6o/Mcrg/PSUrz3t1P8YRjpxzjs7sTvZsjyJv3BC6cbvX2qrdDkj0TVzwbFTcByW8If2j2DHlRYFDmIuB23rzI8G7WO/1nq7j3WhLHdSS2Ekcklz+37YmioKHxWHdi2z4RYBAt99AObqSLKqyk73TVMl9OGvQpSZODf+AAUK0uSKcwfnvWllbk09i8mDxDikG8NyCc3skAtzAHTVdAief0La2ABglGaOcqdPI9HlIjWIs4OkbcenYmqCOV2YD3gsQXeDktZis6cIY97MsCoI/GgBfwCO5HHJQhOH7yRqfZ6IvwsVdShivwqdjr06rRZJUt/Pe3Yes7yORNAzpD3mlTzD0QC9I49rtp9N6vjSIDq/c2Gpl+z8kgAjVWtiPVbskOtm2w49bD07LPjZeLLBbYt7HWzTfvkqdT6c+AC8Wm6cgUZS2kAg0WScEVUawJ45E8hfVzJ9n9HKqYrxrzVDvpM7JM/xErvTRfzSvFaLaLJc9OyXrWNyNahA==
+    username: AgADZLQvK2k5UXAJyU/6g0p64qirRLn22ZhiHTWB0VOCVE1Z6OrSjvqMiYEHTCeFZx6HNp2OhcmZDtrCb0TVwLrK6/tlUSo/a0O1rVVWlK5OOpKdxPWbwpbHb9woo4iuReS7oqnuZLHei/IEiZ3Av5j9WggTwu2klZRSQKFSxsppqZU4ABbPIXy77rhHqw807A01vjlZaM/B2hxeEA72u0s1o3CT5RkQryH3HO3Bh43whAqIXEZvDAvWIQjVNQ1XqIsH6Uvt5TNMaJlyB9lEgYrf591p9JpS5uZ6xn97gV0gPtuAn0lQz29fSf/AKJPZKUnXqNJ2W9ToGSfu2xA0b8dEEYJ2PRumti7YTseawy7BNj+ewaj0+lAIzSm0czeBMBV7l5qaOWNJ8Wbdyf9Zyb3+WhdKnJmX7wAfDxISBkLPg14bPJfuEamlM7xExJiR8NO6FRF/VdMTm4ugx9PZtMCPnLqDC/ygv1fLn0fJoFX2rTFr89yX4/3ISz0W7e/1evsMkpBVLNutRJQC/2n0OK3k8YXyVtvEepwAdwPYuXyQ5W0F8k7I3s55nqnulzrl8M42vNIjy0z4KeyULHQ+KgfxfhEiIo7Z3oJsNcjYCOOMX2Kcf/EYzsiKSUFdx93lQm4A1P5xQnmRM5tfyKbTbmeKxS6a8PUI8fZpuSFvyR4+1HhchMUM+azj9I0Um4aCVoadwQ4fvmo=
+  template:
+    metadata:
+      name: joplin-role-secret
+      namespace: postgres
+      annotations:
+        reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+        reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "joplin"
+        reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+        reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "joplin"
+    type: kubernetes.io/basic-auth

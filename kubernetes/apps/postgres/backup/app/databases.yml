@@ -5,6 +5,7 @@
 #   immich    → immich-backup
 #   paperless → paperless-backup
 #   gitea     → gitea-backup
+#   joplin    → joplin-backup
 apiVersion: v1
 kind: ConfigMap
 metadata:
