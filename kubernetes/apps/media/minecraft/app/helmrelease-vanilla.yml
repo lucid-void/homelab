@@ -29,6 +29,8 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         pod:
+          # See matcha — 30s default is not enough to flush a world on shutdown.
+          terminationGracePeriodSeconds: 120
           securityContext:
             fsGroup: 2200
             fsGroupChangePolicy: OnRootMismatch
@@ -89,6 +91,53 @@ spec:
                   secretKeyRef:
                     name: minecraft-secret
                     key: RCON_PASSWORD
+
+              # This server is no longer strictly plugin-free — the name now marks
+              # it as the one without matcha's content pack, not the one without
+              # plugins. All list paper + 26.2.
+              #
+              #   chunky    — offline terrain pregeneration; run it AFTER Terralith
+              #               is loaded, or you bake vanilla terrain into the world
+              #   squaremap — live web map on 8080 (see the `map` Service)
+              #   veinminer — mine a whole ore vein in one break
+              MODRINTH_PROJECTS: "chunky,squaremap,veinminer"
+              MODRINTH_DOWNLOAD_DEPENDENCIES: required
+
+              # Terralith — overworld generation overhaul. Modrinth lists it with
+              # loaders=[datapack, fabric, forge, neoforge, quilt] and NO paper
+              # build, so it must be installed as a datapack (as here) rather than
+              # via MODRINTH_PROJECTS, which would fail to resolve and abort
+              # startup — the same trap that `spark` hit on matcha.
+              #
+              # WARNING: this only shapes terrain generated *after* it loads.
+              # `world` already has chunks, so existing terrain stays vanilla and
+              # meets Terralith biomes at a hard seam. For a clean result the world
+              # needs regenerating; see design/RUNBOOK or just delete /data/world.
+              DATAPACKS: "https://cdn.modrinth.com/data/8oi3bsk5/versions/CzijfXJQ/Terralith_26.2_v2.6.4.zip"
+              REMOVE_OLD_DATAPACKS: "true"
+
+              LEVEL: world
+
+              # Explicitly empty, not merely absent. This server had
+              # resource-pack-sha1 set to the pack's *URL* instead of its hash,
+              # which failed the `server_resource_pack` configuration task and
+              # disconnected every joining client. Clearing server.properties by
+              # hand did not fix it — that file is read once at boot, so the old
+              # value stayed live for 10h until the pod cycled. Declaring the empty
+              # value here means itzg rewrites it on every start and the failure
+              # cannot come back through a manual edit.
+              #
+              # vanilla is the plugin-free server and has no datapack in its world,
+              # so pushing matcha's pack here would give clients assets for content
+              # this server does not have.
+              RESOURCE_PACK: ""
+              RESOURCE_PACK_SHA1: ""
+              RESOURCE_PACK_ENFORCE: "false"
+
+              OPS: "KillerBurger"
+
+              # See matcha — must stay below terminationGracePeriodSeconds.
+              STOP_DURATION: "90"
             probes:
               startup:
                 enabled: true
@@ -166,7 +215,7 @@ spec:
               - --database=/database/filebrowser.db
               - --root=/srv
               - --address=0.0.0.0
-              - --port=8080
+              - --port=8081
             securityContext:
               runAsUser: 2202
               runAsGroup: 2200
@@ -177,7 +226,7 @@ spec:
                 custom: true
                 spec:
                   tcpSocket:
-                    port: 8080
+                    port: 8081
                   initialDelaySeconds: 15
                   periodSeconds: 30
                   failureThreshold: 5
@@ -203,6 +252,12 @@ spec:
         # See matcha — keeps the file manager reachable while the game server is
         # down, which is when you most need it.
         publishNotReadyAddresses: true
+        ports:
+          http:
+            # 8081 — squaremap owns 8080 in this pod's network namespace.
+            port: 8081
+      map:
+        controller: app
         ports:
           http:
             port: 8080

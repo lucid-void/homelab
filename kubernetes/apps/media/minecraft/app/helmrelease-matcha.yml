@@ -32,6 +32,10 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         pod:
+          # Default is 30s, which is not enough for a Minecraft server to flush a
+          # sizeable world — the kubelet would SIGKILL mid-save. Must exceed
+          # STOP_DURATION so mc-server-runner finishes first.
+          terminationGracePeriodSeconds: 120
           securityContext:
             # Media-stack convention. The itzg entrypoint starts as root, chowns
             # /data to UID/GID below, then drops privileges itself — so no
@@ -108,9 +112,56 @@ spec:
               # resolving for fabric/forge does NOT mean a Paper build exists, and
               # an unresolvable project fails startup. `spark` was dropped here for
               # exactly that reason: it publishes only mod-loader builds to
-              # Modrinth, no paper/bukkit. LuckPerms lists paper + 26.2.
-              MODRINTH_PROJECTS: "luckperms"
+              # Modrinth, no paper/bukkit. All of the below list paper + 26.2.
+              #
+              #   luckperms — permissions
+              #   chunky    — offline terrain pregeneration. Worth having on any
+              #               world here: generation is the expensive random I/O,
+              #               and doing it up front turns play-time chunk loads
+              #               into plain reads. Pregen AFTER any worldgen datapack.
+              #   squaremap — live web map, served on 8080 (see the `map` Service)
+              MODRINTH_PROJECTS: "luckperms,chunky,squaremap"
               MODRINTH_DOWNLOAD_DEPENDENCIES: required
+
+              # World directory name. Previously lived only in server.properties on
+              # the PVC, where it drifted to point at a half-migrated stub and
+              # crash-looped the server. Driving it from here means itzg rewrites
+              # server.properties on every boot, so a bad manual edit self-heals.
+              LEVEL: matcha
+
+              # Matcha Flavoured is a *combined* pack: the same zip carries both
+              # data/ (server-side recipes, advancements, worldgen) and assets/
+              # (client-side custom sounds and textures), so it is installed twice —
+              # as a datapack the server loads, and as a resource pack pushed to
+              # clients. Modrinth labels it loaders=datapack; that describes their
+              # categorisation, not the zip's contents.
+              DATAPACKS: &pack "https://cdn.modrinth.com/data/QI0EmgZ1/versions/2OaIqKKy/Matcha_Flavoured_1_03.zip?mr_download_reason=standalone&mr_game_version=26.2&mr_loader=datapack"
+              # Clear superseded versions on a bump, so two copies of the pack are
+              # never loaded at once.
+              REMOVE_OLD_DATAPACKS: "true"
+
+              RESOURCE_PACK: *pack
+              # Must match the file byte-for-byte — a wrong value fails the
+              # `server_resource_pack` configuration task and disconnects every
+              # client mid-join ("Unexpected error during configuration"), which is
+              # exactly how vanilla broke. Re-derive it whenever the URL changes:
+              #   curl -s https://api.modrinth.com/v2/version/<id> | jq -r .files[0].hashes.sha1
+              RESOURCE_PACK_SHA1: "4d40b820203b51a91473f74dd961c858889fcdb8"
+              # false = clients that decline or fail the download still play.
+              RESOURCE_PACK_ENFORCE: "false"
+              # RESOURCE_PACK_ID deliberately unset: it is optional, and the server
+              # derives a stable v3 UUID from the pack URL. Only worth setting to
+              # keep the pack's identity fixed across a URL change.
+
+              # Nobody is an operator otherwise (ops.json is empty), so no one can
+              # run in-game commands. Resolved to a UUID at boot via PlayerDB.
+              OPS: "KillerBurger"
+
+              # Graceful shutdown: mc-server-runner traps SIGTERM, runs `stop`, and
+              # waits for the world to flush. Must stay below the pod's
+              # terminationGracePeriodSeconds below, or the kubelet SIGKILLs the JVM
+              # mid-save and the newest chunks are lost.
+              STOP_DURATION: "90"
             probes:
               # mc-health ships in the image and speaks the Minecraft ping protocol,
               # so it reports the server actually accepting connections rather than
@@ -200,7 +251,7 @@ spec:
               - --database=/database/filebrowser.db
               - --root=/srv
               - --address=0.0.0.0
-              - --port=8080
+              - --port=8081
             securityContext:
               runAsUser: 2202
               runAsGroup: 2200
@@ -213,7 +264,7 @@ spec:
                 custom: true
                 spec:
                   tcpSocket:
-                    port: 8080
+                    port: 8081
                   initialDelaySeconds: 15
                   periodSeconds: 30
                   failureThreshold: 5
@@ -245,6 +296,16 @@ spec:
         # config or remove a broken jar. Disabling the `files` readiness probe is
         # not enough; this is the half that decouples them.
         publishNotReadyAddresses: true
+        ports:
+          http:
+            # 8081, not 8080: squaremap's internal webserver binds 0.0.0.0:8080
+            # and runs inside the server JVM, which shares this pod's network
+            # namespace — both on 8080 and one fails to bind.
+            port: 8081
+      map:
+        controller: app
+        # squaremap only renders while the server is running, so there is no value
+        # in publishing it when the pod is unready.
         ports:
           http:
             port: 8080
