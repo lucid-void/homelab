@@ -1,0 +1,93 @@
+---
+# mc-monitor speaks the Minecraft Server List Ping protocol and turns the reply
+# into Prometheus metrics. Deliberately chosen as the primary signal because it
+# is protocol-level, not plugin-level: it works identically for Paper (matcha)
+# and true vanilla (vanilla), and survives Minecraft version upgrades.
+#
+# What it CANNOT see is in-game tick health (TPS). That needs a server-side
+# plugin, and as of MC 26.2 there is no maintained one — sladkoff's exporter
+# last released Feb 2025 (many Bukkit API versions stale) and the Modrinth
+# `prometheus-exporter` is a 0.0.1 beta capped at 26.1.2. Revisit when one
+# supports the pinned VERSION; until then TPS is inferred from
+# minecraft_status_response_time_seconds plus container CPU saturation.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mc-monitor
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mc-monitor
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mc-monitor
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+      containers:
+        - name: mc-monitor
+          image: itzg/mc-monitor:0.16.11
+          args: ["export-for-prometheus"]
+          env:
+            # Cross-namespace: the servers live in `media`. Ports are the
+            # app-template service names ({release}-app), not the pods.
+            - name: EXPORT_SERVERS
+              value: >-
+                matcha-app.media.svc.cluster.local:25565,vanilla-app.media.svc.cluster.local:25565
+            - name: EXPORT_PORT
+              value: "8080"
+            # Well under vmagent's 60s scrape interval, so a hung server surfaces
+            # as unhealthy rather than as a scrape timeout.
+            - name: TIMEOUT
+              value: 10s
+          ports:
+            - name: metrics
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 10m
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mc-monitor
+  namespace: monitoring
+  labels:
+    # The Flux Kustomization sets commonMetadata app.kubernetes.io/name:
+    # minecraft-monitoring on every resource here, overwriting any value we put
+    # in that key. The scrape selector therefore keys off this dedicated label,
+    # which nothing rewrites.
+    monitoring.blackcats.cc/scrape: mc-monitor
+spec:
+  selector:
+    app.kubernetes.io/name: mc-monitor
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: metrics

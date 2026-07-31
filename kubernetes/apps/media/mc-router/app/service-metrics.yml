@@ -1,0 +1,21 @@
+---
+# Separate from the LoadBalancer on purpose: the LB IP is shared with Plex and
+# reachable from the whole LAN, so the router's API/metrics port stays on an
+# internal ClusterIP only.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mc-router-metrics
+  namespace: media
+  labels:
+    # Not app.kubernetes.io/name — the Flux Kustomization's commonMetadata sets
+    # that to `mc-router` on the LoadBalancer too, so a selector on it would match
+    # both Services. This label is unique to the scrape target.
+    monitoring.blackcats.cc/scrape: mc-router
+spec:
+  selector:
+    app.kubernetes.io/name: mc-router
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: api

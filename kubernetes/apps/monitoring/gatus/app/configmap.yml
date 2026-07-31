@@ -171,3 +171,22 @@ data:
         conditions:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      # Minecraft is raw TCP through mc-router, not HTTP through the Gateway —
+      # hence tcp:// and no certificate condition. Using the public hostname on
+      # purpose: this exercises the whole path a player takes (Cloudflare DNS →
+      # 172.16.20.51 → mc-router → backend), which the in-cluster mc-monitor
+      # scrape deliberately bypasses.
+      - name: Minecraft (matcha)
+        group: media
+        url: "tcp://matcha.blackcats.cc:25565"
+        interval: 1m
+        conditions:
+          - "[CONNECTED] == true"
+
+      - name: Minecraft (vanilla)
+        group: media
+        url: "tcp://vanilla.blackcats.cc:25565"
+        interval: 1m
+        conditions:
+          - "[CONNECTED] == true"

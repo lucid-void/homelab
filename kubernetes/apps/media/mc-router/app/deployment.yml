@@ -29,6 +29,14 @@ spec:
             - --in-kube-cluster
             - --api-binding
             - :8080
+            # Serves /metrics on the api-binding port above. Scraped via the
+            # mc-router-metrics ClusterIP Service — deliberately not added to the
+            # LoadBalancer, which must expose 25565 and nothing else.
+            - --metrics-backend
+            - prometheus
+            # Adds per-player login counters, the only source of "who connected
+            # and when" — mc-monitor can only see aggregate player counts.
+            - --record-logins
           ports:
             - name: minecraft
               containerPort: 25565
