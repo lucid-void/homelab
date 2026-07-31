@@ -60,7 +60,7 @@ spec:
           app:
             image:
               repository: itzg/minecraft-server
-              tag: 2026.7.2-java21
+              tag: 2026.7.2-java25
             env:
               EULA: "TRUE"
               TZ: Europe/Brussels
@@ -191,6 +191,9 @@ spec:
             port: 25565
       files:
         controller: app
+        # See matcha — keeps the file manager reachable while the game server is
+        # down, which is when you most need it.
+        publishNotReadyAddresses: true
         ports:
           http:
             port: 8080

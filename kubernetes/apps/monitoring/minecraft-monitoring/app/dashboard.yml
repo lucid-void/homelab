@@ -1,0 +1,169 @@
+---
+# Minecraft server dashboard. Auto-loaded by the Grafana sidecar
+# (label grafana_dashboard: "1"), same as the proxmox and control-plane boards.
+#
+# Layout follows the triage order: is it up → are players on → is it lagging →
+# is it running out of something.
+#
+# NOTE: the mc_router_* series in the last panel are the one unverified part —
+# mc-router documents `--metrics-backend prometheus` but not its metric names.
+# Confirm against `curl mc-router-metrics.media:8080/metrics` after deploy and
+# correct the exprs if they differ; an empty panel is the only failure mode.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-minecraft
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  minecraft.json: |
+    {
+      "uid": "minecraft",
+      "title": "Minecraft",
+      "tags": ["minecraft", "media", "games"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "1m",
+      "time": { "from": "now-6h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "label": "Data source",
+            "type": "datasource",
+            "query": "prometheus",
+            "current": { "text": "VictoriaMetrics", "value": "VictoriaMetrics" },
+            "hide": 0,
+            "refresh": 1
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Server status",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 5, "w": 8, "x": 0, "y": 0 },
+          "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } } ], "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+          "options": { "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "minecraft_status_healthy", "legendFormat": "{{server_host}}", "instant": true }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Players online",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 5, "w": 8, "x": 8, "y": 0 },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "text", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+          "options": { "colorMode": "value", "graphMode": "area", "textMode": "value_and_name", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "minecraft_status_players_online_count", "legendFormat": "{{server_host}}", "instant": true }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Server version",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 5, "w": 8, "x": 16, "y": 0 },
+          "options": { "colorMode": "none", "graphMode": "none", "textMode": "name", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "minecraft_status_healthy == 1", "legendFormat": "{{server_host}} — {{server_version}}", "instant": true }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Players online over time",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+          "fieldConfig": { "defaults": { "min": 0, "custom": { "drawStyle": "line", "fillOpacity": 20, "lineInterpolation": "stepAfter" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "minecraft_status_players_online_count", "legendFormat": "{{server_host}}" }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Ping response time (tick-loop health proxy)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "description": "The Server List Ping is answered on the main thread, so sustained high values mean the tick loop is behind. No true TPS metric exists without a server-side plugin — see mc-monitor.yml.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+          "fieldConfig": { "defaults": { "unit": "s", "min": 0, "custom": { "drawStyle": "line", "fillOpacity": 10 }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "minecraft_status_response_time_seconds", "legendFormat": "{{server_host}}" }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "CPU usage",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"media\",pod=~\"matcha-.*|vanilla-.*\",container=\"app\"}[5m]))", "legendFormat": "{{pod}}" }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "Memory vs limit",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "description": "Container working set against the limit. Crossing the limit is an OOMKill, not a GC pause — the limit must stay well above the JVM heap set by MEMORY.",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 10 }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.9 } ] } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "container_memory_working_set_bytes{namespace=\"media\",pod=~\"matcha-.*|vanilla-.*\",container=\"app\"} / on(pod) group_left kube_pod_container_resource_limits{namespace=\"media\",resource=\"memory\",container=\"app\"}", "legendFormat": "{{pod}}" }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "Volume usage (worlds + backup landing zone)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "description": "World PVCs are node-local openebs-hostpath and cannot be expanded in place.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 10 }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.85 }, { "color": "red", "value": 0.95 } ] } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "1 - (kubelet_volume_stats_available_bytes{namespace=\"media\",persistentvolumeclaim=~\"matcha-data|vanilla-data|mc-backups\"} / kubelet_volume_stats_capacity_bytes{namespace=\"media\",persistentvolumeclaim=~\"matcha-data|vanilla-data|mc-backups\"})", "legendFormat": "{{persistentvolumeclaim}}" }
+          ]
+        },
+        {
+          "id": 9,
+          "title": "Container restarts (1h)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
+          "fieldConfig": { "defaults": { "min": 0, "custom": { "drawStyle": "bars", "fillOpacity": 60 }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 3 } ] } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"media\",pod=~\"matcha-.*|vanilla-.*\"}[1h])", "legendFormat": "{{pod}}/{{container}}" }
+          ]
+        },
+        {
+          "id": 10,
+          "title": "mc-router — connections and player logins",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "description": "Every client connection is proxied through mc-router, so this is the front-door view: which hostname players are actually reaching.",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
+          "fieldConfig": { "defaults": { "min": 0, "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] } },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (server) (rate(mc_router_connections_total[5m]))", "legendFormat": "connections {{server}}" },
+            { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (server) (increase(mc_router_player_logins_total[1h]))", "legendFormat": "logins/1h {{server}}" }
+          ]
+        }
+      ]
+    }

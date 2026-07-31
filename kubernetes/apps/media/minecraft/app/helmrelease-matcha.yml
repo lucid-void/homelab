@@ -72,7 +72,7 @@ spec:
           app:
             image:
               repository: itzg/minecraft-server
-              tag: 2026.7.2-java21
+              tag: 2026.7.2-java25
             env:
               EULA: "TRUE"
               TZ: Europe/Brussels
@@ -103,7 +103,13 @@ spec:
               # plugin set is reproducible from git and survives losing the PVC.
               # Slugs are Modrinth project IDs; SPIGET_RESOURCES takes SpigotMC
               # numeric resource IDs if you need something not on Modrinth.
-              MODRINTH_PROJECTS: "luckperms,spark"
+              #
+              # Check `loaders` on the Modrinth project before adding one — a slug
+              # resolving for fabric/forge does NOT mean a Paper build exists, and
+              # an unresolvable project fails startup. `spark` was dropped here for
+              # exactly that reason: it publishes only mod-loader builds to
+              # Modrinth, no paper/bukkit. LuckPerms lists paper + 26.2.
+              MODRINTH_PROJECTS: "luckperms"
               MODRINTH_DOWNLOAD_DEPENDENCIES: required
             probes:
               # mc-health ships in the image and speaks the Minecraft ping protocol,
@@ -231,6 +237,12 @@ spec:
             port: 25565
       files:
         controller: app
+        # Both Services select the same pod, and pod readiness is all-or-nothing —
+        # so a crash-looping game server would also strip this Service's endpoints,
+        # taking the file manager offline exactly when it's needed to fix a bad
+        # config or remove a broken jar. Disabling the `files` readiness probe is
+        # not enough; this is the half that decouples them.
+        publishNotReadyAddresses: true
         ports:
           http:
             port: 8080

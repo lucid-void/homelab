@@ -1,0 +1,164 @@
+---
+# Minecraft alerts. Route through Alertmanager → am-gotify-bridge → Gotify,
+# same path as proxmox-host.
+#
+# Metric sources:
+#   minecraft_status_*  → mc-monitor (:8080), protocol-level server ping
+#   mc_router_*         → mc-router (:8080, --metrics-backend prometheus)
+#   container_*         → cAdvisor via kubelet scrape
+#   kube_*              → kube-state-metrics (vm-stack)
+#   kubelet_volume_*    → kubelet, PVC capacity
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: minecraft
+  namespace: monitoring
+spec:
+  groups:
+    # -----------------------------------------------------------------------
+    # Availability
+    # -----------------------------------------------------------------------
+    - name: minecraft-availability
+      rules:
+        - alert: MinecraftServerDown
+          # Protocol-level: the server is not answering a Server List Ping, which
+          # is exactly what a player's client sees. Catches a wedged JVM that the
+          # pod's own probes might still call alive.
+          expr: minecraft_status_healthy == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Minecraft server {{ $labels.server_host }} is not responding
+            description: >
+              {{ $labels.server_host }} has failed Server List Ping for 5m.
+              Players cannot connect. Check the pod in the media namespace and
+              its startup logs — world generation and plugin downloads can take
+              several minutes after a restart.
+
+        - alert: MinecraftExporterDown
+          expr: up{job=~".*mc-monitor.*|.*mc-router.*"} == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Minecraft monitoring target {{ $labels.job }} is down
+            description: >
+              Scrape target {{ $labels.job }} has been unreachable for 10m —
+              Minecraft alerting is blind until it returns. The servers
+              themselves may still be fine.
+
+        - alert: MinecraftRouterDown
+          # mc-router is a single point of failure for BOTH servers: it owns
+          # 172.16.20.51:25565 and every connection passes through it.
+          expr: absent(up{job=~".*mc-router.*"} == 1)
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: mc-router is down — all Minecraft servers unreachable
+            description: >
+              mc-router has no healthy scrape target for 10m. Both matcha and
+              vanilla are unreachable regardless of their own health, because
+              all client connections are proxied through it.
+
+    # -----------------------------------------------------------------------
+    # Performance — the closest proxies for tick health available without a
+    # server-side plugin (see mc-monitor.yml for why there isn't one).
+    # -----------------------------------------------------------------------
+    - name: minecraft-performance
+      rules:
+        - alert: MinecraftServerSlowPing
+          # The ping is answered on the main thread, so a sustained slow reply
+          # means the tick loop is behind — the symptom players experience as
+          # rubber-banding. Cross-check against MinecraftWorldVolumeAlmostFull
+          # and container CPU before blaming the world.
+          expr: minecraft_status_response_time_seconds > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Minecraft server {{ $labels.server_host }} responding slowly
+            description: >
+              Server List Ping for {{ $labels.server_host }} has taken
+              {{ $value | humanizeDuration }} (>1s) for 10m. The main tick loop
+              is likely saturated — check container CPU and whether a large
+              chunk-loading event (new player exploring, worldgen) is in progress.
+
+        - alert: MinecraftMemoryNearLimit
+          # The JVM heap is fixed by MEMORY; this watches the container ceiling,
+          # which must stay above heap + metaspace/GC/direct buffers. Crossing it
+          # means an OOMKill, not a GC pause.
+          expr: >
+            container_memory_working_set_bytes{namespace="media",pod=~"matcha-.*|vanilla-.*",container="app"}
+            / on(pod) group_left
+            kube_pod_container_resource_limits{namespace="media",resource="memory",container="app"}
+            > 0.9
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Minecraft pod {{ $labels.pod }} near its memory limit
+            description: >
+              {{ $labels.pod }} is at {{ $value | humanizePercentage }} of its
+              memory limit for 15m. The JVM will be OOMKilled rather than GC'd if
+              it crosses. Either lower MEMORY (heap) or raise the container limit —
+              the limit must exceed the heap by roughly 1.5Gi.
+
+    # -----------------------------------------------------------------------
+    # Storage — world data is on node-local openebs-hostpath, which cannot be
+    # expanded in place. Filling it corrupts saves, so warn early.
+    # -----------------------------------------------------------------------
+    - name: minecraft-storage
+      rules:
+        - alert: MinecraftWorldVolumeAlmostFull
+          expr: >
+            kubelet_volume_stats_available_bytes{namespace="media",persistentvolumeclaim=~"matcha-data|vanilla-data"}
+            / kubelet_volume_stats_capacity_bytes{namespace="media",persistentvolumeclaim=~"matcha-data|vanilla-data"}
+            < 0.15
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: Minecraft world volume {{ $labels.persistentvolumeclaim }} almost full
+            description: >
+              {{ $labels.persistentvolumeclaim }} has
+              {{ $value | humanizePercentage }} free. Worlds grow with
+              exploration, not playtime — constrain with /worldborder, or
+              recreate the PVC larger (openebs-hostpath cannot expand in place,
+              and the volume is pinned to one node).
+
+        - alert: MinecraftBackupVolumeAlmostFull
+          expr: >
+            kubelet_volume_stats_available_bytes{namespace="media",persistentvolumeclaim="mc-backups"}
+            / kubelet_volume_stats_capacity_bytes{namespace="media",persistentvolumeclaim="mc-backups"}
+            < 0.10
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: Minecraft backup volume almost full
+            description: >
+              mc-backups is {{ $value | humanizePercentage }} free. The
+              mc-backup sidecars prune at PRUNE_BACKUPS_DAYS=7; if this is still
+              filling, either the worlds have grown or pruning has stopped.
+
+    # -----------------------------------------------------------------------
+    # Crash looping
+    # -----------------------------------------------------------------------
+    - name: minecraft-stability
+      rules:
+        - alert: MinecraftServerRestarting
+          expr: >
+            increase(kube_pod_container_status_restarts_total{namespace="media",pod=~"matcha-.*|vanilla-.*",container="app"}[1h])
+            > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Minecraft container {{ $labels.pod }} is restarting repeatedly
+            description: >
+              {{ $labels.pod }} has restarted {{ $value }} times in the last
+              hour. Common causes: an unresolvable MODRINTH_PROJECTS entry (check
+              the loader actually has a Paper build), a heap/limit mismatch, or a
+              world the pinned VERSION cannot open.

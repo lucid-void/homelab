@@ -5,3 +5,4 @@ resources:
   - ./rbac.yml
   - ./deployment.yml
   - ./service.yml
+  - ./service-metrics.yml
