@@ -65,6 +65,41 @@ Falco events route to Gotify, then a Python WebSocket bridge forwards to Telegra
 
 ## Future Work
 
+### Replace filebrowser before 2026-09-01 (upstream archival) — dated
+
+`filebrowser/filebrowser:v2.63.23` runs as a sidecar in both Minecraft pods (`matcha`, `vanilla`),
+serving the server directory at `{server}-files.blackcats.cc` for datapacks, world imports, and
+in-browser config edits. **The project announces its own wind-down in the container's startup log:**
+
+```
+NOTICE: File Browser is being wound down.
+NOTICE: The project is archived on 2026-09-01, after which there will be no
+NOTICE: further releases and no security fixes. Known unfixed issues are at
+NOTICE: https://github.com/filebrowser/filebrowser/security/advisories
+```
+
+As of 2026-07-31 there are 8+ open advisories, several **high** severity — including out-of-scope
+file deletion via symlink-following in TUS upload-cache eviction, recursive copy/rename/delete
+ignoring deny rules, and access-rule bypass via case-variant paths. All require an authenticated
+session, and the service is VPN-gated behind a single local admin account (it is **not** in the
+Zitadel SSO set), so present exposure is low. The problem is the deadline: after 2026-09-01 this is
+a component with write access to a filesystem that will never receive another fix.
+
+**Options, in rough preference order:**
+1. **Migrate to [gtsteffaniak/filebrowser](https://github.com/gtsteffaniak/filebrowser)**
+   ("FileBrowser Quantum") — the actively maintained fork (~7.6k stars, pushed 2026-07-31). Different
+   config schema, so the `filebrowser-init` initContainer that seeds the admin account from
+   `minecraft-secret` needs reworking and re-testing.
+2. **Drop it entirely** — `TYPE`/`VERSION` already fetch the server jar and
+   `MODRINTH_PROJECTS`/`SPIGET_RESOURCES` already declare plugins, so the residual use case is
+   datapacks and world imports, which `kubectl cp` covers. Smallest attack surface, worst ergonomics.
+3. **Freeze and accept** — document it in `ARCHITECTURE.md` as an accepted risk. Only defensible
+   while it stays VPN-gated and single-user.
+
+**Action:** pick one before 2026-09-01. If option 1, note that the `publishNotReadyAddresses: true`
+on the `files` Service must be preserved — it is what keeps the file manager reachable while the game
+server is crash-looping, which is exactly when it's needed.
+
 ### Migrate per-app backup CronJobs to VolSync
 
 The six backup CronJobs (immich, paperless, gitea, homebox, postgres, joplin) work, but they're imperative
@@ -260,6 +295,6 @@ PV, and Gateway patterns already exist, so these are near-drop-in.
 | **Hoarder** | Bookmark manager with automatic AI tagging and full-page snapshots; degoog for browser bookmarks |
 | **Vikunja** | Self-hosted task/project manager; Todoist/TickTick replacement with CalDAV sync |
 | **Syncthing** | P2P file sync across devices; complements Immich for non-photo files and replaces Google Drive sync on desktops |
-| **Pterodactyl** | Game server management panel; web UI for provisioning and managing game server instances |
-| **playit.gg** | Tunnel service for exposing game servers without port forwarding; companion to Pterodactyl |
+| **Pterodactyl** / **Pelican** | _Declined — superseded by the Minecraft stack in `media` (see `docs/services.md`)._ Both drive game servers through **Wings**, which orchestrates Docker containers and has no Kubernetes backend ([pelican-dev/panel#933](https://github.com/pelican-dev/panel/discussions/933) is still a proposal). On Talos there is no Docker at all, so the only path is a privileged Docker-in-Docker sidecar plus node-pinned image storage — and the panel's servers/allocations become runtime state outside git. If a panel UI is ever wanted, run it on a VM outside the cluster (like the ZeroTier VM) rather than fighting this in-cluster |
+| **playit.gg** | _Not needed._ Tunnel service for exposing game servers without port forwarding — but remote access is already Netbird-gated by design, and mc-router publishes the servers internally at `172.16.20.51:25565`. Would only apply if servers were ever opened to non-VPN players |
 | **changedetection.io** | Web page change monitoring and alerting; self-hosted alternative to Visualping/Wachete |

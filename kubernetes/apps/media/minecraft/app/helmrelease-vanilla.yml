@@ -66,12 +66,17 @@ spec:
               TZ: Europe/Brussels
               UID: "2202"
               GID: "2200"
-              # True vanilla, so mechanics match the client exactly. Paper would be
-              # faster and gentler on storage, but it changes some redstone and mob
-              # behaviour — switch TYPE to PAPER if that trade is worth it here.
-              TYPE: VANILLA
+              # Paper, same as matcha. The name is now about content, not engine:
+              # this is the plugin-free server, not a different server software.
+              # Paper is faster and far gentler on chunk I/O than true vanilla,
+              # at the cost of some redstone/mob behaviour differing subtly from
+              # the client's expectations.
+              TYPE: PAPER
               VERSION: "26.2"
-              MEMORY: 2G
+              MEMORY: 6G
+              # Aikar's GC tuning — worth having on any Paper server, and matcha
+              # already runs it.
+              USE_AIKAR_FLAGS: "true"
               MOTD: "vanilla"
               DIFFICULTY: normal
               VIEW_DISTANCE: "10"
@@ -114,10 +119,14 @@ spec:
                   failureThreshold: 5
             resources:
               requests:
-                memory: 2Gi
+                memory: 6Gi
                 cpu: 500m
+              # Tracks MEMORY (6G heap) + ~2Gi for metaspace, GC structures and
+              # direct buffers — same ratio as matcha's 4G/6Gi. Raising MEMORY
+              # without raising this is an OOMKill, not a slow server: the JVM
+              # sizes its heap from MEMORY and the cgroup kills it on the way up.
               limits:
-                memory: 3584Mi
+                memory: 8Gi
 
           backup:
             image:

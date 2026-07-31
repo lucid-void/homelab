@@ -83,7 +83,7 @@ spec:
               # release and Paper builds for it. Pin deliberately — a world opened
               # by a newer version cannot be downgraded.
               VERSION: "26.2"
-              MEMORY: 4G
+              MEMORY: 6G
               USE_AIKAR_FLAGS: "true"
               MOTD: "matcha"
               DIFFICULTY: normal
@@ -145,12 +145,14 @@ spec:
                   failureThreshold: 5
             resources:
               requests:
-                memory: 4Gi
+                memory: 6Gi
                 cpu: 500m
               # Must exceed MEMORY (heap) by enough for metaspace, GC structures
               # and direct buffers, or the JVM gets OOMKilled at full heap.
+              # MEMORY=6G means -Xmx6G, so a 6Gi limit is heap == ceiling with
+              # nothing spare — the kill happens as the heap fills, not gradually.
               limits:
-                memory: 6Gi
+                memory: 8Gi
 
           # Local disk is fast but node-pinned, so it is not a backup. This sidecar
           # takes RCON-quiesced (save-off / save-all / save-on) tarballs onto NFS,

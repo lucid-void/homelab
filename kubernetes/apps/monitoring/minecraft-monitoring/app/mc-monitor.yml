@@ -1,8 +1,9 @@
 ---
 # mc-monitor speaks the Minecraft Server List Ping protocol and turns the reply
 # into Prometheus metrics. Deliberately chosen as the primary signal because it
-# is protocol-level, not plugin-level: it works identically for Paper (matcha)
-# and true vanilla (vanilla), and survives Minecraft version upgrades.
+# is protocol-level, not plugin-level: it is indifferent to server software and
+# to Minecraft version upgrades, so it keeps working if either server switches
+# engine or gets bumped. (Both run Paper today; they didn't always.)
 #
 # What it CANNOT see is in-game tick health (TPS). That needs a server-side
 # plugin, and as of MC 26.2 there is no maintained one — sladkoff's exporter
