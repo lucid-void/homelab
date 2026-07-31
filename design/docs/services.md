@@ -112,8 +112,8 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | Suwayomi | `suwayomi.blackcats.cc` | `ghcr.io/suwayomi/suwayomi-server:v2.2.2100` (+ `flaresolverr` v3.5.0) | `suwayomi-config` PVC (`nfs-client`, embedded H2) + `media-nfs` subPath `Manga` (downloads) |
 | Kavita | `kavita.blackcats.cc` | `lscr.io/linuxserver/kavita:0.9.0` | `kavita-config` PVC (`nfs-client`, internal SQLite) + `media-nfs` subPath `Manga` (readOnly) |
 | RomM | `romm.blackcats.cc` | `rommapp/romm:5.0.0` | `romm-config` PVC (`nfs-client`) + `media-nfs` subPath `Games` (ROM library) + `emptyDir` at `/redis-data` — CNPG Postgres for the app DB |
-| matcha (Minecraft) | `matcha.blackcats.cc` (TCP 25565 via mc-router) · files at `matcha-files.blackcats.cc` | `itzg/minecraft-server:2026.7.2-java25` (Paper 26.2) | `matcha-data` PVC (`openebs-hostpath`) + `mc-backups` (`nfs-client`, RWX) |
-| vanilla (Minecraft) | `vanilla.blackcats.cc` (TCP 25565 via mc-router) · files at `vanilla-files.blackcats.cc` | `itzg/minecraft-server:2026.7.2-java25` (Paper 26.2, no plugins) | `vanilla-data` PVC (`openebs-hostpath`) + `mc-backups` (`nfs-client`, RWX) |
+| matcha (Minecraft) | `matcha.blackcats.cc` (TCP 25565 via mc-router) · `matcha-files.blackcats.cc` · `matcha-map.blackcats.cc` | `itzg/minecraft-server:2026.7.2-java25` (Paper 26.2) | `matcha-data` PVC (`openebs-hostpath`) + `mc-backups` (`nfs-client`, RWX) |
+| vanilla (Minecraft) | `vanilla.blackcats.cc` (TCP 25565 via mc-router) · `vanilla-files.blackcats.cc` · `vanilla-map.blackcats.cc` | `itzg/minecraft-server:2026.7.2-java25` (Paper 26.2) | `vanilla-data` PVC (`openebs-hostpath`) + `mc-backups` (`nfs-client`, RWX) |
 | mc-router | — (LoadBalancer `172.16.20.51:25565`) | `itzg/mc-router:1.45.2` | none |
 
 Plex uses `openebs-hostpath` for its config PVC — SQLite WAL locking errors occur over NFS. Config is on local disk on whichever node the PVC first bound to (cp-1).
