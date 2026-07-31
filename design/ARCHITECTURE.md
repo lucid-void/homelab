@@ -51,7 +51,9 @@ Declared in `talconfig.yaml` under each node's `schematic.customization.systemEx
 
 ### etcd Durability
 
-3-node embedded etcd: losing any one CP maintains quorum (2 of 3). The rebuilt CP rejoins automatically — no snapshot needed for single-node loss. An etcd snapshot CronJob is planned (not yet implemented) for the all-three-CPs-lost scenario. See TODO.md.
+3-node embedded etcd: losing any one CP maintains quorum (2 of 3). The rebuilt CP rejoins automatically — no snapshot needed for single-node loss.
+
+For the all-three-CPs-lost scenario the `kube-system/etcd-snapshot` CronJob runs daily at 01:00: it takes a `talosctl etcd snapshot` from the first reachable control plane (`.11` → `.12` → `.13`) and uploads it via restic to `rclone:filen:backups/restic/etcd-snapshot`, 30-day retention. Note this is a **second** recovery path, not the primary one — the primary remains `tofu apply` + talhelper + Flux reconciliation from git, since all cluster configuration already lives in this repo. The snapshot matters for state Git does not hold (in-cluster resources created outside GitOps, Zitadel/Gotify runtime state prior to their bootstrap Jobs re-running). See RUNBOOK → Restore etcd from a snapshot.
 
 ---
 
@@ -127,8 +129,11 @@ See `docs/secrets.md` for the full reference. Summary:
 | `postgres-backup` | 03:30 | All k8s DB dumps (CNPG read replica) | `rclone:filen:backups/restic/postgres` |
 | `paperless-backup` | 04:00 | Postgres dump + data/media PVCs | `rclone:filen:backups/restic/paperless` |
 | `gitea-backup` | 05:00 | Postgres dump + data PVC | `rclone:filen:backups/restic/gitea` |
+| `joplin-backup` | 06:00 | Postgres dump + blobs PVC | `rclone:filen:backups/restic/joplin` |
 
-All jobs: `ghcr.io/lucid-void/backup-tools` image, restic over rclone-filen, 30-day retention. Scale-to-zero before backup where needed (Immich, Paperless, Gitea, Homebox). Gotify notifications on success/failure; failure messages include last 10 log lines.
+All jobs: `ghcr.io/lucid-void/backup-tools` image, restic over rclone-filen, 30-day retention. Scale-to-zero before backup where needed (Immich, Paperless, Gitea, Homebox, Joplin). Gotify notifications on success/failure; failure messages include last 10 log lines.
+
+Apps with their own quiesced job are **excluded** from `postgres-backup`'s database list (`kubernetes/apps/postgres/backup/app/databases.yml`) — immich, paperless, gitea, joplin — so their DB and files land in one consistent snapshot rather than being split across two jobs.
 
 ---
 
@@ -155,4 +160,4 @@ All jobs: `ghcr.io/lucid-void/backup-tools` image, restic over rclone-filen, 30-
 | Flux structure | Flat `apps/` with `dependsOn` (not infrastructure/configs/apps split) | Simpler; ordering fully captured by `dependsOn` without separate top-level layers |
 | Plex storage | openebs-hostpath | SQLite WAL locking errors on NFS ("retrying busy db"); local disk is the fix |
 | Swarm coexistence | Swarm VMs `.10`–`.17` run unchanged | k8s is an addition, not a forced migration; services moved deliberately |
-| etcd backup | Planned CronJob (not yet built) | 3-node quorum handles single-node loss without snapshots; full-wipe scenario deferred |
+| etcd backup | `kube-system/etcd-snapshot` CronJob, daily 01:00 | 3-node quorum handles single-node loss; the snapshot covers the full-wipe scenario. Uploads via restic to `rclone:filen:backups/restic/etcd-snapshot` |

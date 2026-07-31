@@ -584,6 +584,47 @@ kubectl apply -k kubernetes/flux/config
 # Flux reconciles everything; controller uses restored Sealed Secrets key
 ```
 
+This rebuilds the cluster **from git**, which is the primary recovery path — every
+manifest is in this repo, so Flux reconstructs the workloads. It does *not* restore
+etcd itself. Use the snapshot path below only when you need in-cluster state that
+git does not hold.
+
+### Restore etcd from a snapshot
+
+The `kube-system/etcd-snapshot` CronJob uploads a daily `talosctl etcd snapshot` to
+`rclone:filen:backups/restic/etcd-snapshot` (30-day retention). Restoring it replaces
+cluster state wholesale, so prefer the rebuild-from-git path above unless you
+specifically need resources that were never in git.
+
+```bash
+# 1. Pull the snapshot out of restic (run anywhere with the restic + rclone creds;
+#    RESTIC_PASSWORD / RESTIC_REPOSITORY match kube-system/restic-secret)
+export RESTIC_REPOSITORY=rclone:filen:backups/restic/etcd-snapshot
+restic snapshots                       # pick the one you want
+restic restore <snapshot-id> --target /tmp/etcd-restore
+# → /tmp/etcd-restore/tmp/etcd.snap
+
+# 2. Reprovision the VMs and apply Talos configs, but DO NOT run talosctl bootstrap
+just apply
+talhelper apply
+
+# 3. Bootstrap the single node directly from the snapshot instead
+talosctl bootstrap \
+  --nodes 172.16.20.11 \
+  --endpoints 172.16.20.11 \
+  --talosconfig kubernetes/talos/clusterconfig/talosconfig \
+  --recover-from /tmp/etcd-restore/tmp/etcd.snap
+
+# 4. Continue from step 4 of the full-wipe procedure (kubeconfig onwards)
+```
+
+`--recover-from` replaces the plain `talosctl bootstrap` in step 3 of the full wipe —
+running both re-initialises etcd and discards the snapshot.
+
+> **Untested.** No etcd snapshot has been restore-tested end-to-end (see TODO.md →
+> "Backup restore actually works"). Treat the steps above as the intended procedure,
+> not a verified one.
+
 ### etcd force-new-cluster (quorum already broken)
 
 If etcd has lost quorum, pick the node with the most recent data. Add a temporary patch in `talconfig.yaml` for that node:
