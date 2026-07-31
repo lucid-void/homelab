@@ -15,6 +15,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | Descheduler | kube-system | HelmRelease | — | — | CronJob every 5 min, default policies |
 | K8s-Cleaner | kube-system | HelmRelease | — | — | Deletes Succeeded/Failed pods every 6h |
 | Spegel | kube-system | HelmRelease | — | — | P2P image cache across nodes |
+| etcd-snapshot | kube-system | CronJob | — | — | Daily 01:00; `talosctl etcd snapshot` from first reachable CP (`.11`→`.12`→`.13`); restic → `rclone:filen:backups/restic/etcd-snapshot`, 30-day retention |
 | CNPG operator | cnpg-system | HelmRelease | — | — | CloudNativePG; manages `postgres` cluster |
 | democratic-csi | democratic-csi | HelmRelease | — | — | `nfs-client` StorageClass (default); controller mounts Synology share |
 | OpenEBS | openebs | HelmRelease | — | — | `openebs-hostpath` StorageClass; LocalPV at `/var/openebs/local` |
@@ -86,8 +87,12 @@ The `security` namespace has `pod-security.kubernetes.io/enforce: privileged` �
 | FreshRSS | freshrss | HelmRelease | `rss.blackcats.cc` | Zitadel OIDC (Apache mod_auth_openidc) | `nfs-client` PVC (config); CNPG Postgres |
 | Homebox | homebox | HelmRelease | `homebox.blackcats.cc` | Built-in | `nfs-client` PVC (SQLite data dir) |
 | homebox-backup | homebox | CronJob | — | — | Daily 02:00; SQLite data dir; restic → rclone-filen |
+| Joplin Server | joplin | HelmRelease | `joplin.blackcats.cc` | **Zitadel SAML** (not OIDC) + local break-glass admin | `joplin-blobs` PVC (`nfs-client`, RWO — attachments); CNPG Postgres |
+| joplin-backup | joplin | CronJob | — | — | Daily 06:00; Postgres dump + blobs PVC in one snapshot; restic → rclone-filen |
 | Homepage | homepage | HelmRelease | `home.blackcats.cc` | — | ConfigMap-only config |
 | Degoog | degoog | HelmRelease | `degoog.blackcats.cc` | — | Self-hosted search engine aggregator; `ghcr.io/degoog-org/degoog:0.18.0`; `nfs-client` PVC for engines/plugins/themes data |
+
+**Joplin Server** (notes sync, `joplin/server:3.7.1`, port 22300) is the only service authenticating by **SAML** rather than OIDC — upstream has no OIDC support ([#14252](https://github.com/laurent22/joplin/issues/14252)) and offers SAML only. Single `app-template` controller `app` → Deployment/Service `joplin`. `STORAGE_DRIVER: "Type=Filesystem; Path=/mnt/joplin-blobs"` is set deliberately: the default `Type=Database` would push every note attachment into the shared CNPG cluster's 20Gi PVC. `SIGNUP_ENABLED=false`; `LOCAL_AUTH_ENABLED=true` is kept on so `admin@localhost` remains a break-glass account while the SAML sync target is still upstream-beta. See the SAML section below for the wiring and its gotchas.
 
 ---
 
@@ -131,3 +136,26 @@ Sonarr and Radarr use CNPG Postgres (migrated from SQLite; migration Jobs in `ku
 | Proxmox VE | `https://pve.blackcats.cc:8006` (+ `:443`) | Bare-metal host (172.16.20.3), not in-cluster. Redirect = web UI base URL (no path); `client_secret_basic`. Creds in `auth/proxmox-oidc-secret`, copied into a Proxmox OIDC realm manually (`pveum`). See RUNBOOK. |
 | Goldilocks | TBD | Standard OIDC redirect |
 | Gatus | TBD | Standard OIDC redirect |
+
+Joplin is **not** in this table — it uses SAML, not OIDC. See below.
+
+---
+
+## SAML (Joplin only)
+
+Joplin Server is the single SAML service in the cluster. Wiring:
+
+| Piece | Where |
+|---|---|
+| SP metadata (static XML) | `kubernetes/apps/joplin/joplin/app/saml-sp-configmap.yml` → mounted at `/saml-sp/sp.xml` |
+| IdP metadata | fetched from `https://zitadel.blackcats.cc/saml/v2/metadata` at pod start by the `saml-idp-metadata` initContainer → `/saml-idp/idp.xml` |
+| Zitadel SAML app | `zitadel_application_saml.joplin` in the zitadel-bootstrap Terraform |
+| Attribute rename action | `zitadel_action.joplin_saml_attributes` + `zitadel_trigger_actions` on `FLOW_TYPE_SAML_RESPONSE` / `TRIGGER_TYPE_PRE_SAML_RESPONSE_CREATION` |
+
+ACS URL is `https://joplin.blackcats.cc/api/saml` (fixed by Joplin, `routes/api/login.ts`); entityID is `https://joplin.blackcats.cc`. **The SP metadata exists in two places and must stay byte-identical** — the ConfigMap Joplin feeds to samlify, and the `metadata_xml` Terraform registers with Zitadel. A mismatch in entityID or ACS Location fails the assertion audience check.
+
+The IdP metadata is fetched fresh each boot rather than pinned in git because Zitadel's signing certificate rotates. The initContainer retries for 5 minutes so a cold start where Zitadel isn't serving yet doesn't wedge the pod.
+
+Required env beyond `SAML_ENABLED`: `API_BASE_URL` must equal `APP_BASE_URL` (SAML is unsupported on a split API domain), and `DELETE_EXPIRED_SESSIONS_SCHEDULE=""` disables the 6-hourly session purge, which assumes clients can silently re-login over the API — impossible when login is a manual browser flow.
+
+**Client support is narrower than OIDC apps:** desktop needs the separate **"Joplin Server (Beta, SAML)"** sync target (login happens in a browser via a `joplin://` callback, so only one Joplin instance may run); the **CLI does not support SAML at all**.

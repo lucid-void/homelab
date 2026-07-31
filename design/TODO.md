@@ -37,9 +37,11 @@ CNPG currently does base backups only — WAL archiving is not configured. Witho
 
 ### Backup restore actually works
 
-Five backup CronJobs exist (immich, paperless, gitea, homebox, postgres) writing restic snapshots to `rclone:filen:backups/restic/`. None have been restore-tested end-to-end. "Backup created" ≠ "data restorable."
+Seven backup CronJobs exist (immich, paperless, gitea, homebox, postgres, joplin, etcd-snapshot) writing restic snapshots to `rclone:filen:backups/restic/`. None have been restore-tested end-to-end. "Backup created" ≠ "data restorable."
 
 **Action:** Pick one app (Immich is highest-value) and run a restore drill into a clean PVC + fresh CNPG database. Document the procedure in `RUNBOOK.md` once it works.
+
+The etcd snapshot is the same story: `RUNBOOK.md` → "Restore etcd from a snapshot" documents the intended `talosctl bootstrap --recover-from` flow, but it has never been exercised. Worth a drill against a throwaway cluster, since a bad assumption there only surfaces during a full wipe.
 
 ### TLS certificate expiry alerting
 
@@ -65,8 +67,8 @@ Falco events route to Gotify, then a Python WebSocket bridge forwards to Telegra
 
 ### Migrate per-app backup CronJobs to VolSync
 
-The five backup CronJobs (immich, paperless, gitea, homebox, postgres) work, but they're imperative
-scripts wearing GitOps clothes — five copies of similar logic, each a custom image. **VolSync**'s
+The six backup CronJobs (immich, paperless, gitea, homebox, postgres, joplin) work, but they're imperative
+scripts wearing GitOps clothes — six copies of similar logic, each a custom image. **VolSync**'s
 restic mover gives the same restic→rclone-compatible result as a declarative `ReplicationSource`
 per PVC, with built-in scheduling, pruning, and a `ReplicationDestination` CRD that makes *restores*
 declarative too. That directly addresses the "Backup restore actually works" item above: restore
@@ -115,7 +117,7 @@ Same as the broader homelab plan: default-deny inbound, SSH/node_exporter/Promta
 
 ### Zitadel break-glass / account recovery runbook
 
-Zitadel is the single OIDC provider for Immich, Paperless, Gitea, FreshRSS, Goldilocks, Gatus. If the admin is locked out (lost TOTP, recovery codes gone, bootstrap secret broken) there is no documented recovery path.
+Zitadel is the single identity provider for Immich, Paperless, Gitea, FreshRSS, Goldilocks, Gatus (OIDC) and Joplin (SAML). If the admin is locked out (lost TOTP, recovery codes gone, bootstrap secret broken) there is no documented recovery path. Joplin is the only one with an app-level fallback — `LOCAL_AUTH_ENABLED=true` keeps `admin@localhost` usable; every other app is fully gated on Zitadel.
 
 **Action:** Add a "Zitadel admin recovery" section to `RUNBOOK.md` covering: (1) recovery code regeneration, (2) emergency admin reset via `kubectl exec` into the Zitadel pod, (3) restoring from the `zitadel-bootstrap` Job + CNPG `zitadel-role-secret`.
 

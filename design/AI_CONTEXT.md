@@ -73,6 +73,8 @@ All protected services use Zitadel OIDC directly (no forward-auth proxy). Non-ob
 | FreshRSS | Apache mod_auth_openidc; redirect URI `https://rss.blackcats.cc/i/oidc/` (NOT `/i/?get=oidc`) |
 | Gitea | Callback `https://gitea.blackcats.cc/user/oauth2/Zitadel/callback` — provider name is case-sensitive |
 
+**Joplin is the one exception — SAML, not OIDC.** Upstream has no OIDC support, only SAML. ACS `https://joplin.blackcats.cc/api/saml`, entityID `https://joplin.blackcats.cc`. No client secret exists for a SAML SP, so unlike every OIDC app nothing is written back into a k8s Secret — Joplin fetches the public IdP metadata from Zitadel at pod start. See `docs/services.md` → SAML, and the SAML entries under Non-Obvious Decisions.
+
 Zitadel bootstrap Job provisions OIDC clients via Terraform + Zitadel API. Writes `*-oidc-secret` Secrets into app namespaces (env-var style for most apps; Helm-valuesFrom style for Gitea).
 
 ---
@@ -140,6 +142,7 @@ kubernetes/
 | Gitea | gitea | `gitea.blackcats.cc` | Zitadel OIDC |
 | FreshRSS | freshrss | `rss.blackcats.cc` | Zitadel OIDC |
 | Homebox | homebox | `homebox.blackcats.cc` | Built-in |
+| Joplin Server | joplin | `joplin.blackcats.cc` | Zitadel **SAML** (+ local break-glass admin) |
 | Homepage | homepage | `home.blackcats.cc` | None |
 | Gotify | monitoring | `gotify.blackcats.cc` | SealedSecret admin creds |
 | Gatus | monitoring | `gatus.blackcats.cc` | Zitadel OIDC |
@@ -184,4 +187,18 @@ Full inventory with storage details: `docs/services.md`.
 
 **Trivy Operator dbRepository:** Do not override with a full `ghcr.io/...` path — the chart prepends the registry, causing double-prefix. Leave at chart default.
 
-**etcd snapshot CronJob** (`kube-system/etcd-snapshot`, daily 01:00): downloads `talosctl` at runtime (version pinned in script — update alongside Talos upgrades), tries CP nodes `.11 → .12 → .13` in order, uploads via restic to `rclone:filen:backups/restic/etcd-snapshot`. Three SealedSecrets required: `restic-secret` (RESTIC_PASSWORD + RESTIC_REPOSITORY), `rclone-secret` (rclone.conf with Filen creds), `talosconfig-secret` (talosconfig file from `~/.talos/config`). Gotify `optional: true` — kube-system not yet in gotify-bootstrap token list.
+**CNPG managed-role race on a new app.** A new service adds its `{app}-role-secret` SealedSecret (in its own `{app}-database` Kustomization) and its managed role (in `postgres-cluster`). These reconcile near-simultaneously, and if CNPG evaluates the role before Sealed Secrets has decrypted the secret it records `cannotReconcile: failed to get password secret ... not found` and **never retries** — the status stays frozen. Downstream: no role → the `Database` CR fails with `role "x" does not exist` → no database → the app crash-loops on `password authentication failed` (SQLSTATE 28P01). `flux reconcile` does **not** fix it, because the `Cluster` object already matches git so no watch event fires. Nudge the object directly: `kubectl annotate cluster postgres -n postgres reconcile-nudge="$(date +%s)" --overwrite`, then remove the annotation. Verify with `kubectl get cluster postgres -n postgres -o jsonpath='{.status.managedRolesStatus}'`. Hit while adding Joplin.
+
+**Joplin probes need an explicit `Host` header.** Joplin Server picks its API vs website router from the request host and 404s anything matching neither. The kubelet probes by pod IP, so a plain `httpGet: /api/ping` always fails and the pod restart-loops while the app is perfectly healthy. Both probes set `httpHeaders: [{name: Host, value: joplin.blackcats.cc}]`. Diagnose with `curl -H 'Host: joplin.blackcats.cc' http://<podIP>:22300/api/ping` (200) vs without (404).
+
+**Zitadel→Joplin SAML attribute mapping.** Zitadel emits `Email`, `FullName`, `FirstName`, `SurName`, `UserName`, `UserID`. Joplin does a hard-coded, case-sensitive lookup for exactly `email` and `displayName` (`routes/api/login.ts`). Without a bridge every SSO login fails. `zitadel_action.joplin_saml_attributes` (trigger `FLOW_TYPE_SAML_RESPONSE` / `TRIGGER_TYPE_PRE_SAML_RESPONSE_CREATION`) adds the two lowercase aliases via `api.v1.attributes.setCustomAttribute(key, nameFormat, value)`, which only adds keys not already present, leaving the stock attributes intact.
+
+**That action must coerce, never `typeof`-check.** Zitadel's action user object (`internal/actions/object/user.go`) types `DisplayName` as a plain Go `string` but `Email` as `domain.EmailAddress` — a *named* string type, which goja does **not** surface as a JS string primitive. A `typeof x === 'string'` guard therefore passes for displayName and silently drops email. Use `String(value)` coercion. The struct is flat (`human.email`, `human.displayName`) — there is no nested `human.profile` or `human.email.email`.
+
+**Joplin 3.7.1 has no SAML attribute type guards** (they exist only on `dev`), so a missing attribute surfaces as the opaque `Could not login using email "undefined" and displayName "..."` — that `"undefined"` is a JS `undefined` interpolated into a template literal, i.e. **the attribute was absent**, not malformed. Read the tag matching the deployed version, not `dev`.
+
+**Never create a local Joplin account with a Zitadel email.** `UserModel.ssoLogin` refuses a SAML assertion for an email already owned by a password-based account (`if (user && !user.is_external) return null;`) and never upgrades `is_external`. SAML for that address is then permanently blocked; the only fix is deleting the user or editing the DB. SAML auto-provisions on first login, so no pre-creation is needed. `admin@localhost` stays local as break-glass.
+
+**Joplin backup needs podAffinity, unlike immich-backup.** `joplin-blobs` is RWO and the job must mount it *while the Joplin pod still holds it* (scale-down happens inside the script), so the job is pinned to the app's node. `immich-backup` skips this only because `immich-library` is RWX.
+
+**etcd snapshot CronJob** (`kube-system/etcd-snapshot`, daily 01:00): downloads `talosctl` at runtime (version pinned in script — update alongside Talos upgrades), tries CP nodes `.11 → .12 → .13` in order, uploads via restic to `rclone:filen:backups/restic/etcd-snapshot`. 30-day retention (`restic forget --keep-daily 30 --prune`) plus a `restic check --read-data-subset=1/10` spot-check. Three SealedSecrets required: `restic-secret` (RESTIC_PASSWORD + RESTIC_REPOSITORY), `rclone-secret` (rclone.conf with Filen creds), `talosconfig-secret` (talosconfig file from `~/.talos/config`). Gotify token is provisioned by gotify-bootstrap (`etcd-snapshot` → `kube-system/gotify-secret`); the CronJob still references it with `optional: true` so it runs before bootstrap completes. Restore procedure: RUNBOOK → "Restore etcd from a snapshot" (`talosctl bootstrap --recover-from`) — documented but **never restore-tested**.
