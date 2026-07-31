@@ -1,0 +1,157 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: joplin
+  namespace: joplin
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          # Joplin reads the IdP metadata from a file on disk, but Zitadel's
+          # signing certificate rotates — so pull it fresh on every boot rather
+          # than pinning a copy in git. Retries because a cold-start ordering
+          # where Zitadel isn't serving yet would otherwise wedge the pod.
+          saml-idp-metadata:
+            image:
+              repository: curlimages/curl
+              tag: "8.11.1"
+            command:
+              - /bin/sh
+              - -c
+              - |
+                set -e
+                for i in $(seq 1 30); do
+                  if curl -fsS --max-time 10 \
+                    https://zitadel.blackcats.cc/saml/v2/metadata \
+                    -o /saml-idp/idp.xml; then
+                    echo "Fetched Zitadel SAML IdP metadata ($(wc -c < /saml-idp/idp.xml) bytes)"
+                    exit 0
+                  fi
+                  echo "Attempt ${i}: Zitadel SAML metadata unavailable, retrying in 10s..."
+                  sleep 10
+                done
+                echo "FATAL: could not fetch Zitadel SAML IdP metadata" >&2
+                exit 1
+            resources:
+              requests:
+                memory: 16Mi
+                cpu: 10m
+              limits:
+                memory: 64Mi
+        containers:
+          app:
+            image:
+              repository: joplin/server
+              tag: "3.7.1"
+            env:
+              TZ: Europe/Brussels
+              # Must be the exact external URL with no trailing slash — Joplin
+              # builds every sync/share link from it and rejects clients that
+              # connect on a different origin.
+              APP_BASE_URL: https://joplin.blackcats.cc
+              APP_PORT: "22300"
+              DB_CLIENT: pg
+              POSTGRES_HOST: postgres-rw.postgres.svc.cluster.local
+              POSTGRES_PORT: "5432"
+              POSTGRES_DATABASE: joplin
+              POSTGRES_USER: joplin
+              POSTGRES_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: joplin-role-secret
+                    key: password
+              # Default is Type=Database, which would push every note attachment
+              # into the shared CNPG cluster (20Gi PVC). Keep blobs on their own
+              # volume instead.
+              STORAGE_DRIVER: "Type=Filesystem; Path=/mnt/joplin-blobs"
+              SIGNUP_ENABLED: "false"
+              ACCOUNT_TYPES_ENABLED: "false"
+
+              # ── SAML SSO (Zitadel) ──────────────────────────────────────
+              SAML_ENABLED: "true"
+              SAML_SP_CONFIG_FILE: /saml-sp/sp.xml
+              SAML_IDP_CONFIG_FILE: /saml-idp/idp.xml
+              SAML_ORGANIZATION_DISPLAY_NAME: blackcats
+              # SAML is unsupported when the API lives on a separate domain, so
+              # API_BASE_URL must equal APP_BASE_URL.
+              API_BASE_URL: https://joplin.blackcats.cc
+              # Joplin clears sessions every 6h by default and expects clients to
+              # silently re-login over the API — impossible with SAML, where
+              # login is a manual browser flow. Empty string disables the task.
+              DELETE_EXPIRED_SESSIONS_SCHEDULE: ""
+              # Deliberately left on: Zitadel is the only user store, but SAML
+              # here is beta and the local admin is the way back in if the
+              # assertion mapping breaks. Turn off once SSO is proven.
+              LOCAL_AUTH_ENABLED: "true"
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /api/ping
+                    port: 22300
+                    # Joplin picks the API vs website router from the request
+                    # host and 404s anything that matches neither. The kubelet
+                    # probes by pod IP, so without this the probe always fails
+                    # and the pod restart-loops despite the app being healthy.
+                    httpHeaders:
+                      - name: Host
+                        value: joplin.blackcats.cc
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 25m
+              limits:
+                memory: 1Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 22300
+
+    persistence:
+      blobs:
+        existingClaim: joplin-blobs
+        globalMounts:
+          - path: /mnt/joplin-blobs
+      # Static SP metadata, and a scratch dir the initContainer drops the
+      # freshly-fetched IdP metadata into. Separate mounts because a ConfigMap
+      # and an emptyDir cannot share one path.
+      saml-sp:
+        type: configMap
+        name: joplin-saml-sp
+        globalMounts:
+          - path: /saml-sp
+      saml-idp:
+        type: emptyDir
+        globalMounts:
+          - path: /saml-idp

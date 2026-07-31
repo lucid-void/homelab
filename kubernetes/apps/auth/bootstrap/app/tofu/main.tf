@@ -365,6 +365,83 @@ resource "kubernetes_secret_v1" "proxmox_oidc_secret" {
   }
 }
 
+# Joplin Server speaks SAML, not OIDC (upstream issue #14252 — OIDC is still an
+# open feature request). The SP metadata below must stay byte-identical to
+# kubernetes/apps/joplin/joplin/app/saml-sp-configmap.yml: Joplin serves that
+# same document to samlify, and a mismatch in entityID or ACS Location makes
+# Zitadel's assertion fail the audience check.
+#
+# No client secret exists for a SAML SP, so unlike every OIDC app here there is
+# nothing to write back into a Kubernetes Secret — Joplin only needs the public
+# IdP metadata, which it fetches from Zitadel at pod start.
+resource "zitadel_application_saml" "joplin" {
+  project_id = zitadel_project.homelab.id
+  org_id     = local.org_id
+  name       = "Joplin"
+
+  metadata_xml = <<-EOT
+    <?xml version="1.0"?>
+    <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://joplin.blackcats.cc">
+      <md:SPSSODescriptor AuthnRequestsSigned="false" WantAssertionsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+        <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
+        <md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                                     Location="https://joplin.blackcats.cc/api/saml"
+                                     index="1" />
+      </md:SPSSODescriptor>
+    </md:EntityDescriptor>
+  EOT
+}
+
+# Zitadel emits SAML attributes named Email / FullName / FirstName / SurName /
+# UserName / UserID. Joplin looks up exactly `email` and `displayName`
+# (packages/server/src/routes/api/login.ts) and throws ErrorBadRequest when
+# either is missing — so without this action every SSO login fails with
+# "email must be a string". setCustomAttribute only adds keys that aren't
+# already present, so the stock attributes are left untouched.
+#
+# allowed_to_fail = false: a silent failure here would degrade to that same
+# opaque 400, so fail the login loudly instead.
+resource "zitadel_action" "joplin_saml_attributes" {
+  org_id          = local.org_id
+  name            = "joplinSamlAttributes"
+  timeout         = "10s"
+  allowed_to_fail = false
+
+  script = <<-EOT
+    function joplinSamlAttributes(ctx, api) {
+      const user = ctx.v1.getUser();
+      if (!user || !user.human) {
+        return;
+      }
+
+      // The human object has been reshaped across Zitadel versions (flat
+      // `human.email` vs nested `human.email.email`), so accept either rather
+      // than pinning to one and breaking on upgrade.
+      const email = typeof user.human.email === 'string'
+        ? user.human.email
+        : (user.human.email && user.human.email.email);
+
+      const profile = user.human.profile || user.human;
+      const displayName = profile.displayName
+        || [profile.firstName, profile.lastName].filter(Boolean).join(' ');
+
+      if (email) {
+        api.v1.attributes.setCustomAttribute('email', '', email);
+      }
+      if (displayName) {
+        api.v1.attributes.setCustomAttribute('displayName', '', displayName);
+      }
+    }
+  EOT
+}
+
+resource "zitadel_trigger_actions" "joplin_saml_attributes" {
+  org_id       = local.org_id
+  flow_type    = "FLOW_TYPE_SAML_RESPONSE"
+  trigger_type = "TRIGGER_TYPE_PRE_SAML_RESPONSE_CREATION"
+  action_ids   = [zitadel_action.joplin_saml_attributes.id]
+}
+
 resource "kubernetes_secret_v1" "immich_oidc_config" {
   metadata {
     name      = "immich-oidc-config"

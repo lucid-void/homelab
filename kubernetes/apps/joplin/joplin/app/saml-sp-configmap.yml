@@ -1,0 +1,30 @@
+---
+# SAML Service Provider metadata for Joplin Server.
+#
+# Joplin does not generate this itself — SAML_SP_CONFIG_FILE must point at a
+# static XML file (packages/server/src/utils/saml.ts reads it straight off disk
+# and hands it to samlify). The same XML is fed to Zitadel by the
+# zitadel_application_saml resource in the zitadel-bootstrap Terraform, so the
+# entityID and ACS Location below must stay byte-identical to what's registered
+# there or the assertion audience check fails.
+#
+# ACS path `/api/saml` is fixed by Joplin (routes/api/login.ts).
+# AuthnRequestsSigned=false: Joplin has no SP signing key, so requests are
+# unsigned. Acceptable here — the flow is VPN-gated and the assertion itself is
+# still signed by Zitadel.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: joplin-saml-sp
+  namespace: joplin
+data:
+  sp.xml: |
+    <?xml version="1.0"?>
+    <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://joplin.blackcats.cc">
+      <md:SPSSODescriptor AuthnRequestsSigned="false" WantAssertionsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+        <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
+        <md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                                     Location="https://joplin.blackcats.cc/api/saml"
+                                     index="1" />
+      </md:SPSSODescriptor>
+    </md:EntityDescriptor>

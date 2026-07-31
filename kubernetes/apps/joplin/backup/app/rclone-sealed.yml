@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: rclone-secret
+  namespace: joplin
+spec:
+  encryptedData:
+    rclone.conf: AgB0Tfbnl3vi2xtCm/A1q068IMXogIhdZ6KxuR/YPweMXxbUWiIexostlnVv4jYDGu/Nbvf0MBcE6wP9LbQh1Tm4ql+V7QNPnRjc8WEaD9zmOnSis6f5tMz8L2/Wvv2uw9TeYp9hwQTy2+WHQCoIh1w4vcicrWPrsNQM0f1PWobnUYJJyLKEdXQOOZO99sByx+fghDD5AfEmvXhzY8/VXKCi9LIJSBpnP7WUkNBO+yqXt5CeY5HG2bM2ZlFTdwBAEXcV7GZW3RzRKCvdDK49Zqv/BxMX62YQtsrrmRz3iNYU7ulnT9WthXjahiPdiN/mi95jJ2HV8i1THz97wyKOez4BgqElAcJ5QWtY4xdHkJ3OAkhvS1KFiHx05QsVye1D9sVwykh41NLTXBnAx5vhT6JSva0bBnkuyIeZR2q//CmhrMk95umtPCP+w0gseY/+5UFf36ZFPoMz50Q1LUAEjRc3ieaf0DcLiS5ih/hGvNx3LgMaqtSp5SnqQC9J0mVbLVY6syQSsRZg+LyKLekGF7/pZHYdYK2MNtKq402SFW/SfasVxJSrSPjKtwNxHRZjpRGdi6En62m74ZL8x1eMv/1zgsHSkKnORmq0DEdzfsOzKwID9jGxj33g56seSpll+MIOXBZorZP1pD7eWBAO6rB8mL6F6R1e6E2PquOXKjZh2shWjjxPQ9+AwW6ZuzBNyry07tPygmMEZb71o5lPw2Euc/O7IddQiHw4Q5dT6LtclrLt2efg4rKUFtTKxO15JGS7dz2I+0mYER+Qx2rHythzCXSavkWSy1fxZTejONBvjs4kC8dyQeFD1+EEmGB7vjDYaPQQwXjMS8WBYOSMd5Zi+5HhnGcqY7wx/HHFBLavQ3zWiFN2UEIQ9vRMD87MRKwbloEGRDL2Gd44KcV72fIRDCOITtbjXWmJsLvNGTWRbXSqhwW29Ov9Kpma9/zO7yiCMxu39S8WRRNePFhbabakrbEdPr+AuiLu+ze1/OtKsHG1JNzzeZKMLpdtcQs=
+  template:
+    metadata:
+      name: rclone-secret
+      namespace: joplin
+    type: Opaque
