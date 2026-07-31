@@ -414,16 +414,22 @@ resource "zitadel_action" "joplin_saml_attributes" {
         return;
       }
 
-      // The human object has been reshaped across Zitadel versions (flat
-      // `human.email` vs nested `human.email.email`), so accept either rather
-      // than pinning to one and breaking on upgrade.
-      const email = typeof user.human.email === 'string'
-        ? user.human.email
-        : (user.human.email && user.human.email.email);
+      // Do NOT type-check these with `typeof x === 'string'`. Zitadel's action
+      // user object (internal/actions/object/user.go) types DisplayName as a
+      // plain Go `string` but Email as `domain.EmailAddress` — a named string
+      // type, which goja does not surface as a JS string primitive. A typeof
+      // check therefore passes for displayName and silently drops email from
+      // the assertion, and Joplin 3.7.1 reports that as the opaque
+      // 'Could not login using email "undefined"'. Coerce instead.
+      function text(value) {
+        if (value === null || value === undefined) return '';
+        const s = String(value);
+        return (s === 'undefined' || s === 'null' || s === '[object Object]') ? '' : s;
+      }
 
-      const profile = user.human.profile || user.human;
-      const displayName = profile.displayName
-        || [profile.firstName, profile.lastName].filter(Boolean).join(' ');
+      const email = text(user.human.email);
+      const displayName = text(user.human.displayName)
+        || [text(user.human.firstName), text(user.human.lastName)].filter(Boolean).join(' ');
 
       if (email) {
         api.v1.attributes.setCustomAttribute('email', '', email);
