@@ -5,7 +5,7 @@
 | StorageClass | Provisioner | Access Modes | Default | Use case |
 |---|---|---|---|---|
 | `nfs-client` | democratic-csi (NFS subdirectory) | RWO / RWX | **Yes** | All app data, CNPG Postgres instances |
-| `openebs-hostpath` | OpenEBS LocalPV | RWO | No | Workloads where SQLite-over-NFS causes locking (Plex) |
+| `openebs-hostpath` | OpenEBS LocalPV | RWO | No | Workloads NFS is bad for: SQLite locking (Plex), latency-sensitive random I/O (Minecraft worlds) |
 
 ---
 
@@ -76,7 +76,12 @@ Manifest: `kubernetes/apps/media/media-nfs/`
 **Base path:** `/var/openebs/local`
 **Node affinity:** Set automatically when the PVC first binds — the PV is pinned to that node permanently.
 
-Used only for Plex config, where SQLite WAL locking errors occur over NFS.
+Two consumers, for two different reasons:
+
+- **Plex config** — SQLite WAL locking errors occur over NFS.
+- **Minecraft worlds** (`matcha-data`, `vanilla-data`) — Anvil region files are random small I/O inside large files. Every chunk load over NFS costs a network round-trip, and a load that blocks the single-threaded tick loop shows up as TPS drop and rubber-banding. The Synology is also HDD-backed and simultaneously serving the media stack, so seek contention with a Plex scan or a SAB download would land directly on gameplay. A third hazard: NFS mounts must be `hard` (a `soft` mount risks silent corruption), so a NAS stall blocks the JVM in uninterruptible I/O rather than degrading it.
+
+Node-pinning is the price, and it is cheap here: all three control planes are VMs on the same Proxmox host, so a node failure worth rescheduling around is either a VM failure (data intact on the host, just wait for the node) or a host failure (everything is down regardless). See `design/docs/services.md` → Media for how the world data is still backed up off-node.
 
 ### Talos Mount Namespace Constraint
 
@@ -104,7 +109,7 @@ Manifests: `kubernetes/apps/openebs/`
 |---|---|---|
 | App persistent data (RWO) | `nfs-client` | CNPG instances, Immich library, Paperless docs, Gitea repos, Gotify SQLite, Gatus |
 | Shared media (RWX) | Static NFS PV | `media-nfs` — Synology `/volume2/Media` shared by all media services |
-| Local persistent (RWO, SQLite-hostile NFS) | `openebs-hostpath` | Plex config |
+| Local persistent (RWO, NFS-hostile I/O) | `openebs-hostpath` | Plex config, Minecraft worlds |
 | Ephemeral | `emptyDir` | Valkey caches, Tika, Gotenberg |
 | Config/secrets | ConfigMap + SealedSecret | All app configuration |
 

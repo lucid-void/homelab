@@ -16,3 +16,6 @@ resources:
   - ./kavita/ks.yml
   - ./romm/database/ks.yml
   - ./romm/ks.yml
+  - ./mc-router/ks.yml
+  - ./minecraft/ks.yml
+  - ./minecraft-backup/ks.yml

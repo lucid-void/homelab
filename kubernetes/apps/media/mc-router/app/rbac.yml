@@ -1,0 +1,35 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mc-router
+  namespace: media
+---
+# mc-router discovers backends by watching Services cluster-wide for the
+# mc-router.itzg.me/externalServerName annotation, so this has to be a
+# ClusterRole. Read-only on services and nothing else.
+#
+# The upstream RBAC example also grants statefulsets/scale for its auto-scale-up
+# feature (wake a stopped server when a player connects). We run Deployments and
+# don't use that, so those rules are deliberately omitted.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mc-router
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mc-router
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mc-router
+subjects:
+  - kind: ServiceAccount
+    name: mc-router
+    namespace: media
