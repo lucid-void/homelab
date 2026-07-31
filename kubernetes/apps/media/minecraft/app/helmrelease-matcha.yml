@@ -1,0 +1,280 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: matcha
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        # RWO volume: a RollingUpdate would deadlock (new pod pending on a PVC the
+        # old pod still holds). Also matters because two Minecraft processes on one
+        # world directory corrupt it — session.lock is not a substitute.
+        strategy: Recreate
+        annotations:
+          reloader.stakater.com/auto: "true"
+        pod:
+          securityContext:
+            # Media-stack convention. The itzg entrypoint starts as root, chowns
+            # /data to UID/GID below, then drops privileges itself — so no
+            # runAsUser here, or that chown never happens.
+            fsGroup: 2200
+            fsGroupChangePolicy: OnRootMismatch
+        initContainers:
+          # filebrowser stores users in its bolt DB, and a fresh DB otherwise gets a
+          # random admin password printed once to stdout. Create/refresh the admin
+          # account deterministically from the SealedSecret instead. Idempotent:
+          # `users add` fails when the account exists, so fall through to `update`.
+          filebrowser-init:
+            image:
+              repository: filebrowser/filebrowser
+              tag: v2.63.23
+            command:
+              - /bin/sh
+              - -c
+              - |
+                set -eu
+                DB=/database/filebrowser.db
+                filebrowser config init --database "$DB" --root /srv --auth.method=json || true
+                filebrowser config set --database "$DB" --root /srv --auth.method=json
+                filebrowser users add admin "$FB_ADMIN_PASSWORD" \
+                  --database "$DB" --perm.admin 2>/dev/null \
+                  || filebrowser users update admin --database "$DB" \
+                       --password "$FB_ADMIN_PASSWORD" --perm.admin
+                echo "filebrowser admin account ready"
+            # Non-optional secretRef: app-template strips secretRef.optional on
+            # initContainers, and there is no secretKeyRef support here.
+            envFrom:
+              - secretRef:
+                  name: minecraft-secret
+            securityContext:
+              runAsUser: 2202
+              runAsGroup: 2200
+        containers:
+          app:
+            image:
+              repository: itzg/minecraft-server
+              tag: 2026.7.2-java21
+            env:
+              EULA: "TRUE"
+              TZ: Europe/Brussels
+              UID: "2202"
+              GID: "2200"
+              TYPE: PAPER
+              # Minecraft switched to calendar versioning; 26.2 is the current
+              # release and Paper builds for it. Pin deliberately — a world opened
+              # by a newer version cannot be downgraded.
+              VERSION: "26.2"
+              MEMORY: 4G
+              USE_AIKAR_FLAGS: "true"
+              MOTD: "matcha"
+              DIFFICULTY: normal
+              # Biggest single lever on chunk I/O and tick cost. Raise only if the
+              # server is comfortably idle.
+              VIEW_DISTANCE: "10"
+              SIMULATION_DISTANCE: "6"
+              ENABLE_ROLLING_LOGS: "true"
+              ENABLE_RCON: "true"
+              RCON_PORT: "25575"
+              RCON_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: minecraft-secret
+                    key: RCON_PASSWORD
+              # Plugins are declared here rather than uploaded, so the server's
+              # plugin set is reproducible from git and survives losing the PVC.
+              # Slugs are Modrinth project IDs; SPIGET_RESOURCES takes SpigotMC
+              # numeric resource IDs if you need something not on Modrinth.
+              MODRINTH_PROJECTS: "luckperms,spark"
+              MODRINTH_DOWNLOAD_DEPENDENCIES: required
+            probes:
+              # mc-health ships in the image and speaks the Minecraft ping protocol,
+              # so it reports the server actually accepting connections rather than
+              # just the JVM being up.
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command: ["mc-health"]
+                  # World generation on a first boot can run for many minutes.
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  failureThreshold: 90
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command: ["mc-health"]
+                  periodSeconds: 30
+                  timeoutSeconds: 10
+                  failureThreshold: 10
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command: ["mc-health"]
+                  periodSeconds: 15
+                  timeoutSeconds: 10
+                  failureThreshold: 5
+            resources:
+              requests:
+                memory: 4Gi
+                cpu: 500m
+              # Must exceed MEMORY (heap) by enough for metaspace, GC structures
+              # and direct buffers, or the JVM gets OOMKilled at full heap.
+              limits:
+                memory: 6Gi
+
+          # Local disk is fast but node-pinned, so it is not a backup. This sidecar
+          # takes RCON-quiesced (save-off / save-all / save-on) tarballs onto NFS,
+          # which the nightly minecraft-backup CronJob then ships to Filen.
+          backup:
+            image:
+              repository: itzg/mc-backup
+              tag: "2026.7.3"
+            env:
+              TZ: Europe/Brussels
+              BACKUP_INTERVAL: "2h"
+              INITIAL_DELAY: "5m"
+              # Nothing changes on an empty server; skip those cycles entirely.
+              PAUSE_IF_NO_PLAYERS: "true"
+              PRUNE_BACKUPS_DAYS: "7"
+              BACKUP_METHOD: tar
+              SRC_DIR: /data
+              DEST_DIR: /backups
+              RCON_HOST: localhost
+              RCON_PORT: "25575"
+              RCON_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: minecraft-secret
+                    key: RCON_PASSWORD
+            securityContext:
+              runAsUser: 2202
+              runAsGroup: 2200
+            resources:
+              requests:
+                memory: 64Mi
+                cpu: 25m
+              limits:
+                memory: 512Mi
+
+          # Web file manager over the server directory: datapacks into
+          # world/datapacks, jars into plugins/, in-browser edits of
+          # server.properties. Everything routine should still go through the env
+          # vars above — this is for the one-offs those can't express.
+          files:
+            image:
+              repository: filebrowser/filebrowser
+              tag: v2.63.23
+            args:
+              - --database=/database/filebrowser.db
+              - --root=/srv
+              - --address=0.0.0.0
+              - --port=8080
+            securityContext:
+              runAsUser: 2202
+              runAsGroup: 2200
+            probes:
+              # Liveness only, deliberately. Any container's readiness gates Pod
+              # readiness, which would pull the Service endpoint and cut players
+              # off — a file manager hiccup must not take the game server offline.
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 8080
+                  initialDelaySeconds: 15
+                  periodSeconds: 30
+                  failureThreshold: 5
+              readiness:
+                enabled: false
+            resources:
+              requests:
+                memory: 32Mi
+                cpu: 10m
+              limits:
+                memory: 256Mi
+
+    service:
+      # Two services, so app-template suffixes both: matcha-app / matcha-files.
+      app:
+        controller: app
+        annotations:
+          # How mc-router finds this backend. Adding a server is exactly this
+          # annotation plus a DNS name on the mc-router Service.
+          mc-router.itzg.me/externalServerName: matcha.blackcats.cc
+        ports:
+          minecraft:
+            port: 25565
+      files:
+        controller: app
+        ports:
+          http:
+            port: 8080
+
+    persistence:
+      data:
+        existingClaim: matcha-data
+        # Same volume, different mount point per container: the server wants /data,
+        # filebrowser serves it from /srv.
+        advancedMounts:
+          app:
+            app:
+              - path: /data
+            backup:
+              - path: /data
+                readOnly: true
+            files:
+              - path: /srv
+            filebrowser-init:
+              - path: /srv
+      # filebrowser's bolt DB. Kept out of the world tree but on the same volume,
+      # so it needs no PVC of its own.
+      fbdb:
+        existingClaim: matcha-data
+        advancedMounts:
+          app:
+            files:
+              - path: /database
+                subPath: .filebrowser
+            filebrowser-init:
+              - path: /database
+                subPath: .filebrowser
+      # The image entrypoint copies a default settings.json in here at startup, so
+      # it has to be writable. All real configuration comes from the flags above.
+      fbconfig:
+        type: emptyDir
+        advancedMounts:
+          app:
+            files:
+              - path: /config
+      backups:
+        existingClaim: mc-backups
+        advancedMounts:
+          app:
+            backup:
+              - path: /backups
+                subPath: matcha

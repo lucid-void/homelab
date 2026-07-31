@@ -153,6 +153,9 @@ kubernetes/
 | Prowlarr | media | `prowlarr.blackcats.cc` | Built-in |
 | SABnzbd | media | `nzb.blackcats.cc` | Built-in |
 | Seerr | media | `seerr.blackcats.cc` | Built-in |
+| Minecraft `matcha` (Paper) | media | `matcha.blackcats.cc` — **TCP 25565 via mc-router, not the Gateway** | None (VPN-gated); files UI at `matcha-files.blackcats.cc` |
+| Minecraft `vanilla` | media | `vanilla.blackcats.cc` — **TCP 25565 via mc-router, not the Gateway** | None (VPN-gated); files UI at `vanilla-files.blackcats.cc` |
+| mc-router | media | LoadBalancer `172.16.20.51:25565` (IP shared with Plex) | — |
 | CNPG cluster `postgres` | postgres | — | Per-DB roles |
 
 Full inventory with storage details: `docs/services.md`.

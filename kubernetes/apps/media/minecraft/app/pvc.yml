@@ -1,0 +1,48 @@
+---
+# World data lives on local disk, not NFS. Minecraft's region files are random
+# small I/O inside large files; every chunk load over NFS costs a network round
+# trip, and a load that blocks the (single-threaded) tick loop shows up directly
+# as TPS drop. openebs-hostpath pins each server to a node — acceptable here
+# because all three control planes are VMs on the same Proxmox host, so there is
+# no availability being given up.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: matcha-data
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vanilla-data
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      storage: 20Gi
+---
+# Shared landing zone for the mc-backup sidecars' tarballs. RWX because both
+# servers write here (each under its own subPath) and the nightly restic CronJob
+# reads the lot — potentially all on different nodes.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mc-backups
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 100Gi

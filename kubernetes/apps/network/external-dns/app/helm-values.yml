@@ -2,6 +2,11 @@
 sources:
   - gateway-httproute
   - gateway-grpcroute
+  # Needed for raw-TCP services that never pass through the Gateway — currently
+  # only mc-router, which publishes the Minecraft hostnames at 172.16.20.51.
+  # The annotation-filter below still applies, so a Service is only picked up if
+  # it explicitly opts in; existing LoadBalancers (e.g. plex-direct) are untouched.
+  - service
 
 provider:
   name: cloudflare

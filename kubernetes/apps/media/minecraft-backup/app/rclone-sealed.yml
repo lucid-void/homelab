@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: rclone-secret
+  namespace: media
+spec:
+  encryptedData:
+    rclone.conf: AgBxvdXZmqMETBVCf4CO4wpCi8cfJ6U0vtFjy6wABEqr8xNhxZEHvAeSbdOL3J1jrNIfX+7oPKQ5CyoGtjKXgUFH6AXjVJ6yBb+E/Dqs44TDDIDQ5aHaLtt/3/Z4Xw6YobBGDl1ywASbRBDFLNUOl6UnZ8eFoHqmgJ4uExSG8ewPQs7MzJHKn3fV5i/FzRMlLytFjp61b3Ks5hEFTYNZyVjG8OCeoINBji+dH5ChKBooyy7qHfPdKm2e30jHWLpwmEQav6Hhd0bF3By7MO07A233n+RjjCJxOcK2f1GktpNoZjKPOXG9N+KNtsbS3bipYfAAeC2M5cIib7wD4birRCtTiBPtlLRAuhWWEjP5NivWaxcObWFc4M0/XlRCSk2m4kcFkVCH71l0v9RD6AScqoGtawcYQaEAQgzXWmw45i7hcqus8iUP0E1kdKSPmdQBkKaydM+T/r8BtqjvA1k8Mey0cCLW8CAy7CB95usTZHNm5e8QSAPalSU1Gmx0xP+8W2SvLLsUHQVNNeKQFtG/B2h/6ky+oqMvWOnFhQB6m4XilLVSeZLgqkr7ynea7vlDP9c8pmHzKRFnwceNFf8cjrZfKXB/ml1zi/PUAaHrvxCHfq0tj7UpJx5Ibpnr22slYe9QYmQEW/IEEScKuuHHQfyJRF2qCGLZfPJlLFa/DjiSjlVAQkEVc0gXOdCiODwyANwIaoCdD4L0eQ0rWz/coHQT7hGlmd3VpjPAeIEMyKvhn5gm/9dVz/Hp9YdQOxQpWTpTEHM1lc1busrYXZBAstXpzPKAUVUHpa5VgvszPaEBmyz6vfuvpzm1dLRBvTOJ8UaFNPVEjMG8SoYg2vLC8ff3B1zfuIOwRpdkRwxkQIhz2CEmMWSgOU7D0kZFRNdo0PCjvn6yGrMH3AbTcDOOdQLaJUNcxoFI5cl0+8Cly+jOWSC+4aqwdLFy7czXd27/8XLXxL9Ztr30UjgjNjUXPlTpJ6zq6PMj8jc9OASLymT4cwIMHF+5s2v889Cbt2s=
+  template:
+    metadata:
+      name: rclone-secret
+      namespace: media
+    type: Opaque

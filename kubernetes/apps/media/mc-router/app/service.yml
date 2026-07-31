@@ -1,0 +1,31 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mc-router
+  namespace: media
+  labels:
+    lbpool: pool-b
+  annotations:
+    # pool-b holds exactly one address (172.16.20.51) and Plex already owns it.
+    # Cilium hands the same IP to every Service carrying an identical sharing-key,
+    # provided their ports don't collide — Plex is 32400, this is 25565.
+    # The matching annotation on plex's `direct` Service is what makes it work;
+    # removing it from either side breaks the other.
+    lbipam.cilium.io/sharing-key: "pool-b-shared"
+    # Both Minecraft hostnames resolve to this LB IP; mc-router demultiplexes
+    # them from the hostname in the client's handshake packet.
+    external-dns.alpha.kubernetes.io/enabled: "true"
+    external-dns.alpha.kubernetes.io/hostname: matcha.blackcats.cc,vanilla.blackcats.cc
+spec:
+  type: LoadBalancer
+  # Left at the default (Cluster) on purpose. `Local` would preserve client source
+  # IPs, but this IP is shared with Plex, which uses Cluster — mixing policies on
+  # one shared address risks L2-announcing it from a node with no mc-router pod.
+  selector:
+    app.kubernetes.io/name: mc-router
+  ports:
+    - name: minecraft
+      port: 25565
+      targetPort: 25565
+      protocol: TCP

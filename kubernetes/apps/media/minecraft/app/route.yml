@@ -1,0 +1,41 @@
+---
+# The Minecraft ports themselves are not routed here — they're raw TCP through
+# mc-router on 172.16.20.51:25565. These routes only expose the filebrowser
+# sidecars, which are ordinary HTTP.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: matcha-files
+  namespace: media
+  annotations:
+    external-dns.alpha.kubernetes.io/enabled: "true"
+spec:
+  parentRefs:
+    - name: shared
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - matcha-files.blackcats.cc
+  rules:
+    - backendRefs:
+        - name: matcha-files
+          port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vanilla-files
+  namespace: media
+  annotations:
+    external-dns.alpha.kubernetes.io/enabled: "true"
+spec:
+  parentRefs:
+    - name: shared
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - vanilla-files.blackcats.cc
+  rules:
+    - backendRefs:
+        - name: vanilla-files
+          port: 8080

@@ -68,6 +68,15 @@ The L2 announcement policy applies to all Linux nodes on interfaces matching `^e
 
 pool-a is exclusively for the `shared` Gateway. pool-b is for any other `LoadBalancer` Service that needs a stable external IP — add `lbpool: pool-b` to its labels.
 
+**pool-b holds exactly one address**, currently shared by two Services. Cilium assigns the same IP to Services carrying an identical `lbipam.cilium.io/sharing-key` annotation, provided their ports don't collide:
+
+| Service | Port | Sharing key |
+|---|---|---|
+| `media/plex` (`plex-direct`) | 32400 | `pool-b-shared` |
+| `media/mc-router` | 25565 | `pool-b-shared` |
+
+Both annotations are load-bearing — removing it from either Service leaves the other unable to get an address (the pool is exhausted at one IP). A third direct-LB Service either joins the same key on a free port, or the pool needs widening in `cilium-l2.yml`. Cross-namespace sharing would additionally need `lbipam.cilium.io/sharing-cross-namespace`; both of these are in `media`, so it isn't set.
+
 ### Netbird IP Isolation
 
 Netbird runs as a Talos extension (`siderolabs/netbird`) and adds a `wt0` WireGuard interface with a `100.80.x.x/16` address to every node. Several Kubernetes components auto-select the "primary" IP and will pick `100.80.x.x` without explicit constraints. Three guards in `talconfig.yaml` prevent this:
@@ -160,7 +169,7 @@ The Cloudflare API token is stored as `cloudflare-api-token` Secret in `cert-man
 
 ### DNS (external-dns)
 
-external-dns watches `HTTPRoute` and `GRPCRoute` resources and creates Cloudflare A records pointing to `172.16.20.50`. DNS creation is **opt-in**:
+external-dns watches `HTTPRoute`, `GRPCRoute` and `Service` resources and creates Cloudflare A records. DNS creation is **opt-in**:
 
 ```yaml
 annotations:
@@ -171,7 +180,17 @@ Without this annotation, no DNS record is created. The Gateway's own wildcard ho
 
 `txtOwnerId: homelab-k8s` — external-dns uses TXT records to track ownership. Records not present in git will be deleted (`policy: sync`).
 
-All A records resolve to `172.16.20.50` (gateway VIP). No Cloudflare proxy. External access requires Netbird VPN.
+Almost all A records resolve to `172.16.20.50` (gateway VIP). The `service` source exists for the one case that can't route through the Gateway — Minecraft is raw TCP, so `mc-router`'s LoadBalancer publishes `matcha.blackcats.cc` and `vanilla.blackcats.cc` at `172.16.20.51` via:
+
+```yaml
+annotations:
+  external-dns.alpha.kubernetes.io/enabled: "true"
+  external-dns.alpha.kubernetes.io/hostname: matcha.blackcats.cc,vanilla.blackcats.cc
+```
+
+Because the annotation-filter applies to every source, adding `service` did not change any existing LoadBalancer — `plex-direct` is unannotated and stays unpublished.
+
+No Cloudflare proxy. External access requires Netbird VPN.
 
 Manifests: `kubernetes/apps/network/external-dns/`
 
