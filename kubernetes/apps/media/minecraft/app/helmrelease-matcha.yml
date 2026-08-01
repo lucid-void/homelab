@@ -105,6 +105,9 @@ spec:
               # each boot. See patches-configmap.yml for why this is a patch and
               # not a whole mounted file.
               PATCH_DEFINITIONS: /patches
+              # Unique per server — QuickChat keys its cross-server routing
+              # on this, so two servers sharing an id break the bridge.
+              CFG_QUICKCHAT_SERVER_ID: "matcha"
               CFG_VELOCITY_SECRET:
                 valueFrom:
                   secretKeyRef:

@@ -88,6 +88,9 @@ spec:
               # so this server still cannot be joined directly.
               ONLINE_MODE: "FALSE"
               PATCH_DEFINITIONS: /patches
+              # Unique per server — QuickChat keys its cross-server routing
+              # on this, so two servers sharing an id break the bridge.
+              CFG_QUICKCHAT_SERVER_ID: "vanilla"
               CFG_VELOCITY_SECRET:
                 valueFrom:
                   secretKeyRef:
