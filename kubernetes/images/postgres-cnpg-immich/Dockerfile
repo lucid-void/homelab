@@ -50,10 +50,15 @@ RUN cp /pgvector-artifacts/vector.so /usr/lib/postgresql/${PG_MAJOR}/lib/ \
 
 # VectorChord — zip layout: pkglibdir/vchord.so  sharedir/extension/*.{control,sql}
 # (pgvecto.rs removed: Immich v3 dropped pgvecto.rs support and now runs on VectorChord.)
+#
+# Org is supervc-stack, not tensorchord: the repo was transferred (same repo, not a
+# fork). GitHub still redirects the old path, so builds pinned to tensorchord kept
+# working -- but that redirect dies the moment anyone creates a repo at the old
+# name, which would break this build with a 404 at an arbitrary future date.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates unzip \
     && curl -fsSL \
-        "https://github.com/tensorchord/VectorChord/releases/download/${VECTORCHORD_VERSION}/postgresql-${PG_MAJOR}-vchord_${VECTORCHORD_VERSION}_x86_64-linux-gnu.zip" \
+        "https://github.com/supervc-stack/VectorChord/releases/download/${VECTORCHORD_VERSION}/postgresql-${PG_MAJOR}-vchord_${VECTORCHORD_VERSION}_x86_64-linux-gnu.zip" \
         -o /tmp/vchord.zip \
     && unzip /tmp/vchord.zip -d /tmp/vchord \
     && cp /tmp/vchord/pkglibdir/vchord.so /usr/lib/postgresql/${PG_MAJOR}/lib/ \

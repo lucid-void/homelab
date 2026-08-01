@@ -36,6 +36,33 @@
         "repository: (?<depName>[^\\n]+)\\n\\s+tag: [\"']?(?<currentValue>[^\"'\\n]+)[\"']?"
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "pgvector version in the postgres-cnpg-immich image. Built from source via a pinned tarball, so no manager sees it — without this it silently never updates. The Dockerfile ARG default and the workflow env are two sources of truth and must move together, hence both files.",
+      "managerFilePatterns": [
+        "/^kubernetes/images/postgres-cnpg-immich/Dockerfile$/",
+        "/^\\.github/workflows/postgres-cnpg-immich\\.yml$/"
+      ],
+      "matchStrings": [
+        "PGVECTOR_VERSION[:=]\\s*[\"']?(?<currentValue>[0-9][^\"'\\s]*)[\"']?"
+      ],
+      "depNameTemplate": "pgvector/pgvector",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "description": "VectorChord version in the postgres-cnpg-immich image. Same story as pgvector — a pinned release zip no manager tracks. Note the repo was transferred from tensorchord to supervc-stack; releases are tagged without a leading 'v'.",
+      "managerFilePatterns": [
+        "/^kubernetes/images/postgres-cnpg-immich/Dockerfile$/",
+        "/^\\.github/workflows/postgres-cnpg-immich\\.yml$/"
+      ],
+      "matchStrings": [
+        "VECTORCHORD_VERSION[:=]\\s*[\"']?(?<currentValue>[0-9][^\"'\\s]*)[\"']?"
+      ],
+      "depNameTemplate": "supervc-stack/VectorChord",
+      "datasourceTemplate": "github-releases"
     }
   ],
 

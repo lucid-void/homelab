@@ -13,7 +13,13 @@ env:
   PG_BASE_TAG: "bookworm"
   PGVECTOR_VERSION: "0.8.2"
   VECTORCHORD_VERSION: "1.1.1"
-  IMAGE_VERSION: "1.1.0"
+  # Bump on every change to the Dockerfile or these build args. `v${IMAGE_VERSION}`
+  # is the tag kubernetes/apps/postgres/cluster/app/imagecatalog.yml pins, so leaving
+  # it unchanged republishes the tag the live cluster is running -- the pods keep
+  # their existing digest, but any later pull resolves to different bytes than the
+  # peers already have. Bumping here does NOT deploy: imagecatalog.yml still pins the
+  # old tag until you move it deliberately (that rolls the DB, see CLAUDE.md).
+  IMAGE_VERSION: "1.1.1"
   REGISTRY: ghcr.io
   IMAGE_NAME: lucid-void/postgres-cnpg-immich
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
