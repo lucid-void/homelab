@@ -30,7 +30,7 @@ spec:
           app:
             image:
               repository: ghcr.io/paperless-ngx/paperless-ngx
-              tag: "2.20.15"
+              tag: "3.0.4"
             env:
               TZ: Europe/Brussels
               PAPERLESS_DBENGINE: postgresql
@@ -52,6 +52,12 @@ spec:
               PAPERLESS_DATA_DIR: /data
               PAPERLESS_MEDIA_ROOT: /media
               PAPERLESS_CONSUMPTION_DIR: /consume
+              # Semantics differ across the v3 boundary. v2: duplicates are always
+              # rejected, this flag only decides whether the file is deleted from
+              # /consume (true) or left there (false, the old default). v3: duplicates
+              # are *consumed* by default and merely flagged in the UI, and this flag
+              # restores rejection. True on v3 = reject + delete.
+              PAPERLESS_CONSUMER_DELETE_DUPLICATES: "true"
               USERMAP_UID: "1000"
               USERMAP_GID: "1000"
               PAPERLESS_APPS: "allauth.socialaccount.providers.openid_connect"
