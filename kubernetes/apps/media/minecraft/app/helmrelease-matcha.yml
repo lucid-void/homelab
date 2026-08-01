@@ -139,7 +139,12 @@ spec:
               #               between backends; this plugin does, by relaying
               #               through minecraft-valkey. Must be installed on
               #               BOTH servers or the bridge is one-way.
-              MODRINTH_PROJECTS: "luckperms,chunky,squaremap,quickchatv2"
+              #   placeholderapi — hard dependency of quickchat (declared in its
+              #               plugin.yml, NOT in Modrinth metadata, so
+              #               MODRINTH_DOWNLOAD_DEPENDENCIES does not pull it;
+              #               without it Quickchat fails to load with
+              #               UnknownDependencyException and chat stays local).
+              MODRINTH_PROJECTS: "luckperms,placeholderapi,chunky,squaremap,quickchatv2"
               MODRINTH_DOWNLOAD_DEPENDENCIES: required
 
               # World directory name. Previously lived only in server.properties on

@@ -112,7 +112,12 @@ spec:
               #   veinminer — mine a whole ore vein in one break
               # quickchat bridges chat to matcha via minecraft-valkey — Velocity
               # does not merge chat itself. Must be on BOTH servers.
-              MODRINTH_PROJECTS: "chunky,squaremap,veinminer,quickchatv2"
+              # luckperms + placeholderapi are hard dependencies of quickchat,
+              # declared in its plugin.yml rather than Modrinth metadata, so
+              # MODRINTH_DOWNLOAD_DEPENDENCIES will not fetch them. Omit either
+              # and Quickchat fails to load (UnknownDependencyException) and the
+              # chat bridge silently stays one-way.
+              MODRINTH_PROJECTS: "luckperms,placeholderapi,chunky,squaremap,veinminer,quickchatv2"
               MODRINTH_DOWNLOAD_DEPENDENCIES: required
 
               # Terralith — overworld generation overhaul. Modrinth lists it with
