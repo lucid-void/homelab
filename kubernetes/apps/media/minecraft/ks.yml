@@ -13,6 +13,10 @@ spec:
     - name: openebs
     - name: shared-gateway
     - name: sealed-secrets
+    # Owns the velocity-secret SealedSecret that both servers read
+    # CFG_VELOCITY_SECRET from; without it Paper starts with an empty
+    # forwarding secret and rejects every proxied login.
+    - name: minecraft-proxy
   path: ./kubernetes/apps/media/minecraft/app
   prune: true
   sourceRef:

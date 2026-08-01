@@ -4,7 +4,8 @@
 #
 # Metric sources:
 #   minecraft_status_*  → mc-monitor (:8080), protocol-level server ping
-#   mc_router_*         → mc-router (:8080, --metrics-backend prometheus)
+#   (Velocity exports no metrics; proxy health comes from mc-monitor
+#    pinging minecraft-proxy, see mc-monitor.yml)
 #   container_*         → cAdvisor via kubelet scrape
 #   kube_*              → kube-state-metrics (vm-stack)
 #   kubelet_volume_*    → kubelet, PVC capacity
@@ -24,7 +25,7 @@ spec:
           # Protocol-level: the server is not answering a Server List Ping, which
           # is exactly what a player's client sees. Catches a wedged JVM that the
           # pod's own probes might still call alive.
-          expr: minecraft_status_healthy == 0
+          expr: minecraft_status_healthy{server_host!~".*minecraft-proxy.*"} == 0
           for: 5m
           labels:
             severity: critical
@@ -37,7 +38,7 @@ spec:
               several minutes after a restart.
 
         - alert: MinecraftExporterDown
-          expr: up{job=~".*mc-monitor.*|.*mc-router.*"} == 0
+          expr: up{job=~".*mc-monitor.*"} == 0
           for: 10m
           labels:
             severity: warning
@@ -48,19 +49,23 @@ spec:
               Minecraft alerting is blind until it returns. The servers
               themselves may still be fine.
 
-        - alert: MinecraftRouterDown
-          # mc-router is a single point of failure for BOTH servers: it owns
-          # 172.16.20.51:25565 and every connection passes through it.
-          expr: absent(up{job=~".*mc-router.*"} == 1)
-          for: 10m
+        - alert: MinecraftProxyDown
+          # Velocity is a single point of failure for BOTH servers: it owns
+          # 172.16.20.52:25565 and every client connection passes through it.
+          # It publishes no metrics, so this is a protocol-level ping of the
+          # proxy itself — if this fires while MinecraftServerDown is quiet, the
+          # backends are healthy and the proxy is the fault.
+          expr: minecraft_status_healthy{server_host=~".*minecraft-proxy.*"} == 0
+          for: 5m
           labels:
             severity: critical
           annotations:
-            summary: mc-router is down — all Minecraft servers unreachable
+            summary: Minecraft proxy is down — both servers unreachable
             description: >
-              mc-router has no healthy scrape target for 10m. Both matcha and
-              vanilla are unreachable regardless of their own health, because
-              all client connections are proxied through it.
+              Velocity has failed Server List Ping for 5m. matcha and vanilla are
+              unreachable regardless of their own health, because every client
+              connection is proxied through it. Backends can still be reached
+              in-cluster at {matcha,vanilla}-app.media.svc for triage.
 
     # -----------------------------------------------------------------------
     # Performance — the closest proxies for tick health available without a
