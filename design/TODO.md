@@ -24,7 +24,30 @@ storage choice. Since the data is a disposable cache, the right end state is
 almost certainly `emptyDir` (or `openebs-hostpath`) rather than NFS — nothing
 here is worth surviving a pod restart, and NFS buys fragility for no benefit.
 
+Moving off NFS would also remove the re-adoption trap that made the rebuild so
+awkward (see `docs/storage.md`): with `emptyDir` the "start clean" path is just
+deleting the pod.
+
 Not changed yet because it is a separate decision from the failover work.
+
+### Valkey replica placement is imperative runtime state — 2026-08-01
+
+`valkey-cli --cluster create` assigned each primary the replica sitting on its
+**own** node, so a single node loss took out a primary *and* its only replica —
+the exact failure mode the 6-node change was meant to prevent. Corrected by hand
+with `CLUSTER REPLICATE` so every replica follows a primary on a different node.
+
+That mapping lives in `nodes.conf`, not in git. It survives pod restarts but
+**not** a cluster rebuild, and nothing alerts if it regresses. After any valkey
+recreate, verify:
+
+```bash
+kubectl exec -n gitea gitea-valkey-cluster-0 -- valkey-cli cluster nodes
+kubectl get pods -n gitea -o custom-columns=POD:.metadata.name,NODE:.spec.nodeName
+```
+
+No replica should share a node with the primary it follows. A proper fix would
+drive placement declaratively rather than relying on a manual step.
 
 ---
 
