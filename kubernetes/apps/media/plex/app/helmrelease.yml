@@ -69,12 +69,14 @@ spec:
         labels:
           lbpool: pool-b
         annotations:
-          # pool-b is a single address (172.16.20.51). This sharing-key lets
-          # mc-router bind 25565 on the same IP — Cilium co-locates Services that
-          # share a key as long as their ports don't collide (Plex is 32400).
-          # media/mc-router carries the identical annotation; drop it from either
-          # side and the other Service loses its IP.
-          lbipam.cilium.io/sharing-key: "pool-b-shared"
+          # Pinned, because ADVERTISE_IP above hardcodes 172.16.20.51 — letting
+          # LB-IPAM pick freely could hand this Service .52 on a reconcile and
+          # silently break direct/GDM clients.
+          # This used to carry lbipam.cilium.io/sharing-key to share .51 with
+          # mc-router; that made two nodes announce one IP (one Lease per
+          # Service, leaders elected independently) and reset any long-lived
+          # connection whose ARP entry flipped. mc-router now owns .52.
+          lbipam.cilium.io/ips: "172.16.20.51"
         ports:
           plex:
             port: 32400
