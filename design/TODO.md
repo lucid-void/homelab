@@ -29,6 +29,43 @@ to the README/service inventory** so docs match reality.
 
 ## Needs Verification
 
+### `openebs-hostpath` PVC claims are fiction — alerts name the wrong culprit
+
+An `openebs-hostpath` PVC is a plain directory on the node's `EPHEMERAL` partition with
+**no quota**. Two consequences that have already caused confusion:
+
+1. **The `storage:` request is advisory.** `matcha-data` and `vanilla-data` claim 20Gi
+   each and `plex-config-local` claims 50Gi, but nothing enforces any of it — the real
+   ceiling is node free space, shared with `/var/lib/containerd`, etcd and logs.
+2. **`kubelet_volume_stats_*` on these PVCs report the node filesystem.** So
+   `MinecraftWorldVolumeAlmostFull` does not mean "the Minecraft world is filling up";
+   it means "cp-2 or cp-3 is 85% full", which during investigation turned out to be
+   ~30 GB of unused container images and only ~1.4 GB of Minecraft. The alert fires on
+   the right condition but names a misleading cause.
+
+**Action:** either (a) reword the alert to say "node disk backing <pvc>" and drop the
+Minecraft framing, or (b) add a genuine per-world size metric (a sidecar `du` exporter)
+and alert on that separately from node capacity. Also decide whether the 20Gi/50Gi
+claims should be corrected to something honest or annotated as advisory, so they stop
+reading as guarantees.
+
+### Container image accumulation — capped, not solved
+
+`/var/lib/containerd` reached ~30 GB on cp-2 and ~28 GB on cp-3 (vs ~1.4 GB of actual
+application data) because kubelet's default GC thresholds (high 85 / low 80) never
+fired — the nodes sat at 72–76%. `talconfig.yaml` now sets `imageGCHighThresholdPercent:
+70` / `imageGCLowThresholdPercent: 55`, and the node disks were grown 60 → 100 GB.
+
+That is a **ceiling, not a cleanup**: usage dropped to 44–47% purely because the
+denominator grew, so GC will not run and the ~30 GB is still there. It is now bounded,
+not reclaimed.
+
+**Action:** confirm GC actually engages the first time a node crosses 70% (it has never
+run here). Separately, attack the source — `trivy-operator` runs in `standalone` mode
+where **every scan job downloads a ~300 MB vulnerability DB**; switching to
+`ClientServer` mode would cut a recurring chunk of image churn. See the Trivy row in
+`.claude/CLAUDE.md`.
+
 ### CNPG WAL archiving
 
 CNPG currently does base backups only — WAL archiving is not configured. Without WAL archiving, point-in-time recovery is not possible; recovery is limited to the last daily snapshot.
@@ -37,7 +74,7 @@ CNPG currently does base backups only — WAL archiving is not configured. Witho
 
 ### Backup restore actually works
 
-Seven backup CronJobs exist (immich, paperless, gitea, homebox, postgres, joplin, etcd-snapshot) writing restic snapshots to `rclone:filen:backups/restic/`. None have been restore-tested end-to-end. "Backup created" ≠ "data restorable."
+Eight backup CronJobs exist (immich, paperless, gitea, homebox, postgres, joplin, minecraft, etcd-snapshot) writing restic snapshots to `rclone:filen:backups/restic/`. None have been restore-tested end-to-end. "Backup created" ≠ "data restorable."
 
 **Action:** Pick one app (Immich is highest-value) and run a restore drill into a clean PVC + fresh CNPG database. Document the procedure in `RUNBOOK.md` once it works.
 
@@ -102,8 +139,8 @@ server is crash-looping, which is exactly when it's needed.
 
 ### Migrate per-app backup CronJobs to VolSync
 
-The six backup CronJobs (immich, paperless, gitea, homebox, postgres, joplin) work, but they're imperative
-scripts wearing GitOps clothes — six copies of similar logic, each a custom image. **VolSync**'s
+The seven backup CronJobs (immich, paperless, gitea, homebox, postgres, joplin, minecraft) work, but they're imperative
+scripts wearing GitOps clothes — seven copies of similar logic, each a custom image. **VolSync**'s
 restic mover gives the same restic→rclone-compatible result as a declarative `ReplicationSource`
 per PVC, with built-in scheduling, pruning, and a `ReplicationDestination` CRD that makes *restores*
 declarative too. That directly addresses the "Backup restore actually works" item above: restore
@@ -274,7 +311,7 @@ PV, and Gateway patterns already exist, so these are near-drop-in.
 | **MinIO** | **① Do first.** On-prem S3-compatible object store; unlocks CNPG WAL archiving / PITR (`barmanObjectStore`), plus Velero/VolSync and VictoriaLogs object storage. Deploy *for CNPG* first |
 | **Hubble UI** | **② Do second.** Cilium already running — real-time network flow visualization + service maps at no extra cost; the prerequisite for writing NetworkPolicies from observed traffic |
 | **Kyverno** | **④ Scoped only.** Policy-as-code admission controller; use it narrowly to enforce image provenance (`verifyImages` for `ghcr.io/lucid-void/*` + registry allowlist), **excluding `kube-system`/`flux-system`** |
-| **VolSync** | Declarative restic backup/restore per PVC (`ReplicationSource`/`ReplicationDestination`); replaces the five imperative per-app backup CronJobs with GitOps-native, restore-rehearsable manifests — see Future Work |
+| **VolSync** | Declarative restic backup/restore per PVC (`ReplicationSource`/`ReplicationDestination`); replaces the seven imperative per-app backup CronJobs with GitOps-native, restore-rehearsable manifests — see Future Work |
 | **Velero** | Kubernetes-native PVC snapshot + resource backup; cluster-level DR. _Lower priority — cluster resources are already in Git; prefer VolSync for PVC data_ |
 | **Grafana Tempo** | _Deprioritized — no instrumented apps emit traces yet, so it'd be a backend with nothing to ingest._ Distributed tracing backend; revisit once apps emit spans |
 | **OpenTelemetry Collector** | _Deprioritized (same reason as Tempo)._ Unified pipeline to collect/route traces, metrics, and logs |

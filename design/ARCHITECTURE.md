@@ -34,9 +34,9 @@ Talos is an immutable, minimal OS purpose-built for Kubernetes. No SSH, no shell
 
 | VM | IP | vCPU | RAM | Disk |
 |---|---|---|---|---|
-| cp-1 | 172.16.20.11 | 4 | 16 GB | 60 GB |
-| cp-2 | 172.16.20.12 | 4 | 16 GB | 60 GB |
-| cp-3 | 172.16.20.13 | 4 | 16 GB | 60 GB |
+| cp-1 | 172.16.20.11 | 4 | 16 GB | 100 GB |
+| cp-2 | 172.16.20.12 | 4 | 16 GB | 100 GB |
+| cp-3 | 172.16.20.13 | 4 | 16 GB | 100 GB |
 
 ### Talos Extensions
 

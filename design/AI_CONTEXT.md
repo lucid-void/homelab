@@ -8,9 +8,9 @@ Canonical reference for AI agents working on this cluster. Last updated: 2026-05
 
 | Node | IP | Role | Spec |
 |---|---|---|---|
-| cp-1 | 172.16.20.11 | Control plane + workloads | 4 vCPU, 16 GB RAM, 60 GB disk |
-| cp-2 | 172.16.20.12 | Control plane + workloads | 4 vCPU, 16 GB RAM, 60 GB disk |
-| cp-3 | 172.16.20.13 | Control plane + workloads | 4 vCPU, 16 GB RAM, 60 GB disk |
+| cp-1 | 172.16.20.11 | Control plane + workloads | 4 vCPU, 16 GB RAM, 100 GB disk |
+| cp-2 | 172.16.20.12 | Control plane + workloads | 4 vCPU, 16 GB RAM, 100 GB disk |
+| cp-3 | 172.16.20.13 | Control plane + workloads | 4 vCPU, 16 GB RAM, 100 GB disk |
 | API VIP | 172.16.20.10 | Kubernetes API server endpoint | Floats via leader election |
 | Gateway VIP | 172.16.20.50 | Ingress for all HTTP/HTTPS | Cilium L2 announcement |
 
@@ -52,7 +52,7 @@ GatewayClass: cilium  (io.cilium/gateway-controller)
 
 **TLS:** cert-manager `letsencrypt-production` ClusterIssuer → `*.blackcats.cc` wildcard cert in `gateway` namespace.
 
-**DNS:** external-dns, Cloudflare provider, sources `gateway-httproute` + `gateway-grpcroute`. **Opt-in:** annotate route with `external-dns.alpha.kubernetes.io/enabled: "true"`.
+**DNS:** external-dns, Cloudflare provider, sources `gateway-httproute` + `gateway-grpcroute` + `service`. **Opt-in:** annotate route with `external-dns.alpha.kubernetes.io/enabled: "true"`. The `service` source exists only for raw-TCP workloads that bypass the Gateway entirely — currently just `mc-router`, which publishes the Minecraft hostnames at `172.16.20.51` via an additional `external-dns.alpha.kubernetes.io/hostname` annotation. The annotation-filter applies to every source, so unannotated LoadBalancers (e.g. `plex-direct`) stay unpublished.
 
 Every HTTPRoute must reference `parentRefs: [{name: shared, namespace: gateway}]`.
 

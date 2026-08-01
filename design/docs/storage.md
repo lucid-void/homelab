@@ -76,6 +76,41 @@ Manifest: `kubernetes/apps/media/media-nfs/`
 **Base path:** `/var/openebs/local`
 **Node affinity:** Set automatically when the PVC first binds — the PV is pinned to that node permanently.
 
+### Capacity is not enforced
+
+An `openebs-hostpath` PVC is a **plain directory on the node's `EPHEMERAL` partition**, not a quota-backed volume. The `storage:` request in the PVC spec is advisory — a claim that says `20Gi` will happily grow past that, and will keep going until the *node* runs out of disk. Consequences worth remembering:
+
+- **`kubelet_volume_stats_*` for these PVCs report the node filesystem**, not the directory. A "volume 85% full" alert on a hostpath PVC means *the node* is 85% full — which may have nothing to do with the workload named in the alert.
+- **They cannot be expanded in place**, because there is nothing to expand; the only lever is growing the node disk (see RUNBOOK → *Grow the node disks*).
+- Everything on the node competes for the same space: container images, etcd, logs, and every other hostpath PVC.
+
+Nodes are 100 GB (`EPHEMERAL` ≈ 105 GB after Talos claims the other partitions). Current consumers:
+
+| Node | `/var/lib/containerd` | `/var/openebs` |
+|---|---|---|
+| cp-1 | ~14 GB | ~15 GB (Plex config) |
+| cp-2 | ~30 GB | ~1.4 GB → ~2.5 GB (matcha world, pregenerated) |
+| cp-3 | ~28 GB | ~1.4 GB → ~2.5 GB (vanilla world, pregenerated) |
+
+Container images dominate, not application data. See *Image garbage collection* below.
+
+### Image garbage collection
+
+kubelet's defaults (`imageGCHighThresholdPercent: 85`, low 80) never fired on these nodes — they sat at 72–76% full while `/var/lib/containerd` accumulated ~30 GB of unused images from Renovate bumps, Trivy scan jobs and rolled-back tags. Reclaiming only at 85% also means the first cleanup coincides with disk pressure and pod eviction.
+
+`talconfig.yaml` now sets, under `machine.kubelet.extraConfig`:
+
+```yaml
+imageGCHighThresholdPercent: 70
+imageGCLowThresholdPercent: 55
+```
+
+This is a **ceiling, not a cleanup** — it prunes only once a node crosses 70%. Applying it does not reclaim anything immediately. Verify with:
+
+```bash
+kubectl get --raw "/api/v1/nodes/<node>/proxy/configz" | jq .kubeletconfig.imageGCHighThresholdPercent
+```
+
 Two consumers, for two different reasons:
 
 - **Plex config** — SQLite WAL locking errors occur over NFS.

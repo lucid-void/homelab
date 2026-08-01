@@ -209,6 +209,50 @@ talosctl apply-config \
   --mode=auto
 ```
 
+### Grow the node disks
+
+Needed when `EPHEMERAL` fills — usually from container images or `openebs-hostpath`
+PVCs, which have no quota (see `docs/storage.md`). Done once already: 60 GB → 100 GB.
+
+**The trap:** growing the Proxmox virtual disk is *not enough*. Talos expands the
+`EPHEMERAL` partition to fill the disk **only at boot**, and there is no online-grow
+command. Until each node reboots, `talosctl get discoveredvolumes` shows a larger
+`sda` but an unchanged `sda4`, and workloads see the old filesystem size.
+
+1. **Check the hypervisor has room.** `local-lvm` is a thin pool; growing 3 nodes by
+   40 GB costs 120 GB. Query it rather than guess:
+   ```bash
+   # via the in-cluster metrics (proxmox-monitoring scrapes the host)
+   kubectl run q --rm -i --restart=Never -n monitoring --image=curlimages/curl -- \
+     curl -s -G "http://vmsingle-vm-stack-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8428/api/v1/query" \
+     --data-urlencode 'query=node_lvm_thinpool_data_percent'
+   ```
+   Keep the result comfortably under the 85% `LvmThinPoolDataHigh` alert.
+
+2. **Bump the size in OpenTofu** — three `disk_gb` entries in
+   `infra/terraform/kubernetes.tf` (one per node), then `tofu apply`. Proxmox grows
+   the virtual disks online; nothing in the guest changes yet.
+
+3. **Roll the nodes one at a time**, waiting for `Ready` + etcd 3/3 between each:
+   ```bash
+   export TALOSCONFIG=$PWD/kubernetes/talos/clusterconfig/talosconfig
+   for n in 172.16.20.11 172.16.20.12 172.16.20.13; do
+     talosctl -n $n reboot
+     # wait for the node to come back Ready before continuing
+     kubectl wait --for=condition=Ready node/<name> --timeout=10m
+     talosctl -n 172.16.20.11 etcd members     # expect 3
+   done
+   ```
+
+4. **Verify the partition actually grew** — this is the step that proves it worked:
+   ```bash
+   talosctl -n 172.16.20.12 get discoveredvolumes | grep sda4   # EPHEMERAL
+   ```
+
+**Note:** workloads on `openebs-hostpath` are node-pinned and cannot reschedule, so
+they are down for the duration of their own node's reboot (~3–5 min). Check nobody is
+mid-session first — e.g. `rcon-cli list` for the Minecraft servers.
+
 ### Upgrade Talos
 
 Roll one node at a time. etcd quorum is maintained throughout.
