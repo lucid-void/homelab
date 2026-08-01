@@ -24,8 +24,8 @@ locals {
       vm_id       = 2020
       ip_last     = 11
       vcpus       = 8
-      memory      = 20480
-      disk_gb     = 60
+      memory      = 32768
+      disk_gb     = 100
       mac_address = "BC:24:11:01:20:00"
       tags        = ["k8s_cp"]
       dns_records = []
@@ -34,8 +34,8 @@ locals {
       vm_id       = 2021
       ip_last     = 12
       vcpus       = 8
-      memory      = 20480
-      disk_gb     = 60
+      memory      = 32768
+      disk_gb     = 100
       mac_address = "BC:24:11:01:21:00"
       tags        = ["k8s_cp"]
       dns_records = []
@@ -44,8 +44,8 @@ locals {
       vm_id       = 2022
       ip_last     = 13
       vcpus       = 8
-      memory      = 20480
-      disk_gb     = 60
+      memory      = 32768
+      disk_gb     = 100
       mac_address = "BC:24:11:01:22:00"
       tags        = ["k8s_cp"]
       dns_records = []
