@@ -29,12 +29,28 @@ spec:
       name: gitea-oidc-secret
       valuesKey: values.yaml
   values:
-    # Disable bundled databases and cache
+    # Disable bundled databases
     postgresql:
       enabled: false
     postgresql-ha:
       enabled: false
-    redis-cluster:
+
+    # Bundled cache. Chart v11 RENAMED this dependency `redis-cluster` ->
+    # `valkey-cluster`; the old key is not in values.yaml at all, so a leftover
+    # `redis-cluster.enabled: false` is a silent no-op and the cluster deploys
+    # anyway (it defaults to enabled). Always set the CURRENT key explicitly.
+    #
+    # `cluster.nodes` is the TOTAL pod count including replicas
+    # (nodes = primaries + primaries * replicas), so 3 primaries each with one
+    # replica = 6. The chart's own default (nodes: 3 / replicas: 0) is 3
+    # primaries with NO failover: losing one primary drops its hash slots,
+    # `cluster_state` goes to fail, and gitea hard-fails on cache/session/queue.
+    valkey-cluster:
+      enabled: true
+      cluster:
+        nodes: 6
+        replicas: 1
+    valkey:
       enabled: false
 
     persistence:
@@ -52,12 +68,17 @@ spec:
         type: ClusterIP
         port: 22
 
+    # Goldilocks/VPA steady-state target is ~422Mi, which left the old 512Mi
+    # limit only ~20% headroom — gitea OOMKilled (exit 137) on the startup
+    # catch-up burst after a long outage (queue drain + cron + indexer all at
+    # once), which is exactly when it must not die. Request tracks the observed
+    # target; limit gives ~2.4x for those bursts.
     resources:
       requests:
         cpu: 50m
-        memory: 256Mi
-      limits:
         memory: 512Mi
+      limits:
+        memory: 1Gi
 
     extraEnvFrom:
       - secretRef:
@@ -82,14 +103,11 @@ spec:
           SSH_DOMAIN: gitea.blackcats.cc
           LFS_START_SERVER: true
 
-        cache:
-          ADAPTER: memory
-
-        session:
-          PROVIDER: memory
-
-        queue:
-          TYPE: channel
+        # NOTE: do not set cache / session / queue here. While valkey-cluster is
+        # enabled the chart unconditionally overwrites ADAPTER, PROVIDER, TYPE
+        # and the CONN_STR/HOST/PROVIDER_CONFIG values (`_helpers.tpl`, "valkey
+        # queue" block) — anything declared here is silently discarded, so git
+        # would claim `memory` while the pod actually runs against valkey.
 
         service:
           DISABLE_REGISTRATION: false
