@@ -18,22 +18,3 @@ spec:
     - port: metrics
       path: /metrics
       interval: 60s
----
-apiVersion: operator.victoriametrics.com/v1beta1
-kind: VMServiceScrape
-metadata:
-  name: mc-router
-  namespace: monitoring
-spec:
-  # mc-router's Service lives in `media`; this CR stays here so all Minecraft
-  # monitoring sits in one Flux Kustomization.
-  namespaceSelector:
-    matchNames:
-      - media
-  selector:
-    matchLabels:
-      monitoring.blackcats.cc/scrape: mc-router
-  endpoints:
-    - port: metrics
-      path: /metrics
-      interval: 60s

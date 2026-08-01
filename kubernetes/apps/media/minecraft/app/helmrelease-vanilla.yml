@@ -83,6 +83,16 @@ spec:
               DIFFICULTY: normal
               VIEW_DISTANCE: "10"
               SIMULATION_DISTANCE: "6"
+              # See matcha: Velocity does the Mojang check and forwards a signed
+              # identity; the velocity patch makes Paper reject unsigned logins,
+              # so this server still cannot be joined directly.
+              ONLINE_MODE: "FALSE"
+              PATCH_DEFINITIONS: /patches
+              CFG_VELOCITY_SECRET:
+                valueFrom:
+                  secretKeyRef:
+                    name: velocity-secret
+                    key: CFG_VELOCITY_SECRET
               ENABLE_ROLLING_LOGS: "true"
               ENABLE_RCON: "true"
               RCON_PORT: "25575"
@@ -100,7 +110,9 @@ spec:
               #               is loaded, or you bake vanilla terrain into the world
               #   squaremap — live web map on 8080 (see the `map` Service)
               #   veinminer — mine a whole ore vein in one break
-              MODRINTH_PROJECTS: "chunky,squaremap,veinminer"
+              # quickchat bridges chat to matcha via minecraft-valkey — Velocity
+              # does not merge chat itself. Must be on BOTH servers.
+              MODRINTH_PROJECTS: "chunky,squaremap,veinminer,quickchatv2"
               MODRINTH_DOWNLOAD_DEPENDENCIES: required
 
               # Terralith — overworld generation overhaul. Modrinth lists it with
@@ -242,8 +254,8 @@ spec:
     service:
       app:
         controller: app
-        annotations:
-          mc-router.itzg.me/externalServerName: vanilla.blackcats.cc
+        # See matcha — Velocity finds this via [servers]/[forced-hosts] in
+        # velocity-config.yml, not via a Service annotation.
         ports:
           minecraft:
             port: 25565
@@ -292,6 +304,14 @@ spec:
           app:
             files:
               - path: /config
+      patches:
+        type: configMap
+        name: minecraft-patches
+        advancedMounts:
+          app:
+            app:
+              - path: /patches
+                readOnly: true
       backups:
         existingClaim: mc-backups
         advancedMounts:
