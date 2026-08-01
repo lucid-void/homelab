@@ -28,6 +28,16 @@ controlPlane:
                 - bind
                 - rshared
                 - rw
+          # Image garbage collection. The kubelet defaults (high 85 / low 80)
+          # never fired here: nodes sat at 72-76% full while /var/lib/containerd
+          # grew to ~30 GB of unused images (every Renovate bump, every Trivy
+          # scan job, every rolled-back tag). Reclaiming only at 85% means the
+          # first cleanup coincides with disk pressure and pod eviction — which
+          # is the worst moment to discover it. Lower thresholds make kubelet
+          # prune continuously instead of hoarding until crisis.
+          extraConfig:
+            imageGCHighThresholdPercent: 70
+            imageGCLowThresholdPercent: 55
     - |-
       cluster:
         proxy:
