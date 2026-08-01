@@ -15,31 +15,35 @@ metadata:
   name: minecraft-patches
   namespace: media
 data:
+  # NOTE the shape: when PATCH_DEFINITIONS points at a *directory*, each file
+  # must be a bare PatchDefinition (`file` / `ops` / `file-format`). The
+  # `{"patches": [...]}` wrapper is the *patch-set* format and is only valid
+  # when PATCH_DEFINITIONS names a single file. Getting this wrong is not a
+  # silent no-op — mc-image-helper errors and the init script exits non-zero,
+  # which crash-loops the server before Paper ever starts:
+  #   Failed to load patch definitions from /patches: Unrecognized field
+  #   "patches" (3 known properties: "file-format", "ops", "file")
   velocity-forwarding.json: |
     {
-      "patches": [
+      "file": "/data/config/paper-global.yml",
+      "ops": [
         {
-          "file": "/data/config/paper-global.yml",
-          "ops": [
-            {
-              "$set": {
-                "path": "$.proxies.velocity.enabled",
-                "value": true
-              }
-            },
-            {
-              "$set": {
-                "path": "$.proxies.velocity.online-mode",
-                "value": true
-              }
-            },
-            {
-              "$set": {
-                "path": "$.proxies.velocity.secret",
-                "value": "${CFG_VELOCITY_SECRET}"
-              }
-            }
-          ]
+          "$set": {
+            "path": "$.proxies.velocity.enabled",
+            "value": true
+          }
+        },
+        {
+          "$set": {
+            "path": "$.proxies.velocity.online-mode",
+            "value": true
+          }
+        },
+        {
+          "$set": {
+            "path": "$.proxies.velocity.secret",
+            "value": "${CFG_VELOCITY_SECRET}"
+          }
         }
       ]
     }
