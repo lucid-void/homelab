@@ -190,3 +190,43 @@ data:
         interval: 1m
         conditions:
           - "[CONNECTED] == true"
+
+      # The Minecraft web companions, checked over HTTPS through the Gateway —
+      # a different path entirely from the tcp:// checks above, which go via
+      # mc-router on 172.16.20.51. Both can fail independently: squaremap runs
+      # inside the server JVM (so it dies with the server), while filebrowser is
+      # a sidecar with publishNotReadyAddresses and stays up when the server is
+      # down. 5m interval — these are conveniences, not the game itself.
+      - name: Minecraft map (matcha)
+        group: media
+        url: https://matcha-map.blackcats.cc
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Minecraft map (vanilla)
+        group: media
+        url: https://vanilla-map.blackcats.cc
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      # filebrowser serves its login page unauthenticated at 200, so no
+      # credentials are needed to prove it is alive.
+      - name: Minecraft files (matcha)
+        group: media
+        url: https://matcha-files.blackcats.cc
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Minecraft files (vanilla)
+        group: media
+        url: https://vanilla-files.blackcats.cc
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"

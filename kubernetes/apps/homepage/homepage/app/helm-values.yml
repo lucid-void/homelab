@@ -13,6 +13,9 @@ config:
       Media:
         columns: 3
         style: row
+      Games:
+        columns: 4
+        style: row
       Documents:
         columns: 3
         style: row
@@ -62,6 +65,34 @@ config:
             href: https://kavita.blackcats.cc
             description: Manga reader
             icon: kavita.png
+        - Immich:
+            href: https://immich.blackcats.cc
+            description: Photos
+            icon: immich.png
+    - Games:
+        # The Minecraft servers themselves are raw TCP on 172.16.20.51:25565 via
+        # mc-router, so they have no web UI — connect in-game to
+        # matcha.blackcats.cc / vanilla.blackcats.cc. These are the companions.
+        - Matcha map:
+            href: https://matcha-map.blackcats.cc
+            description: Live world map — matcha
+            icon: minecraft.png
+        - Matcha files:
+            href: https://matcha-files.blackcats.cc
+            description: Datapacks, configs, world imports
+            icon: filebrowser.png
+        - Vanilla map:
+            href: https://vanilla-map.blackcats.cc
+            description: Live world map — vanilla (Terralith)
+            icon: minecraft.png
+        - Vanilla files:
+            href: https://vanilla-files.blackcats.cc
+            description: Datapacks, configs, world imports
+            icon: filebrowser.png
+        - RomM:
+            href: https://romm.blackcats.cc
+            description: ROM library
+            icon: romm.png
     - Documents:
         - Paperless:
             href: https://paperless.blackcats.cc
@@ -75,6 +106,10 @@ config:
             href: https://homebox.blackcats.cc
             description: Home inventory
             icon: homebox.png
+        - Joplin:
+            href: https://joplin.blackcats.cc
+            description: Notes sync
+            icon: joplin.png
         - Degoog:
             href: https://degoog.blackcats.cc
             description: Search engine aggregator
@@ -97,6 +132,10 @@ config:
             href: https://gotify.blackcats.cc
             description: Notifications
             icon: gotify.png
+        - Grafana:
+            href: https://grafana.blackcats.cc
+            description: Metrics dashboards
+            icon: grafana.png
         - Gatus:
             href: https://gatus.blackcats.cc
             description: Status monitoring
