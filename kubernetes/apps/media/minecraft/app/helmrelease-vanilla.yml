@@ -156,6 +156,20 @@ spec:
 
               OPS: "KillerBurger"
 
+              # Gamerules live in level.dat, not server.properties, so there is
+              # no itzg env for them — but they ARE world state, which means an
+              # in-game `/gamerule` would persist yet leave no trace in git.
+              # Re-applying them over RCON on every boot keeps git authoritative
+              # and means they survive losing the PVC, the same reasoning as
+              # driving LEVEL/OPS/DATAPACKS from env rather than the PVC.
+              #   keepInventory  — keep items on death
+              #   mobGriefing    — stop creepers/endermen editing the world
+              #                    (also stops villager farming and fire spread
+              #                    by mobs, which is the usual trade-off)
+              RCON_CMDS_STARTUP: |-
+                gamerule keepInventory true
+                gamerule mobGriefing false
+
               # See matcha — must stay below terminationGracePeriodSeconds.
               STOP_DURATION: "90"
             probes:
