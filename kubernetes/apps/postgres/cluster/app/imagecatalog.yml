@@ -11,4 +11,4 @@ spec:
     # primary restarts in place — so move it only when you actually want that, not to
     # chase the build. See CLAUDE.md → "CNPG operator upgrades roll the DB".
     - major: 17
-      image: ghcr.io/lucid-void/postgres-cnpg-immich:v1.1.0
+      image: ghcr.io/lucid-void/postgres-cnpg-immich:v1.1.1
