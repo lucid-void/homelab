@@ -146,6 +146,12 @@ resource "kubernetes_secret_v1" "paperless_oidc_secret" {
           secret      = zitadel_application_oidc.paperless.client_secret
           settings = {
             server_url = "https://zitadel.blackcats.cc"
+            # Must match auth_method_type above (OIDC_AUTH_METHOD_TYPE_POST).
+            # Left unset, allauth infers it from Zitadel's discovery document,
+            # and the inference rule changed in allauth 65.16 (paperless v3):
+            # 65.12 picked basic whenever advertised, 65.16 prefers post. Pinning
+            # removes the dependency on both the discovery doc and allauth internals.
+            token_auth_method = "client_secret_post"
           }
         }]
       }
