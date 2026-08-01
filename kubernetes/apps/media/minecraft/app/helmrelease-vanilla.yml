@@ -162,13 +162,23 @@ spec:
               # Re-applying them over RCON on every boot keeps git authoritative
               # and means they survive losing the PVC, the same reasoning as
               # driving LEVEL/OPS/DATAPACKS from env rather than the PVC.
-              #   keepInventory  — keep items on death
-              #   mobGriefing    — stop creepers/endermen editing the world
-              #                    (also stops villager farming and fire spread
-              #                    by mobs, which is the usual trade-off)
+              # **MC 26.x renamed every gamerule to snake_case** — it is
+              # `keep_inventory`, NOT the `keepInventory` that every guide and
+              # wiki page still shows. A wrong name fails with "Incorrect
+              # argument for command" and, because RCON_CMDS_STARTUP does not
+              # gate startup on command success, the server comes up perfectly
+              # healthy with the rule simply never applied. Verify a rule name
+              # against a running server before adding it here:
+              #   kubectl exec … -- rcon-cli gamerule <name>
+              # (note it is not a blind camelCase→snake_case mapping either:
+              #  doFireTick is not `do_fire_tick`.)
+              #   keep_inventory — keep items on death
+              #   mob_griefing   — stop creepers/endermen editing the world
+              #                    (also stops villager farming and mob-spread
+              #                    fire, which is the usual trade-off)
               RCON_CMDS_STARTUP: |-
-                gamerule keepInventory true
-                gamerule mobGriefing false
+                gamerule keep_inventory true
+                gamerule mob_griefing false
 
               # See matcha — must stay below terminationGracePeriodSeconds.
               STOP_DURATION: "90"
