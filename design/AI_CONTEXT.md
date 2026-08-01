@@ -29,7 +29,7 @@ No workers. All three control planes run user workloads (`allowSchedulingOnContr
 
 **LoadBalancer pools (Cilium L2 announcements):**
 - `pool-a` → `172.16.20.50` — `shared` Gateway only (auto-selected by `gateway.networking.k8s.io/gateway-name: shared` label)
-- `pool-b` → `172.16.20.51` — direct LoadBalancer services (add label `lbpool: pool-b`)
+- `pool-b` → `172.16.20.51`–`172.16.20.52` — direct LoadBalancer services (add label `lbpool: pool-b`). One IP per Service, pinned with `lbipam.cilium.io/ips`: `.51` plex-direct, `.52` mc-router. **Never share one IP across two Services** — Cilium keeps one L2 Lease per Service, so a shared IP gets announced by two nodes and resets long-lived connections. See `docs/networking.md`.
 
 **Netbird VPN** runs as a Talos extension on every node (`wt0` interface, `100.80.x.x/16`). Three guards in `talconfig.yaml` prevent Netbird IPs from polluting Kubernetes networking: etcd `advertisedSubnets`, kubelet `nodeIP.validSubnets`, per-node kube-apiserver `advertise-address`.
 
@@ -52,7 +52,7 @@ GatewayClass: cilium  (io.cilium/gateway-controller)
 
 **TLS:** cert-manager `letsencrypt-production` ClusterIssuer → `*.blackcats.cc` wildcard cert in `gateway` namespace.
 
-**DNS:** external-dns, Cloudflare provider, sources `gateway-httproute` + `gateway-grpcroute` + `service`. **Opt-in:** annotate route with `external-dns.alpha.kubernetes.io/enabled: "true"`. The `service` source exists only for raw-TCP workloads that bypass the Gateway entirely — currently just `mc-router`, which publishes the Minecraft hostnames at `172.16.20.51` via an additional `external-dns.alpha.kubernetes.io/hostname` annotation. The annotation-filter applies to every source, so unannotated LoadBalancers (e.g. `plex-direct`) stay unpublished.
+**DNS:** external-dns, Cloudflare provider, sources `gateway-httproute` + `gateway-grpcroute` + `service`. **Opt-in:** annotate route with `external-dns.alpha.kubernetes.io/enabled: "true"`. The `service` source exists only for raw-TCP workloads that bypass the Gateway entirely — currently just `mc-router`, which publishes the Minecraft hostnames at `172.16.20.52` via an additional `external-dns.alpha.kubernetes.io/hostname` annotation. The annotation-filter applies to every source, so unannotated LoadBalancers (e.g. `plex-direct`) stay unpublished.
 
 Every HTTPRoute must reference `parentRefs: [{name: shared, namespace: gateway}]`.
 
@@ -155,7 +155,7 @@ kubernetes/
 | Seerr | media | `seerr.blackcats.cc` | Built-in |
 | Minecraft `matcha` (Paper, plugins) | media | `matcha.blackcats.cc` — **TCP 25565 via mc-router, not the Gateway** | None (VPN-gated); files UI at `matcha-files.blackcats.cc` |
 | Minecraft `vanilla` (Paper, plugin-free) | media | `vanilla.blackcats.cc` — **TCP 25565 via mc-router, not the Gateway** | None (VPN-gated); files UI at `vanilla-files.blackcats.cc` |
-| mc-router | media | LoadBalancer `172.16.20.51:25565` (IP shared with Plex) | — |
+| mc-router | media | LoadBalancer `172.16.20.52:25565` (own IP; never share with Plex) | — |
 | CNPG cluster `postgres` | postgres | — | Per-DB roles |
 
 Full inventory with storage details: `docs/services.md`.

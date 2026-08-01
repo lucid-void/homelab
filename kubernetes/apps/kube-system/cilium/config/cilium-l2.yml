@@ -28,6 +28,22 @@ spec:
       gateway.networking.k8s.io/gateway-name: shared
 ---
 # General-purpose pool for direct LoadBalancer services (label: lbpool: pool-b)
+#
+# One address per Service — do NOT collapse these back onto a single shared IP.
+# Cilium's L2 announcer creates one Lease per *Service* and elects each leader
+# independently, so two Services sharing an address (via
+# lbipam.cilium.io/sharing-key) get announced by two different nodes at once.
+# Both then answer ARP for it, and because externalTrafficPolicy is Cluster the
+# receiving node SNATs the flow locally — so when a client's ARP entry flips to
+# the other node mid-connection, its packets are re-SNATed under a fresh source
+# port, reach the backend pod as an unknown 4-tuple, and get RST. Long-lived
+# connections die within seconds; short HTTP bursts finish before a flip and
+# look fine, which is what made this so slow to spot.
+#
+# Consumers pin themselves with lbipam.cilium.io/ips so an IP can't silently
+# migrate between Services on reconcile.
+#   172.16.20.51  media/plex-direct  (Plex ADVERTISE_IP hardcodes this)
+#   172.16.20.52  media/mc-router    (matcha/vanilla A records via external-dns)
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
 metadata:
@@ -35,7 +51,7 @@ metadata:
 spec:
   blocks:
     - start: "172.16.20.51"
-      stop: "172.16.20.51"
+      stop: "172.16.20.52"
   serviceSelector:
     matchLabels:
       lbpool: pool-b

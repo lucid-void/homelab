@@ -7,21 +7,25 @@ metadata:
   labels:
     lbpool: pool-b
   annotations:
-    # pool-b holds exactly one address (172.16.20.51) and Plex already owns it.
-    # Cilium hands the same IP to every Service carrying an identical sharing-key,
-    # provided their ports don't collide — Plex is 32400, this is 25565.
-    # The matching annotation on plex's `direct` Service is what makes it work;
-    # removing it from either side breaks the other.
-    lbipam.cilium.io/sharing-key: "pool-b-shared"
+    # Own address, NOT shared with Plex. This previously carried
+    # lbipam.cilium.io/sharing-key to co-locate on 172.16.20.51 with plex-direct,
+    # which broke every client routed in from another VLAN: Cilium's L2 announcer
+    # keeps one Lease per Service, so the shared IP was announced by two nodes at
+    # once (mc-router→cp-3, plex-direct→cp-2). Both answered ARP for it, and a
+    # client whose ARP entry flipped mid-session had its packets re-SNATed on the
+    # other node and RST by the backend pod ~2s after joining. See the pool
+    # definition in kube-system/cilium/config/cilium-l2.yml.
+    lbipam.cilium.io/ips: "172.16.20.52"
     # Both Minecraft hostnames resolve to this LB IP; mc-router demultiplexes
     # them from the hostname in the client's handshake packet.
     external-dns.alpha.kubernetes.io/enabled: "true"
     external-dns.alpha.kubernetes.io/hostname: matcha.blackcats.cc,vanilla.blackcats.cc
 spec:
   type: LoadBalancer
-  # Left at the default (Cluster) on purpose. `Local` would preserve client source
-  # IPs, but this IP is shared with Plex, which uses Cluster — mixing policies on
-  # one shared address risks L2-announcing it from a node with no mc-router pod.
+  # Left at the default (Cluster). `Local` would preserve client source IPs (all
+  # players currently log as the announcing node's cilium_host), but it also
+  # restricts L2 announcement to nodes running an mc-router pod — with a single
+  # replica that makes the IP unreachable for the whole reschedule window.
   selector:
     app.kubernetes.io/name: mc-router
   ports:

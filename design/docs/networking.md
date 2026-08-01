@@ -13,7 +13,7 @@
 | cp-3 | 172.16.20.13 | Talos control plane + workloads |
 | k8s API VIP | 172.16.20.10 | API server endpoint (floats via leader election) |
 | Gateway VIP | 172.16.20.50 | Cilium L2 announcement — `shared` Gateway |
-| Pool-B VIP | 172.16.20.51 | Cilium L2 announcement — direct LoadBalancer services |
+| Pool-B VIPs | 172.16.20.51–.52 | Cilium L2 announcement — direct LoadBalancer services (.51 Plex, .52 mc-router) |
 | UDM SE | 172.16.20.254 | Gateway, DHCP, DNS resolver, ad blocking |
 
 **Pod CIDR:** `10.244.0.0/16`
@@ -62,20 +62,33 @@ Two `CiliumLoadBalancerIPPool` resources + one `CiliumL2AnnouncementPolicy` (man
 | Pool | IP | Selector |
 |---|---|---|
 | `pool-a` | 172.16.20.50 | `gateway.networking.k8s.io/gateway-name: shared` |
-| `pool-b` | 172.16.20.51 | `lbpool: pool-b` |
+| `pool-b` | 172.16.20.51–172.16.20.52 | `lbpool: pool-b` |
 
 The L2 announcement policy applies to all Linux nodes on interfaces matching `^ens[0-9]+`. ARP responses are handled by whichever node is elected; if that node goes down, another takes over.
 
 pool-a is exclusively for the `shared` Gateway. pool-b is for any other `LoadBalancer` Service that needs a stable external IP — add `lbpool: pool-b` to its labels.
 
-**pool-b holds exactly one address**, currently shared by two Services. Cilium assigns the same IP to Services carrying an identical `lbipam.cilium.io/sharing-key` annotation, provided their ports don't collide:
+**One address per Service in pool-b.** Each consumer pins itself with `lbipam.cilium.io/ips` so an IP can't migrate between Services on a reconcile:
 
-| Service | Port | Sharing key |
-|---|---|---|
-| `media/plex` (`plex-direct`) | 32400 | `pool-b-shared` |
-| `media/mc-router` | 25565 | `pool-b-shared` |
+| Service | IP | Port | Why pinned |
+|---|---|---|---|
+| `media/plex` (`plex-direct`) | 172.16.20.51 | 32400 | Plex `ADVERTISE_IP` hardcodes it |
+| `media/mc-router` | 172.16.20.52 | 25565 | matcha/vanilla A records via external-dns |
 
-Both annotations are load-bearing — removing it from either Service leaves the other unable to get an address (the pool is exhausted at one IP). A third direct-LB Service either joins the same key on a free port, or the pool needs widening in `cilium-l2.yml`. Cross-namespace sharing would additionally need `lbipam.cilium.io/sharing-cross-namespace`; both of these are in `media`, so it isn't set.
+### Never share one pool-b IP between Services
+
+These two Services previously shared `172.16.20.51` via `lbipam.cilium.io/sharing-key: pool-b-shared`. **Do not reintroduce that.** Cilium's L2 announcer creates one `Lease` per *Service* (`cilium-l2announce-<ns>-<svc>`) and elects each leader independently, so a shared address gets announced by two different nodes simultaneously:
+
+```
+cilium-l2announce-media-mc-router     → cp-3
+cilium-l2announce-media-plex-direct   → cp-2
+```
+
+Both nodes then answer ARP for the same IP. Because `externalTrafficPolicy` is `Cluster`, whichever node receives a flow SNATs it locally, so the connection's conntrack state exists on that node alone. When a client's ARP entry flips to the other node mid-connection, its packets are re-SNATed there under a fresh source port, arrive at the backend pod as an unknown 4-tuple, and the pod's kernel replies `RST`.
+
+Symptoms, which took a long time to attribute: long-lived TCP dies a few seconds in while short HTTP bursts complete fine (they finish before a flip); clients on the same L2 segment as the nodes are unaffected because their ARP entry stays pinned, while clients routed in from another VLAN break constantly because the router re-resolves on its own schedule. The `RST` carries the *pod's* TTL, not the gateway's, which rules out middlebox injection and misleadingly points at the backend. Diagnosed 2026-08-01 against Minecraft; see the comments in `cilium-l2.yml`.
+
+Widening the pool further is the correct way to add a third direct-LB Service. Cross-namespace sharing would need `lbipam.cilium.io/sharing-cross-namespace`; not used.
 
 ### Netbird IP Isolation
 
@@ -180,7 +193,7 @@ Without this annotation, no DNS record is created. The Gateway's own wildcard ho
 
 `txtOwnerId: homelab-k8s` — external-dns uses TXT records to track ownership. Records not present in git will be deleted (`policy: sync`).
 
-Almost all A records resolve to `172.16.20.50` (gateway VIP). The `service` source exists for the one case that can't route through the Gateway — Minecraft is raw TCP, so `mc-router`'s LoadBalancer publishes `matcha.blackcats.cc` and `vanilla.blackcats.cc` at `172.16.20.51` via:
+Almost all A records resolve to `172.16.20.50` (gateway VIP). The `service` source exists for the one case that can't route through the Gateway — Minecraft is raw TCP, so `mc-router`'s LoadBalancer publishes `matcha.blackcats.cc` and `vanilla.blackcats.cc` at `172.16.20.52` via:
 
 ```yaml
 annotations:
