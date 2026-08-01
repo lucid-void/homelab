@@ -20,6 +20,40 @@ The `democratic-csi` namespace has `pod-security.kubernetes.io/enforce: privileg
 
 Dynamic PVCs mount **inside privileged containers** — they are not subject to the Talos kubelet mount namespace restriction (see below). NFS v4 vs v4.1 is irrelevant for dynamic PVCs.
 
+### Deleting a PVC does NOT delete the data
+
+The share path is derived **deterministically from the namespace and PVC name**, not
+from the PV UID:
+
+```
+/volume2/Kubernetes/v/<namespace>-<pvc-name>
+e.g. /volume2/Kubernetes/v/gitea-valkey-data-gitea-valkey-cluster-0
+```
+
+The StorageClass is also `reclaimPolicy: Retain`. Together these mean:
+
+- `kubectl delete pvc` leaves the directory and its contents untouched on the Synology.
+- Recreating a PVC **with the same name in the same namespace** binds a *new* PV that
+  points at the *same old directory* — the application comes back up on its previous
+  data, silently.
+
+So "delete the PVC and let it recreate clean" is a **no-op** here — a standard recovery
+move on most clusters that does nothing on this one. This was hit while rebuilding
+Gitea's valkey cluster: the pods kept re-forming the old 3-node cluster from a
+`nodes.conf` that had supposedly been deleted, with node IDs from 69 days earlier.
+
+To actually start clean, wipe the contents in place while nothing mounts them:
+
+```bash
+kubectl scale sts <name> -n <ns> --replicas=0
+# run a throwaway root pod mounting each PVC, then:
+#   find /d -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+kubectl scale sts <name> -n <ns> --replicas=<n>
+```
+
+Note the `Retain` policy also means every deleted PVC leaves a `Released` PV behind.
+These accumulate (21 of them as of 2026-08-01) and are never reclaimed automatically.
+
 ### Usage
 
 ```yaml
