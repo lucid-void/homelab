@@ -11,7 +11,7 @@ data:
   # `kubectl logs -c notify` still shows them for manual pre-upgrade prechecks.
   notify.sh: |
     #!/bin/sh
-    GOTIFY_URL="https://gotify.blackcats.cc"
+    GOTIFY_URL="http://gotify.monitoring.svc.cluster.local"
     OUT="/work/kubent.out"
 
     echo "===== kubent output ====="

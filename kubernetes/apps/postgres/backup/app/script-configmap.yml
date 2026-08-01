@@ -14,7 +14,7 @@ data:
 
     notify_gotify() {
       local title="$1" msg="$2" priority="${3:-5}"
-      curl -sf -X POST "https://gotify.blackcats.cc/message" \
+      curl -sf -X POST "http://gotify.monitoring.svc.cluster.local/message" \
         -H "Content-Type: application/json" \
         -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
         -d "{\"title\":\"${title}\",\"message\":\"${msg}\",\"priority\":${priority}}" \
