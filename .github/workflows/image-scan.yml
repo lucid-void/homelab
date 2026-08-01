@@ -1,0 +1,231 @@
+name: Image Security Scan
+
+# Triggered by any PR that changes a container image reference under kubernetes/.
+# Renovate PRs hit this automatically; manual image bumps do too.
+#
+# Gate logic:
+#   - When a baseline exists (tag bump): fail only if the NET Critical or High count
+#     INCREASES. An upgrade that introduces some CVEs but fixes more (net improvement)
+#     always passes. Introduced/fixed detail is shown in the comment but does not gate.
+#   - When no baseline exists (brand-new image, or the old tag no longer pulls):
+#     fall back to an absolute threshold (any Critical fails).
+#
+# Image detection and CVE analysis live in .github/scripts/ rather than inline in
+# this file -- the osv-scanner severity banding in particular is far too fiddly to
+# express as jq inside a YAML block scalar, and keeping it in Python makes it
+# testable outside CI.
+#
+# Required status check name for branch protection: "Image Scans Passed"
+
+on:
+  pull_request:
+    paths:
+      - "kubernetes/**"
+      - ".github/workflows/image-scan.yml"
+      - ".github/scripts/extract-images.py"
+      - ".github/scripts/scan-report.py"
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-scan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  GRYPE_VERSION: "0.116.1"
+  OSV_SCANNER_VERSION: "2.4.0"
+
+jobs:
+  # ── Job 1: pair old/new images from the diff ───────────────────────────────
+  detect-images:
+    name: Detect changed images
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.extract.outputs.matrix }}
+      has-images: ${{ steps.extract.outputs.has_images }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract old/new image pairs from diff
+        id: extract
+        run: |
+          git fetch origin "${{ github.base_ref }}"
+
+          MATRIX=$(python3 .github/scripts/extract-images.py \
+            --base "origin/${{ github.base_ref }}" --head HEAD)
+
+          COUNT=$(echo "$MATRIX" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["include"]))')
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_images=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_images=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "Detected $COUNT image change(s):"
+          echo "$MATRIX" | python3 -m json.tool
+
+  # ── Job 2: scan each image pair (matrix, parallel) ─────────────────────────
+  scan:
+    name: Scan ${{ matrix.new }}
+    needs: detect-images
+    if: needs.detect-images.outputs.has-images == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-images.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Both scanners pull a full copy of each image, and a pair means four
+      # pulls. Large app images (immich, paperless) can exhaust the runner's
+      # default free space, so reclaim the preinstalled toolchains first.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+                      /usr/local/share/boost /usr/share/swift || true
+          df -h /
+
+      - name: Install grype and osv-scanner
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin "v${GRYPE_VERSION}"
+          curl -sSfL \
+            "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64" \
+            -o /usr/local/bin/osv-scanner
+          chmod +x /usr/local/bin/osv-scanner
+          grype version
+          osv-scanner --version
+
+      # Image references come from PR-controlled YAML, so they are passed through
+      # the environment rather than interpolated into the shell by the expression
+      # engine.
+      - name: Prepare output directory
+        env:
+          MATRIX_NEW: ${{ matrix.new }}
+          MATRIX_OLD: ${{ matrix.old }}
+          MATRIX_FILE: ${{ matrix.file }}
+        run: |
+          SAFE="${MATRIX_NEW//[\/:.@]/_}"
+          echo "SAFE=$SAFE"                >> "$GITHUB_ENV"
+          echo "NEW_IMAGE=$MATRIX_NEW"     >> "$GITHUB_ENV"
+          echo "OLD_IMAGE=$MATRIX_OLD"     >> "$GITHUB_ENV"
+          echo "MANIFEST=$MATRIX_FILE"     >> "$GITHUB_ENV"
+          mkdir -p "scan-${SAFE}"
+
+      # ── New image (must succeed — a failure here is a real error) ──────────
+
+      - name: Scan new image
+        run: |
+          # grype exits non-zero only on error; no --fail-on, the gate is ours.
+          grype "$NEW_IMAGE" -o json > "scan-${SAFE}/grype.json"
+          # osv-scanner exits 1 when it finds vulnerabilities, which is not an error.
+          osv-scanner scan image "$NEW_IMAGE" --format json --all-vulns \
+            > "scan-${SAFE}/osv.json" || true
+          python3 -c "import json,sys; json.load(open('scan-${SAFE}/osv.json'))" \
+            || { echo "osv-scanner produced no valid JSON for $NEW_IMAGE"; exit 1; }
+
+      # ── Old image (best effort — a deleted upstream tag drops the baseline) ─
+
+      - name: Scan baseline image
+        if: matrix.old != ''
+        run: |
+          if ! grype "$OLD_IMAGE" -o json > "scan-${SAFE}/grype-old.json"; then
+            echo "::warning::Could not scan baseline $OLD_IMAGE — falling back to absolute threshold"
+            rm -f "scan-${SAFE}/grype-old.json" "scan-${SAFE}/osv-old.json"
+            echo "OLD_IMAGE=" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          osv-scanner scan image "$OLD_IMAGE" --format json --all-vulns \
+            > "scan-${SAFE}/osv-old.json" || true
+          python3 -c "import json,sys; json.load(open('scan-${SAFE}/osv-old.json'))" 2>/dev/null \
+            || echo '{"results":[]}' > "scan-${SAFE}/osv-old.json"
+
+      # ── Analysis, artifact, gate ──────────────────────────────────────────
+
+      - name: Analyze delta
+        id: analyze
+        run: |
+          python3 .github/scripts/scan-report.py analyze \
+            --dir "scan-${SAFE}" \
+            --new "$NEW_IMAGE" \
+            --old "$OLD_IMAGE" \
+            --file "$MANIFEST" | tee "scan-${SAFE}/summary.txt"
+
+      - name: Write step summary
+        if: always()
+        run: |
+          {
+            echo "## \`${NEW_IMAGE}\`"
+            echo '```'
+            cat "scan-${SAFE}/summary.txt" 2>/dev/null || echo "scan did not complete"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload scan artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scan-${{ env.SAFE }}
+          path: scan-${{ env.SAFE }}/
+          retention-days: 30
+
+  # ── Job 3: PR comment + gate ───────────────────────────────────────────────
+  image-scans-passed:
+    name: Image Scans Passed
+    needs: [detect-images, scan]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download scan artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: scan-*
+        continue-on-error: true
+
+      - name: Build and post PR comment
+        if: needs.detect-images.outputs.has-images == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 .github/scripts/scan-report.py comment --artifacts artifacts \
+            > /tmp/pr-comment.md
+          cat /tmp/pr-comment.md
+
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --edit-last --body-file /tmp/pr-comment.md 2>/dev/null \
+            || gh pr comment "${{ github.event.pull_request.number }}" \
+                 --repo "${{ github.repository }}" \
+                 --body-file /tmp/pr-comment.md
+
+      - name: Gate check
+        run: |
+          DETECT="${{ needs.detect-images.result }}"
+          SCAN="${{ needs.scan.result }}"
+          echo "detect-images: $DETECT"
+          echo "scan:          $SCAN"
+
+          if [ "$DETECT" != "success" ]; then
+            echo "detect-images did not succeed"
+            exit 1
+          fi
+          if [ "$SCAN" != "success" ] && [ "$SCAN" != "skipped" ]; then
+            echo "One or more image scans failed — see the PR comment for detail"
+            exit 1
+          fi
+          echo "All image scans passed (or no image changes to scan)"

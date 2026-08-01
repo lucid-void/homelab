@@ -186,4 +186,4 @@ See [design/AI_CONTEXT.md](design/AI_CONTEXT.md) for the IP isolation guards in 
 - **Secrets** — Sealed Secrets for app secrets; SOPS + age for Talos/Terraform secrets (single age key)
 - **Task runner** — `justfile`
 - **k8s tooling** — `kubectl`, `flux`, `kubeseal`, `talosctl`, `talhelper`, `helm`, `kubeconform` are managed by **mise**; invoke via `mise exec -- <tool>` (they may not be on `PATH`)
-- **CI/CD** — GitHub Actions: image builds → GHCR (`backup-tools`, `postgres-cnpg-immich`) and PR gates (`manifest-scan` = kubeconform + kube-linter). Renovate opens dependency-bump PRs. CI never auto-applies to the cluster — Flux does that from `main`.
+- **CI/CD** — GitHub Actions: image builds → GHCR (`backup-tools`, `postgres-cnpg-immich`) and two PR gates: `manifest-scan` (kubeconform + kube-linter) and `image-scan` (grype + osv-scanner CVE delta on every changed container image). Renovate opens dependency-bump PRs. CI never auto-applies to the cluster — Flux does that from `main`. See [design/docs/gitops.md](../design/docs/gitops.md) — note `image-scan` must diff whole-file image sets, not diff hunks, because Renovate usually changes only a `tag:` line.

@@ -309,6 +309,55 @@ CI runs on PRs touching `kubernetes/**`:
 - **kube-linter** — static analysis; delta gate (new violations only fail the PR)
 
 Workflow: `.github/workflows/manifest-scan.yml`
+Required status check: `Manifest Scan Passed`
+
+### Image vulnerability scanning
+
+`.github/workflows/image-scan.yml` scans every container image a PR changes, so
+Renovate bumps carry a CVE diff. Required status check: `Image Scans Passed`.
+
+**Gate:** with a baseline (a tag bump), a PR fails only if the *net* Critical or
+High count **increases**. An upgrade that introduces some CVEs while fixing more
+passes — the introduced ones are still listed in the PR comment. With no baseline
+(new image, or the old tag no longer pulls) any Critical fails.
+
+Both scanners run on each image: **grype** (Anchore) and **osv-scanner** (Google).
+Results are posted as a single PR comment with before/after/delta tables and
+collapsible introduced/fixed CVE lists. Raw scanner JSON is uploaded as a
+30-day artifact.
+
+Logic lives in `.github/scripts/`, not inline in the workflow:
+
+| Script | Role |
+|---|---|
+| `extract-images.py` | Pairs old/new image refs across the diff |
+| `scan-report.py` | Normalises both scanners, computes the delta, renders the comment |
+
+Two things make this repo-specific and are easy to get wrong if the workflow is
+ever rewritten:
+
+- **Renovate usually does not change a whole image reference.** The bjw-s
+  app-template and Helm-values form splits the image across two lines, so a bump
+  shows up as a lone `tag:` line with `repository:` sitting on an unchanged
+  context line. Grepping the diff's `+`/`-` hunks for `image:` misses these
+  entirely. `extract-images.py` instead extracts the full image set from the base
+  and head versions of each changed file and diffs those sets.
+- **osv-scanner v2 removed severity labels.** v1 exposed
+  `database_specific.severity` as `CRITICAL`/`HIGH`; in v2 that field is always
+  null and severity is only available as a CVSS base score on
+  `groups[].max_severity`. Any filter keyed off the v1 field silently counts zero
+  for every image — a dead gate that still reports green. `scan-report.py` bands
+  the CVSS score instead. grype's `matches[].vulnerability.severity` is unaffected.
+
+Helm chart coordinates (`chart:` + `version:`, OCIRepository `url:`) are
+deliberately not scanned — they are chart artifacts, not runnable images.
+
+Test the extractor against a real PR without pushing:
+
+```bash
+git fetch origin <renovate-branch>
+python3 .github/scripts/extract-images.py --base origin/main --head origin/<renovate-branch>
+```
 
 Flux reconciles every 10–30 min. To force immediate reconciliation:
 
