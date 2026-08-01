@@ -47,3 +47,45 @@ data:
         }
       ]
     }
+  # Turns on QuickChat's Redis bridge so chat, /msg, staffchat and join/leave
+  # cross between matcha and vanilla. Velocity does NOT do this itself.
+  #
+  # `server-id` MUST be unique per server ("Must be unique across all servers in
+  # the network"), so it comes from CFG_QUICKCHAT_SERVER_ID, set per HelmRelease
+  # — that keeps this one ConfigMap shared by both servers instead of needing a
+  # near-duplicate per server.
+  #
+  # Caveat: this patches a file the plugin generates, so it only works once
+  # QuickChat has booted at least once and written redis.yml. On a rebuilt PVC
+  # the first boot has no file to patch — check the init log for a patch error
+  # and simply let it start twice.
+  quickchat-redis.json: |
+    {
+      "file": "/data/plugins/Quickchat/redis.yml",
+      "ops": [
+        {
+          "$set": {
+            "path": "$.redis.enabled",
+            "value": true
+          }
+        },
+        {
+          "$set": {
+            "path": "$.redis.server-id",
+            "value": "${CFG_QUICKCHAT_SERVER_ID}"
+          }
+        },
+        {
+          "$set": {
+            "path": "$.redis.connection.host",
+            "value": "minecraft-valkey.media.svc.cluster.local"
+          }
+        },
+        {
+          "$set": {
+            "path": "$.redis.connection.port",
+            "value": 6379
+          }
+        }
+      ]
+    }
