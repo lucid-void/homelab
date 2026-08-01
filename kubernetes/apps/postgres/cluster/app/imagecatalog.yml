@@ -5,5 +5,10 @@ metadata:
   name: postgres-cnpg-immich
 spec:
   images:
+    # Deliberately behind the image built by .github/workflows/postgres-cnpg-immich.yml
+    # (IMAGE_VERSION there is the newest built tag, not the deployed one). Changing this
+    # line triggers a CNPG rolling update of the Postgres pods — replica first, then the
+    # primary restarts in place — so move it only when you actually want that, not to
+    # chase the build. See CLAUDE.md → "CNPG operator upgrades roll the DB".
     - major: 17
       image: ghcr.io/lucid-void/postgres-cnpg-immich:v1.1.0
