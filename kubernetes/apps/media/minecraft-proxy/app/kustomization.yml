@@ -1,0 +1,7 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./velocity-sealed.yml
+  - ./velocity-config.yml
+  - ./helmrelease.yml

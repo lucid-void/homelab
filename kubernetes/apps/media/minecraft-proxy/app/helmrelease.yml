@@ -1,0 +1,132 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: minecraft-proxy
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        annotations:
+          reloader.stakater.com/auto: "true"
+        pod:
+          securityContext:
+            fsGroup: 2200
+            fsGroupChangePolicy: OnRootMismatch
+        containers:
+          app:
+            image:
+              repository: itzg/mc-proxy
+              # java25 to match the backends. Velocity itself is pinned below —
+              # the image tag only fixes the JRE and the launcher scripts.
+              tag: java25
+            env:
+              TYPE: VELOCITY
+              TZ: Europe/Brussels
+              PUID: "2202"
+              PGID: "2200"
+              # 3.5.1 is the RECOMMENDED channel and contemporaneous with Paper
+              # 26.2 (build 615, 2026-07-11). Deliberately NOT 4.0.0: that line
+              # is only days newer but changes the velocity.toml schema, and the
+              # config in git is written for 2.7. Bump both together or Velocity
+              # rejects the config.
+              VELOCITY_VERSION: "3.5.1"
+              VELOCITY_BUILD_ID: "615"
+              # Velocity resolves backends by Service DNS, so it must not cache
+              # a dead pod IP across a backend restart.
+              MEMORY: 512M
+            probes:
+              # Velocity answers the Minecraft handshake on 25565; a TCP probe is
+              # the only protocol-independent liveness signal, same reasoning as
+              # mc-router used.
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 25565
+                  initialDelaySeconds: 15
+                  periodSeconds: 15
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 25565
+                  initialDelaySeconds: 45
+                  periodSeconds: 30
+                  failureThreshold: 5
+            resources:
+              requests:
+                memory: 512Mi
+                cpu: 100m
+              limits:
+                memory: 1Gi
+
+    service:
+      app:
+        controller: app
+        type: LoadBalancer
+        labels:
+          lbpool: pool-b
+        annotations:
+          # Inherits mc-router's address, so matcha/vanilla A records do not
+          # move again. NEVER give this the same IP as plex-direct: Cilium keeps
+          # one L2 Lease per Service and two Services on one IP get announced by
+          # two nodes at once, which resets every long-lived connection. See
+          # kube-system/cilium/config/cilium-l2.yml.
+          lbipam.cilium.io/ips: "172.16.20.52"
+          external-dns.alpha.kubernetes.io/enabled: "true"
+          external-dns.alpha.kubernetes.io/hostname: matcha.blackcats.cc,vanilla.blackcats.cc
+        ports:
+          minecraft:
+            port: 25565
+
+    persistence:
+      # itzg/mc-proxy syncs /config into /server at boot, so both files below are
+      # re-applied every restart and nothing config-ish lives in mutable state.
+      velocity-config:
+        type: configMap
+        name: velocity-config
+        advancedMounts:
+          app:
+            app:
+              - path: /config/velocity.toml
+                subPath: velocity.toml
+                readOnly: true
+      forwarding-secret:
+        type: secret
+        name: velocity-secret
+        advancedMounts:
+          app:
+            app:
+              - path: /config/forwarding.secret
+                subPath: forwarding.secret
+                readOnly: true
+      # Velocity re-downloads its jar on each start and holds only logs and the
+      # synced config here, so there is nothing worth persisting — and an
+      # ephemeral proxy can never drift from git.
+      server:
+        type: emptyDir
+        advancedMounts:
+          app:
+            app:
+              - path: /server

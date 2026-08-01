@@ -43,7 +43,7 @@ spec:
 # Consumers pin themselves with lbipam.cilium.io/ips so an IP can't silently
 # migrate between Services on reconcile.
 #   172.16.20.51  media/plex-direct  (Plex ADVERTISE_IP hardcodes this)
-#   172.16.20.52  media/mc-router    (matcha/vanilla A records via external-dns)
+#   172.16.20.52  media/minecraft-proxy  (matcha/vanilla A records, external-dns)
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
 metadata:

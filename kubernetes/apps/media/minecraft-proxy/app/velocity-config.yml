@@ -1,0 +1,79 @@
+---
+# Velocity 3.5.1 config. itzg/mc-proxy syncs everything in /config into /server
+# on every boot, so this ConfigMap is the source of truth and a hand-edit inside
+# the container is reverted next restart — deliberately unlike the old
+# server.properties situation, which drifted on the PVC and crash-looped a server.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: velocity-config
+  namespace: media
+data:
+  velocity.toml: |
+    # Bumped by Velocity itself on a schema change; it logs loudly if this is
+    # stale, so check the proxy log after any VELOCITY_VERSION bump.
+    config-version = "2.7"
+
+    # Velocity's own default is 25577; bind straight to 25565 so the Service
+    # needs no port remapping.
+    bind = "0.0.0.0:25565"
+    motd = "matcha & vanilla"
+    show-max-players = 20
+
+    # The proxy is the only thing that talks to Mojang. Backends run
+    # ONLINE_MODE=FALSE and trust the signed forwarding payload instead.
+    online-mode = true
+    force-key-authentication = true
+    prevent-client-proxy-connections = false
+
+    # MODERN forwarding hands the real UUID/skin/IP to the backend, signed with
+    # forwarding.secret. Paper with proxies.velocity.enabled REJECTS any login
+    # that lacks a valid signature — so ONLINE_MODE=FALSE on the backends is not
+    # an exposure, provided the secret stays secret and the backend Services
+    # stay ClusterIP-only (they are).
+    player-info-forwarding-mode = "modern"
+    forwarding-secret-file = "forwarding.secret"
+
+    announce-forge = false
+    # Kick the older session when the same account logs in twice, rather than
+    # refusing the new one — matches how the servers behaved under mc-router.
+    kick-existing-players = false
+    ping-passthrough = "DISABLED"
+    enable-player-address-logging = true
+
+    [servers]
+    matcha = "matcha-app.media.svc.cluster.local:25565"
+    vanilla = "vanilla-app.media.svc.cluster.local:25565"
+    # Fallback order when a player connects without a matching forced-host.
+    try = ["vanilla"]
+
+    # This is the direct replacement for mc-router's demultiplexing: the
+    # hostname in the client handshake picks the backend, so both existing
+    # hostnames keep working and no DNS changes.
+    [forced-hosts]
+    "matcha.blackcats.cc" = ["matcha"]
+    "vanilla.blackcats.cc" = ["vanilla"]
+
+    [advanced]
+    # Matches network-compression-threshold=256 on both backends.
+    compression-threshold = 256
+    compression-level = -1
+    login-ratelimit = 3000
+    connection-timeout = 5000
+    read-timeout = 30000
+    haproxy-protocol = false
+    tcp-fast-open = false
+    bungee-plugin-message-channel = true
+    show-ping-requests = false
+    failover-on-unexpected-server-disconnect = true
+    announce-proxy-commands = true
+    log-command-executions = false
+    # Player connect/disconnect lines are the only record of who joined when —
+    # mc-router's --record-logins used to provide this.
+    log-player-connections = true
+
+    [query]
+    enabled = false
+    port = 25565
+    map = "Velocity"
+    show-plugins = false

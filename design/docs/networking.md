@@ -13,7 +13,7 @@
 | cp-3 | 172.16.20.13 | Talos control plane + workloads |
 | k8s API VIP | 172.16.20.10 | API server endpoint (floats via leader election) |
 | Gateway VIP | 172.16.20.50 | Cilium L2 announcement — `shared` Gateway |
-| Pool-B VIPs | 172.16.20.51–.52 | Cilium L2 announcement — direct LoadBalancer services (.51 Plex, .52 mc-router) |
+| Pool-B VIPs | 172.16.20.51–.52 | Cilium L2 announcement — direct LoadBalancer services (.51 Plex, .52 Velocity proxy) |
 | UDM SE | 172.16.20.254 | Gateway, DHCP, DNS resolver, ad blocking |
 
 **Pod CIDR:** `10.244.0.0/16`
@@ -73,14 +73,16 @@ pool-a is exclusively for the `shared` Gateway. pool-b is for any other `LoadBal
 | Service | IP | Port | Why pinned |
 |---|---|---|---|
 | `media/plex` (`plex-direct`) | 172.16.20.51 | 32400 | Plex `ADVERTISE_IP` hardcodes it |
-| `media/mc-router` | 172.16.20.52 | 25565 | matcha/vanilla A records via external-dns |
+| `media/minecraft-proxy` (Velocity) | 172.16.20.52 | 25565 | matcha/vanilla A records via external-dns |
 
 ### Never share one pool-b IP between Services
 
 These two Services previously shared `172.16.20.51` via `lbipam.cilium.io/sharing-key: pool-b-shared`. **Do not reintroduce that.** Cilium's L2 announcer creates one `Lease` per *Service* (`cilium-l2announce-<ns>-<svc>`) and elects each leader independently, so a shared address gets announced by two different nodes simultaneously:
 
 ```
-cilium-l2announce-media-mc-router     → cp-3
+cilium-l2announce-media-mc-router     → cp-3    (the historical example; that
+                                                 Service has since been replaced
+                                                 by minecraft-proxy on its own IP)
 cilium-l2announce-media-plex-direct   → cp-2
 ```
 
@@ -193,7 +195,7 @@ Without this annotation, no DNS record is created. The Gateway's own wildcard ho
 
 `txtOwnerId: homelab-k8s` — external-dns uses TXT records to track ownership. Records not present in git will be deleted (`policy: sync`).
 
-Almost all A records resolve to `172.16.20.50` (gateway VIP). The `service` source exists for the one case that can't route through the Gateway — Minecraft is raw TCP, so `mc-router`'s LoadBalancer publishes `matcha.blackcats.cc` and `vanilla.blackcats.cc` at `172.16.20.52` via:
+Almost all A records resolve to `172.16.20.50` (gateway VIP). The `service` source exists for the one case that can't route through the Gateway — Minecraft is raw TCP, so the Velocity proxy's LoadBalancer publishes `matcha.blackcats.cc` and `vanilla.blackcats.cc` at `172.16.20.52` via:
 
 ```yaml
 annotations:

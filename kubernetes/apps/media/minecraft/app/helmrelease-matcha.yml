@@ -95,6 +95,21 @@ spec:
               # server is comfortably idle.
               VIEW_DISTANCE: "10"
               SIMULATION_DISTANCE: "6"
+              # Velocity terminates the Mojang session check and forwards the
+              # verified identity. This is only safe because the velocity patch
+              # below makes Paper *reject* any login without a valid signature —
+              # so despite online-mode being off, this server cannot be joined
+              # directly, and its Service is ClusterIP-only regardless.
+              ONLINE_MODE: "FALSE"
+              # Patches proxies.velocity.* into the generated paper-global.yml
+              # each boot. See patches-configmap.yml for why this is a patch and
+              # not a whole mounted file.
+              PATCH_DEFINITIONS: /patches
+              CFG_VELOCITY_SECRET:
+                valueFrom:
+                  secretKeyRef:
+                    name: velocity-secret
+                    key: CFG_VELOCITY_SECRET
               ENABLE_ROLLING_LOGS: "true"
               ENABLE_RCON: "true"
               RCON_PORT: "25575"
@@ -120,7 +135,11 @@ spec:
               #               and doing it up front turns play-time chunk loads
               #               into plain reads. Pregen AFTER any worldgen datapack.
               #   squaremap — live web map, served on 8080 (see the `map` Service)
-              MODRINTH_PROJECTS: "luckperms,chunky,squaremap"
+              #   quickchat — cross-server chat. Velocity does NOT merge chat
+              #               between backends; this plugin does, by relaying
+              #               through minecraft-valkey. Must be installed on
+              #               BOTH servers or the bridge is one-way.
+              MODRINTH_PROJECTS: "luckperms,chunky,squaremap,quickchatv2"
               MODRINTH_DOWNLOAD_DEPENDENCIES: required
 
               # World directory name. Previously lived only in server.properties on
@@ -281,10 +300,9 @@ spec:
       # Two services, so app-template suffixes both: matcha-app / matcha-files.
       app:
         controller: app
-        annotations:
-          # How mc-router finds this backend. Adding a server is exactly this
-          # annotation plus a DNS name on the mc-router Service.
-          mc-router.itzg.me/externalServerName: matcha.blackcats.cc
+        # No routing annotation any more: Velocity resolves this Service by DNS
+        # from its [servers] block, and picks it via [forced-hosts]. Adding a
+        # server is now a HelmRelease plus two lines in velocity-config.yml.
         ports:
           minecraft:
             port: 25565
@@ -346,6 +364,14 @@ spec:
           app:
             files:
               - path: /config
+      patches:
+        type: configMap
+        name: minecraft-patches
+        advancedMounts:
+          app:
+            app:
+              - path: /patches
+                readOnly: true
       backups:
         existingClaim: mc-backups
         advancedMounts:
