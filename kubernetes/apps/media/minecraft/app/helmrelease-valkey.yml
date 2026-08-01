@@ -34,7 +34,7 @@ spec:
           app:
             image:
               repository: valkey/valkey
-              tag: 8.1-alpine
+              tag: 9.1-alpine
             # Pure pub/sub relay for live chat — there is nothing worth keeping
             # across a restart, and a message that arrives while a server is
             # down is stale anyway. Both persistence mechanisms are disabled so
