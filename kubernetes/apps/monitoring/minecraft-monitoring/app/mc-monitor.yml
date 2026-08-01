@@ -37,9 +37,15 @@ spec:
           env:
             # Cross-namespace: the servers live in `media`. Ports are the
             # app-template service names ({release}-app), not the pods.
+            # The two backends are pinged directly, bypassing the proxy, so a
+            # backend fault is distinguishable from a proxy fault. The proxy is
+            # pinged too: Velocity answers a status ping itself (ping-passthrough
+            # is DISABLED), so an unhealthy result here means the proxy is down
+            # while the backends may be perfectly fine. Velocity exports no
+            # Prometheus metrics of its own, so this ping IS the proxy signal.
             - name: EXPORT_SERVERS
               value: >-
-                matcha-app.media.svc.cluster.local:25565,vanilla-app.media.svc.cluster.local:25565
+                matcha-app.media.svc.cluster.local:25565,vanilla-app.media.svc.cluster.local:25565,minecraft-proxy.media.svc.cluster.local:25565
             - name: EXPORT_PORT
               value: "8080"
             # Well under vmagent's 60s scrape interval, so a hung server surfaces

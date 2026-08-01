@@ -75,7 +75,7 @@ spec:
           # This used to carry lbipam.cilium.io/sharing-key to share .51 with
           # mc-router; that made two nodes announce one IP (one Lease per
           # Service, leaders elected independently) and reset any long-lived
-          # connection whose ARP entry flipped. mc-router now owns .52.
+          # connection whose ARP entry flipped. minecraft-proxy now owns .52.
           lbipam.cilium.io/ips: "172.16.20.51"
         ports:
           plex:

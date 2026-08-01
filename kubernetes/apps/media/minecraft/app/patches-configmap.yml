@@ -1,0 +1,45 @@
+---
+# Applied by itzg's PATCH_DEFINITIONS on every boot. Deliberately a *patch*
+# rather than a mounted paper-global.yml: replacing the whole file would reset
+# every other Paper setting (packet-limiter, spam-limiter, chunk options) to
+# defaults, and those are generated per Paper version. This touches only the
+# three keys that matter and leaves the rest alone.
+#
+# `${CFG_VELOCITY_SECRET}` is substituted from the env var of the same name,
+# supplied by the `velocity-secret` SealedSecret (same value Velocity mounts as
+# forwarding.secret). itzg restricts placeholders to REPLACE_ENV_VARIABLE_PREFIX,
+# which defaults to CFG_ — hence the name.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minecraft-patches
+  namespace: media
+data:
+  velocity-forwarding.json: |
+    {
+      "patches": [
+        {
+          "file": "/data/config/paper-global.yml",
+          "ops": [
+            {
+              "$set": {
+                "path": "$.proxies.velocity.enabled",
+                "value": true
+              }
+            },
+            {
+              "$set": {
+                "path": "$.proxies.velocity.online-mode",
+                "value": true
+              }
+            },
+            {
+              "$set": {
+                "path": "$.proxies.velocity.secret",
+                "value": "${CFG_VELOCITY_SECRET}"
+              }
+            }
+          ]
+        }
+      ]
+    }
