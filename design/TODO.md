@@ -12,7 +12,19 @@ Known gaps, planned work, and items that need verification.
 
 ## Known Broken
 
-*(nothing currently)*
+### Gitea's valkey cluster keeps AOF on NFS — 2026-08-01
+
+The bundled `gitea-valkey-cluster` persists to three 8Gi `nfs-client` PVCs
+(`valkey-data-gitea-valkey-cluster-{0,1,2}`). This is the same NFS/fsync-locking
+trap the RomM row in `.claude/CLAUDE.md` already warns about — RomM's embedded
+Valkey was deliberately put on an `emptyDir` for exactly this reason.
+
+The failover fix (`nodes: 6, replicas: 1`) addresses *availability*, not the
+storage choice. Since the data is a disposable cache, the right end state is
+almost certainly `emptyDir` (or `openebs-hostpath`) rather than NFS — nothing
+here is worth surviving a pod restart, and NFS buys fragility for no benefit.
+
+Not changed yet because it is a separate decision from the failover work.
 
 ---
 
