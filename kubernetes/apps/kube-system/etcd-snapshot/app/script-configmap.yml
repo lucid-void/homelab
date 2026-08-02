@@ -74,9 +74,14 @@ data:
       --tag etcd-snapshot \
       --verbose
 
-    # 5. Forget old snapshots (keep 30 daily) and prune orphaned pack files
+    # 5. Forget old snapshots (30 daily, then 12 monthly) and prune orphaned packs
+    #    --group-by '' is load-bearing: restic defaults to --group-by host,paths,
+    #    and every Job pod has a unique hostname, so each snapshot formed a group
+    #    of one that --keep-daily 30 then trivially kept. Nothing was ever pruned
+    #    (73 snapshots survived in a 30-day repo). One restic repo per job here,
+    #    so there is nothing to group by at all.
     echo "[backup] Pruning old snapshots..."
-    restic forget --keep-daily 30 --prune
+    restic forget --group-by '' --keep-daily 30 --keep-monthly 12 --prune
 
     # 6. Spot-check repository integrity
     echo "[backup] Checking repository integrity..."

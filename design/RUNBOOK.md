@@ -669,6 +669,48 @@ running both re-initialises etcd and discards the snapshot.
 > "Backup restore actually works"). Treat the steps above as the intended procedure,
 > not a verified one.
 
+### Restore an application backup from a given date
+
+Every nightly run writes an independent point-in-time restic snapshot, so any retained
+day can be restored on its own. Retention per repo is **30 dailies, then one per month
+for 12 months** — so "3 days ago" and "5 days ago" are distinct restore points, but
+beyond 30 days you land on whatever day of that month the monthly happened to keep.
+
+Restore reads the repo directly and touches nothing in the cluster, so it is safe to
+run against a live system as long as you restore to a scratch `--target`.
+
+```bash
+# Run inside a throwaway pod that already has the repo credentials mounted.
+# Swap the namespace/secret names for the app you want (repo = one per job).
+mise exec -- kubectl run restic-restore -n paperless --rm -it --restart=Never \
+  --image=ghcr.io/lucid-void/backup-tools:v1.0.2 \
+  --overrides='{"spec":{"securityContext":{"runAsUser":65534,"fsGroup":65534},
+    "containers":[{"name":"r","image":"ghcr.io/lucid-void/backup-tools:v1.0.2",
+    "stdin":true,"tty":true,"command":["/bin/bash"],
+    "envFrom":[{"secretRef":{"name":"restic-secret"}}],
+    "env":[{"name":"RCLONE_CONFIG","value":"/rclone-config/rclone.conf"},
+           {"name":"HOME","value":"/tmp"}],
+    "volumeMounts":[{"name":"rc","mountPath":"/rclone-config","readOnly":true}]}],
+    "volumes":[{"name":"rc","secret":{"secretName":"rclone-secret","defaultMode":288}}]}}'
+
+# then, inside the pod:
+restic snapshots                          # list every restore point with its date
+restic restore <snapshot-id> --target /tmp/r     # whole snapshot
+restic restore <snapshot-id> --target /tmp/r --include /db/paperless.pgdump  # just the DB
+```
+
+`restic restore latest --time "2026-07-15 04:00:00"` picks the newest snapshot at or
+before a timestamp, which is easier than copying an ID. `restic dump <id> <path>` streams
+a single file to stdout — handy for piping a `.pgdump` straight into `pg_restore`.
+
+> **`HOME=/tmp` is required.** The image runs as uid 65534 with a non-writable `/`, and
+> restic aborts its cache setup with `unable to open cache: mkdir /.cache: permission
+> denied` otherwise. Note also that `backup-tools` has **no `python3` and no `jq`**, and
+> its `find` is busybox (no `-printf`, no `-readable`).
+
+> **Untested.** No application snapshot has been restore-tested end-to-end either (see
+> TODO.md → "Backup restore actually works").
+
 ### Rebuild the paperless search index
 
 `paperless-backup` deliberately excludes `/data/index` — it is the derived full-text
