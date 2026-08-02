@@ -60,8 +60,17 @@ data:
 
     # 4. Single restic snapshot: DB dump + data dir + media (scanned documents).
     #    restic is content-addressable: only new or changed chunks are uploaded.
+    #
+    #    /data/index is excluded: it is the derived full-text search index, not
+    #    source data — restore it with `document_index reindex` (see RUNBOOK).
+    #    paperless 3.0 replaced the Whoosh index with Tantivy, which writes its
+    #    meta.json/.managed.json with mode 0600 owned by uid 1000. This job runs
+    #    as uid 65534, so those two files are unreadable and restic exits 3
+    #    ("snapshot saved, but at least one source file could not be read"),
+    #    failing the job under `set -e` before forget/prune/check ever run.
     echo "[backup] Running restic backup..."
     restic backup "${DB_DUMP}" /data /media \
+      --exclude=/data/index \
       --tag "$(date +%Y-%m-%d)" \
       --tag paperless \
       --verbose
