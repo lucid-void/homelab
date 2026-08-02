@@ -669,6 +669,20 @@ running both re-initialises etcd and discards the snapshot.
 > "Backup restore actually works"). Treat the steps above as the intended procedure,
 > not a verified one.
 
+### Rebuild the paperless search index
+
+`paperless-backup` deliberately excludes `/data/index` — it is the derived full-text
+search index, not source data. After restoring a paperless snapshot, rebuild it:
+
+```bash
+mise exec -- kubectl exec -n paperless deploy/paperless-app -- \
+  document_index reindex
+```
+
+Until that runs, documents are present and readable but full-text search returns
+nothing. The classification model (`/data/classification_model.pickle`) *is* in the
+snapshot, but also regenerates on its own schedule, so a stale one is harmless.
+
 ### etcd force-new-cluster (quorum already broken)
 
 If etcd has lost quorum, pick the node with the most recent data. Add a temporary patch in `talconfig.yaml` for that node:
