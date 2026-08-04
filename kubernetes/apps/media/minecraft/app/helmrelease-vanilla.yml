@@ -214,12 +214,19 @@ spec:
               requests:
                 memory: 6Gi
                 cpu: 500m
-              # Tracks MEMORY (6G heap) + ~2Gi for metaspace, GC structures and
-              # direct buffers — same ratio as matcha's 4G/6Gi. Raising MEMORY
-              # without raising this is an OOMKill, not a slow server: the JVM
-              # sizes its heap from MEMORY and the cgroup kills it on the way up.
+              # Tracks MEMORY (6G heap) + ~3Gi for metaspace, GC structures and
+              # direct buffers. Raising MEMORY without raising this is an
+              # OOMKill, not a slow server: the JVM sizes its heap from MEMORY
+              # and the cgroup kills it on the way up.
+              #
+              # 9Gi, not 8Gi: itzg sets -Xms AND -Xmx from MEMORY, so the heap
+              # commits to the full 6 GiB and stays there. Measured non-heap
+              # overhead is ~1.2 GiB, putting steady-state RSS at ~7.2 GiB —
+              # exactly 90% of an 8Gi limit, so MinecraftMemoryNearLimit fired
+              # continuously (2026-08-03/04) with only ~0.8 GiB of real
+              # headroom left. 9Gi puts steady state near 80%.
               limits:
-                memory: 8Gi
+                memory: 9Gi
 
           backup:
             image:

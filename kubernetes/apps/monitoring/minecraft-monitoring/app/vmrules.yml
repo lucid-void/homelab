@@ -94,8 +94,13 @@ spec:
           # The JVM heap is fixed by MEMORY; this watches the container ceiling,
           # which must stay above heap + metaspace/GC/direct buffers. Crossing it
           # means an OOMKill, not a GC pause.
+          # metrics_path is load-bearing: the kubelet exports
+          # container_memory_working_set_bytes from BOTH /metrics/cadvisor and
+          # /metrics/resource, so an unfiltered selector matches two identical
+          # series per pod and every alert is delivered twice (seen in Gotify
+          # 2026-08-03/04 as near-simultaneous duplicate pairs).
           expr: >
-            container_memory_working_set_bytes{namespace="media",pod=~"matcha-.*|vanilla-.*",container="app"}
+            container_memory_working_set_bytes{namespace="media",pod=~"matcha-.*|vanilla-.*",container="app",metrics_path="/metrics/cadvisor"}
             / on(pod) group_left
             kube_pod_container_resource_limits{namespace="media",resource="memory",container="app"}
             > 0.9

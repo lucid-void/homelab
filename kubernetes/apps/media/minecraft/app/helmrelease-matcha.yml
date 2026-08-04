@@ -229,8 +229,16 @@ spec:
               # and direct buffers, or the JVM gets OOMKilled at full heap.
               # MEMORY=6G means -Xmx6G, so a 6Gi limit is heap == ceiling with
               # nothing spare — the kill happens as the heap fills, not gradually.
+              #
+              # 9Gi, not 8Gi: itzg sets -Xms AND -Xmx from MEMORY, so the heap
+              # commits to the full 6 GiB and never gives it back. With ~1.2 GiB
+              # of non-heap overhead, steady-state RSS lands at ~7.2 GiB = 90%
+              # of an 8Gi limit — i.e. the alert threshold is reached by design
+              # once the heap fills. vanilla hit this first (2026-08-04) purely
+              # because it got there sooner; matcha was on the same trajectory
+              # at 86%. Keep the two servers identical.
               limits:
-                memory: 8Gi
+                memory: 9Gi
 
           # Local disk is fast but node-pinned, so it is not a backup. This sidecar
           # takes RCON-quiesced (save-off / save-all / save-on) tarballs onto NFS,
