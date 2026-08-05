@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - ./rbac.yml
   - ./script-configmap.yml
+  - ./pvc.yml
   - ./cronjob.yml
   - ./restic-sealed.yml
   - ./rclone-sealed.yml

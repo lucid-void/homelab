@@ -49,6 +49,294 @@ kubectl get pods -n gitea -o custom-columns=POD:.metadata.name,NODE:.spec.nodeNa
 No replica should share a node with the primary it follows. A proper fix would
 drive placement declaratively rather than relying on a manual step.
 
+### Immich is offline ~2h16m nightly — quiesced through restic maintenance — 2026-08-04
+
+`immich-backup` scales `immich-server` to 0 at step 1 and only restores it via
+`trap cleanup EXIT`, so the deployment stays down for the whole job — including
+the two steps that never touch the live PVC.
+
+```
+immich-backup  2026-08-02  03:00 → 03:11   (11m)   <- pre-fix
+immich-backup  2026-08-03  03:00 → 05:11  (132m)
+immich-backup  2026-08-04  03:00 → 05:16  (136m)
+```
+
+**Measured phase breakdown** (reconstructed from repo object mtimes on Filen —
+snapshot file = backup done, index file = prune done):
+
+| phase | Aug 4 duration | needs immich down? |
+|---|---|---|
+| scale-down + `pg_dump` | 23s | yes |
+| `restic backup` | 5m14s | yes |
+| **`restic forget --prune`** | **125m36s** | **no** |
+| `restic check --read-data-subset=1/10` | 5m24s | no |
+| total | 136m37s | |
+
+**Prune is 92% of the runtime.** The earlier assumption that `check`
+re-downloading 10% of the repo was a major term is wrong — check is ~5min, and
+restic parallelises it to roughly 18 MiB/s.
+
+**Root cause — restic runs with no cache.** The job emits, every night:
+
+```
+unable to open cache: mkdir /.cache: permission denied
+warning: running prune without a cache, this may be very slow!
+```
+
+`backup-tools` sets `HOME=/`, the pod runs as uid 65534, and `/` is root-owned
+`0755` — so restic cannot create `/.cache/restic`. Nothing sets
+`RESTIC_CACHE_DIR` and no cache volume is mounted. Prune's
+`finding data that is still in use for 33 snapshots` phase then re-fetches tree
+metadata from Filen with nothing reusable between runs. This is the same class of
+bug as the documented `gotify-telegram` one — uid 65534 with no writable HOME.
+
+Scale of the metadata involved (measured): the newest snapshot alone is ~60k
+files and warms 32 MiB of cache; walking all 33 snapshots warms **81 MiB total**,
+so the snapshots share most tree blobs — which is precisely why a cache that
+survives between runs pays off and a cold one does not.
+
+**Why it only appeared on Aug 3:** `031af82` (committed 2026-08-02 21:58 UTC,
+first affected run Aug 3 03:00) made `--group-by ''` actually prune. Before that,
+prune was a permanent no-op, so the cacheless penalty never materialised. The
+repo is now fully converged at 33 snapshots (30 daily + 3 monthly), 57.8 GiB,
+3537 packs — so this is **steady state, not one-time backlog**.
+
+**All seven backup jobs are cacheless** (same image, same uid 65534, no cache
+volume, no `RESTIC_CACHE_DIR` anywhere in the repo). The other six only survive
+it because their repos are small enough to finish in 27–71s.
+
+The job still reports success, so nothing alerts on any of this.
+
+**Actions, in order:**
+
+1. **Scale back up immediately after `restic backup`** rather than at process
+   exit, leaving prune and check outside the downtime window. Correct regardless
+   of how fast prune is, and the only fix that stays correct if the repo grows or
+   the cache is ever cold: downtime becomes ~5.5m (the backup itself) and is no
+   longer coupled to maintenance at all. Apply the same restructure to the shared
+   script shape.
+2. **Give restic a writable cache.** *Manifests written 2026-08-04, not yet
+   committed or reconciled* — a 10Gi `nfs-client` PVC (`immich-backup-cache`)
+   mounted at `/cache` with `RESTIC_CACHE_DIR` set, in
+   `kubernetes/apps/immich/backup/app/pvc.yml`.
+
+   **Measured:** `prune --dry-run` takes **8s with a warm cache** versus **>11min
+   and still unfinished** cacheless (killed while still in `finding data that is
+   still in use for 33 snapshots`).
+
+   This alone should take the nightly run from 136m to **~11m** (23s + 5m14s
+   backup + seconds of prune + 5m24s check), i.e. back to the pre-`031af82`
+   baseline — so it addresses most of the availability problem even before fix 1.
+
+   It **must be a PVC, not an `emptyDir`** — an `emptyDir` is cold every night,
+   which is exactly today's behaviour. Expect the *first* run after deploy to
+   still be slow while the cache populates; runs 2+ get the benefit.
+
+   NFS rather than `openebs-hostpath` because the job has no node affinity
+   (`immich-library` is RWX), so a node-local cache would only be warm when the
+   pod happened to land on the same node. This is read-mostly, pack-sized I/O —
+   not the fsync-heavy pattern that keeps Valkey and the Minecraft worlds off NFS.
+
+   The other six jobs are still cacheless; they finish in 27–71s so it is not
+   urgent, but the same three-line change applies if any repo grows.
+3. **Stop pruning nightly** — run `forget` (cheap, metadata-only) every night and
+   `--prune` weekly.
+
+**Related risk:** `activeDeadlineSeconds: 14400` (4h) against a 136m runtime is
+57% consumed. Bash's `EXIT` trap does fire on SIGTERM (verified), so a deadline
+kill would still scale immich back up — but the container memory limit is 2Gi and
+cacheless prune is memory-hungry; an **OOMKill is SIGKILL, where the trap does
+not run and immich stays at 0 replicas indefinitely**. Not yet observed. Fix 2
+shrinks this substantially (a cached prune finishes in seconds and holds far less
+in memory), but only fix 1 removes the coupling entirely.
+
+**Verification note:** this was investigated with temporary read-only diagnostic
+pods, since `k8s-cleaner` deletes succeeded job pods every 6h and the logs were
+already gone. Two things to know if repeating it: killed `restic` processes
+become zombies that keep holding the repo lock, so plain `restic unlock` will not
+clear them (`--remove-all` does); and any restic command that fails on a held
+lock exits `rc=11` in ~2s, which silently invalidates timing comparisons unless
+exit codes are checked.
+
+**That investigation broke the next night's backup** — see "A stale restic lock
+blocks every subsequent backup" below. Checking `locks: 0` *before* deleting a
+diagnostic pod is not sufficient; verify from a fresh pod *after* deleting it.
+
+### A stale restic lock blocks every subsequent backup — 2026-08-05
+
+The 2026-08-05 immich backup **failed** (`Exit 11`, job `immich-backup-29764980`,
+03:05:58). The snapshot itself was written — `snapshot a7ddaf50 saved`, repo now
+34 snapshots — so **no data was lost**; only `forget --prune` and `check` were
+skipped. The `trap cleanup EXIT` fired correctly and immich was scaled back up at
+03:06, so downtime was ~6min. All seven other backup jobs succeeded that night.
+
+```
+[backup] Pruning old snapshots...
+unable to create lock in backend: repository is already locked by PID 61
+  on immich-cache-verify by nobody (UID 65534, GID 65534)
+lock was created at 2026-08-04 14:34:17 (12h31m38s ago)
+```
+
+Immediate cause was self-inflicted: `immich-cache-verify` was a diagnostic pod
+from the investigation above, and a restic process in it re-created a lock after
+the pre-deletion check reported zero. Cleared with `restic unlock --remove-all`;
+repo verified at 0 locks / 34 snapshots.
+
+**The durable lesson is the part worth keeping.** restic did *not* auto-expire a
+**12.5-hour-old** lock. restic normally treats locks older than 30min as stale,
+but it will only do so when it can verify the owning process is gone — which
+requires the lock's hostname to match the current host. **Every Job pod has a
+unique hostname**, so a lock left behind by any pod is foreign to the next run and
+is never auto-expired. It blocks that repo indefinitely until someone runs
+`unlock` by hand.
+
+This is the *same* ephemeral-hostname property that broke retention in `031af82`
+(`--group-by host,paths` made every snapshot its own group). It has now caused two
+distinct failures; assume it will cause a third.
+
+**Consequences to note:**
+- Any job killed mid-run (OOM, node reboot, `activeDeadlineSeconds`) leaves a lock
+  that silently breaks *every following night* for that repo, not just its own run.
+- The failure is loud in Gotify but the job still writes its snapshot first, so
+  the backup looks partly fine while maintenance silently stops. Retention then
+  quietly stops converging.
+
+**Action:** add a defensive `restic unlock` at the start of each backup script.
+Note plain `unlock` may not clear a foreign-hostname lock, so `--remove-all` is
+what actually works — which is safe *here* specifically because each repo has
+exactly one job and every CronJob is `concurrencyPolicy: Forbid`, so a concurrent
+legitimate lock cannot exist. Do not copy this pattern to a shared repo.
+
+### Goldilocks/VPA recommendations are fabricated — no metrics-server — 2026-08-04
+
+There is **no metrics-server** in the cluster. `pods.metrics.k8s.io` does not
+resolve, so `kubectl top` fails and the VPA recommender cannot ingest anything:
+
+```
+E0804 09:02:01 cluster_feeder.go:502] "Cannot get ContainerMetricsSnapshot from MetricsClient"
+  err="the server could not find the requested resource (get pods.metrics.k8s.io)"
+```
+
+The recommender still runs and still writes checkpoints, so the stack *looks*
+healthy — but all 70 VPA objects emit their configured floors rather than
+measurements:
+
+| target cpu/mem | containers |
+|---|---|
+| `15m` / `100Mi` (= the `--pod-recommendation-min-*` flags) | 44 |
+| `5m` / `34952533` (VPA hardcoded default) | 12 |
+| `7m` / `50Mi` | 8 |
+| `3m` / `25Mi` | 8 |
+| plausibly real | 2 |
+
+`lowerBound == target == upperBound` on every one — the signature of an empty
+histogram. Concretely `goldilocks-matcha/app` recommends **5m CPU / 33MB** for a
+Minecraft server deliberately limited to 9Gi. The dashboard at
+`goldilocks.blackcats.cc` has been actively misleading since the stack went in.
+
+This also blocks anything else that needs the metrics API (HPA, KEDA CPU
+triggers) and undercuts the "CNPG resource requests/limits + capacity plan" item
+below, which assumes usage data exists to size against.
+
+**Action:** either deploy metrics-server (Talos needs
+`--kubelet-insecure-tls=false` with proper kubelet serving certs) or delete
+Goldilocks + VPA outright — three deployments and 70 CRs currently produce noise.
+Decide rather than leave it half-working.
+
+### kube-apiserver SLO rules produce no data — `KubeAPIErrorBudgetBurn` can never fire — 2026-08-04
+
+The vm-stack chart's `metric_relabel_configs` drops the exact histogram buckets
+its own bundled recording rules consume:
+
+```yaml
+regex: apiserver_request_duration_seconds_bucket|apiserver_request_sli_duration_seconds_bucket|...
+action: drop
+```
+
+The apiserver *does* export them (6146 lines on `/metrics`); VictoriaMetrics
+retains only `_count` and `_sum`. So `kube-apiserver-burnrate.rules`,
+`-histogram.rules` and `-availability.rules` all evaluate to zero samples.
+
+Two consequences:
+
+1. **14 `RecordingRulesNoData` alerts have been firing continuously since
+   `2026-08-01T00:52Z`.** They are `severity: info` and therefore blackholed in
+   the alertmanager route, so no Gotify spam — but they permanently mask any
+   *genuine* recording-rule breakage.
+2. **`KubeAPIErrorBudgetBurn` is structurally dead.** The alertmanager config
+   carries a deliberate, non-blackholed route for it with `repeat_interval: 24h`,
+   but its input rule `apiserver_request:burnrate1h` returns 0 series. API-server
+   SLO alerting exists on paper and not in practice.
+
+**Action:** either drop the three apiserver SLO rule groups (and the dedicated
+alertmanager route with them), or stop dropping the buckets and accept the
+cardinality. Leaving both halves in place is the worst option — it looks like
+coverage.
+
+### Trivy scan jobs fail on multi-container pods — 2026-08-04
+
+Four `scan-vulnerabilityreport-*` Jobs hit `BackoffLimitExceeded`. Standalone
+mode scans a pod's containers in parallel against one shared cache volume, so
+multi-container pods deadlock on the cache lock, and one container was OOMKilled:
+
+```
+ERROR  Failed to acquire cache or database lock
+FATAL  unable to initialize fs cache: cache may be in use by another process: timeout
+...
+"job":"security/scan-vulnerabilityreport-545495f45c","container":"zitadel-machinekey","status.reason":"OOMKilled"
+```
+
+`zitadel-setup` (3 containers) reproduces it reliably. There is also a steady
+stream of `configauditreports ... already exists` reconcile errors against
+`immich-db-extensions` and the `reflector` ReplicaSets.
+
+Switching to **`ClientServer` mode** with a central Trivy server fixes the lock
+contention *and* removes the per-job ~300 MB DB download — which is the same fix
+already called for under "Container image accumulation — capped, not solved"
+below. Doing it once addresses both.
+
+**Action:** move trivy-operator to `ClientServer`, raise the scan-job memory
+limit, and confirm the four failing reports regenerate.
+
+### Orphaned `openebs-hostpath` PV with pre-rename node affinity — 2026-08-04
+
+`pvc-641863e1-a4aa-49e9-9594-5568086f2369` (30Gi, was
+`monitoring/vmsingle-vm-stack-victoria-metrics-k8s-stack`) is stuck `Released`
+with `reclaimPolicy: Delete`, retrying deletion forever:
+
+```
+VolumeFailedDelete: Unable to get the Node with the Node Labels
+  {map[kubernetes.io/hostname:k8s-cp-3]}
+```
+
+Its `nodeAffinity` names **`k8s-cp-3`** — the node naming from before the
+2026-06-17 re-IP/rename. The node is now `cp-3`, so openebs cannot resolve it and
+the provisioner can neither delete the PV nor reclaim the directory. The 30Gi
+lives on cp-3's local disk alongside `vanilla-data`, which is node-local storage
+that **cannot expand in place**; cp-3 is currently the fullest node at 51%.
+
+**Action:** delete the PV object manually and remove the orphaned directory on
+cp-3. Grep for any other resource still referencing the `k8s-cp-*` names.
+
+### kube-proxy runs redundantly alongside Cilium — 2026-08-04
+
+Cilium fully owns service routing, but the `kube-proxy` DaemonSet is still
+installed and programming a parallel set of iptables service rules on all three
+nodes:
+
+```
+KubeProxyReplacement:  True          # cilium-dbg status
+kube-proxy-replacement=true          # cilium-config
+kube-proxy   3/3 Running   76d       # DaemonSet, still there
+```
+
+Nothing is visibly broken — Cilium's rules win — but it is duplicated state,
+wasted resources, and a genuine source of confusion when debugging service
+routing (two authorities for the same iptables chains).
+
+**Action:** set `cluster.proxy.disabled: true` in `talconfig.yaml`, apply, and
+delete the DaemonSet. Verify service connectivity across all three nodes after.
+
 ---
 
 ## Stale / Needs Update
@@ -64,6 +352,50 @@ to the README/service inventory** so docs match reality.
 
 ## Needs Verification
 
+### ~190Gi of orphaned `Released` PVs on the Synology — 2026-08-04
+
+21 PVs sit in `Released` with `reclaimPolicy: Retain`, so their NFS directories
+are still consuming pool space:
+
+| claim | count | size |
+|---|---|---|
+| `gitea/valkey-data-gitea-valkey-cluster-{0..5}` | 12 | 96Gi |
+| `monitoring/vm-stack-grafana` | 5 | 10Gi |
+| `media/plex-config` | 1 | 50Gi |
+| `media/tranga-config` | 1 | 5Gi |
+| `freshrss/freshrss-notify-state` | 1 | 100Mi |
+
+The valkey ones are fallout from the 2026-08-01 rebuild. These are not merely
+wasted space: `docs/storage.md` documents that `nfs-client` derives share paths
+from namespace+PVC name, so a same-named PVC **re-adopts the old directory** —
+which is exactly the trap that made the valkey rebuild awkward. Leaving 12 stale
+valkey directories in place means the next rebuild hits it again.
+
+**Action:** confirm nothing is needed from each, delete the PV objects, and
+remove the backing directories on the Synology. Pair with the "Gitea's valkey
+cluster keeps AOF on NFS" item above — moving valkey to `emptyDir` removes the
+re-adoption trap permanently.
+
+### Local `talosconfig` is empty — `talosctl` unusable from the workstation — 2026-08-04
+
+`~/.talos/config` is 25 bytes and every command fails:
+
+```
+error constructing client: failed to determine endpoints
+error constructing client: failed to resolve configuration context: talos config file is empty
+```
+
+Backups are unaffected — the `etcd-snapshot` CronJob carries its own
+`talosconfig-secret` — but the documented recovery paths in `RUNBOOK.md`
+(`talosctl etcd snapshot`, `talosctl bootstrap --recover-from`, `talosctl get
+links` for the MTU checks, reading `/system/config/...` for admission config) all
+assume a working local client. This is the kind of thing that is only discovered
+during an incident.
+
+**Action:** regenerate from `talhelper genconfig` output / the SOPS-encrypted
+secrets, verify `talosctl -n 172.16.20.11 version` works, and note the
+regeneration step in `RUNBOOK.md` so it is recoverable rather than tribal.
+
 ### `openebs-hostpath` PVC claims are fiction — alerts name the wrong culprit
 
 An `openebs-hostpath` PVC is a plain directory on the node's `EPHEMERAL` partition with
@@ -77,6 +409,14 @@ An `openebs-hostpath` PVC is a plain directory on the node's `EPHEMERAL` partiti
    it means "cp-2 or cp-3 is 85% full", which during investigation turned out to be
    ~30 GB of unused container images and only ~1.4 GB of Minecraft. The alert fires on
    the right condition but names a misleading cause.
+3. **Nothing checks that the claims fit the node** (observed 2026-08-04). cp-1 now
+   carries `plex-config-local` (50Gi) + `vmsingle` (30Gi) = 80Gi of claims against
+   97Gi of node filesystem shared with `/var/lib/containerd`, etcd and logs. Actual
+   usage is fine (cp-1 42%, cp-2 44%, cp-3 51%), so this is latent rather than
+   active — but because there is no quota, the scheduler will happily place a third
+   hostpath PVC on cp-1 and the first thing to notice would be `DiskPressure`
+   evictions. Worth an alert on *sum of hostpath claims per node* vs node capacity,
+   independent of actual usage.
 
 **Action:** either (a) reword the alert to say "node disk backing <pvc>" and drop the
 Minecraft framing, or (b) add a genuine per-world size metric (a sidecar `du` exporter)
@@ -205,7 +545,12 @@ logical dump+restore; repoint Zitadel; give it an independent WAL-archiving targ
 
 ### Per-namespace NetworkPolicies
 
-Cilium supports L7 NetworkPolicies. Currently no `NetworkPolicy` or `CiliumNetworkPolicy` resources are deployed — all pods can reach all other pods. Adding default-deny + per-namespace allow rules would mirror the Swarm overlay isolation model.
+Cilium supports L7 NetworkPolicies. Verified 2026-08-04: exactly **one**
+`NetworkPolicy` exists cluster-wide (`gitea/gitea-valkey-cluster`, shipped by the
+chart, not authored here) and **zero** `CiliumNetworkPolicy` /
+`CiliumClusterwideNetworkPolicy`. Effectively all pods can reach all other pods.
+Adding default-deny + per-namespace allow rules would mirror the Swarm overlay
+isolation model.
 
 **Priority targets** (highest blast-radius first):
 1. `postgres` namespace — allow ingress only from declared app namespaces; combined with cleartext intra-cluster Postgres traffic, any pod RCE currently = full DB access
@@ -217,6 +562,58 @@ breaks at 11pm. Enable **Hubble UI** first (effectively free — Cilium is alrea
 actual flows for ~a week, then derive `CiliumNetworkPolicy` for the `postgres` and `auth`
 namespaces from *observed* traffic instead of guesswork. (See Service Candidates ordering — Hubble
 UI is sequenced specifically as the gate to this work.)
+
+### Cilium runs VXLAN + legacy host routing on a single L2 segment — 2026-08-04
+
+All three nodes are VMs on one Proxmox host sharing one L2 segment
+(`172.16.20.0/24`), yet Cilium encapsulates everything:
+
+```
+routing-mode=tunnel
+tunnel-protocol=vxlan
+Routing:        Network: Tunnel [vxlan]   Host: Legacy
+Masquerading:   IPTables [IPv4: Enabled]
+```
+
+Three separate efficiency losses stack here: VXLAN encapsulation overhead on
+every pod-to-pod packet that never leaves the bridge, legacy (iptables) host
+routing instead of BPF host routing, and iptables rather than BPF masquerading.
+The MTU 9000 work already done makes the encapsulation cheaper but does not
+remove it.
+
+`routingMode: native` + `autoDirectNodeRoutes: true` is the natural fit for a
+flat single-subnet topology, and `bpf.masquerade: true` plus BPF host routing
+follow from `kubeProxyReplacement` already being on.
+
+**Prerequisite:** this is a data-path change on the cluster's only network — do
+it deliberately, not opportunistically. Note it interacts with the Netbird `wt0`
+guards (`AI_CONTEXT.md`) and with the MTU pinning, both of which exist precisely
+because Cilium auto-detection picked the wrong interface once already.
+
+**Action:** evaluate native routing + BPF masquerade + BPF host routing together;
+verify pod-to-pod, pod-to-service, and the `pool-b` LoadBalancer paths (Plex
+`.51`, Velocity `.52`) after each step. Roll back on any ARP/L2-announcement
+weirdness — see the Minecraft shared-IP incident in `.claude/CLAUDE.md`.
+
+### Low-severity cluster hygiene — 2026-08-04
+
+Small items found during a cluster sweep; none are urgent, all are noise that
+makes real problems harder to spot.
+
+- **`vpa-recommender` runs with `--v=4`** — debug-level logging in steady state,
+  for a component whose output is currently meaningless anyway (see "Goldilocks/VPA
+  recommendations are fabricated" above).
+- **`observability` namespace is completely empty** — no resources at all. Either
+  a leftover or an intent that never landed; delete it or document what it is for.
+- **FreshRSS liveness probe hits an OIDC-redirecting path** — the probe gets a 302
+  to Zitadel and logs a continuous `ProbeWarning` with the pod IP embedded as
+  `redirect_uri` (`http://10.244.5.55:80/i/oidc/`). The app is healthy; the probe
+  target is wrong. Point it at a path that does not require auth.
+- **64 single-replica Deployments, 2 PDBs, memory limits at 84–90% of allocatable.**
+  `postgres-primary` sits at `ALLOWED DISRUPTIONS 0`, so a Talos rolling upgrade
+  will block on it and take most services down as it proceeds. This is a
+  reasonable homelab trade — but confirm `RUNBOOK.md`'s upgrade section states it
+  explicitly rather than letting it be discovered mid-upgrade.
 
 ### nftables host firewall on k8s nodes
 

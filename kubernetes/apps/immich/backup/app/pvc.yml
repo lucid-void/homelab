@@ -1,0 +1,30 @@
+---
+# restic's local cache for the immich repo.
+#
+# Without this the job runs cacheless: backup-tools sets HOME=/, the pod runs as
+# uid 65534, and / is root-owned 0755, so restic cannot create /.cache/restic and
+# prints "running prune without a cache, this may be very slow!" on every run.
+# The cost is real — prune's "finding data that is still in use for N snapshots"
+# phase re-fetches every snapshot's tree metadata from Filen, which measured
+# 125m36s of the 136m37s run on 2026-08-04.
+#
+# NFS rather than openebs-hostpath: the job has no node affinity (immich-library
+# is RWX), so a node-local cache would only be warm when the pod happened to land
+# on the same node. This is read-mostly, pack-sized file I/O, not the fsync-heavy
+# pattern that keeps Valkey and the Minecraft worlds off NFS.
+#
+# nfs-client cannot expand in place (allowVolumeExpansion: false), so this is
+# sized with generous headroom — restic caches tree packs and indexes only, which
+# for a 57.8GiB / 33-snapshot repo is well under 1Gi in practice.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-backup-cache
+  namespace: immich
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 10Gi

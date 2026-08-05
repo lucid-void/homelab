@@ -28,6 +28,9 @@ spec:
                 readOnly: true
             - name: db-dump
               emptyDir: {}
+            - name: restic-cache
+              persistentVolumeClaim:
+                claimName: immich-backup-cache
             - name: rclone-config
               secret:
                 secretName: rclone-secret
@@ -62,12 +65,18 @@ spec:
                       key: password
                 - name: RCLONE_CONFIG
                   value: /rclone-config/rclone.conf
+                # Without this restic falls back to $HOME/.cache — and HOME is /,
+                # which uid 65534 cannot write. See pvc.yml.
+                - name: RESTIC_CACHE_DIR
+                  value: /cache
               volumeMounts:
                 - name: library
                   mountPath: /library
                   readOnly: true
                 - name: db-dump
                   mountPath: /db
+                - name: restic-cache
+                  mountPath: /cache
                 - name: rclone-config
                   mountPath: /rclone-config
                   readOnly: true
