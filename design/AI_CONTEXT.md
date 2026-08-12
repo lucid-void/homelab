@@ -43,12 +43,16 @@ No workers. All three control planes run user workloads (`allowSchedulingOnContr
 GatewayClass: cilium  (io.cilium/gateway-controller)
   └── Gateway: shared  (namespace: gateway, IP: 172.16.20.50)
         ├── Listener: http   port 80   *.blackcats.cc
-        └── Listener: https  port 443  *.blackcats.cc  TLS: shared-tls (wildcard)
-              ├── HTTPRoute: <app>  (per-app namespace)
-              └── GRPCRoute: <app>  (Zitadel gRPC-Web)
+        ├── Listener: https  port 443  *.blackcats.cc  TLS: shared-tls (wildcard)
+        │     ├── HTTPRoute: <app>  (per-app namespace)
+        │     └── GRPCRoute: <app>  (Zitadel gRPC-Web)
+        └── Listener: ssh    port 22   (no hostname — TCP has nothing to match on)
+              └── TCPRoute: gitea-ssh  (git-over-SSH → gitea-ssh:22 → pod :2222)
 ```
 
-**Gateway API CRDs:** from `kubernetes-sigs/gateway-api` v1.5.1 (experimental channel — includes GRPCRoute).
+**Gateway API CRDs:** from `kubernetes-sigs/gateway-api` v1.6.1 (experimental channel — includes GRPCRoute and the v1 TCPRoute that Cilium 1.20's TCPRoute controller watches).
+
+The `ssh` listener is the one exception to "raw TCP goes to a pool-b LoadBalancer": Gitea advertises `git@gitea.blackcats.cc:...`, that hostname is an A record for this VIP, and one name cannot resolve to both `.50` (HTTPS) and a separate pool-b address (SSH). See `docs/networking.md`.
 
 **TLS:** cert-manager `letsencrypt-production` ClusterIssuer → `*.blackcats.cc` wildcard cert in `gateway` namespace.
 

@@ -28,3 +28,22 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    # Raw TCP for git-over-SSH. This exists so the clone URL Gitea advertises
+    # (`git@gitea.blackcats.cc:...`) resolves to something: that hostname is an
+    # A record for this Gateway's VIP, so port 22 has to answer *here*. The
+    # alternative — a second LoadBalancer Service on the same .50 address — is
+    # the dual-ARP/RST trap documented in cilium-l2.yml; a separate pool-b IP
+    # would work but forces a different hostname, since one name cannot resolve
+    # to both .50 (HTTPS) and another address (SSH).
+    #
+    # `hostname` is invalid on a TCP listener (there is no SNI/Host to match on),
+    # so this listener is port-only and a TCPRoute selects it by sectionName.
+    # Requires Gateway API >= 1.6 for the v1 TCPRoute CRD — see networking.md.
+    - name: ssh
+      port: 22
+      protocol: TCP
+      allowedRoutes:
+        namespaces:
+          from: All
+        kinds:
+          - kind: TCPRoute

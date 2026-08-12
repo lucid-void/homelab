@@ -122,35 +122,41 @@ kubectl delete ciliumnode <name>   # agent recreates from correct kubelet-report
 
 Gateway API CRDs are installed from the upstream `kubernetes-sigs/gateway-api` git source (experimental channel, which includes `GRPCRoute`):
 
-- **GitRepository** `gateway-api` → `https://github.com/kubernetes-sigs/gateway-api` tag `v1.5.1`
+- **GitRepository** `gateway-api` → `https://github.com/kubernetes-sigs/gateway-api` tag `v1.6.1`
 - **Kustomization** `gateway-api` → path `./config/crd/experimental`
 - The `cilium` Kustomization depends on `gateway-api` — CRDs exist before the Cilium HelmRelease applies
 
 Manifests: `kubernetes/flux/repositories/git/gateway-api.yml`, `kubernetes/apps/kube-system/gateway-api/`
 
-### Version constraint — pinned to 1.5.x
+### Version constraint — pinned to 1.6.x
 
-**Do not bump the Gateway API bundle past 1.5.x without checking Cilium first.** The CRDs are only as useful as the controller reading them, and Cilium is that controller:
+**Do not bump the Gateway API bundle past 1.6.x without checking Cilium first.** The CRDs are only as useful as the controller reading them, and Cilium is that controller:
 
 | | Gateway API |
 |---|---|
-| Cilium 1.19.6 (latest release) documents | v1.4.1 |
-| Cilium 1.19.6 builds against (`go.mod`) | v1.4.0-rc.2 |
-| Installed here | **v1.5.1** — already one minor ahead, working |
+| Cilium 1.20.0 (running) documents | v1.6.1 |
+| Installed here | **v1.6.1** — matched to what Cilium targets |
 
-Renovate raised v1.6.1 (#113). It was declined and Renovate is constrained to `<1.6.0` in `.github/renovate.json`, because it would put us two minors ahead of the only implementation we run, in exchange for nothing: this cluster uses only core `Gateway` / `HTTPRoute` / `GRPCRoute`, and none of the 1.6 additions (`retry` validation, `sessionPersistence`, GA `TCPRoute`/`UDPRoute`, `BackendTLSPolicy`, `ReferenceGrant`, `ListenerSet`, `XBackend`).
+The bundle used to sit at v1.5.1 and Renovate was constrained to `<1.6.0`, on the reasoning that v1.6.1 (#113) would put us two minors ahead of Cilium 1.19.6 (which documented v1.4.1) for zero gain. **Both halves of that went stale** and the pin moved to `<1.7.0` on 2026-08-12:
+
+- Cilium 1.20 tracks Gateway API v1.6.1, so v1.5.1 was *behind* the controller, not ahead of it.
+- The gain is no longer zero: Cilium 1.20 added `TCPRoute`/`UDPRoute` support, and **its controller watches the `gateway.networking.k8s.io/v1` GVK** (`HasTCPRouteSupport` checks the v1 kind against the compiled-in scheme). `TCPRoute` was promoted to `v1` in Gateway API **1.6.1**; the 1.5.1 bundle serves `v1alpha2` only, so on 1.5.1 a `TCPRoute` is unusable — Cilium advertises TCPRoute in `GatewayClass.status.supportedFeatures` regardless (the check is against its own scheme, not the installed CRD), so that field is **not** evidence the feature works. `kubectl get tcproutes.v1.gateway.networking.k8s.io` is the real test. This is what git-over-SSH on the shared Gateway needs.
 
 To check before revisiting:
 
 ```bash
 # what does the Cilium release actually claim?
 curl -s https://raw.githubusercontent.com/cilium/cilium/v<ver>/go.mod | grep sigs.k8s.io/gateway-api
+
+# does the installed CRD actually serve the version Cilium watches?
+kubectl get crd tcproutes.gateway.networking.k8s.io \
+  -o jsonpath='{range .spec.versions[*]}{.name}{" served="}{.served}{"\n"}{end}'
 ```
 
-Two mechanical notes for whenever the bump does happen:
+Two mechanical notes for the next bump:
 
-- The `gateway-api` Kustomization is `prune: true`, so a bundle that *removes* a CRD would delete it. v1.6.1 only adds one (`xbackends`), but this must be re-checked per bump.
-- The bundle installs an enforcing `ValidatingAdmissionPolicy` (`safe-upgrades.gateway.networking.k8s.io`) that rejects installing bundles older than v1.5.0 and experimental CRDs on top of standard-channel ones. It does **not** block forward upgrades — but it does block rolling back below 1.5.0 without deleting the policy first.
+- The `gateway-api` Kustomization is `prune: true`, so a bundle that *removes* a CRD would delete it. The 1.5.1 → 1.6.1 move only added one (`xbackends`), but this must be re-checked per bump.
+- The bundle installs an enforcing `ValidatingAdmissionPolicy` (`safe-upgrades.gateway.networking.k8s.io`) that rejects installing bundles older than the current one and experimental CRDs on top of standard-channel ones. It does **not** block forward upgrades — but having moved to 1.6.1, rolling back below it now requires deleting the policy first.
 
 ### Hierarchy
 
@@ -158,12 +164,93 @@ Two mechanical notes for whenever the bump does happen:
 GatewayClass: cilium  (kube-system, controller: io.cilium/gateway-controller)
   └── Gateway: shared  (namespace: gateway, IP: 172.16.20.50)
         ├── Listener: http   port 80   *.blackcats.cc   → HTTPRoute (redirect to https)
-        └── Listener: https  port 443  *.blackcats.cc   → TLS terminated by cert shared-tls
-              ├── HTTPRoute: <app>  (per-app namespace)
-              └── GRPCRoute: <app>  (per-app namespace, e.g. Zitadel gRPC-Web)
+        ├── Listener: https  port 443  *.blackcats.cc   → TLS terminated by cert shared-tls
+        │     ├── HTTPRoute: <app>  (per-app namespace)
+        │     └── GRPCRoute: <app>  (per-app namespace, e.g. Zitadel gRPC-Web)
+        └── Listener: ssh    port 22   (no hostname)    → TCPRoute
+              └── TCPRoute: gitea-ssh  (namespace gitea) → gitea-ssh:22 → pod :2222
 ```
 
 The Gateway accepts routes from all namespaces (`allowedRoutes.namespaces.from: All`).
+
+**Why SSH is on the Gateway and not a pool-b LoadBalancer.** Gitea advertises its clone
+URL as `git@gitea.blackcats.cc:...`, and that hostname is an A record for the Gateway VIP,
+so port 22 must answer on `172.16.20.50`. A hostname resolves to one address, so it cannot
+send HTTPS to `.50` and SSH to a pool-b IP; and putting a second `LoadBalancer` Service on
+`.50` via `lbipam.cilium.io/sharing-key` is the dual-announcement/RST failure described in
+`kubernetes/apps/kube-system/cilium/config/cilium-l2.yml`. A TCP listener on the Gateway is
+the only option that keeps the advertised URL literal. Raw-TCP services that *can* take
+their own hostname (Plex direct, Velocity) still use pool-b — see the IP plan above.
+
+Notes on the TCP listener:
+
+- `hostname` is invalid on a `TCP` listener (nothing to match on before the payload), so
+  the listener is port-only and a `TCPRoute` selects it by `sectionName: ssh`.
+- Requires Gateway API ≥ 1.6 — see the version constraint section above.
+- **Cilium serves TCPRoute without Envoy.** Unlike HTTPRoute/GRPCRoute, there is no Envoy
+  listener or `tcp_proxy` filter chain: the operator generates an `EndpointSlice` owned by
+  the Gateway and attached to the Gateway's *own* Service (`cilium-gateway-shared`),
+  annotated `gateway.cilium.io/backend-service` + `gateway.cilium.io/backend-port`, whose
+  endpoints are the backend pods on their target port. `.50:22` therefore reaches the Gitea
+  pod's `:2222` through the ordinary service datapath.
+
+  This matters when debugging: **a working TCPRoute leaves no trace in the
+  `CiliumEnvoyConfig`.** Grepping the CEC for the backend or a `tcp_proxy` filter finds
+  nothing whether the route works or not. The real evidence is the generated slice:
+
+  ```bash
+  kubectl get endpointslice -n gateway     # expect cilium-gateway-shared-<hash>-ipv4
+  kubectl get tcproute gitea-ssh -n gitea -o jsonpath='{.status}'   # Accepted + ResolvedRefs
+  ```
+
+- The Gateway Service is `externalTrafficPolicy: Cluster`
+  (`gateway-api-service-externaltrafficpolicy`), so the client IP is SNATed to a node
+  address — Gitea logs `10.244.x.x`, not the real client. Auth is by SSH key, so this costs
+  attribution only. `enable-gateway-api-proxy-protocol` cannot recover it: that setting is
+  an Envoy listener option, and this path never reaches Envoy.
+- Cilium's `gateway-api-hostnetwork-enabled` must stay `false`. In host-network mode there
+  is no generated LoadBalancer Service for the EndpointSlice to attach to, so
+  `TCPRoute`/`UDPRoute` fall back to a random node port instead of the configured listener
+  port.
+- Gatus probes `tcp://gitea.blackcats.cc:22` separately from the HTTPS check — the two ride
+  different listeners, so a healthy web UI proves nothing about clone-over-SSH.
+
+#### Gotcha: adding a Gateway API CRD version requires restarting cilium-operator
+
+Cilium discovers optional Gateway API CRDs **once, at operator startup**
+(`operator/pkg/gateway-api/cell.go` → `checkCRDs`), and the check is version-exact:
+
+```go
+for _, v := range crd.Spec.Versions {
+    if v.Name == gvk.Version { found = true; break }
+}
+```
+
+Kinds that fail it are left out of `InstalledOptionalKinds`, never registered into the
+client scheme, and their reconcilers never start. Bumping the bundle to 1.6.1 makes
+`TCPRoute` **v1** available, but a `cilium-operator` that was already running does not
+re-run discovery — so the first TCPRoute after the bump sits with an **empty `status`**
+forever while the Gateway itself reports every listener `Programmed`, and connections to
+the listener port are refused (the LoadBalancer exposes the port, nothing backs it).
+
+Hit on 2026-08-12 wiring up Gitea SSH. Fix:
+
+```bash
+kubectl -n kube-system rollout restart deploy/cilium-operator
+# confirm: "TCPRoute CRD is installed, TCPRoute support is enabled"
+kubectl -n kube-system logs deploy/cilium-operator | grep -i 'TCPRoute CRD'
+```
+
+Two misleading signals to ignore while diagnosing this:
+
+- `GatewayClass.status.supportedFeatures` lists `TCPRoute` **regardless** — it did so for
+  the whole time the v1 CRD was absent and the reconciler was not running. It is not
+  evidence the feature works.
+- The absence of a `tcp_proxy` filter in the CEC is normal (see above), so it does not
+  distinguish "not reconciled" from "working".
+
+The real test is `kubectl get tcproutes.v1.gateway.networking.k8s.io` for the CRD, and a
+populated `TCPRoute.status.parents` for the reconciler.
 
 **ALPN:** Cilium is configured with `gatewayAPI.enableAlpn: true` (in `kubernetes/apps/kube-system/cilium/app/helm-values.yml`). Without it the Envoy HTTPS listener negotiates *no* ALPN protocol — tolerant clients (browsers, curl) silently fall back to HTTP/1.1, but strict clients fail the TLS handshake. This previously broke the Zitadel bootstrap (gRPC requires h2) and external OIDC clients such as Proxmox's `proxmox-openid` (token-endpoint call failed with "Failed to contact token endpoint: Request failed"). With ALPN enabled the listener advertises `h2` + `http/1.1`.
 

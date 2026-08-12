@@ -8,7 +8,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | Service | Namespace | Kind | Hostname | Auth | Notes |
 |---|---|---|---|---|---|
 | Cilium | kube-system | HelmRelease | — | — | CNI, Gateway API controller, kube-proxy replacement |
-| Gateway API CRDs | kube-system | Kustomization (git) | — | — | v1.5.1 experimental channel; installs HTTPRoute, GRPCRoute, etc. |
+| Gateway API CRDs | kube-system | Kustomization (git) | — | — | v1.6.1 experimental channel; installs HTTPRoute, GRPCRoute, TCPRoute (v1), etc. |
 | Sealed Secrets | kube-system | HelmRelease | — | — | Controller name `sealed-secrets-controller`; key rotation disabled |
 | Reflector | kube-system | HelmRelease | — | — | Mirrors Secrets/ConfigMaps across namespaces |
 | Reloader | kube-system | HelmRelease | — | — | Rolling restarts on ConfigMap/Secret changes; image tag override required (chart v1.0.112 double-v bug) |
@@ -82,7 +82,7 @@ The `security` namespace has `pod-security.kubernetes.io/enforce: privileged` �
 | immich-backup | immich | CronJob | — | — | Daily 03:00; Postgres dump + library PVC; restic → rclone-filen |
 | Paperless-ngx | paperless | HelmRelease | `paperless.blackcats.cc` | Zitadel OIDC (django-allauth 65.x) | `nfs-client` PVCs (data + media); CNPG Postgres |
 | paperless-backup | paperless | CronJob | — | — | Daily 04:00; Postgres dump + data/media PVCs; restic → rclone-filen |
-| Gitea | gitea | HelmRelease | `gitea.blackcats.cc` | Zitadel OIDC | `nfs-client` PVC (repos/LFS/attachments); CNPG Postgres; bundled `valkey-cluster` for cache/session/queue |
+| Gitea | gitea | HelmRelease | `gitea.blackcats.cc` (HTTPS via HTTPRoute; git-over-SSH on `:22` via TCPRoute) | Zitadel OIDC (web); SSH keys (git) | `nfs-client` PVC (repos/LFS/attachments); CNPG Postgres; bundled `valkey-cluster` for cache/session/queue |
 | gitea-valkey-cluster | gitea | StatefulSet (chart dep) | — | — | Cache/session/queue backing Gitea. 3 primaries + 1 replica each (`nodes: 6`, `replicas: 1`); `valkey-data-*` `nfs-client` PVCs. Disposable data — recreate rather than repair |
 | gitea-backup | gitea | CronJob | — | — | Daily 05:00; Postgres dump + data PVC; restic → rclone-filen |
 | FreshRSS | freshrss | HelmRelease | `rss.blackcats.cc` | Zitadel OIDC (Apache mod_auth_openidc) | `nfs-client` PVC (config); CNPG Postgres |

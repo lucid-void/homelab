@@ -59,6 +59,16 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
+      # git-over-SSH rides a separate Gateway listener (TCP:22 -> TCPRoute) from
+      # the HTTPS check above, so a healthy web UI says nothing about whether
+      # `git clone git@gitea.blackcats.cc:...` works. Probe the public path.
+      - name: Gitea SSH
+        group: infrastructure
+        url: "tcp://gitea.blackcats.cc:22"
+        interval: 1m
+        conditions:
+          - "[CONNECTED] == true"
+
       - name: Goldilocks
         group: infrastructure
         url: https://goldilocks.blackcats.cc

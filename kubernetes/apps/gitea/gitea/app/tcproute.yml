@@ -1,0 +1,39 @@
+---
+# git-over-SSH. Gitea's built-in SSH server listens on 2222 inside the pod and
+# advertises `git@gitea.blackcats.cc:...` via SSH_DOMAIN/SSH_PORT; this route is
+# what makes that URL reachable, by attaching the `ssh` (TCP:22) listener on the
+# shared Gateway to the gitea-ssh Service.
+#
+# No external-dns annotation: TCPRoute has no `hostnames` field, and the A record
+# for gitea.blackcats.cc is already published by the HTTPRoute in route.yml —
+# both HTTPS and SSH land on the same Gateway VIP (172.16.20.50).
+#
+# `gitea-ssh` is headless (the chart's default), which is fine — the HTTPRoute
+# backend `gitea-http` is headless too and resolves via EndpointSlices.
+#
+# Cilium serves TCPRoute WITHOUT Envoy: the operator generates an EndpointSlice
+# owned by the Gateway and attached to the Gateway's own Service, annotated
+# `gateway.cilium.io/backend-service` + `/backend-port`, whose endpoints are the
+# backend pods on their target port. So .50:22 reaches the pod's :2222 through
+# the normal service datapath. Consequence when debugging: a live TCPRoute leaves
+# NO trace in the CiliumEnvoyConfig — do not look for a tcp_proxy filter chain
+# there. Check instead:
+#   kubectl get endpointslice -n gateway   # expect a slice with port-22 -> 2222
+#
+# The Gateway Service is externalTrafficPolicy: Cluster, so the client IP is
+# SNATed to a node address (Gitea logs 10.244.x.x). Auth is by SSH key, so this
+# costs attribution only.
+apiVersion: gateway.networking.k8s.io/v1
+kind: TCPRoute
+metadata:
+  name: gitea-ssh
+  namespace: gitea
+spec:
+  parentRefs:
+    - name: shared
+      namespace: gateway
+      sectionName: ssh
+  rules:
+    - backendRefs:
+        - name: gitea-ssh
+          port: 22
