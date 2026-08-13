@@ -93,7 +93,7 @@ spec:
           app:
             image:
               repository: valkey/valkey
-              tag: 9-alpine
+              tag: 9.1-alpine
             resources:
               requests:
                 memory: 64Mi
