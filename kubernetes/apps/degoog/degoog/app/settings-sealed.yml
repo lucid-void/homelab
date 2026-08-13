@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: degoog-secret
+  namespace: degoog
+spec:
+  encryptedData:
+    DEGOOG_SETTINGS_PASSWORDS: AgC5rHikbYt6axMP8m3wkN36jrb2gHmCzjH+M+w4Tao6BD2c5OsXyHUtojU2GscjsCojK8RfPtRTtwrSBH/aTBETP3+MbpEM0NdYZiRaDWOUsBtlRzfmCHiDnh8SBcD8q0qLeT0eCROuTicwMYJLDxW74EzVaOvuUAyFa0/tPnfwxmP5EPQRnm4HeNR3sOtZyB9ddyrGo5lOigwyClV4n3fY9Kbc/ewy/BX2qDQVApaf6Tps+UgNqkMKPtEtMqVHFsb5P3Jyy/M1odH7siqAUcUJwPvmp/SCW/1xebpGwpvol23j35AGWFECRC+FpTQ2h86zwllOfoLqDIwz5osFbeV4NBRLotJHDJ9cJl/foUhQdUFFW8XE72YSLYow333ho69kDA/Lz8GwOvDrU+hbUGxbOTdDifwKpqmKs25q8LfszCw9sGWQ8j5gQ43iZeNINMptEZ2cNS7Q9e6/TmwQB9eCB8+2oh5cEw8q9Oqp+A1Gus2z1zrajhaAqGFzefOhz/dJOy45kULsW2Xk1nrtAh1EmZcna59KENS3r7R948ReilUIzD+NJGubg8CVjfgHO6dOizRewnIRO9Wmn8B4LgKXAqmRmFb+JlEZ6kzLXNwnvrKtav3+ylcFnBqJ8S4LBdx51ZwyYXCZTZH3B5780Qv/oF7Civq3Mi9qItSrP46iv8ngAziGoOrjwm+RtCxEGpmi1g5oZM4AXLo=
+  template:
+    metadata:
+      name: degoog-secret
+      namespace: degoog
+    type: Opaque
