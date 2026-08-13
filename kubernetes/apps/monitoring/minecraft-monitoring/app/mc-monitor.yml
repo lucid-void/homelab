@@ -32,7 +32,7 @@ spec:
         runAsGroup: 65534
       containers:
         - name: mc-monitor
-          image: itzg/mc-monitor:0.16.11
+          image: itzg/mc-monitor:0.17.0
           args: ["export-for-prometheus"]
           env:
             # Cross-namespace: the servers live in `media`. Ports are the
