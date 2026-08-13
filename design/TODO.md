@@ -337,6 +337,39 @@ routing (two authorities for the same iptables chains).
 **Action:** set `cluster.proxy.disabled: true` in `talconfig.yaml`, apply, and
 delete the DaemonSet. Verify service connectivity across all three nodes after.
 
+### Degoog's FreshRSS plugin fails to start — stale API password — 2026-08-13
+
+`degoog-org-official-extensions-freshrss` throws on every boot, so the FreshRSS
+widget never loads:
+
+```
+error: FreshRSS auth failed: 401
+  at /app/data/plugins/degoog-org-official-extensions-freshrss/index.js:103:26
+  at async start (…/index.js:434:33)
+```
+
+The plugin authenticates against the **GReader API**
+(`POST /api/greader.php/accounts/ClientLogin`, `Email` + `Passwd`). Probing that
+endpoint from the degoog pod returns `401` with `google-bad-token: true` and a
+body of `Unauthorized!` — that is `greader.php`'s own bad-credentials path, so
+the request is reaching FreshRSS and **mod_auth_openidc is not the blocker**
+(the API is exempt from the OIDC gate, and a globally disabled API would be
+`503`). The stored credential for user `maxim` is simply wrong.
+
+The likely cause is that FreshRSS's **API password is separate from the account
+password** (Profile → API management) and, because this instance authenticates
+via OIDC only, the user has no local password that could serve as one — it has
+to be set explicitly, and was probably never set or was reset.
+
+Note the credential lives in `/app/data/plugin-settings.json` on the
+`degoog-data` PVC — runtime app state outside git, like Suwayomi's installed
+sources. It will not survive PVC loss and cannot be reproduced from a `tofu
+apply` + Flux rebuild.
+
+**Action:** set an API password in FreshRSS (Profile → API management), re-enter
+it in Degoog's FreshRSS plugin settings, restart the pod, and confirm the
+exception is gone from the log.
+
 ---
 
 ## Stale / Needs Update
