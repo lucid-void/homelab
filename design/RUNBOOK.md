@@ -571,6 +571,77 @@ mise exec -- flux get kustomizations
 
 ## Recovery Procedures
 
+### Rebuild a CNPG replica that cannot rejoin (pg_rewind deadlock)
+
+Symptom: one instance never goes Ready, the `Cluster` sits on
+`Instance Status Extraction Error: HTTP communication issue`, and the replica logs
+
+```
+pg_rewind: error: could not find common ancestor of the source and target cluster's timelines
+```
+
+Its data directory is unrecoverable — repeated crash/promote cycles advanced the
+primary's timeline past any shared ancestor. **This deadlocks image rollouts:** CNPG
+will not roll pods while it cannot read every instance's status, so a bad-image fix
+committed to git applies to `status.image` and then goes nowhere. Check with
+`kubectl get cluster postgres -n postgres -o jsonpath='{.status.image}'` — if that
+already shows the good tag but the pods do not, this is why.
+
+Confirm which copy is authoritative first (higher timeline + higher NextXID wins, and it
+should be `currentPrimary`):
+
+```bash
+mise exec -- kubectl get cluster postgres -n postgres \
+  -o jsonpath='{.status.instancesReportedState}{"\n"}'
+```
+
+Then rebuild the replica. **Order matters, and both steps are required:**
+
+```bash
+# 1. Move PGDATA aside from INSIDE the pod. Renaming, not deleting, keeps a fallback.
+#    Safe because the replica's postmaster is already down (no socket in /controller/run).
+mise exec -- kubectl exec -n postgres postgres-2 -c postgres -- \
+  mv /var/lib/postgresql/data/pgdata /var/lib/postgresql/data/pgdata.broken
+
+# 2. Delete BOTH the pod and the PVC. The PVC is what matters: CNPG only runs
+#    pg_basebackup from a `<cluster>-<n>-join` Job, and it only creates that Job when
+#    the instance's PVC is ABSENT. Emptying PGDATA alone does NOT trigger it — the
+#    instance manager just dies on `stat .../pgdata: no such file or directory`.
+mise exec -- kubectl delete pod postgres-2 -n postgres --wait=false
+mise exec -- kubectl delete pvc postgres-2 -n postgres --wait=false
+
+# 3. Watch the join Job, then the primary roll
+mise exec -- kubectl get jobs -n postgres -w    # postgres-2-join → Complete
+mise exec -- kubectl get cluster postgres -n postgres -w
+```
+
+Step 1 is load-bearing and is the non-obvious part. `nfs-client` derives its share path
+from `<namespace>-<pvcname>` (`idTemplate` in the democratic-csi values) and the class is
+`Retain`, so the **recreated PVC re-adopts the exact same directory** — verified: the
+renamed `pgdata.broken` reappeared alongside the fresh `pgdata` in the new PVC. Skip the
+rename and `pg_basebackup` finds a populated PGDATA and you are back where you started.
+Same trap as the Gitea valkey rebuild; see `docs/storage.md`.
+
+The first join attempt may `Error` if the primary crashes mid-basebackup — the Job
+retries on its own. At ~500 MB the basebackup takes seconds, so it completes even
+between crashes of a sick primary. Once the replica is Ready the cluster reaches
+`Cluster in healthy state` and CNPG immediately performs the deferred primary update
+(`Primary instance is being restarted without a switchover`).
+
+Verify before cleaning up, then reclaim the space:
+
+```bash
+mise exec -- kubectl exec -n postgres postgres-1 -c postgres -- psql -U postgres -xtAc \
+  "select application_name, state, replay_lag, sent_lsn, replay_lsn from pg_stat_replication;"
+# want: state=streaming, sent_lsn == replay_lsn, sub-second replay_lag
+
+mise exec -- kubectl exec -n postgres postgres-2 -c postgres -- \
+  rm -rf /var/lib/postgresql/data/pgdata.broken
+```
+
+The old PV is left `Released` (reclaim policy `Retain`) and holds no unique data once
+the directory is re-adopted; deleting that PV object is optional housekeeping.
+
 ### Recreate one control plane (cluster has quorum)
 
 With 3 CPs, losing one keeps etcd quorum. Cluster continues running throughout.
