@@ -10,5 +10,11 @@ spec:
     # line triggers a CNPG rolling update of the Postgres pods — replica first, then the
     # primary restarts in place — so move it only when you actually want that, not to
     # chase the build. See CLAUDE.md → "CNPG operator upgrades roll the DB".
+    #
+    # PINNED BACK to v1.1.0 on 2026-08-17: v1.1.1's pgvector was compiled with AVX-512
+    # and SIGILLs on this cluster's CPU. Do NOT move forward to v1.1.1 — it is a broken
+    # build. The next safe tag is v1.1.2 (pgvector built with OPTFLAGS=""). Renovate is
+    # blocked from bumping this file; move it by hand. See CLAUDE.md → "pgvector must be
+    # built with OPTFLAGS=''".
     - major: 17
-      image: ghcr.io/lucid-void/postgres-cnpg-immich:v1.1.1
+      image: ghcr.io/lucid-void/postgres-cnpg-immich:v1.1.0
