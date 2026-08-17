@@ -29,7 +29,9 @@ spec:
               image: alpine:3.24
               command: ["/bin/sh", "-c"]
               args:
-                - apk add --no-cache bash curl jq kubectl >/dev/null 2>&1 && exec /bin/bash /scripts/report.sh
+                # `timeout` bounds the install and the `&&` makes a failure exit
+                # non-zero instead of hanging silently; see gotify-bootstrap.
+                - timeout 300 apk add --no-cache bash curl jq kubectl && exec /bin/bash /scripts/report.sh
               envFrom:
                 - secretRef:
                     name: gotify-secret

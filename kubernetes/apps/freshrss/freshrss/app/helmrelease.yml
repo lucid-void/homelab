@@ -40,7 +40,14 @@ spec:
               - -c
               - |
                 set -e
-                apk add --no-cache unzip wget >/dev/null 2>&1
+                # Bounded and unsilenced. An unbounded, output-silenced `apk add` hung
+                # for ~40h on 2026-08-15 in gotify-bootstrap and gitea db-bootstrap:
+                # pod Running and Ready, zero logs, `set -e` blocking the rest.
+                # Hanging here would wedge the pod in Init forever.
+                if ! timeout 300 apk add --no-cache unzip wget; then
+                  echo "FATAL: apk add failed or exceeded 300s" >&2
+                  exit 1
+                fi
                 cd /var/www/FreshRSS/extensions
 
                 wget -q -O youlag.zip \
