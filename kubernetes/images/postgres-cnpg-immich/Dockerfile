@@ -19,11 +19,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         postgresql-server-dev-${PG_MAJOR} \
     && rm -rf /var/lib/apt/lists/*
 
+# OPTFLAGS is load-bearing — do NOT drop it and do NOT set it to -march=native.
+#
+# pgvector's Makefile defaults to `OPTFLAGS = -march=native`, which bakes the *build
+# machine's* ISA into vector.so. The build machine is a GitHub Actions runner from a
+# mixed fleet, so a bare `make` produces different bytes from the same pinned source
+# depending on which runner won the lottery. On 2026-08-01 it landed on an AVX-512
+# runner and auto-vectorized cosine_distance, inner_product, l2_distance and ~30 other
+# *unguarded* functions with EVEX instructions. Deploying that (v1.1.1) killed the
+# shared Postgres primary every ~9 minutes for four days: the nodes are Intel Core
+# Ultra 5 235HX (Arrow Lake-HX) with AVX-512 fused off, so Immich's first `<=>`
+# comparison raised SIGILL and took the postmaster down with restart_after_crash=off.
+#
+# x86-64-v3 (AVX2 + FMA + BMI, no AVX-512) is satisfied by every CPU in this homelab
+# and keeps the vectorized distance paths. Empty OPTFLAGS would work too but drops to
+# SSE2 baseline. pgvector's own runtime-dispatched AVX-512 helpers
+# (BitHammingDistanceAvx512Popcount et al.) are guarded by __builtin_cpu_supports and
+# stay safe regardless of this flag.
+#
+# Verify a build is portable before deploying it:
+#   objdump -d vector.so | awk '/^[0-9a-f]+ <.*>:/{fn=$2} /%zmm|%k[1-7]/{print fn}' | sort -u
+# Only *Avx512* symbols may appear. cosine_distance in that list means do not ship it.
 RUN curl -fsSL "https://github.com/pgvector/pgvector/archive/refs/tags/v${PGVECTOR_VERSION}.tar.gz" \
         | tar -xz -C /tmp \
     && cd /tmp/pgvector-${PGVECTOR_VERSION} \
-    && make \
-    && make install \
+    && make OPTFLAGS="-march=x86-64-v3" \
+    && make OPTFLAGS="-march=x86-64-v3" install \
     && mkdir /pgvector-artifacts \
     && cp /usr/lib/postgresql/${PG_MAJOR}/lib/vector.so /pgvector-artifacts/ \
     && cp /usr/share/postgresql/${PG_MAJOR}/extension/vector* /pgvector-artifacts/ \
