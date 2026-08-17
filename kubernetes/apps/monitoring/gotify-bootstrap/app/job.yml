@@ -22,7 +22,21 @@ spec:
               set -eu
               set -o pipefail
 
-              apk add --no-cache curl jq kubectl >/dev/null 2>&1
+              # Bounded and NOT silenced, both deliberately. `apk` has no default
+              # timeout, and this line used to end in `>/dev/null 2>&1`: on
+              # 2026-08-15 it hung on a transient network stall and sat there for
+              # 39h with the pod Running and Ready, zero log output, and `set -eu`
+              # blocking everything after it. That wedged this Job InProgress, so
+              # the gotify-bootstrap Kustomization health check never passed and
+              # falco / gatus / am-gotify-bridge / flux-notifications / vm-stack /
+              # proxmox-monitoring all stalled on the dependency -- which took out
+              # Alertmanager AND Flux's own failure alerting, so a Postgres primary
+              # crash-looping through the same window went unreported for four days.
+              # A retry fixes it (backoffLimit: 5), but only if it actually exits.
+              if ! timeout 300 apk add --no-cache curl jq kubectl; then
+                echo "FATAL: apk add failed or exceeded 300s — retrying via backoffLimit" >&2
+                exit 1
+              fi
 
               GOTIFY_URL="http://gotify.monitoring.svc.cluster.local"
 

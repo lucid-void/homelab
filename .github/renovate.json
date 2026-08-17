@@ -105,6 +105,11 @@
       "enabled": false
     },
     {
+      "description": "imagecatalog.yml is a deploy trigger, not a version to chase. Moving that one line makes CNPG roll the shared Postgres pods (replica, then the primary), so it is a deliberate human action — the file says so in a comment. Renovate raised #155 anyway on 2026-08-13 and deployed v1.1.1, whose pgvector SIGILLs on this cluster's AVX-512-less CPUs; that crash-looped the primary every ~9 minutes for four days and stalled every *-database Kustomization behind it. The build workflow's IMAGE_VERSION is still tracked, so new builds keep getting published — only the deploy step is now manual.",
+      "matchFileNames": ["kubernetes/apps/postgres/cluster/app/imagecatalog.yml"],
+      "enabled": false
+    },
+    {
       "description": "Skip floating 'latest' tags — no meaningful version to track",
       "matchDatasources": ["docker"],
       "matchCurrentValue": "latest",

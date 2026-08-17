@@ -19,7 +19,11 @@ env:
   # their existing digest, but any later pull resolves to different bytes than the
   # peers already have. Bumping here does NOT deploy: imagecatalog.yml still pins the
   # old tag until you move it deliberately (that rolls the DB, see CLAUDE.md).
-  IMAGE_VERSION: "1.1.1"
+  #
+  # v1.1.1 IS A BROKEN BUILD -- never deploy it. Its pgvector was compiled with
+  # -march=native on an AVX-512 runner and SIGILLs on this cluster's CPUs; the
+  # Dockerfile now pins OPTFLAGS explicitly. v1.1.2 is the first portable build.
+  IMAGE_VERSION: "1.1.2"
   REGISTRY: ghcr.io
   IMAGE_NAME: lucid-void/postgres-cnpg-immich
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
