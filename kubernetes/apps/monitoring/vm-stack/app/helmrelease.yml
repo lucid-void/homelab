@@ -307,6 +307,41 @@ spec:
       enabled: true
 
     defaultRules:
+      # Disable whole built-in rule groups. Keys must match the upstream group
+      # name exactly (dots included) — the chart forwards this map to the
+      # sync-job, which renders the VMRules and prunes (syncJob.prune defaults
+      # to true) any group turned off here.
+      groups:
+        # Every rule in these four groups is built on
+        # apiserver_request_sli_duration_seconds_bucket, which the kubeApiServer
+        # scrape above deliberately drops as the single highest-cardinality
+        # series on the control plane. The rules therefore evaluate to zero
+        # samples forever, and each one fires an (info) RecordingRulesNoData —
+        # 13 permanently-firing alerts since the stack was installed, drowning
+        # the real ones. kube-apiserver-slos holds KubeAPIErrorBudgetBurn, which
+        # reads the (empty) burnrate recordings, so it can never fire: a dead
+        # alert is worse than no alert. Re-enable these only together with
+        # un-dropping the bucket metric.
+        # Cost of turning them off: the chart's `apiserver` Grafana dashboard —
+        # already empty on every latency/availability panel for the same reason
+        # — also loses its request-rate panel (raw apiserver_request_total is
+        # still scraped, so the panel is reconstructable).
+        kube-apiserver-availability.rules:
+          enabled: false
+        kube-apiserver-burnrate.rules:
+          enabled: false
+        kube-apiserver-histogram.rules:
+          enabled: false
+        kube-apiserver-slos:
+          enabled: false
+        # count:up1 / count:up0 only. count:up0 = `count(up == 0)`, which is
+        # empty whenever every scrape target is healthy — so a fully-green
+        # cluster permanently fires RecordingRulesNoData on it (it did from
+        # 2026-08-13). Nothing here consumes either recording (no dashboard, no
+        # rule), so the group is pure alert noise.
+        kube-prometheus-general.rules:
+          enabled: false
+
       # Disable specific built-in alerts. This chart keys overrides under
       # rules.<AlertName>.enabled — it has NO `disabled:` map (that field is
       # silently ignored, leaving the built-in live alongside the replacement).
