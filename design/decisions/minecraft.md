@@ -131,6 +131,21 @@ vanilla's existing `world` leaves a hard seam against pre-existing terrain; rege
 the world for a clean result, and always run Chunky pregeneration *after* the datapack,
 never before.
 
+**Recipe viewers (JEI/REI/EMI) need a server-side plugin — `jeirecipefix` on both
+servers.** Since **MC 1.21.2** the server no longer sends recipe data to clients: it
+sends recipe-book *displays* only, and only for recipes that player has already
+unlocked. A recipe viewer on a plugin server therefore shows **nothing**. This is a
+vanilla protocol change, not a Paper bug, and JEI's own advice — install JEI
+server-side — is impossible here, because JEI is a *mod* and Paper takes plugins. The
+fix has to run on the server. It matters most on **matcha**, whose Matcha Flavoured
+recipes are **datapack** recipes: those never reach the client at all, so the popular
+client-side workaround (`client-recipe-fix`, a Fabric mod) cannot recover them — it
+only restores vanilla recipes. vanilla needs it too, since plain vanilla recipes
+stopped syncing as well. `jeirecipefix` is dependency-free and covers vanilla,
+datapack and plugin recipes, refreshing after a datapack reload. **Do not substitute
+`jei-recipe-bridge`** despite its much larger download count — it stops at 26.1.2, so
+on 26.2 it hits the loader/game-version trap below and aborts startup.
+
 **Modrinth loader trap:** a slug resolving on Modrinth does *not* mean a Paper build
 exists — `spark` publishes only fabric/forge/neoforge/quilt and was removed after
 being added by mistake; always check `loaders` (curl

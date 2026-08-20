@@ -147,7 +147,23 @@ spec:
               #               MODRINTH_DOWNLOAD_DEPENDENCIES does not pull it;
               #               without it Quickchat fails to load with
               #               UnknownDependencyException and chat stays local).
-              MODRINTH_PROJECTS: "luckperms,placeholderapi,chunky,squaremap,quickchatv2"
+              #   jeirecipefix — re-sends the server's recipe set to JEI/REI/EMI.
+              #               Since MC 1.21.2 the server no longer sends recipe
+              #               data to clients: it sends recipe-book *displays*
+              #               only, and only for recipes that player has already
+              #               unlocked — so a recipe viewer on a plugin server
+              #               shows nothing. That is a vanilla protocol change,
+              #               not a Paper bug, and JEI's own answer ("install JEI
+              #               on the server") is impossible here because JEI is a
+              #               mod and Paper takes plugins. It has to be fixed
+              #               server-side. Matters most on matcha: Matcha
+              #               Flavoured's recipes are *datapack* recipes, which
+              #               never reach the client at all, so the client-side
+              #               workaround (client-recipe-fix) cannot help — it
+              #               only restores vanilla ones. Do NOT substitute the
+              #               more popular `jei-recipe-bridge`: it stops at
+              #               26.1.2 and would fail to resolve on 26.2.
+              MODRINTH_PROJECTS: "luckperms,placeholderapi,chunky,squaremap,quickchatv2,jeirecipefix"
               MODRINTH_DOWNLOAD_DEPENDENCIES: required
 
               # World directory name. Previously lived only in server.properties on
