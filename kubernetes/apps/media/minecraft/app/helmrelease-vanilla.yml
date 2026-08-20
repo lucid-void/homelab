@@ -120,7 +120,17 @@ spec:
               # MODRINTH_DOWNLOAD_DEPENDENCIES will not fetch them. Omit either
               # and Quickchat fails to load (UnknownDependencyException) and the
               # chat bridge silently stays one-way.
-              MODRINTH_PROJECTS: "luckperms,placeholderapi,chunky,squaremap,veinminer,quickchatv2"
+              #   jeirecipefix — re-sends the server's recipe set to JEI/REI/EMI.
+              #               Since MC 1.21.2 the server sends clients recipe-book
+              #               *displays* only, and only for already-unlocked
+              #               recipes, so a recipe viewer shows nothing on a
+              #               plugin server. Vanilla protocol change, not a Paper
+              #               bug; JEI's own answer ("install JEI on the server")
+              #               is impossible because JEI is a mod. Needed here too
+              #               even though this server adds no recipes of its own —
+              #               plain vanilla recipes stopped syncing as well.
+              #               Not `jei-recipe-bridge`: it stops at 26.1.2.
+              MODRINTH_PROJECTS: "luckperms,placeholderapi,chunky,squaremap,veinminer,quickchatv2,jeirecipefix"
               MODRINTH_DOWNLOAD_DEPENDENCIES: required
 
               # Terralith — overworld generation overhaul. Modrinth lists it with
