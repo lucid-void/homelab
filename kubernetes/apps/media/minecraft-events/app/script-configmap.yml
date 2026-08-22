@@ -44,6 +44,12 @@ data:
     # failure this whole component exists to avoid. --tail=0 means a reconnect
     # replays nothing, so the only cost is a sub-second gap once an hour.
     STREAM_MAX_SECONDS="${STREAM_MAX_SECONDS:-3600}"
+    # Read per event, not captured at startup: the Secret is written by
+    # gotify-bootstrap and may not exist yet when this pod starts. An optional
+    # secret volume is mounted empty and populated by the kubelet once the
+    # Secret appears, so re-reading is what makes this self-heal without a
+    # restart — and makes a token rotation take effect on the next event.
+    GOTIFY_TOKEN_FILE="${GOTIFY_TOKEN_FILE:-/gotify/GOTIFY_TOKEN}"
 
     log() { printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"; }
 
@@ -58,17 +64,21 @@ data:
     # public name needs DNS plus egress out to the Gateway and back, which is
     # exactly what breaks in the failure modes worth hearing about.
     notify() {
-      local message=$1 priority=$2
+      local message=$1 priority=$2 token=""
       log "event: ${message}"
-      if [[ -z ${GOTIFY_TOKEN:-} ]]; then
-        log "GOTIFY_TOKEN unset — gotify-bootstrap has not written the Secret yet, not sending"
+      [[ -r $GOTIFY_TOKEN_FILE ]] && token=$(<"$GOTIFY_TOKEN_FILE")
+      # Trim any stray whitespace so a hand-edited Secret can't produce a
+      # header with an embedded newline.
+      token=${token//[$'\r\n \t']/}
+      if [[ -z $token ]]; then
+        log "no Gotify token at ${GOTIFY_TOKEN_FILE} — gotify-bootstrap has not run yet; event NOT sent"
         return 0
       fi
       # Hand-built JSON is safe here only because every interpolated value was
       # matched against [A-Za-z0-9_-] by the regexes below; nothing from the log
       # line reaches this string unvalidated.
       curl -sS -m 10 -o /dev/null -X POST "$GOTIFY_URL" \
-        -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+        -H "X-Gotify-Key: ${token}" \
         -H "Content-Type: application/json" \
         -d "{\"title\":\"Minecraft\",\"message\":\"${message}\",\"priority\":${priority}}" \
         || log "WARN: Gotify POST failed — this event is lost"
