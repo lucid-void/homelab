@@ -178,7 +178,7 @@ spec:
               # as a datapack the server loads, and as a resource pack pushed to
               # clients. Modrinth labels it loaders=datapack; that describes their
               # categorisation, not the zip's contents.
-              DATAPACKS: &pack "https://cdn.modrinth.com/data/QI0EmgZ1/versions/2OaIqKKy/Matcha_Flavoured_1_03.zip?mr_download_reason=standalone&mr_game_version=26.2&mr_loader=datapack"
+              DATAPACKS: &pack "https://cdn.modrinth.com/data/QI0EmgZ1/versions/E9rngRfK/Matcha_Flavoured_1_12.zip"
               # Clear superseded versions on a bump, so two copies of the pack are
               # never loaded at once.
               REMOVE_OLD_DATAPACKS: "true"
@@ -189,7 +189,7 @@ spec:
               # client mid-join ("Unexpected error during configuration"), which is
               # exactly how vanilla broke. Re-derive it whenever the URL changes:
               #   curl -s https://api.modrinth.com/v2/version/<id> | jq -r .files[0].hashes.sha1
-              RESOURCE_PACK_SHA1: "4d40b820203b51a91473f74dd961c858889fcdb8"
+              RESOURCE_PACK_SHA1: "77d080d2fe207a886c8c784ac239dec54a213065"
               # false = clients that decline or fail the download still play.
               RESOURCE_PACK_ENFORCE: "false"
               # RESOURCE_PACK_ID deliberately unset: it is optional, and the server
