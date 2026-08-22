@@ -4,6 +4,9 @@ kind: CronJob
 metadata:
   name: minecraft-backup
   namespace: media
+  annotations:
+    # restic and rclone need a writable HOME for their cache
+    ignore-check.kube-linter.io/no-read-only-root-fs: "restic/rclone cache"
 spec:
   # 07:00 — after the existing fleet (homebox 02:00 … joplin 06:00) so the Filen
   # uploads don't overlap.

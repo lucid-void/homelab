@@ -4,6 +4,9 @@ kind: Job
 metadata:
   name: zitadel-bootstrap
   namespace: auth
+  annotations:
+    # `tofu init` downloads providers into the working dir at runtime
+    ignore-check.kube-linter.io/no-read-only-root-fs: "opentofu writes its provider cache"
 spec:
   # Idempotent: Terraform apply is a no-op when state matches desired config.
   # TTL lets Flux recreate on next reconcile (e.g. after a cluster rebuild).

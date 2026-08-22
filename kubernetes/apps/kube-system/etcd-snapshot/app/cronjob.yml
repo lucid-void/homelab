@@ -4,6 +4,9 @@ kind: CronJob
 metadata:
   name: etcd-snapshot
   namespace: kube-system
+  annotations:
+    # downloads talosctl at runtime into the container filesystem
+    ignore-check.kube-linter.io/no-read-only-root-fs: "runtime talosctl download"
 spec:
   schedule: "0 1 * * *"
   concurrencyPolicy: Forbid

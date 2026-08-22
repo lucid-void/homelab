@@ -4,6 +4,12 @@ kind: CronJob
 metadata:
   name: security-report
   namespace: security
+  annotations:
+    # `apk add` writes to /etc/apk, /lib/apk and /var/cache
+    ignore-check.kube-linter.io/no-read-only-root-fs: "alpine bootstrap installs packages at startup"
+    # `apk add` at startup needs root; runAsNonRoot:true makes it fail silently
+    # with empty logs
+    ignore-check.kube-linter.io/run-as-non-root: "alpine bootstrap installs packages at startup"
 spec:
   schedule: "0 8 * * 1"
   concurrencyPolicy: Forbid

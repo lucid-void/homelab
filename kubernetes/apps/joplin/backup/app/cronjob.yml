@@ -4,6 +4,9 @@ kind: CronJob
 metadata:
   name: joplin-backup
   namespace: joplin
+  annotations:
+    # restic and rclone need a writable HOME for their cache
+    ignore-check.kube-linter.io/no-read-only-root-fs: "restic/rclone cache"
 spec:
   schedule: "0 6 * * *"
   concurrencyPolicy: Forbid

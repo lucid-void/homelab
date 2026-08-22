@@ -1,50 +1,39 @@
-checks:
-  # Start with the full default check set, then suppress known-acceptable cases.
-  # Add to ignoreObjects as violations are reviewed and accepted.
-  addAllBuiltIn: true
-
-  exclude:
-    # Linuxserver images (sonarr, radarr, prowlarr, sabnzbd) use PUID/PGID env
-    # vars to drop privileges at runtime rather than runAsNonRoot at the pod level.
-    # This is their documented pattern and cannot be changed without forking.
-    - id: "run-as-non-root"
-      objects:
-        - namespace: "media"
-          objectName: "sonarr"
-        - namespace: "media"
-          objectName: "radarr"
-        - namespace: "media"
-          objectName: "prowlarr"
-        - namespace: "media"
-          objectName: "sabnzbd"
-        - namespace: "media"
-          objectName: "plex"
-
-    # gotify-bootstrap Job intentionally runs as root to call kubectl
-    # across namespaces for secret provisioning.
-    - id: "run-as-non-root"
-      objects:
-        - namespace: "monitoring"
-          objectName: "gotify-bootstrap"
-    - id: "no-read-only-root-fs"
-      objects:
-        - namespace: "monitoring"
-          objectName: "gotify-bootstrap"
-
-    # Gotify uses SQLite on its data volume — needs a writable root FS.
-    - id: "no-read-only-root-fs"
-      objects:
-        - namespace: "monitoring"
-          objectName: "gotify"
-
-    # democratic-csi controller requires SYS_ADMIN + privileged for NFS mounts.
-    # Its namespace is explicitly labeled privileged PSS.
-    - id: "run-as-non-root"
-      objects:
-        - namespace: "democratic-csi"
-    - id: "no-read-only-root-fs"
-      objects:
-        - namespace: "democratic-csi"
-    - id: "privileged-container"
-      objects:
-        - namespace: "democratic-csi"
+---
+# kube-linter configuration for the `manifest-scan` CI gate.
+#
+# ── Schema notes (this file was silently broken for months) ──────────────────
+# `checks.exclude` takes a FLAT LIST OF CHECK-NAME STRINGS. It has no
+# per-object form. An object-shaped entry (`- id: ... objects: [...]`) makes
+# kube-linter exit 1 with:
+#
+#   failed to load config: 'checks.exclude[0]' expected type 'string',
+#   got unconvertible type 'map[string]interface {}'
+#
+# Because the workflow used to swallow that into its JSON output, both the base
+# and PR counts fell back to 0 and the gate reported "no new violations" on
+# every PR while linting nothing. The workflow now fails loudly if kube-linter
+# does not emit a parseable report — do not reintroduce a `|| echo "0"`.
+#
+# ── Per-object suppression ───────────────────────────────────────────────────
+# Suppress a check on a single object with an annotation ON THAT OBJECT:
+#
+#   metadata:
+#     annotations:
+#       ignore-check.kube-linter.io/<check-name>: "why it is safe here"
+#
+# Put it on the TOP-LEVEL metadata, never on the pod template — a pod template
+# edit is a Job *spec* change, and Job specs are immutable once created (Flux
+# then dry-run-fails with "field is immutable" until the Job is deleted).
+#
+# ── Check set ────────────────────────────────────────────────────────────────
+# We run kube-linter's curated DEFAULT check set. `addAllBuiltIn: true` was
+# removed deliberately: it enables opinionated style/convention checks
+# (sorted-keys, required-label-owner, required-annotation-email,
+# non-isolated-pod, no-node-affinity, dnsconfig-options, minimum-three-replicas)
+# that produced ~460 findings of no security value here — and
+# minimum-three-replicas is actively wrong for a 3-node homelab.
+#
+# Note kube-linter cannot render HelmRelease CRs, so app-template-based
+# workloads (sonarr, plex, immich, …) are never linted by this gate. It covers
+# the raw Deployments/Jobs/CronJobs in kubernetes/apps/**.
+checks: {}

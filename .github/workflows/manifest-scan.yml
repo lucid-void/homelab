@@ -17,6 +17,7 @@ on:
       - "kubernetes/**"
       - ".github/workflows/manifest-scan.yml"
       - ".github/kube-linter-config.yaml"
+      - ".github/kube-linter-run.sh"
     types: [opened, synchronize, reopened]
 
 permissions:
@@ -112,13 +113,8 @@ jobs:
           git stash --include-untracked || true
           git checkout "origin/${{ github.base_ref }}" -- kubernetes/ 2>/dev/null || true
 
-          set +e
-          kube-linter lint kubernetes/ \
-            --config .github/kube-linter-config.yaml \
-            --format json > /tmp/linter-base.json 2>&1
-          set -e
-
-          count=$(jq '.Reports | length' /tmp/linter-base.json 2>/dev/null || echo "0")
+          ./.github/kube-linter-run.sh /tmp/linter-base.json
+          count=$(jq '.Reports | length' /tmp/linter-base.json)
           echo "count=${count}" >> "$GITHUB_OUTPUT"
 
           # Restore PR state
@@ -129,13 +125,8 @@ jobs:
       - name: Run kube-linter on PR branch
         id: linter-pr
         run: |
-          set +e
-          kube-linter lint kubernetes/ \
-            --config .github/kube-linter-config.yaml \
-            --format json > /tmp/linter-pr.json 2>&1
-          set -e
-
-          count=$(jq '.Reports | length' /tmp/linter-pr.json 2>/dev/null || echo "0")
+          ./.github/kube-linter-run.sh /tmp/linter-pr.json
+          count=$(jq '.Reports | length' /tmp/linter-pr.json)
           echo "count=${count}" >> "$GITHUB_OUTPUT"
 
           # Extract list of new issues (in PR but not in base, by check+object key)

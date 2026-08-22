@@ -5,6 +5,8 @@ metadata:
   name: am-gotify-bridge
   namespace: monitoring
   annotations:
+    # python writes __pycache__ and its pip target at runtime
+    ignore-check.kube-linter.io/no-read-only-root-fs: "python runtime writes"
     # Restart the bridge when the script ConfigMap changes (it's loaded once at
     # process start, so a volume remount alone wouldn't re-read it).
     reloader.stakater.com/auto: "true"
