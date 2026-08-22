@@ -152,6 +152,37 @@ being added by mistake; always check `loaders` (curl
 `api.modrinth.com/v2/project/<slug>`) includes `paper` **and** `game_versions` includes
 the pinned `VERSION`, since an unresolvable project fails startup.
 
+**Player join/leave notifications watch the Velocity console, not the backends and
+not a plugin.** The `minecraft-events` Deployment in `media` streams the proxy pod's
+log with `kubectl logs --follow` (RBAC scoped to `pods` + `pods/log` in one namespace)
+and posts to Gotify, which the existing bridge forwards to Telegram. Three rejected
+alternatives, each for a concrete reason: (1) **tailing the two backends** double-counts
+anyone who uses `/server`, and would need a container inside the game pods — where any
+non-running container strips pod readiness and drops players, the same trap that forced
+the `files` sidecar to have no readiness probe; (2) **a join-webhook plugin** is another
+`MODRINTH_PROJECTS` entry to keep resolvable against the pinned `VERSION` on every bump,
+on both servers, subject to the loader trap above; (3) **the metrics already collected**
+can't do it — `minecraft_status_players_online_count` is a 60s poll carrying no player
+names, and an Alertmanager alert fires once and then stays firing until the last player
+leaves, which is not an event. Velocity emits a *pair* of lines per join —
+`[connected player] Name (/ip:port) has connected` (the true session boundary) followed by
+`[server connection] Name -> matcha has connected` (which backend; also fires on a
+`/server` switch) — so the script holds the first until the second names the server, and
+that pairing is the only thing distinguishing "joined" from "switched". Names are matched
+against the Minecraft username charset (`[A-Za-z0-9_]{1,16}`) *before* they are
+interpolated into the Gotify JSON, so an unexpected log line can only fail to match, never
+corrupt the body. Two failure modes are designed around: a `kubectl logs --follow` the API
+server has quietly dropped leaves the container Running with no output forever, so the
+script recycles its own stream hourly (`--tail=0` means a reconnect replays nothing), and
+the outer loop touches a heartbeat file that both probes read — an idle server emits no log
+lines for hours, so output cannot be the health signal. The image is `backup-tools`
+precisely because it already carries bash + curl + kubectl, avoiding the container-start
+`apk add` that hung three Jobs for days in August. The token Secret
+(`minecraft-events-gotify-secret`, written by `gotify-bootstrap`) is consumed
+`optional: true` and the Kustomization deliberately does **not** `dependsOn`
+gotify-bootstrap — Reloader restarts the pod when the token appears, and coupling one more
+Kustomization to that Job is exactly what made the 2026-08-15 stall so wide.
+
 **Monitoring** lives in `monitoring/minecraft-monitoring` (see the Monitoring stack
 row).
 

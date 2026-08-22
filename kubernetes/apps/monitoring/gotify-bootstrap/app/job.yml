@@ -164,6 +164,7 @@ spec:
               ensure_app_token "gitea-backup"     "Gitea backup job notifications"        gitea       gotify-secret        GOTIFY_TOKEN
               ensure_app_token "joplin-backup"    "Joplin backup job notifications"       joplin      gotify-secret        GOTIFY_TOKEN
               ensure_app_token "minecraft-backup" "Minecraft backup job notifications"    media       gotify-secret        GOTIFY_TOKEN
+              ensure_app_token "minecraft-events" "Minecraft player join/leave events"   media       minecraft-events-gotify-secret GOTIFY_TOKEN
               ensure_app_token "security-scanner" "Trivy weekly security report"          security    gotify-secret        GOTIFY_TOKEN
               ensure_app_token "falco"            "Falco runtime security alerts"         security    falco-gotify-secret  GOTIFY_TOKEN
               ensure_app_token "gatus"            "Gatus health monitoring alerts"        monitoring  gatus-gotify-secret  GOTIFY_TOKEN

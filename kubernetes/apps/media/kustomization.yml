@@ -19,3 +19,4 @@ resources:
   - ./minecraft-proxy/ks.yml
   - ./minecraft/ks.yml
   - ./minecraft-backup/ks.yml
+  - ./minecraft-events/ks.yml

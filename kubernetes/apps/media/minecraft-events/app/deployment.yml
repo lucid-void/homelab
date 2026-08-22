@@ -1,0 +1,110 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minecraft-events
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    # Two overlapping replicas would each hold a log stream and every join would
+    # notify twice. Recreate accepts a few seconds of blindness during a rollout
+    # instead.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minecraft-events
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minecraft-events
+      annotations:
+        # The Gotify token Secret does not exist until gotify-bootstrap runs, and
+        # it changes whenever that Job rotates the token. Reloader restarts the
+        # pod on both, so the envFrom below can stay optional.
+        reloader.stakater.com/auto: "true"
+    spec:
+      serviceAccountName: minecraft-events
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+      containers:
+        - name: events
+          # backup-tools already bundles bash + curl + kubectl, which is the whole
+          # dependency set. Using it avoids the `apk add` at container start that
+          # the bootstrap Jobs need — and that hung three Jobs for days in August.
+          image: ghcr.io/lucid-void/backup-tools:v1.0.2
+          command: ["/bin/bash", "/scripts/watch.sh"]
+          env:
+            # kubectl writes a discovery cache under $HOME; the root filesystem is
+            # read-only, so point it at the tmp emptyDir.
+            - name: HOME
+              value: /tmp
+            - name: TZ
+              value: Europe/Brussels
+            # Joins always notify. These two are opt-out — set to "false" to get
+            # join-only notifications.
+            - name: NOTIFY_LEAVES
+              value: "true"
+            - name: NOTIFY_SWITCHES
+              value: "true"
+          envFrom:
+            # Written by gotify-bootstrap. Optional so this pod starts (and logs
+            # events to stdout) before the token exists.
+            - secretRef:
+                name: minecraft-events-gotify-secret
+                optional: true
+          # Both probes read the same heartbeat file, which the script's outer
+          # loop refreshes on every iteration. An idle Minecraft server emits no
+          # log lines for hours, so "did we see output" cannot be the health
+          # signal — but the stream is recycled hourly, so the loop itself ticks
+          # regardless and a stalled watcher stops advancing the file.
+          #
+          # 7200s tolerates one missed recycle (STREAM_MAX_SECONDS 3600 + the 5s
+          # reconnect sleep) before restarting the pod.
+          #
+          # Readiness gates nothing here — this Deployment backs no Service — but
+          # it makes a wedged watcher show as 0/1 in `kubectl get pods` instead of
+          # looking perfectly healthy while notifying nobody.
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - test $(( $(date +%s) - $(cat /tmp/heartbeat 2>/dev/null || echo 0) )) -lt 7200
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - test $(( $(date +%s) - $(cat /tmp/heartbeat 2>/dev/null || echo 0) )) -lt 7200
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 3
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 10m
+            limits:
+              memory: 128Mi
+      volumes:
+        - name: script
+          configMap:
+            name: minecraft-events-script
+            defaultMode: 0755
+        - name: tmp
+          emptyDir: {}

@@ -1,0 +1,135 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minecraft-events-script
+  namespace: media
+data:
+  watch.sh: |
+    #!/usr/bin/env bash
+    # Turns Velocity player connect/disconnect events into Gotify notifications.
+    #
+    # Why the proxy log and not the backends: every client session passes through
+    # Velocity exactly once, so one line per real join. Tailing matcha and vanilla
+    # instead would double-count a player who uses /server, and would need a
+    # container inside the game pods — where any non-running sidecar strips the
+    # pod's readiness and drops players (see the minecraft decisions file).
+    #
+    # Why not a plugin: a join webhook would be another MODRINTH_PROJECTS entry
+    # to keep resolvable against the pinned VERSION on every bump, and would have
+    # to be installed on both backends. The proxy log is version-independent.
+    #
+    # Why not the metrics we already have: minecraft_status_players_online_count
+    # is a 60s poll with no player names, and an Alertmanager alert is the wrong
+    # shape for an event (it fires once and stays firing until everyone leaves).
+    #
+    # NOTE: no `set -e`. This process must never exit — the outer loop is the
+    # reconnect mechanism, so a failed curl or a vanished pod has to fall through
+    # to the next iteration rather than kill the container.
+    set -uo pipefail
+
+    GOTIFY_URL="${GOTIFY_URL:-http://gotify.monitoring.svc.cluster.local/message}"
+    PROXY_NAMESPACE="${PROXY_NAMESPACE:-media}"
+    PROXY_SELECTOR="${PROXY_SELECTOR:-app.kubernetes.io/name=minecraft-proxy}"
+    JOIN_PRIORITY="${JOIN_PRIORITY:-3}"
+    LEAVE_PRIORITY="${LEAVE_PRIORITY:-2}"
+    # Joins are the point of this component and are always sent. Leaves and
+    # /server switches are opt-out, set explicitly in the Deployment env so the
+    # choice is visible without reading this script.
+    NOTIFY_LEAVES="${NOTIFY_LEAVES:-true}"
+    NOTIFY_SWITCHES="${NOTIFY_SWITCHES:-true}"
+    # Recycle the stream on this cadence even when it looks healthy. A
+    # `kubectl logs --follow` that the API server has quietly dropped keeps the
+    # container Running with no output forever, which is precisely the silent
+    # failure this whole component exists to avoid. --tail=0 means a reconnect
+    # replays nothing, so the only cost is a sub-second gap once an hour.
+    STREAM_MAX_SECONDS="${STREAM_MAX_SECONDS:-3600}"
+
+    log() { printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"; }
+
+    # Liveness/readiness signal. Written once per outer-loop iteration, so it
+    # refreshes at least every STREAM_MAX_SECONDS even on a server nobody has
+    # touched in days — an idle proxy emits no log lines, so output cannot be
+    # the health signal. The probes fail if this stops advancing, which is the
+    # only way to notice a `kubectl logs --follow` that hung past its timeout.
+    beat() { date +%s > /tmp/heartbeat; }
+
+    # Post to the in-cluster Service, never https://gotify.blackcats.cc — the
+    # public name needs DNS plus egress out to the Gateway and back, which is
+    # exactly what breaks in the failure modes worth hearing about.
+    notify() {
+      local message=$1 priority=$2
+      log "event: ${message}"
+      if [[ -z ${GOTIFY_TOKEN:-} ]]; then
+        log "GOTIFY_TOKEN unset — gotify-bootstrap has not written the Secret yet, not sending"
+        return 0
+      fi
+      # Hand-built JSON is safe here only because every interpolated value was
+      # matched against [A-Za-z0-9_-] by the regexes below; nothing from the log
+      # line reaches this string unvalidated.
+      curl -sS -m 10 -o /dev/null -X POST "$GOTIFY_URL" \
+        -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "{\"title\":\"Minecraft\",\"message\":\"${message}\",\"priority\":${priority}}" \
+        || log "WARN: Gotify POST failed — this event is lost"
+    }
+
+    # Velocity 3.x prints two lines per join, in this order:
+    #   [08:15:44 INFO]: [connected player] Robotkart (/172.16.20.6:3712) has connected
+    #   [08:15:44 INFO]: [server connection] Robotkart -> matcha has connected
+    # and the mirrored pair on leave. The first is the real session boundary; the
+    # second carries the backend name and ALSO fires on a /server switch. Pairing
+    # them is what distinguishes "joined" from "switched".
+    #
+    # Names are bounded by the Minecraft username charset (16 chars of
+    # [A-Za-z0-9_]) so an unexpected log line can never inject into the JSON —
+    # worst case it fails to match and the event is skipped.
+    RE_CONNECT='\[connected player\] ([A-Za-z0-9_]{1,16}) \(/[^)]*\) has connected'
+    RE_DISCONNECT='\[connected player\] ([A-Za-z0-9_]{1,16}) \(/[^)]*\) has disconnected'
+    RE_BACKEND='\[server connection\] ([A-Za-z0-9_]{1,16}) -> ([A-Za-z0-9_-]{1,32}) has connected'
+
+    stream() {
+      local pod=$1 line name server
+      # Per-stream state. A reconnect starts empty, which is correct: a proxy
+      # restart disconnects everyone anyway.
+      declare -A joining=()
+
+      while IFS= read -r line; do
+        if [[ $line =~ $RE_DISCONNECT ]]; then
+          [[ $NOTIFY_LEAVES == "true" ]] \
+            && notify "${BASH_REMATCH[1]} left the server" "$LEAVE_PRIORITY"
+        elif [[ $line =~ $RE_CONNECT ]]; then
+          # Hold it until the backend line names the server it landed on.
+          joining[${BASH_REMATCH[1]}]=1
+        elif [[ $line =~ $RE_BACKEND ]]; then
+          name=${BASH_REMATCH[1]}
+          server=${BASH_REMATCH[2]}
+          if [[ -n ${joining[$name]:-} ]]; then
+            unset "joining[$name]"
+            notify "${name} joined ${server}" "$JOIN_PRIORITY"
+          elif [[ $NOTIFY_SWITCHES == "true" ]]; then
+            notify "${name} switched to ${server}" "$LEAVE_PRIORITY"
+          fi
+        fi
+      done < <(timeout "$STREAM_MAX_SECONDS" \
+                 kubectl logs -n "$PROXY_NAMESPACE" "$pod" --follow --tail=0 2>/dev/null)
+    }
+
+    log "watching ${PROXY_NAMESPACE} for pods matching ${PROXY_SELECTOR}"
+    while true; do
+      beat
+      pod=$(kubectl get pods -n "$PROXY_NAMESPACE" -l "$PROXY_SELECTOR" \
+              --field-selector=status.phase=Running \
+              -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+
+      if [[ -z ${pod:-} ]]; then
+        log "no Running proxy pod yet — retrying in 15s"
+        sleep 15
+        continue
+      fi
+
+      log "following ${PROXY_NAMESPACE}/${pod}"
+      stream "$pod"
+      log "stream for ${pod} ended (pod replaced, or the periodic recycle) — reconnecting in 5s"
+      sleep 5
+    done

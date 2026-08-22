@@ -161,6 +161,7 @@ kubernetes/
 | Minecraft `vanilla` (Paper, plugin-free) | media | `vanilla.blackcats.cc` — **TCP 25565 via the Velocity proxy, not the Gateway** | None (VPN-gated); files UI at `vanilla-files.blackcats.cc` |
 | minecraft-proxy (Velocity 3.5.1) | media | LoadBalancer `172.16.20.52:25565` (own IP; never share with Plex) | — |
 | minecraft-valkey | media | ClusterIP `:6379` — QuickChat cross-server chat bus | — |
+| minecraft-events | media | — (no Service) — Velocity log watcher → Gotify player join/leave notifications | — |
 | CNPG cluster `postgres` | postgres | — | Per-DB roles |
 
 Full inventory with storage details: `docs/services.md`.
