@@ -1,0 +1,27 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app minecraft-events
+  namespace: flux-system
+spec:
+  targetNamespace: media
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  # minecraft-proxy only: this watches the proxy's console, not the backends.
+  # Deliberately NOT dependsOn gotify-bootstrap — the token Secret is consumed
+  # with optional: true and Reloader restarts the pod when it lands, so a
+  # wedged bootstrap Job cannot stall this Kustomization too. (2026-08-15: a
+  # hung `apk` in gotify-bootstrap stalled every Kustomization that depended
+  # on it, taking out all three alerting paths at once.)
+  dependsOn:
+    - name: minecraft-proxy
+  path: ./kubernetes/apps/media/minecraft-events/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: false
+  interval: 30m
+  timeout: 5m
