@@ -178,10 +178,20 @@ the outer loop touches a heartbeat file that both probes read — an idle server
 lines for hours, so output cannot be the health signal. The image is `backup-tools`
 precisely because it already carries bash + curl + kubectl, avoiding the container-start
 `apk add` that hung three Jobs for days in August. The token Secret
-(`minecraft-events-gotify-secret`, written by `gotify-bootstrap`) is consumed
-`optional: true` and the Kustomization deliberately does **not** `dependsOn`
-gotify-bootstrap — Reloader restarts the pod when the token appears, and coupling one more
-Kustomization to that Job is exactly what made the 2026-08-15 stall so wide.
+(`minecraft-events-gotify-secret`, written by `gotify-bootstrap`) is read from an
+**optional mounted secret volume, re-read per event** — not `envFrom` — and the
+Kustomization deliberately does **not** `dependsOn` gotify-bootstrap, because coupling one
+more Kustomization to that Job is exactly what made the 2026-08-15 stall so wide. The house
+pattern (`envFrom` + `reloader.stakater.com/auto`) was tried first and failed silently on
+2026-08-22: env vars are fixed at pod start, so it needs Reloader to fire on the Secret's
+*creation*, and **the annotation must sit on the Deployment's own `metadata.annotations` —
+Reloader does not look at the pod template**. Placed one level too deep it is a no-op with
+no error anywhere; the watcher logged real joins for ten minutes while sending nothing.
+(bjw-s app-template users never meet this: `controllers.<name>.annotations` targets the
+controller object, `controllers.<name>.pod.annotations` the template.) The kubelet
+populates an optional secret volume once the Secret appears, so re-reading the file makes
+the component self-heal about a minute after bootstrap runs, pick up a rotation with no
+restart, and depend on nothing outside its own Deployment.
 
 **Monitoring** lives in `monitoring/minecraft-monitoring` (see the Monitoring stack
 row).

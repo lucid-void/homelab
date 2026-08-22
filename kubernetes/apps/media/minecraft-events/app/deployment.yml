@@ -18,11 +18,6 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: minecraft-events
-      annotations:
-        # The Gotify token Secret does not exist until gotify-bootstrap runs, and
-        # it changes whenever that Job rotates the token. Reloader restarts the
-        # pod on both, so the envFrom below can stay optional.
-        reloader.stakater.com/auto: "true"
     spec:
       serviceAccountName: minecraft-events
       securityContext:
@@ -49,12 +44,6 @@ spec:
               value: "true"
             - name: NOTIFY_SWITCHES
               value: "true"
-          envFrom:
-            # Written by gotify-bootstrap. Optional so this pod starts (and logs
-            # events to stdout) before the token exists.
-            - secretRef:
-                name: minecraft-events-gotify-secret
-                optional: true
           # Both probes read the same heartbeat file, which the script's outer
           # loop refreshes on every iteration. An idle Minecraft server emits no
           # log lines for hours, so "did we see output" cannot be the health
@@ -90,6 +79,9 @@ spec:
               mountPath: /scripts
             - name: tmp
               mountPath: /tmp
+            - name: gotify-token
+              mountPath: /gotify
+              readOnly: true
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -108,3 +100,18 @@ spec:
             defaultMode: 0755
         - name: tmp
           emptyDir: {}
+        # Deliberately a mounted file rather than the house `envFrom` +
+        # `reloader.stakater.com/auto` pattern. The token Secret does not exist
+        # until gotify-bootstrap runs, and env vars are fixed at pod start, so
+        # that pattern needs Reloader to fire on the Secret's *creation* — and
+        # gets it silently wrong if the annotation is misplaced (it belongs on
+        # the Deployment's own metadata, not the pod template; that mistake cost
+        # a round of "token unset" here). The kubelet populates an optional
+        # secret volume when the Secret later appears, so the script simply
+        # re-reads this file per event: it self-heals within about a minute of
+        # bootstrap running, survives a token rotation with no restart, and
+        # depends on nothing outside this Deployment.
+        - name: gotify-token
+          secret:
+            secretName: minecraft-events-gotify-secret
+            optional: true
