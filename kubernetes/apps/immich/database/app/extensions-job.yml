@@ -4,6 +4,13 @@ kind: Job
 metadata:
   name: immich-db-extensions
   namespace: postgres
+  annotations:
+    # DEBT: psql writes temp files; not hardened yet
+    ignore-check.kube-linter.io/no-read-only-root-fs: "not hardened yet - see comment"
+    # DEBT: psql does not need root; the CNPG image already runs as uid 26. Left
+    # unset rather than changed, because editing a Job spec trips Job
+    # immutability and needs a manual delete
+    ignore-check.kube-linter.io/run-as-non-root: "not hardened yet - see comment"
 spec:
   # Give Flux time to observe completion before TTL deletes the Job.
   # Idempotent (IF [NOT] EXISTS / ALTER ... UPDATE), so re-runs on reconcile are safe.

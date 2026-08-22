@@ -4,6 +4,9 @@ kind: CronJob
 metadata:
   name: gitea-backup
   namespace: gitea
+  annotations:
+    # restic and rclone need a writable HOME for their cache
+    ignore-check.kube-linter.io/no-read-only-root-fs: "restic/rclone cache"
 spec:
   schedule: "0 5 * * *"
   concurrencyPolicy: Forbid

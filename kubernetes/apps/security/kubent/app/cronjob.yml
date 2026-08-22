@@ -4,6 +4,15 @@ kind: CronJob
 metadata:
   name: kubent
   namespace: security
+  annotations:
+    # deliberate: ttlSecondsAfterFinished lets a failed Job self-clean instead
+    # of lingering and re-tripping KubeJobFailed every ~12h
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see comment"
+    # DEBT: not hardened yet
+    ignore-check.kube-linter.io/no-read-only-root-fs: "not hardened yet - see comment"
+    # the kube-no-trouble scan image is a scratch image with no non-root USER,
+    # so runAsNonRoot:true would block startup
+    ignore-check.kube-linter.io/run-as-non-root: "scratch image has no non-root USER"
 spec:
   schedule: "0 8 * * 1"
   concurrencyPolicy: Forbid

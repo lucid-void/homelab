@@ -5,6 +5,8 @@ metadata:
   name: gotify-telegram
   namespace: monitoring
   annotations:
+    # `pip install --target /tmp/pylib` runs at startup
+    ignore-check.kube-linter.io/no-read-only-root-fs: "python runtime writes"
     # Gotify 3 discloses tokens only at creation/rotation, so a Gotify DB reset
     # mints a brand new CLIENT_TOKEN. Restart the bridge when it changes.
     reloader.stakater.com/auto: "true"

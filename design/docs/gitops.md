@@ -311,6 +311,27 @@ CI runs on PRs touching `kubernetes/**`:
 Workflow: `.github/workflows/manifest-scan.yml`
 Required status check: `Manifest Scan Passed`
 
+#### kube-linter scope and config (two traps)
+
+The scan targets are **discovered leaf directories**, not `kubernetes/` — see
+`.github/kube-linter-run.sh`. kube-linter treats any directory containing a
+`kustomization.yml` as a kustomize root: it renders that directory and **does not
+descend**. Every `kubernetes/apps/<ns>/kustomization.yml` renders to Flux
+`Kustomization` CRs plus a `Namespace` (no pod specs), so `kube-linter lint
+kubernetes/` walked past the entire app tree and only ever saw 6 files. Targeting
+leaf dirs also lets kustomize resolve each app's ServiceAccount/RBAC beside its
+workload, which removes `non-existent-service-account` false positives.
+
+`checks.exclude` in `.github/kube-linter-config.yaml` takes a **flat list of
+check-name strings** — there is no per-object form. Per-object suppression uses
+an `ignore-check.kube-linter.io/<check>: "reason"` annotation on the object's
+**top-level** metadata (never the pod template — that is a Job *spec* change, and
+Job specs are immutable).
+
+kube-linter cannot render `HelmRelease` CRs, so app-template workloads (sonarr,
+plex, immich, …) are **never** covered by this gate; it sees only the raw
+Deployments/Jobs/CronJobs.
+
 ### Image vulnerability scanning
 
 `.github/workflows/image-scan.yml` scans every container image a PR changes, so

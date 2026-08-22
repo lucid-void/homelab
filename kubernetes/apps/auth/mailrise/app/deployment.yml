@@ -4,6 +4,9 @@ kind: Deployment
 metadata:
   name: mailrise
   namespace: auth
+  annotations:
+    # upstream image is not hardened for a read-only root filesystem
+    ignore-check.kube-linter.io/no-read-only-root-fs: "upstream image not hardened"
 spec:
   replicas: 1
   selector:

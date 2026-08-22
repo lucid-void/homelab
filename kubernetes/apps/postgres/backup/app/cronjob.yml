@@ -4,6 +4,9 @@ kind: CronJob
 metadata:
   name: postgres-backup
   namespace: postgres
+  annotations:
+    # restic and rclone need a writable HOME for their cache
+    ignore-check.kube-linter.io/no-read-only-root-fs: "restic/rclone cache"
 spec:
   schedule: "30 3 * * *"
   concurrencyPolicy: Forbid
