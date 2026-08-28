@@ -38,7 +38,7 @@ spec:
           app:
             image:
               repository: rommapp/romm
-              tag: "5.1.0"
+              tag: "5.2.0"
             env:
               TZ: Europe/Brussels
               # --- Database (external CNPG Postgres) ---
