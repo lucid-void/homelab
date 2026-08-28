@@ -21,6 +21,3 @@ kustomize = "latest"
 trivy = "latest"
 gitleaks = "latest"
 
-[hooks]
-postinstall = "pip install -r requirements.txt"
-
