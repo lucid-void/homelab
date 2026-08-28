@@ -13,11 +13,23 @@ spec:
         kind: HelmRepository
         name: fairwinds
         namespace: flux-system
+  # The VPA CRDs ship in the chart's crds/ directory, which Helm (and therefore
+  # Flux) leaves alone by default: spec.upgrade.crds defaults to Skip, so a chart
+  # bump rolls the recommender image while the CRD schema stays frozen at whatever
+  # version first installed it. Chart 5.0.0 (VPA 1.6.0 -> 1.7.1) adds startupBoost,
+  # memoryAggregationInterval*, evictAfterOOMSeconds, the InPlace updateMode and
+  # status.observedGeneration -- all silently pruned by the apiserver on write
+  # while the old CRD is in place. CreateReplace is safe here because the 5.0.0
+  # CRD is purely additive (no fields or served versions removed; both v1 and
+  # v1beta2 stay, storage remains v1), so the existing VerticalPodAutoscaler
+  # objects Goldilocks creates are untouched.
   install:
+    crds: CreateReplace
     remediation:
       retries: 3
   upgrade:
     cleanupOnFail: true
+    crds: CreateReplace
     remediation:
       retries: 3
   values:
