@@ -5,6 +5,12 @@ metadata:
   name: etcd-snapshot
   namespace: kube-system
   annotations:
+    # deliberate: the TTL and the history limits are complementary here, not
+    # conflicting. Whichever fires first removes the Job, and three runs of a
+    # daily job cannot accumulate inside 24h -- so the TTL always wins and the
+    # limits remain a cap. Without it a failed Job lingers until three MORE
+    # failures evict it, re-firing KubeJobFailed indefinitely.
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see comment"
     # downloads talosctl at runtime into the container filesystem
     ignore-check.kube-linter.io/no-read-only-root-fs: "runtime talosctl download"
 spec:
@@ -16,6 +22,13 @@ spec:
     spec:
       activeDeadlineSeconds: 3600
       backoffLimit: 0
+      # Self-clean after 24h. failedJobsHistoryLimit alone retains a failed
+      # Job until three MORE failures evict it, so one rare failure leaves the
+      # object sitting there and KubeJobFailed re-fires ~twice a day forever
+      # (minecraft-backup did exactly this for 7 days, 2026-08-20 to 08-28).
+      # Nothing is lost: the script's own Gotify ✗ notification carries the
+      # log tail and persists in Gotify independently of this object.
+      ttlSecondsAfterFinished: 86400
       template:
         spec:
           serviceAccountName: etcd-snapshot
