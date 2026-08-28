@@ -298,6 +298,41 @@ below. Doing it once addresses both.
 **Action:** move trivy-operator to `ClientServer`, raise the scan-job memory
 limit, and confirm the four failing reports regenerate.
 
+**Still live as of 2026-08-28** — unchanged symptom, now on `scan-vulnerabilityreport-5dc5f95f99`
+(`media/matcha`, containers `backup`/`files`/`filebrowser-init`):
+`unable to initialize fs cache: cache may be in use by another process: timeout`.
+Note this is the *scan job's* cache lock and is separate from the **operator**
+OOMKill fixed on 2026-08-28 (limit 1Gi → 2Gi); raising the operator limit does
+not touch this.
+
+### Minecraft restic repo failed an integrity check once — 2026-08-20
+
+`minecraft-backup` exited 1 at 07:40 on 2026-08-20. `backup` and `forget --prune`
+succeeded; `restic check --read-data-subset=1/10` did not:
+
+```
+rclone: ERROR : data/be/bebe69fdb4...: Didn't finish writing GET request
+  (wrote 2097152/18408552 bytes): failed to fetch chunk:
+  decrypting chunk 2: open: cipher: message authentication failed
+download error: circuit breaker open for file <data/bebe69fdb4>
+The repository is damaged and must be repaired.
+Fatal: repository contains errors
+```
+
+A pack read back from Filen failed its rclone-crypt MAC check — a genuine
+integrity error, not a timeout. All 8 nightly runs since have passed, so it
+looks transient (Filen returning bad bytes once), but each run only verifies
+**10%** of packs, so consecutive passes are weak evidence.
+
+This is also the failure that exposed the missing `ttlSecondsAfterFinished`:
+the Job lingered 8 days and produced 18 of 27 alert notifications.
+
+**Action:** run a full `restic check --read-data` against
+`rclone:filen:backups/restic/minecraft` once, out of band (it downloads the
+whole repo — do not put it in the nightly job). If packs are genuinely bad,
+`restic repair packs`. Until then the minecraft repo is *probably* sound rather
+than *known* sound.
+
 ### Orphaned `openebs-hostpath` PV with pre-rename node affinity — 2026-08-04
 
 `pvc-641863e1-a4aa-49e9-9594-5568086f2369` (30Gi, was

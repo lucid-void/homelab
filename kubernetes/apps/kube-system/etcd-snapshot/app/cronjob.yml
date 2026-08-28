@@ -16,6 +16,13 @@ spec:
     spec:
       activeDeadlineSeconds: 3600
       backoffLimit: 0
+      # Self-clean after 24h. failedJobsHistoryLimit alone retains a failed
+      # Job until three MORE failures evict it, so one rare failure leaves the
+      # object sitting there and KubeJobFailed re-fires ~twice a day forever
+      # (minecraft-backup did exactly this for 7 days, 2026-08-20 to 08-28).
+      # Nothing is lost: the script's own Gotify ✗ notification carries the
+      # log tail and persists in Gotify independently of this object.
+      ttlSecondsAfterFinished: 86400
       template:
         spec:
           serviceAccountName: etcd-snapshot
