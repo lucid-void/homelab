@@ -29,7 +29,7 @@ spec:
           app:
             image:
               repository: lscr.io/linuxserver/sonarr
-              tag: "4.0.19"
+              tag: "4.0.19.2979-ls322"
             env:
               TZ: Europe/Brussels
               PUID: "2202"

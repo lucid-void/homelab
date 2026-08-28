@@ -74,7 +74,7 @@ spec:
           app:
             image:
               repository: lscr.io/linuxserver/kavita
-              tag: "0.9.0"
+              tag: "v0.9.0.2-ls121"
             env:
               TZ: Europe/Brussels
               PUID: "2202"

@@ -29,7 +29,7 @@ spec:
           app:
             image:
               repository: lscr.io/linuxserver/plex
-              tag: "1.43.3"
+              tag: "1.43.3.10896-cb3ebc72d-ls321"
             env:
               TZ: Europe/Brussels
               PUID: "2202"
