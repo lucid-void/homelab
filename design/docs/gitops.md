@@ -332,6 +332,67 @@ kube-linter cannot render `HelmRelease` CRs, so app-template workloads (sonarr,
 plex, immich, …) are **never** covered by this gate; it sees only the raw
 Deployments/Jobs/CronJobs.
 
+### Image pinning and mutable upstream tags
+
+Images are pinned to a minor semver or an exact tag. The trap is that some
+registries publish a tag that *looks* like an exact version but is re-pointed on
+every rebuild.
+
+**linuxserver.io is the case that bit us.** `lscr.io/linuxserver/plex:1.43.3`
+is mutable — lscr rebuilds the image every few days (base-image and mod
+refreshes) and moves the short tag each time, while the upstream Plex version
+stays `1.43.3`. Two gates fail together, both silently:
+
+- **Renovate reports no update.** The string in git is already the newest
+  `X.Y.Z`, so there is genuinely nothing to bump. This is correct behaviour —
+  do not go looking for a broken Renovate config.
+- **`image-scan` never runs.** No file changes, so no PR, so no CVE diff.
+
+And the cluster does not move either: `imagePullPolicy` defaults to
+`IfNotPresent` (the tag is not `:latest`), so the node serves the digest it
+cached the first time. **Restarting the pod does not re-pull.** Only the tag
+string changing forces a new pull.
+
+Found 2026-08-28 across all six lscr images. Plex was 6 lscr builds and 2 Plex
+builds behind — running `1.43.3.10828-…-ls315`, pulled 2026-08-21, while
+`1.43.3` had moved to `1.43.3.10896-…-ls321`. Note `1.43.3`, `latest` and
+`1.43.3.10896-cb3ebc72d-ls321` all resolved to the same index digest, which is
+how you confirm the short tag is mutable:
+
+```bash
+TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:linuxserver/plex:pull&service=ghcr.io" | jq -r .token)
+curl -sI -H "Authorization: Bearer $TOKEN" \
+  -H "Accept: application/vnd.oci.image.index.v1+json" \
+  https://ghcr.io/v2/linuxserver/plex/manifests/1.43.3 | grep -i docker-content-digest
+```
+
+Compare that against what is actually running — the resolved digest, not the tag:
+
+```bash
+kubectl -n media get pod -l app.kubernetes.io/name=plex \
+  -o jsonpath='{.items[0].status.containerStatuses[0].imageID}'
+```
+
+The fix is to pin the **full** lscr tag, which is immutable, and teach Renovate
+to order those tags. `.github/renovate.json` carries three `regex:` versioning
+rules because the shapes differ:
+
+| Images | Shape | Example |
+|---|---|---|
+| plex | 4-part + upstream git hash + `ls` | `1.43.3.10896-cb3ebc72d-ls321` |
+| sonarr, radarr, prowlarr, kavita | 4-part + `ls` (kavita has a leading `v`) | `4.0.19.2979-ls322`, `v0.9.0.2-ls121` |
+| sabnzbd | 3-part + `ls` | `5.1.2-ls270` |
+
+All three share `groupName: linuxserver` so the churn arrives as one PR — lscr
+rebuilds often enough that six separate PR streams would exhaust
+`prConcurrentLimit: 6` and crowd out everything else.
+
+**A regex that fails to parse a tag puts you straight back to "no update
+available", with no error anywhere.** If lscr changes a tag shape, or a new lscr
+image is added without a matching rule, the silence looks identical to "already
+current". Re-validate by checking that every pinned tag still parses and that the
+rule selects the newest tag in the registry.
+
 ### Image vulnerability scanning
 
 `.github/workflows/image-scan.yml` scans every container image a PR changes, so
