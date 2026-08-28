@@ -116,6 +116,35 @@
       "enabled": false
     },
     {
+      "description": "linuxserver.io Plex. The short `X.Y.Z` tag this was pinned to is MUTABLE — lscr re-points it at every rebuild, so Renovate correctly reported 'no update' while the cluster silently drifted: on 2026-08-28 the pod was running 1.43.3.10828-…-ls315 (pulled 2026-08-21) while the `1.43.3` tag had moved on to ls321 / PMS build 10896. imagePullPolicy defaults to IfNotPresent, so the node never re-pulls and a restart does not help. Full tags are immutable; this regex lets Renovate order them. Plex is the only linuxserver image here carrying an upstream git hash between the build number and the `ls` revision, hence its own rule.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["lscr.io/linuxserver/plex"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.(?<build>\\d+)-[0-9a-f]+-ls(?<revision>\\d+)$",
+      "groupName": "linuxserver",
+      "groupSlug": "linuxserver"
+    },
+    {
+      "description": "linuxserver.io images with a four-part upstream version: `4.0.19.2979-ls322`. Kavita rides along — its tags are the same shape with a leading `v`. Same mutable-short-tag reasoning as the plex rule above.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "lscr.io/linuxserver/sonarr",
+        "lscr.io/linuxserver/radarr",
+        "lscr.io/linuxserver/prowlarr",
+        "lscr.io/linuxserver/kavita"
+      ],
+      "versioning": "regex:^v?(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.(?<build>\\d+)-ls(?<revision>\\d+)$",
+      "groupName": "linuxserver",
+      "groupSlug": "linuxserver"
+    },
+    {
+      "description": "linuxserver.io images with a three-part upstream version: `5.1.2-ls270`. No build segment, so this needs its own regex — a rule requiring one would silently fail to parse the tag and put us back to 'no update available'.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["lscr.io/linuxserver/sabnzbd"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-ls(?<revision>\\d+)$",
+      "groupName": "linuxserver",
+      "groupSlug": "linuxserver"
+    },
+    {
       "description": "Pin GitHub Actions to patch level (digest pinning skipped per project policy)",
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["major"],
