@@ -230,7 +230,34 @@ measurements:
 | plausibly real | 2 |
 
 `lowerBound == target == upperBound` on every one — the signature of an empty
-histogram. Concretely `goldilocks-matcha/app` recommends **5m CPU / 33MB** for a
+histogram.
+
+**Correction, 2026-08-28: the two "plausibly real" entries are not real.** Re-ran
+the analysis (now 74 VPAs / 79 container recommendations, 16 with no
+recommendation at all, **77 of 79 degenerate**). The two non-degenerate entries
+are `gitea` (~729Mi) and `trivy-operator` (~422Mi) — precisely the two workloads
+that have been **OOMKilled**. VPA's memory recommender bumps its target on OOM
+*events*, which it reads from container status, **not** the metrics API, so the
+only two non-floor numbers in the stack come from the one code path that does
+not need metrics-server. Their `upperBound` is `97656250000Ki` (~93 TiB), VPA's
+no-confidence sentinel. Even these are wrong: trivy-operator's OOM-derived
+target was 422Mi against a measured peak of **1022 MiB**.
+
+**This already caused a real bug.** `gitea`'s memory limit was sized against
+that ~422Mi figure as though it were a measurement (see the comment formerly in
+`kubernetes/apps/gitea/gitea/app/helmrelease.yml`). The reasoning is circular —
+the recommendation is *derived from* the OOM, so it always trails reality:
+512Mi -> OOMKilled -> VPA said 422Mi -> set 1Gi -> **OOMKilled again 2026-08-28
+18:51** -> VPA now says ~729Mi. Fixed by sizing from VictoriaMetrics instead
+(30d, 45 pod instances: avg ~312 MiB, p99 ~595 MiB, peak 1000 MiB censored by
+the limit) and raising the limit to 2Gi. gitea was the **only** manifest
+justifying a limit from a VPA number — verified by grep — but that is one more
+than zero, and the dashboard is still live and still lying.
+
+Worth weighing against the "deploy metrics-server" option: 91 days of
+`container_*` history already exists in VictoriaMetrics, which is strictly
+better data than VPA's in-memory histogram. Goldilocks' value was the dashboard,
+not the recommender, and the same sizing questions are answerable with PromQL. Concretely `goldilocks-matcha/app` recommends **5m CPU / 33MB** for a
 Minecraft server deliberately limited to 9Gi. The dashboard at
 `goldilocks.blackcats.cc` has been actively misleading since the stack went in.
 

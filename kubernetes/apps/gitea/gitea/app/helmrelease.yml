@@ -68,17 +68,35 @@ spec:
         type: ClusterIP
         port: 22
 
-    # Goldilocks/VPA steady-state target is ~422Mi, which left the old 512Mi
-    # limit only ~20% headroom — gitea OOMKilled (exit 137) on the startup
-    # catch-up burst after a long outage (queue drain + cron + indexer all at
-    # once), which is exactly when it must not die. Request tracks the observed
-    # target; limit gives ~2.4x for those bursts.
+    # Sized from VictoriaMetrics, NOT from Goldilocks. The previous 1Gi was set
+    # against a "Goldilocks/VPA steady-state target ~422Mi" that was never a
+    # measurement: there is no metrics-server in this cluster, so the VPA
+    # recommender ingests nothing (`Cannot get ContainerMetricsSnapshot ... get
+    # pods.metrics.k8s.io`) and emits its configured floors. gitea has a
+    # non-floor number only because VPA bumps memory targets on OOM *events*,
+    # which it reads from container status rather than the metrics API.
+    #
+    # That makes sizing against it circular — the recommendation is derived from
+    # the OOM, so it always trails reality: 512Mi limit -> OOMKilled -> VPA said
+    # 422Mi -> set 1Gi -> OOMKilled again 2026-08-28 18:51 -> VPA now says
+    # ~729Mi. Each kill just re-anchors the "recommendation" below the limit
+    # that caused it. Do not re-size this from goldilocks.blackcats.cc.
+    #
+    # Real usage, 30d over 45 pod instances (metrics_path pinned to
+    # /metrics/cadvisor — the kubelet exports container_* twice and an
+    # unfiltered selector doubles everything):
+    #   avg ~312 MiB   p99 ~595 MiB   peak 1000 MiB
+    # The peak is *censored by the old limit* — working set cannot exceed it
+    # before the OOM kill — so true demand is unknown beyond ">1Gi". 2Gi is
+    # ~3.4x p99 and leaves room for the startup catch-up burst (queue drain +
+    # cron + indexer at once), which is exactly when it must not die.
+    # Request stays 512Mi, comfortably above the ~312 MiB average.
     resources:
       requests:
         cpu: 50m
         memory: 512Mi
       limits:
-        memory: 1Gi
+        memory: 2Gi
 
     extraEnvFrom:
       - secretRef:
