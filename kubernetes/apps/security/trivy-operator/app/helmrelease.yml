@@ -57,4 +57,13 @@ spec:
         memory: 256Mi
       limits:
         cpu: 500m
-        memory: 1Gi
+        # 2Gi, not 1Gi. The operator holds the whole report set in memory while
+        # reconciling, and on 2026-08-28 it peaked at 1022 MiB against a 1 GiB
+        # limit -- pinned to the ceiling, OOMKilled (exit 137) 58 times in 2d9h,
+        # which fired KubePodCrashLooping / KubePodNotReady /
+        # KubeDeploymentReplicasMismatch. Steady state is ~450 MiB, so the
+        # headroom only matters during a full scan sweep. Re-check with:
+        #   max_over_time(container_memory_working_set_bytes{
+        #     namespace="security",container="trivy-operator",
+        #     metrics_path="/metrics/cadvisor"}[7d])
+        memory: 2Gi

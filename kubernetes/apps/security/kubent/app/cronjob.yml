@@ -20,7 +20,12 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      activeDeadlineSeconds: 300
+      # 900, not 300. Observed runtimes range 23s to 4m53s (293s) -- the old
+      # 300s ceiling left a 7-second margin, and the 2026-08-24 run blew
+      # through it. That failure then self-deleted via the TTL below, which
+      # cleared the alert and the evidence with it, so the weekly scan was
+      # silently missing from 2026-08-17 until this was found on 08-28.
+      activeDeadlineSeconds: 900
       backoffLimit: 0
       # Self-clean finished (incl. failed) jobs after a day so a genuine kubent
       # error doesn't linger as a failed Job object re-tripping KubeJobFailed.
