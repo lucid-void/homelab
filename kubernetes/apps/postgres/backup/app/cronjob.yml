@@ -5,6 +5,12 @@ metadata:
   name: postgres-backup
   namespace: postgres
   annotations:
+    # deliberate: the TTL and the history limits are complementary here, not
+    # conflicting. Whichever fires first removes the Job, and three runs of a
+    # daily job cannot accumulate inside 24h -- so the TTL always wins and the
+    # limits remain a cap. Without it a failed Job lingers until three MORE
+    # failures evict it, re-firing KubeJobFailed indefinitely.
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see comment"
     # restic and rclone need a writable HOME for their cache
     ignore-check.kube-linter.io/no-read-only-root-fs: "restic/rclone cache"
 spec:
