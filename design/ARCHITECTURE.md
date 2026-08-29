@@ -35,17 +35,21 @@ Talos is an immutable, minimal OS purpose-built for Kubernetes. No SSH, no shell
 
 | VM | IP | vCPU | RAM | Disk |
 |---|---|---|---|---|
-| cp-1 | 172.16.20.11 | 8 | 32 GB | 100 GB |
-| cp-2 | 172.16.20.12 | 8 | 32 GB | 100 GB |
-| cp-3 | 172.16.20.13 | 8 | 32 GB | 100 GB |
-| llm-1 | 172.16.20.14 | 8 | 48 GB | 250 GB |
+| cp-1 | 172.16.20.11 | 8 | 30 GB | 100 GB |
+| cp-2 | 172.16.20.12 | 8 | 30 GB | 100 GB |
+| cp-3 | 172.16.20.13 | 8 | 30 GB | 100 GB |
+| llm-1 | 172.16.20.14 | 8 | 64 GB | 250 GB |
 
-Totals 144 GB against a 150 GB budget. `llm-1`'s 48 GB is the Phase 3 evaluation
-allocation from `design/llm-inference.md` — deliberately smaller than any option in
-that document's RAM plan, all of which require cutting the control planes to 20–28 GB.
-It is sized to hold Qwen3.6-35B-A3B Q4 (~22 GB) plus KV cache and OS while leaving
-cp-1/2/3 untouched, so bringing the node up costs the running cluster nothing. Phase 4
-rebalances once the quantization question is settled.
+**The control planes drop from 32 GB to 30 GB to fund `llm-1`.** That is a change to
+three running nodes and costs a rolling reboot, one at a time. This is
+`design/llm-inference.md` option C with 2 GB more per control plane: `llm-1` holds
+Qwen3.6-35B-A3B Q4 (~22 GB) and Qwen3.8-27B + mmproj (~18.8 GB) resident together.
+
+Totals **154 GB, which is 4 GB over the 150 GB budget** that document assumes. Installed
+host RAM is not verified in-repo — confirm it, and what Proxmox itself needs, before
+`tofu apply`. Steady-state control-plane usage is ~9–13 GiB, so 30 GB is comfortable
+day to day; the pressure point is draining a node during a Talos upgrade, where cp-3's
+35.1 GiB limit sum leaves little slack.
 
 ### Talos Extensions
 

@@ -66,18 +66,26 @@ locals {
     #   because weights live on an openebs-hostpath PVC on this node's local
     #   disk (a 22 GB mmap over NFS is a slow cold start).
     #
-    # 48 GB is the Phase 3 *evaluation* allocation, deliberately below every
-    # option in the design's RAM plan (A/B/C give llm-1 90/78/64 GB, all of
-    # which require cutting the control planes to 20-28 GB). Phase 3 calls for
-    # standing this node up at a modest size first and settling the
-    # quantization question before committing; 48 GB holds Qwen3.6-35B-A3B Q4
-    # (~22 GB) plus KV cache and OS with room to spare, and touches no control
-    # plane, so it carries no etcd risk and needs no rolling reboot of the
-    # running cluster. Total commit is 144 GB against a 150 GB budget.
+    # 64 GB here, and the control planes drop 32 -> 30 GB to pay for it. This
+    # is design/llm-inference.md option C with 2 GB more per control plane:
+    # llm-1 holds Qwen3.6-35B-A3B Q4 (~22 GB) and Qwen3.8-27B + mmproj
+    # (~18.8 GB) resident together, which matters because a cold reload of
+    # either is tens of seconds off local disk.
     #
-    # It does NOT fit Flash-Next IQ3_XXS (82 GB) — that comparison needs the
-    # option-A split. Rebalancing later is a `memory` change plus a VM reboot,
-    # not a rebuild.
+    # Two things to know before applying:
+    #
+    #   Total is 154 GB, which is 4 GB OVER the 150 GB budget the design doc
+    #   assumes. Confirm actual installed host RAM (and what Proxmox itself
+    #   needs) before `tofu apply` — this is not verified in-repo.
+    #
+    #   Cutting the control planes is a change to three RUNNING nodes, so it
+    #   costs a rolling reboot and must be done one at a time. Per the design
+    #   doc, cp-3's limit sum is already 35.1 GiB against current usage of
+    #   ~9-13 GiB: steady state is fine, draining during a Talos upgrade is
+    #   where 30 GB gets tight.
+    #
+    # Does NOT fit Flash-Next IQ3_XXS (82 GB) — that needs option A (90 GB
+    # here, 20 GB per control plane).
     llm-1 = {
       vm_id       = 2023
       ip_last     = 14
