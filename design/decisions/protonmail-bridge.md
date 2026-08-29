@@ -57,9 +57,23 @@ volume while the old pod kept serving.
 
 Everything awkward about this deployment comes from one upstream fact.
 
-Bridge serves IMAP over **STARTTLS with a self-signed certificate, and there is
-no plaintext option** — the only setting is STARTTLS vs SSL. So the certificate
-must be dealt with; it cannot be skipped.
+Bridge serves IMAP over STARTTLS with a self-signed certificate.
+
+**It does also accept plaintext.** The pre-TLS banner advertises
+`AUTH=PLAIN … STARTTLS`, and a mail account set to "No encryption" logs in and
+fetches mail fine. An earlier version of this document claimed no plaintext
+option existed; that came from secondary sources rather than from testing the
+running server, and it is wrong. Verify for yourself:
+
+```bash
+kubectl exec deploy/paperless-app -n paperless -c app -- python -c \
+  "import socket; s=socket.create_connection(('127.0.0.1',1143),5); print(s.recv(200))"
+```
+
+Plaintext is **not** used here. It would put the bridge password and every
+message on the pod network in clear for no benefit, when STARTTLS with the
+pinned certificate already works. But it matters that the reason for the socat
+sidecar is the certificate's SAN, below — *not* an inability to avoid TLS.
 
 Worse, that certificate carries exactly **one SAN: `IP:127.0.0.1`**. From
 `internal/certs/tls.go`: `CommonName: "127.0.0.1"`, `IPAddresses:
@@ -103,6 +117,35 @@ Paperless loads the file per mail fetch, so a re-export needs no restart.
 The certificate is valid **20 years** (the deployed one to 2046-08-24), so this
 is close to a one-time step — but it is regenerated if the vault is ever
 rebuilt, which means re-exporting and re-sealing.
+
+### `tls: bad record MAC` in the bridge log means "client rejected my cert"
+
+When Paperless cannot verify the certificate, the bridge logs:
+
+```
+ERRO Cannot upgrade connection  error="local error: tls: bad record MAC"  pkg=gluon/session
+```
+
+This reads like stream corruption — a mangled proxy, an MTU problem, something
+eating bytes between the two socat hops — and it is none of those. It is
+Gluon's server-side view of a client aborting the STARTTLS handshake after
+rejecting the certificate. Confirmed by correlation: two probes that failed
+verification produced exactly two of these lines; the probe that passed produced
+none.
+
+So when this appears, check trust, not the network. The fast triage is to run
+the handshake three ways from inside the Paperless pod — with no CA, with the
+bridge CA, and against the Service name — which separates "not trusted" from
+"wrong hostname" from "genuinely unreachable" in one pass:
+
+```bash
+python -c "import ssl,imaplib; c=ssl.create_default_context(cafile='/etc/ssl/protonmail/cert.pem'); \
+m=imaplib.IMAP4('127.0.0.1',1143); m.starttls(c); print(m.noop())"
+```
+
+`CERTIFICATE_VERIFY_FAILED: self-signed certificate` = the cert Secret is
+missing or not mounted. `Hostname mismatch` = something is dialling a name
+instead of `127.0.0.1`.
 
 ### The bootstrap is two-phase, and skipping that caused an outage
 
