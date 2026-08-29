@@ -26,6 +26,15 @@ spec:
   values:
     controllers:
       app:
+        # Restart when protonmail-bridge-cert rotates. Paperless resolves
+        # PAPERLESS_EMAIL_CERTIFICATE_LOCATION through Path.resolve() at startup,
+        # so it caches the kubelet atomic-writer's timestamped ..data target. A
+        # Secret update swaps that directory and deletes the old one, leaving the
+        # running process pointing at a path that no longer exists — mail fetch
+        # then fails with FileNotFoundError. Annotation goes on the CONTROLLER,
+        # not pod.annotations, or Reloader never sees it.
+        annotations:
+          reloader.stakater.com/auto: "true"
         containers:
           app:
             image:
