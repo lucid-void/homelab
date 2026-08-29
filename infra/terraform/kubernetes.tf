@@ -87,7 +87,7 @@ locals {
     # Does NOT fit Flash-Next IQ3_XXS (82 GB) — that needs option A (90 GB
     # here, 20 GB per control plane).
     llm-1 = {
-      vm_id       = 2023
+      vm_id       = 2014
       ip_last     = 14
       vcpus       = 8
       memory      = 65536
