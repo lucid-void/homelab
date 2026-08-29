@@ -8,10 +8,10 @@ Canonical reference for AI agents working on this cluster. Last updated: 2026-05
 
 | Node | IP | Role | Spec |
 |---|---|---|---|
-| cp-1 | 172.16.20.11 | Control plane + workloads | 8 vCPU, 32 GB RAM, 100 GB disk |
-| cp-2 | 172.16.20.12 | Control plane + workloads | 8 vCPU, 32 GB RAM, 100 GB disk |
-| cp-3 | 172.16.20.13 | Control plane + workloads | 8 vCPU, 32 GB RAM, 100 GB disk |
-| llm-1 | 172.16.20.14 | Worker — LLM inference only | 8 vCPU, 48 GB RAM, 250 GB disk |
+| cp-1 | 172.16.20.11 | Control plane + workloads | 8 vCPU, 30 GB RAM, 100 GB disk |
+| cp-2 | 172.16.20.12 | Control plane + workloads | 8 vCPU, 30 GB RAM, 100 GB disk |
+| cp-3 | 172.16.20.13 | Control plane + workloads | 8 vCPU, 30 GB RAM, 100 GB disk |
+| llm-1 | 172.16.20.14 | Worker — LLM inference only | 8 vCPU, 64 GB RAM, 250 GB disk |
 | API VIP | 172.16.20.10 | Kubernetes API server endpoint | Floats via leader election |
 | Gateway VIP | 172.16.20.50 | Ingress for all HTTP/HTTPS | Cilium L2 announcement |
 
@@ -19,7 +19,9 @@ Canonical reference for AI agents working on this cluster. Last updated: 2026-05
 
 All three control planes run user workloads (`allowSchedulingOnControlPlanes: true`). Losing one node keeps etcd quorum (2 of 3). Rebuilt node rejoins automatically — no snapshot needed for single-node loss.
 
-`llm-1` is the one worker: a non-etcd node dedicated to LLM inference, tainted `workload=llm:NoSchedule` and labelled `workload=llm`. Nothing schedules there without an explicit toleration. It exists because a large mmap'd model on an etcd member evicts etcd's page cache and etcd is fsync-latency-sensitive, so the memory pressure causes leader-election churn — see `design/llm-inference.md`. **Defined in IaC, not yet provisioned.**
+`llm-1` is the one worker: a non-etcd node dedicated to LLM inference, tainted `workload=llm:NoSchedule` and labelled `workload=llm`. Nothing schedules there without an explicit toleration. It exists because a large mmap'd model on an etcd member evicts etcd's page cache and etcd is fsync-latency-sensitive, so the memory pressure causes leader-election churn — see `design/llm-inference.md`.
+
+**The RAM figures in the table above are the committed IaC, not the running cluster.** `llm-1` is defined in `infra/terraform/kubernetes.tf` and `kubernetes/talos/talconfig.yaml` but **not provisioned** — no `tofu apply`, no `talhelper apply`. The control planes are still running at **32 GB**; dropping them to 30 GB to fund `llm-1` is pending and requires a rolling reboot, one node at a time. Total commit is 154 GB, 4 GB over the 150 GB budget the design doc assumes — verify installed host RAM before applying.
 
 ---
 

@@ -75,7 +75,9 @@ VMs boot into maintenance mode. Talos API reachable on port 50000 (unauthenticat
 ### Phase 6 — Apply Talos machine configs
 
 ```bash
-talhelper apply   # applies to all nodes defined in talconfig.yaml
+talosctl apply-config \
+  --nodes 172.16.20.102 --endpoints 172.16.20.102 --insecure \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-llm-1.yaml
 ```
 
 First apply requires `--insecure` (no PKI yet — talhelper adds this automatically on first run). Each node reboots with its config; static IP becomes permanent after reboot.
@@ -514,7 +516,7 @@ At the `>>>` prompt:
 ```
 login                       # username, password, 2FA — then wait for the sync
 info                        # copy the generated IMAP password (NOT your Proton password)
-cert export                 # write cert.pem/key.pem; give it /root when prompted
+cert export                 # answer /tmp  (see note below)
 exit
 ```
 
@@ -522,12 +524,23 @@ exit
 **generated** password unique to bridge. That password is what Paperless uses.
 Ignore the address/port it prints — see step 5 for what to actually enter.
 
+`cert export` prompts for a **directory that already exists**, not a filename —
+it validates with `os.Stat()` + `IsDir()`, so `/root/cert.pem` is rejected and
+it silently re-prompts. It then writes **two** files into that directory:
+`cert.pem` *and* `key.pem`, the private key, both mode 0600.
+
+Answer **`/tmp`**, not `/root`. `/root` is the PVC mount, so exporting there
+leaves the private key sitting in plaintext on the volume for the life of the
+deployment, right beside the vault whose whole job is to keep it encrypted.
+`/tmp` lives in the throwaway pod and is destroyed with it. Only `cert.pem` is
+needed downstream; `key.pem` never leaves the pod.
+
 **4. Commit the certificate.** Bridge keeps its TLS certificate inside the
 encrypted vault, so this export is the only way to get it. It is a public
 certificate — a plain ConfigMap, nothing to seal:
 
 ```bash
-kubectl exec protonmail-bridge-init -n paperless -- cat /root/cert.pem > /tmp/bridge-cert.pem
+kubectl exec protonmail-bridge-init -n paperless -- cat /tmp/cert.pem > /tmp/bridge-cert.pem
 
 kubectl create configmap protonmail-bridge-cert -n paperless \
   --from-file=cert.pem=/tmp/bridge-cert.pem \
