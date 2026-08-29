@@ -78,16 +78,39 @@ surfacing in the plugin as a generic connection failure rather than a CORS error
 
 ## Config delivery
 
-Settings live in a ConfigMap rendered into `/opt/couchdb/etc/local.d/10-livesync.ini`,
-mounted **with `subPath`**. Values match the plugin's own provisioner
+Settings live in a ConfigMap whose contents an **initContainer copies onto an emptyDir**
+that becomes `/opt/couchdb/etc/default.d`. Values match the plugin's own provisioner
 (`utils/couchdb/provision.ts` upstream), which otherwise applies them imperatively
 through the `_node/_local/_config` API — the drop-in makes them declarative.
 
-The `subPath` matters: the entrypoint writes `docker.ini` into that same directory
-(the `[admins]` block built from `COUCHDB_USER`/`COUCHDB_PASSWORD`), so a
-whole-directory mount would mask it and leave CouchDB in admin-party mode. `local.d`
-is read alphabetically with later files winning, so `10-livesync.ini` loads *before*
-`docker.ini` and can never clobber the admin credentials.
+**The initContainer is not tidiness; it is required.** The first attempt mounted the
+ConfigMap directly at `/opt/couchdb/etc/local.d/10-livesync.ini` via `subPath`, and the
+pod CrashLoopBackOffed with **exit 1 and completely empty logs** (`startedAt` ==
+`finishedAt`). Cause: the entrypoint runs
+
+```
+find /opt/couchdb \! \( -user couchdb -group couchdb \) -exec chown -f couchdb:couchdb '{}' +
+```
+
+under `set -e` (`docker-entrypoint.sh:14` and `:43`). `chown -f` suppresses the error
+*message* but still **returns 1** on a read-only mount, `find -exec … +` propagates that,
+and `set -e` aborts before anything is logged. So any ConfigMap or Secret mounted
+**anywhere under `/opt/couchdb`** kills the container silently. Note that dropping
+`readOnly: true` does **not** help — ConfigMap volumes are always read-only in
+Kubernetes — so the file genuinely has to be copied onto a writable volume. Upstream's
+chart does the same thing for the same reason.
+
+Two further details, both deliberate:
+
+- **`default.d`, not `local.d`.** The entrypoint writes the `[admins]` block into
+  `local.d/docker.ini`, and CouchDB reads `default.d` *before* `local.d`. Staging into
+  `default.d` means our declarative settings load first and the generated admin
+  credentials still win. Shadowing `local.d` with the emptyDir would instead discard the
+  admin file — and any runtime config change — on every restart.
+- **The initContainer uses the `couchdb` image, not `alpine`.** The emptyDir shadows the
+  image's own `default.d`, so the initContainer copies that version's stock drop-ins
+  (currently `10-docker-default.ini`, which sets `[chttpd] bind_address = any`) in
+  alongside ours. Sharing the image tag keeps the two in step across a version bump.
 
 `COUCHDB_ERLANG_COOKIE` is pinned in the SealedSecret rather than left to the
 image's random default, so it stays stable across pod recreates.

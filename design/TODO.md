@@ -591,7 +591,9 @@ CNPG currently does base backups only — WAL archiving is not configured. Witho
 
 ### Backup restore actually works
 
-Eight backup CronJobs exist (immich, paperless, gitea, homebox, postgres, joplin, minecraft, etcd-snapshot) writing restic snapshots to `rclone:filen:backups/restic/`. None have been restore-tested end-to-end. "Backup created" ≠ "data restorable."
+Nine backup CronJobs exist (immich, paperless, gitea, homebox, postgres, joplin, obsidian, minecraft, etcd-snapshot) writing restic snapshots to `rclone:filen:backups/restic/`. None have been restore-tested end-to-end. "Backup created" ≠ "data restorable."
+
+`obsidian` is the one whose restore is not self-evidently a file copy: the snapshot holds CouchDB shard files keyed by erlang node name, so it only restores into a CouchDB running the same `NODENAME`, and the vault itself only reappears once a client re-syncs. Worth including in the first drill for that reason.
 
 **Action:** Pick one app (Immich is highest-value) and run a restore drill into a clean PVC + fresh CNPG database. Document the procedure in `RUNBOOK.md` once it works.
 
@@ -618,6 +620,30 @@ Falco events route to Gotify, then a Python WebSocket bridge forwards to Telegra
 ---
 
 ## Future Work
+
+### Obsidian LiveSync shares one CouchDB admin credential across every device
+
+`obsidian/couchdb` authenticates every client as the **server admin** (`couchdb-admin-secret`).
+That credential is entered on each device, cannot be revoked per-device, and carries rights
+far beyond the vault — it can read or drop any database and rewrite server config.
+
+OIDC is not the fix and was ruled out deliberately (see `design/decisions/obsidian-livesync.md`):
+CouchDB has no OIDC flow, cannot consume a JWKS, and the plugin's JWT mode mints its own
+tokens from a local signing key rather than acting as a relying party.
+
+Two things would actually help, in order of value:
+
+1. **Enable LiveSync's E2EE passphrase.** This matters most — it stops the server being able
+   to read the vault at all, which makes the shared credential far less valuable. It is a
+   client-side setting, so it is not captured in this repo; it has to be turned on per device
+   and the passphrase stored alongside the other recovery keys.
+2. **Per-device non-admin CouchDB users.** CouchDB has per-database `_security` with
+   members/admins, so each device could get an individually revocable credential scoped to the
+   vault DB only. Fits the existing idempotent bootstrap-Job pattern (`kavita-bootstrap`).
+
+Neither is built. Note also that the restic snapshot restores to CouchDB documents rather than
+plain markdown, so there is currently **no plain-text copy of the vault** anywhere in the backup
+chain — a periodic git commit or file-level export would close that independently.
 
 ### Replace filebrowser before 2026-09-01 (upstream archival) — dated
 

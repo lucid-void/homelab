@@ -87,7 +87,7 @@ See `docs/networking.md` for the full reference. Summary:
 See `docs/storage.md` for the full reference. Summary:
 
 - **Default StorageClass:** `nfs-client` (democratic-csi, NFS subdirectory from Synology `tank/kubernetes.nfs`)
-- **Local StorageClass:** `openebs-hostpath` (OpenEBS LocalPV at `/var/openebs/local`) — Plex only
+- **Local StorageClass:** `openebs-hostpath` (OpenEBS LocalPV at `/var/openebs/local`) — for workloads NFS is bad for: Plex config (SQLite), Minecraft worlds (random I/O), Proton Mail Bridge (gluon SQLite), CouchDB (fsync-per-write)
 - **Shared media:** Static NFS PV/PVC (`media-nfs`) pointing to Synology `/volume2/Media`
 - **No iSCSI** — dropped; democratic-csi NFS handles all use cases including CNPG
 
@@ -138,13 +138,14 @@ See `docs/secrets.md` for the full reference. Summary:
 | Job | Schedule | What | Destination |
 |---|---|---|---|
 | `homebox-backup` | 02:00 | SQLite data PVC | `rclone:filen:backups/restic/homebox` |
+| `obsidian-backup` | 02:30 | CouchDB data PVC (quiesced) | `rclone:filen:backups/restic/obsidian` |
 | `immich-backup` | 03:00 | Postgres dump + library PVC | `rclone:filen:backups/restic/immich` |
 | `postgres-backup` | 03:30 | All k8s DB dumps (CNPG read replica) | `rclone:filen:backups/restic/postgres` |
 | `paperless-backup` | 04:00 | Postgres dump + data/media PVCs | `rclone:filen:backups/restic/paperless` |
 | `gitea-backup` | 05:00 | Postgres dump + data PVC | `rclone:filen:backups/restic/gitea` |
 | `joplin-backup` | 06:00 | Postgres dump + blobs PVC | `rclone:filen:backups/restic/joplin` |
 
-All jobs: `ghcr.io/lucid-void/backup-tools` image, restic over rclone-filen, 30-day retention. Scale-to-zero before backup where needed (Immich, Paperless, Gitea, Homebox, Joplin). Gotify notifications on success/failure; failure messages include last 10 log lines.
+All jobs: `ghcr.io/lucid-void/backup-tools` image, restic over rclone-filen, 30-day retention. Scale-to-zero before backup where needed (Immich, Paperless, Gitea, Homebox, Joplin, Obsidian). Gotify notifications on success/failure; failure messages include last 10 log lines.
 
 Apps with their own quiesced job are **excluded** from `postgres-backup`'s database list (`kubernetes/apps/postgres/backup/app/databases.yml`) — immich, paperless, gitea, joplin — so their DB and files land in one consistent snapshot rather than being split across two jobs.
 
@@ -172,5 +173,6 @@ Apps with their own quiesced job are **excluded** from `postgres-backup`'s datab
 | Image builds | GitHub Actions + GHCR (bootstrap-critical images) | Gitea is inside the cluster; circular dependency for images needed to bootstrap the cluster |
 | Flux structure | Flat `apps/` with `dependsOn` (not infrastructure/configs/apps split) | Simpler; ordering fully captured by `dependsOn` without separate top-level layers |
 | Plex storage | openebs-hostpath | SQLite WAL locking errors on NFS ("retrying busy db"); local disk is the fix |
+| Obsidian sync | Central CouchDB, not Syncthing P2P | Peer sync only converges when two devices are awake at once; a mesh has no canonical copy to back up; iOS has no usable Syncthing client. Storage on openebs-hostpath — CouchDB fsyncs every write |
 | Swarm coexistence | Swarm VMs `.10`–`.17` run unchanged | k8s is an addition, not a forced migration; services moved deliberately |
 | etcd backup | `kube-system/etcd-snapshot` CronJob, daily 01:00 | 3-node quorum handles single-node loss; the snapshot covers the full-wipe scenario. Uploads via restic to `rclone:filen:backups/restic/etcd-snapshot` |

@@ -4,10 +4,11 @@
 # these through the _node/_local/_config API; putting them in a local.d drop-in
 # makes them declarative instead of a one-shot imperative bootstrap.
 #
-# Mounted with subPath so it lands as ONE file inside /opt/couchdb/etc/local.d/
-# rather than shadowing the directory -- the image's entrypoint generates
-# 10-docker.ini there from COUCHDB_USER/COUCHDB_PASSWORD at startup, and a
-# whole-directory mount would hide it and leave the admin unconfigured.
+# NOT mounted into the pod directly. An initContainer copies this onto an
+# emptyDir that becomes /opt/couchdb/etc/default.d -- mounting a ConfigMap
+# anywhere under /opt/couchdb makes the entrypoint's recursive `chown -f` fail
+# (read-only mount), and `set -e` then kills it with exit 1 and no log output.
+# See the initContainer comment in helmrelease.yml.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -24,6 +25,9 @@ data:
     max_document_size = 50000000
 
     [chttpd]
+    ; Also set by the image's stock default.d drop-in, which the initContainer
+    ; copies in alongside this file; repeated here so the setting survives even
+    ; if that drop-in is ever removed upstream.
     bind_address = any
     ; No anonymous access. NOTE: this also gates /_up, which is why the health
     ; probes in the HelmRelease are authenticated `exec` curls rather than a

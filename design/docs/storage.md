@@ -5,7 +5,7 @@
 | StorageClass | Provisioner | Access Modes | Default | Use case |
 |---|---|---|---|---|
 | `nfs-client` | democratic-csi (NFS subdirectory) | RWO / RWX | **Yes** | All app data, CNPG Postgres instances |
-| `openebs-hostpath` | OpenEBS LocalPV | RWO | No | Workloads NFS is bad for: SQLite locking (Plex), latency-sensitive random I/O (Minecraft worlds) |
+| `openebs-hostpath` | OpenEBS LocalPV | RWO | No | Workloads NFS is bad for: SQLite locking (Plex, Proton Mail Bridge), latency-sensitive random I/O (Minecraft worlds), fsync-per-write with long-lived file locks (CouchDB) |
 
 ---
 
@@ -125,6 +125,12 @@ Nodes are 100 GB (`EPHEMERAL` ≈ 105 GB after Talos claims the other partitions
 | cp-1 | ~14 GB | ~15 GB (Plex config) |
 | cp-2 | ~30 GB | ~1.4 GB → ~2.5 GB (matcha world, pregenerated) |
 | cp-3 | ~28 GB | ~1.4 GB → ~2.5 GB (vanilla world, pregenerated) |
+
+`obsidian/couchdb-data` is not in this table yet — it binds on first deploy and pins to
+whichever node the pod lands on, permanently. An Obsidian vault is text plus one header
+per chunk, so it is small next to the worlds, but it does add a fourth hostpath consumer
+to whichever node takes it. Check with
+`kubectl get pv -o custom-columns=PVC:.spec.claimRef.name,NODE:.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]`.
 
 Container images dominate, not application data. See *Image garbage collection* below.
 
