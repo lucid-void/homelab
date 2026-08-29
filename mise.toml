@@ -20,4 +20,6 @@ yq = "latest"
 kustomize = "latest"
 trivy = "latest"
 gitleaks = "latest"
+opentofu = "latest"
+packer = "latest"
 
