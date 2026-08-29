@@ -50,6 +50,25 @@ spec:
       cluster:
         nodes: 6
         replicas: 1
+      # Sized from a 30d VictoriaMetrics peak of 32Mi per node. The Bitnami
+      # subchart's default `resourcesPreset` reserved 128Mi x 6 pods = 768Mi of
+      # scheduler capacity for a workload that never exceeded 32Mi -- gitea's
+      # cache, session and queue are all tiny. Request is 2x observed peak and
+      # the limit 4x, so a queue backlog still has headroom. Setting `resources`
+      # makes the subchart ignore `resourcesPreset` entirely (including the
+      # ephemeral-storage numbers the preset also carried).
+      # Note the nesting: the Bitnami subchart puts its node config under its own
+      # `valkey` key, so the path is `valkey-cluster.valkey.resources`. Setting a
+      # bare `valkey-cluster.resources` renders no error and changes nothing --
+      # the preset silently stays in effect. Verify with `helm template`.
+      valkey:
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 150m
+            memory: 128Mi
     valkey:
       enabled: false
 

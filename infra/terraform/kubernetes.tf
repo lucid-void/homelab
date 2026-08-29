@@ -24,7 +24,7 @@ locals {
       vm_id       = 2020
       ip_last     = 11
       vcpus       = 8
-      memory      = 32768
+      memory      = 30720
       disk_gb     = 100
       mac_address = "BC:24:11:01:20:00"
       tags        = ["k8s_cp"]
@@ -34,7 +34,7 @@ locals {
       vm_id       = 2021
       ip_last     = 12
       vcpus       = 8
-      memory      = 32768
+      memory      = 30720
       disk_gb     = 100
       mac_address = "BC:24:11:01:21:00"
       tags        = ["k8s_cp"]
@@ -44,10 +44,48 @@ locals {
       vm_id       = 2022
       ip_last     = 13
       vcpus       = 8
-      memory      = 32768
+      memory      = 30720
       disk_gb     = 100
       mac_address = "BC:24:11:01:22:00"
       tags        = ["k8s_cp"]
+      dns_records = []
+    }
+
+    # Dedicated LLM inference worker. NOT a control plane, NOT an etcd member,
+    # and tainted `workload=llm:NoSchedule` in talconfig.yaml so nothing else
+    # lands on it. See design/llm-inference.md for the full rationale; the two
+    # constraints that force a separate VM rather than more RAM on a CP:
+    #
+    #   etcd — a large mmap'd model evicts etcd's page cache, and etcd is
+    #   fsync-latency-sensitive, so the resulting memory pressure causes
+    #   leader-election churn. Losing a second member during that churn is
+    #   quorum loss. Inference must not run on an etcd member.
+    #
+    #   disk — 100 GB with kubelet image GC at 70% leaves ~70 GB usable, which
+    #   does not fit model weights alongside Talos and containerd. 250 GB here
+    #   because weights live on an openebs-hostpath PVC on this node's local
+    #   disk (a 22 GB mmap over NFS is a slow cold start).
+    #
+    # 48 GB is the Phase 3 *evaluation* allocation, deliberately below every
+    # option in the design's RAM plan (A/B/C give llm-1 90/78/64 GB, all of
+    # which require cutting the control planes to 20-28 GB). Phase 3 calls for
+    # standing this node up at a modest size first and settling the
+    # quantization question before committing; 48 GB holds Qwen3.6-35B-A3B Q4
+    # (~22 GB) plus KV cache and OS with room to spare, and touches no control
+    # plane, so it carries no etcd risk and needs no rolling reboot of the
+    # running cluster. Total commit is 144 GB against a 150 GB budget.
+    #
+    # It does NOT fit Flash-Next IQ3_XXS (82 GB) — that comparison needs the
+    # option-A split. Rebalancing later is a `memory` change plus a VM reboot,
+    # not a rebuild.
+    llm-1 = {
+      vm_id       = 2023
+      ip_last     = 14
+      vcpus       = 8
+      memory      = 65536
+      disk_gb     = 250
+      mac_address = "BC:24:11:01:23:00"
+      tags        = ["k8s_worker"]
       dns_records = []
     }
   }

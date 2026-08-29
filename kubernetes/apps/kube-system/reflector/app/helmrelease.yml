@@ -20,3 +20,15 @@ spec:
     cleanupOnFail: true
     remediation:
       retries: 3
+  # Resource requests, sized from a 30d VictoriaMetrics window (p90 403, peak
+  # 449 MiB). Reflector previously ran with none. The numbers are high for what
+  # it does because it holds a watch cache over every Secret and ConfigMap it
+  # mirrors; the peak is a full-resync spike, not steady state (current ~236).
+  values:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 448Mi
+      limits:
+        memory: 768Mi
+

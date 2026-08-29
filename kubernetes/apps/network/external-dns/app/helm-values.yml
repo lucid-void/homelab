@@ -27,3 +27,11 @@ domainFilters:
 
 policy: sync
 txtOwnerId: homelab-k8s
+
+# Resource requests, sized from a 30d VictoriaMetrics window (p90 161, peak 163 MiB).
+resources:
+  requests:
+    cpu: 10m
+    memory: 192Mi
+  limits:
+    memory: 384Mi

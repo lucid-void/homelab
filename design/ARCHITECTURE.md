@@ -2,13 +2,14 @@
 
 ## Cluster at a Glance
 
-A 3-node Talos Linux cluster running on Proxmox VMs (single MS-A2 host, LVM-thin). All three nodes are control planes that also run workloads. FluxCD drives all reconciliation from the git repository.
+A Talos Linux cluster running on Proxmox VMs (single Minisforum host, LVM-thin). Three nodes are control planes that also run workloads; a fourth, `llm-1`, is a tainted worker for LLM inference. FluxCD drives all reconciliation from the git repository.
 
 ```
 172.16.20.10  API VIP        (floats via leader election)
 172.16.20.11  cp-1  ─┐
 172.16.20.12  cp-2  ─┼─ etcd (3-node quorum), kube-apiserver, workloads
 172.16.20.13  cp-3  ─┘
+172.16.20.14  llm-1          worker, no etcd — tainted workload=llm:NoSchedule
 172.16.20.50  Gateway VIP   (Cilium L2 announcement → shared Gateway)
 ```
 
@@ -27,16 +28,24 @@ Talos is an immutable, minimal OS purpose-built for Kubernetes. No SSH, no shell
 | Node config tool | talhelper |
 | Cluster name | `homelab-k8s` |
 | Control planes | 3 |
-| Workers | None — CPs run workloads (`allowSchedulingOnControlPlanes: true`) |
+| Workers | 1 — `llm-1`, LLM inference only. CPs also run workloads (`allowSchedulingOnControlPlanes: true`) |
 | API endpoint | VIP `172.16.20.10` |
 
 ### Node Spec
 
 | VM | IP | vCPU | RAM | Disk |
 |---|---|---|---|---|
-| cp-1 | 172.16.20.11 | 4 | 16 GB | 100 GB |
-| cp-2 | 172.16.20.12 | 4 | 16 GB | 100 GB |
-| cp-3 | 172.16.20.13 | 4 | 16 GB | 100 GB |
+| cp-1 | 172.16.20.11 | 8 | 32 GB | 100 GB |
+| cp-2 | 172.16.20.12 | 8 | 32 GB | 100 GB |
+| cp-3 | 172.16.20.13 | 8 | 32 GB | 100 GB |
+| llm-1 | 172.16.20.14 | 8 | 48 GB | 250 GB |
+
+Totals 144 GB against a 150 GB budget. `llm-1`'s 48 GB is the Phase 3 evaluation
+allocation from `design/llm-inference.md` — deliberately smaller than any option in
+that document's RAM plan, all of which require cutting the control planes to 20–28 GB.
+It is sized to hold Qwen3.6-35B-A3B Q4 (~22 GB) plus KV cache and OS while leaving
+cp-1/2/3 untouched, so bringing the node up costs the running cluster nothing. Phase 4
+rebalances once the quantization question is settled.
 
 ### Talos Extensions
 

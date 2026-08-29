@@ -15,29 +15,58 @@ additionalApiServerCertSans:
   - 172.16.20.12                        # cp-2
   - 172.16.20.13                        # cp-3
 
+# ---------------------------------------------------------------------------
+# Patches applied to EVERY node — control planes and the llm-1 worker alike.
+# Only genuinely role-specific config belongs under `controlPlane:` below.
+# ---------------------------------------------------------------------------
+patches:
+  - |-
+    machine:
+      kubelet:
+        extraMounts:
+          - destination: /var/openebs/local
+            type: bind
+            source: /var/openebs/local
+            options:
+              - bind
+              - rshared
+              - rw
+        # Image garbage collection. The kubelet defaults (high 85 / low 80)
+        # never fired here: nodes sat at 72-76% full while /var/lib/containerd
+        # grew to ~30 GB of unused images (every Renovate bump, every Trivy
+        # scan job, every rolled-back tag). Reclaiming only at 85% means the
+        # first cleanup coincides with disk pressure and pod eviction — which
+        # is the worst moment to discover it. Lower thresholds make kubelet
+        # prune continuously instead of hoarding until crisis.
+        extraConfig:
+          imageGCHighThresholdPercent: 70
+          imageGCLowThresholdPercent: 55
+  - |-
+    # Netbird (wt0) adds a second IP that the kubelet may otherwise pick as the
+    # node IP. One of the three Netbird isolation guards — see AI_CONTEXT.md.
+    machine:
+      kubelet:
+        nodeIP:
+          validSubnets:
+            - 172.16.20.0/24
+  - |-
+    apiVersion: v1alpha1
+    kind: ExtensionServiceConfig
+    name: lldpd
+    configFiles:
+      - content: |
+          configure lldp portidsubtype ifname
+          configure system description "Talos Node"
+        mountPath: /usr/local/etc/lldpd/lldpd.conf
+  - |-
+    apiVersion: v1alpha1
+    kind: ExtensionServiceConfig
+    name: netbird
+    environment:
+      - NB_SETUP_KEY=${NB_SETUP_KEY}
+
 controlPlane:
   patches:
-    - |-
-      machine:
-        kubelet:
-          extraMounts:
-            - destination: /var/openebs/local
-              type: bind
-              source: /var/openebs/local
-              options:
-                - bind
-                - rshared
-                - rw
-          # Image garbage collection. The kubelet defaults (high 85 / low 80)
-          # never fired here: nodes sat at 72-76% full while /var/lib/containerd
-          # grew to ~30 GB of unused images (every Renovate bump, every Trivy
-          # scan job, every rolled-back tag). Reclaiming only at 85% means the
-          # first cleanup coincides with disk pressure and pod eviction — which
-          # is the worst moment to discover it. Lower thresholds make kubelet
-          # prune continuously instead of hoarding until crisis.
-          extraConfig:
-            imageGCHighThresholdPercent: 70
-            imageGCLowThresholdPercent: 55
     - |-
       cluster:
         proxy:
@@ -61,26 +90,6 @@ controlPlane:
         scheduler:
           extraArgs:
             bind-address: "0.0.0.0"
-      machine:
-        kubelet:
-          nodeIP:
-            validSubnets:
-              - 172.16.20.0/24
-    - |-
-      apiVersion: v1alpha1
-      kind: ExtensionServiceConfig
-      name: lldpd
-      configFiles:
-        - content: |
-            configure lldp portidsubtype ifname
-            configure system description "Talos Node"
-          mountPath: /usr/local/etc/lldpd/lldpd.conf
-    - |-
-      apiVersion: v1alpha1
-      kind: ExtensionServiceConfig
-      name: netbird
-      environment:
-        - NB_SETUP_KEY=${NB_SETUP_KEY}
 
 nodes:
   - hostname: cp-1
@@ -180,3 +189,43 @@ nodes:
           - 172.16.20.254
         vip:
           ip: 172.16.20.10
+
+  # Dedicated LLM inference worker — see design/llm-inference.md.
+  # Deliberately NOT a control plane: model inference must not share a node with
+  # an etcd member (page-cache eviction → fsync latency → leader-election churn),
+  # and 100 GB with image GC at 70% does not fit model weights. Tainted so the
+  # rest of the cluster stays off it; the matching `workload: llm` node label is
+  # what llama.cpp's nodeSelector targets. An OOM here costs the LLM, not etcd.
+  - hostname: llm-1
+    ipAddress: 172.16.20.14
+    installDisk: /dev/sda
+    controlPlane: false
+    nodeLabels:
+      workload: llm
+    nodeTaints:
+      workload: llm:NoSchedule
+    # NOTE: node-level, NOT under networkInterfaces[] where the cp-1/2/3 blocks
+    # below put it. talhelper's `Device` schema has no `nameservers` key and
+    # genconfig drops unknown keys instead of erroring, so the interface-level
+    # setting is a silent no-op — verified on the live cluster, where cp-1's
+    # ResolverStatus reads ["1.1.1.1","8.8.8.8"] rather than the UDM SE.
+    # Do not "tidy" this by moving it into the interface block.
+    nameservers:
+      - 172.16.20.254
+    schematic:
+      customization:
+        systemExtensions:
+          officialExtensions:
+            - siderolabs/lldpd
+            - siderolabs/netbird
+            # - siderolabs/nut-client
+            - siderolabs/qemu-guest-agent
+    networkInterfaces:
+      - interface: ens18
+        addresses: [172.16.20.14/24]
+        mtu: 9000                       # must match the CPs — Cilium MTU is pinned to 9000
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 172.16.20.254
+        dhcp: false
+        # No `vip:` — the API VIP is held by control planes only.
