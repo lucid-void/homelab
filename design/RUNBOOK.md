@@ -487,29 +487,38 @@ kubectl scale deploy/protonmail-bridge -n paperless --replicas=0
 kubectl wait --for=delete pod -l app.kubernetes.io/name=protonmail-bridge -n paperless --timeout=2m
 ```
 
-**2. Start a throwaway pod on the same volume**, with the entrypoint overridden
-so no bridge starts on its own:
+**2. Start a throwaway pod on the same volume**, with the command overridden to
+`sleep` so no bridge starts on its own and the vault stays free.
+
+Create it **detached** — deliberately no `-it --rm`. With `--rm` the pod is
+deleted the moment you leave the attached session, which would destroy the
+`/tmp/cert.pem` that step 4 has to read back out.
 
 ```bash
-kubectl run protonmail-bridge-init -n paperless --restart=Never -it --rm \
+kubectl run protonmail-bridge-init -n paperless --restart=Never \
   --image=ghcr.io/videocurio/proton-mail-bridge:v3.24.2 \
-  --overrides='{"spec":{"containers":[{"name":"init","image":"ghcr.io/videocurio/proton-mail-bridge:v3.24.2","command":["sleep","infinity"],"stdin":true,"tty":true,"volumeMounts":[{"name":"config","mountPath":"/root"}]}],"volumes":[{"name":"config","persistentVolumeClaim":{"claimName":"protonmail-bridge-config"}}]}}' \
-  -- sleep infinity
-```
+  --overrides='{"spec":{"containers":[{"name":"init","image":"ghcr.io/videocurio/proton-mail-bridge:v3.24.2","command":["sleep","infinity"],"volumeMounts":[{"name":"config","mountPath":"/root"}]}],"volumes":[{"name":"config","persistentVolumeClaim":{"claimName":"protonmail-bridge-config"}}]}}'
 
-Then, in a second terminal:
-
-```bash
+kubectl wait --for=condition=Ready pod/protonmail-bridge-init -n paperless --timeout=2m
 kubectl exec -it protonmail-bridge-init -n paperless -- /bin/bash
 ```
 
 **3. Log in and export the certificate.** Inside that shell:
 
 ```bash
-/app/entrypoint.sh &   # creates the gpg key + pass store on first run only
-sleep 5; pkill -f 'bridge --cli'   # stop the bridge it starts; keep the keyring
+# Bridge seals its vault key with gpg/pass, so the keyring must exist first.
+# This is exactly what the image entrypoint does on a first run — done directly
+# so that no bridge, socat or faketty is started and the vault stays free.
+[ -d /root/.password-store ] || {
+  gpg --generate-key --batch /app/GPGparams.txt && pass init ProtonMailBridge
+}
+
 /usr/bin/bridge --cli
 ```
+
+Do **not** run `/app/entrypoint.sh` here. It starts a bridge of its own, and
+racing two instances against one vault is the thing this whole procedure exists
+to avoid.
 
 At the `>>>` prompt:
 
@@ -535,33 +544,45 @@ deployment, right beside the vault whose whole job is to keep it encrypted.
 `/tmp` lives in the throwaway pod and is destroyed with it. Only `cert.pem` is
 needed downstream; `key.pem` never leaves the pod.
 
-**4. Commit the certificate.** Bridge keeps its TLS certificate inside the
-encrypted vault, so this export is the only way to get it. It is a public
-certificate — a plain ConfigMap, nothing to seal:
+**4. Seal and commit the certificate.** Bridge keeps its TLS certificate inside
+the encrypted vault, so this export is the only way to get it.
 
 ```bash
-kubectl exec protonmail-bridge-init -n paperless -- cat /tmp/cert.pem > /tmp/bridge-cert.pem
+kubectl exec protonmail-bridge-init -n paperless -- cat /tmp/cert.pem \
+  > /tmp/bridge-cert.pem
 
-kubectl create configmap protonmail-bridge-cert -n paperless \
+D=kubernetes/apps/paperless/protonmail-bridge/app
+
+kubectl create secret generic protonmail-bridge-cert -n paperless \
   --from-file=cert.pem=/tmp/bridge-cert.pem \
-  --dry-run=client -o yaml \
-  > kubernetes/apps/paperless/protonmail-bridge/app/cert-configmap.yml
+  --dry-run=client -o yaml > $D/app-secret.yml
+
+kubeseal --cert kubernetes/flux/pub-cert.pem --format yaml \
+  < $D/app-secret.yml > $D/app-sealed.yml
 ```
 
-In the **same commit**, do two more things or mail will not work:
+**Commit `app-sealed.yml`, never `app-secret.yml`.** `**/*secret.yml` is
+gitignored (`kubernetes/.gitignore`), which is deliberate — it is what stops a
+plaintext template ever reaching the remote. The trap is that it fails
+*silently* in this direction too: name the sealed output `app-secret.yml` and
+`git add` accepts it without complaint, the file never leaves the workstation,
+Flux never sees a Secret, and the only symptom is mail quietly failing to fetch.
+Verify with `git status --short $D` before committing.
 
-- add `./cert-configmap.yml` to that directory's `kustomization.yml`;
-- **uncomment `PAPERLESS_EMAIL_CERTIFICATE_LOCATION`** in
-  `kubernetes/apps/paperless/paperless/app/helmrelease.yml`.
+A certificate is public and needs no sealing on its own merits. It is sealed
+anyway so that everything an app is handed follows one convention and nobody has
+to work out which credential-shaped file is the exception.
 
-That env var is deliberately commented out until this point. Paperless
-registers a Django system check that raises an **Error** — `Email cert <path>
-is not a file` — when the variable is set but the file is absent, and an
-Error-level check aborts startup with `SystemCheckError`. Setting it before the
-ConfigMap exists is therefore a crash loop, not a deferred mail failure: the pod
-never goes Ready, the Helm upgrade times out, and Flux rolls the release back.
-The `optional: true` mount only stops the *kubelet* blocking on the missing
-ConfigMap; it does nothing about the check. Confirm before committing:
+`PAPERLESS_EMAIL_CERTIFICATE_LOCATION` is already set in
+`kubernetes/apps/paperless/paperless/app/helmrelease.yml` and stays set — it is
+**coupled to this SealedSecret**. Paperless registers a Django system check that
+raises an **Error**, `Email cert <path> is not a file`, when the variable is set
+but the file is absent, and an Error-level check aborts startup with
+`SystemCheckError`: a crash loop, not a deferred mail failure. The pod never goes
+Ready, the Helm upgrade times out, and Flux rolls the release back. `optional:
+true` on the mount governs only the *kubelet*; it does nothing about the check.
+So if you ever remove the SealedSecret, remove that variable in the same commit.
+Confirm the pairing still holds:
 
 ```bash
 kubectl exec deploy/paperless-app -n paperless -c app -- \
@@ -577,8 +598,8 @@ flux resume helmrelease protonmail-bridge -n paperless
 kubectl scale deploy/protonmail-bridge -n paperless --replicas=1
 ```
 
-Commit and push. Paperless mounts the ConfigMap `optional: true` and reads the
-file per mail fetch, so it needs no restart once the mount populates.
+Commit and push. Paperless mounts the Secret `optional: true` and reads the file
+per mail fetch, so it needs no restart once the mount populates.
 
 **5. Add the mail account in the Paperless UI** (Settings → Mail, runtime app
 state, not GitOps):
@@ -606,7 +627,7 @@ m=imaplib.IMAP4('127.0.0.1',1143); m.starttls(c); print(m.noop())"
 ```
 
 `('OK', [b'...'])` means trust, hostname and reachability are all correct. A
-`CERTIFICATE_VERIFY_FAILED` means the ConfigMap is missing or stale; an
+`CERTIFICATE_VERIFY_FAILED` means the SealedSecret is missing or stale; an
 `IP address mismatch` means something is dialling a name instead of `127.0.0.1`.
 
 ### Defragment etcd (`etcdDatabaseHighFragmentationRatio`)

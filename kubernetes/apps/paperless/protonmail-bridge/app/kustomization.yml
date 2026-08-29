@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./pvc.yml
   - ./helmrelease.yml
+  - ./app-sealed.yml

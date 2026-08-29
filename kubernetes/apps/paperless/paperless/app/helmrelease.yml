@@ -78,24 +78,25 @@ spec:
               # is True and not configurable, so connecting to the Service DNS
               # name fails verification no matter what CA is trusted.
               #
-              # DELIBERATELY COMMENTED OUT UNTIL THE BRIDGE IS BOOTSTRAPPED.
-              # Uncomment in the same commit that adds cert-configmap.yml —
-              # RUNBOOK step 4. Setting it earlier is a HARD STARTUP FAILURE,
-              # not a deferred mail error: paperless registers a Django system
-              # check (paperless/checks.py::_email_certificate_validate) that
-              # raises Error "Email cert <path> is not a file" when the path is
-              # set but absent, and an Error-level check aborts boot with
-              # SystemCheckError. The optional mount below stops the kubelet
-              # blocking on a missing ConfigMap; it does NOT stop paperless
-              # refusing to start. Verified on 3.1.0 and 3.0.5 alike:
+              # This path MUST exist whenever this variable is set. Paperless
+              # registers a Django system check
+              # (paperless/checks.py::_email_certificate_validate) that raises
+              # Error "Email cert <path> is not a file" when it is set but
+              # absent, and an Error-level check aborts boot with
+              # SystemCheckError — a crash loop, not a deferred mail error.
+              # `optional: true` on the mount below governs the kubelet only;
+              # it does NOT stop paperless refusing to start. So this line and
+              # the bridge's app-sealed.yml must land in the same commit, and
+              # if that SealedSecret is ever removed this must go with it.
+              # Check before committing a change to either:
               #   kubectl exec deploy/paperless-app -c app -- \
               #     env PAPERLESS_EMAIL_CERTIFICATE_LOCATION=/nope \
               #     python manage.py check
               # Note also that load_verify_locations(cafile=...) REPLACES the
-              # default trust store rather than adding to it, so once this is
-              # set, any other mail account on a publicly-trusted IMAP server
-              # would stop verifying. Only the bridge is expected here.
-              # PAPERLESS_EMAIL_CERTIFICATE_LOCATION: /etc/ssl/protonmail/cert.pem
+              # default trust store rather than adding to it, so any other mail
+              # account on a publicly-trusted IMAP server would stop verifying.
+              # Only the bridge is expected here.
+              PAPERLESS_EMAIL_CERTIFICATE_LOCATION: /etc/ssl/protonmail/cert.pem
               # Defaults to true in 3.0.5, set explicitly because it is exactly
               # the kind of default that tightens: paperless 3.x resolves the
               # mail host and refuses non-public IPs (paperless_mail/mail.py,
@@ -200,20 +201,23 @@ spec:
           app:
             app:
               - path: /consume
-      # The bridge's TLS certificate, exported once during bootstrap and
-      # committed as a ConfigMap (a certificate is public; nothing to seal).
-      # `type: custom` rather than `type: configMap` purely to get
-      # `optional: true` — app-template's configMap volume schema has no such
-      # field, and without it paperless would be stuck in ContainerCreating
-      # from the moment this lands until the bootstrap is finished. Mounted as
-      # a directory, not a subPath, so the kubelet refreshes the file in place
-      # if the certificate is ever re-exported; paperless loads it per mail
-      # fetch, so no restart is needed for it to take effect.
+      # The bridge's TLS certificate, exported once during bootstrap and shipped
+      # as a SealedSecret in kubernetes/apps/paperless/protonmail-bridge/app.
+      # A certificate is public and needs no sealing on its own merits; it is
+      # sealed to keep one convention for everything an app is handed, so
+      # nobody has to ask which credential-shaped file is the exception.
+      # `type: custom` rather than `type: secret` purely to get `optional: true`
+      # — app-template's secret volume schema has no such field, and without it
+      # paperless would sit in ContainerCreating whenever the Secret is absent
+      # (a fresh cluster, before sealed-secrets has decrypted it). Mounted as a
+      # directory, not a subPath, so the kubelet refreshes the file in place if
+      # the certificate is ever re-exported; paperless loads it per mail fetch,
+      # so no restart is needed for it to take effect.
       bridge-cert:
         type: custom
         volumeSpec:
-          configMap:
-            name: protonmail-bridge-cert
+          secret:
+            secretName: protonmail-bridge-cert
             optional: true
         advancedMounts:
           app:

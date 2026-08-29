@@ -85,18 +85,31 @@ the one SAN. The mail account is therefore configured as host `127.0.0.1`, port
 `1143`, security **STARTTLS**.
 
 The certificate itself is exported once during bootstrap (`cert export` in the
-bridge CLI) and committed as a plain **ConfigMap** — a certificate is public,
-there is nothing to seal. It is mounted `optional: true` via `type: custom`,
-because app-template's `type: configMap` volume schema has no `optional` field
-and without it Paperless would sit in `ContainerCreating` from the moment the
-manifest lands until the bootstrap finishes. Mounted as a directory rather than
-a `subPath` so the kubelet refreshes it in place; Paperless loads the file per
-mail fetch, so a re-export needs no restart.
+bridge CLI) and committed as a **SealedSecret**, `app-sealed.yml`, alongside the
+bridge. A certificate is public and needs no sealing on its own merits; it is
+sealed so that everything an app is handed follows one convention, rather than
+leaving a reader to work out which credential-shaped file is the exception.
+
+Note `cert export` writes `key.pem` beside `cert.pem` — export to `/tmp` in the
+throwaway bootstrap pod, never to `/root`, or the private key persists in
+plaintext on the state volume beside the vault that exists to keep it encrypted.
+
+Mounted `optional: true` via `type: custom`, because app-template's
+`type: secret` volume schema has no `optional` field and without it Paperless
+would sit in `ContainerCreating` whenever the Secret is absent. Mounted as a
+directory rather than a `subPath` so the kubelet refreshes it in place;
+Paperless loads the file per mail fetch, so a re-export needs no restart.
+
+The certificate is valid **20 years** (the deployed one to 2046-08-24), so this
+is close to a one-time step — but it is regenerated if the vault is ever
+rebuilt, which means re-exporting and re-sealing.
 
 ### The bootstrap is two-phase, and skipping that caused an outage
 
-`PAPERLESS_EMAIL_CERTIFICATE_LOCATION` must stay **commented out** until the
-cert ConfigMap exists, and is uncommented in the same commit that adds it.
+`PAPERLESS_EMAIL_CERTIFICATE_LOCATION` is **coupled to the cert SealedSecret**:
+the two must land together, and if the SealedSecret is ever removed the variable
+must go with it. It was originally shipped ahead of the certificate and that
+caused an outage.
 
 This is not tidiness. Paperless registers a Django system check
 (`paperless/checks.py::_email_certificate_validate`) that emits an **`Error`** —
@@ -106,9 +119,14 @@ the container exits within seconds, never goes Ready, the Helm upgrade times out
 on `Deployment/paperless-app status: 'InProgress'`, and Flux rolls the release
 back. Present in 3.0.5 and 3.1.0 alike — this is not a version regression.
 
+A second, quieter trap sits next to it: `**/*secret.yml` is gitignored, so
+naming the *sealed* output `app-secret.yml` means `git add` accepts it, the file
+never reaches the remote, Flux never creates the Secret, and mail fails to fetch
+with no error anywhere in git. Commit `app-sealed.yml`.
+
 The trap is that `optional: true` looks like it solves the ordering problem and
 does not. It governs the **kubelet**, which will happily start a pod with an
-absent optional ConfigMap; it has no bearing on whether the *application* agrees
+absent optional Secret; it has no bearing on whether the *application* agrees
 to boot. Reading `settings/__init__.py` alone reinforces the illusion —
 `get_path_from_env` does no existence validation whatsoever, so the path looks
 inert until it is read at mail-fetch time. The validation lives in a completely
@@ -130,7 +148,7 @@ would stop verifying. Only the bridge is expected here.
 **Rejected alternative:** bridge has a `cert import` CLI command that takes a
 custom cert/key path (stored in the vault as `CustomCertPath`, re-read at
 startup). A cert-manager certificate with a real DNS SAN would remove both the
-socat sidecar and the committed ConfigMap, and let Paperless dial the Service
+socat sidecar and the committed certificate, and let Paperless dial the Service
 name. It was not taken because it needs a new self-signed CA issuer, a mounted
 keypair, and a Reloader hook to restart the bridge on renewal — a lot of moving
 parts to delete one 5 MB sidecar. Revisit if the sidecar becomes a nuisance.
