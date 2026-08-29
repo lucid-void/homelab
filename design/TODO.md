@@ -513,11 +513,44 @@ An `openebs-hostpath` PVC is a plain directory on the node's `EPHEMERAL` partiti
    evictions. Worth an alert on *sum of hostpath claims per node* vs node capacity,
    independent of actual usage.
 
-**Action:** either (a) reword the alert to say "node disk backing <pvc>" and drop the
-Minecraft framing, or (b) add a genuine per-world size metric (a sidecar `du` exporter)
-and alert on that separately from node capacity. Also decide whether the 20Gi/50Gi
-claims should be corrected to something honest or annotated as advisory, so they stop
-reading as guarantees.
+**Resolved 2026-08-29 (points 2 and 3 — point 1 stands).** Both halves of the
+suggested action were done rather than either/or:
+
+* **Real per-world metric.** A `world-size` sidecar (`kubernetes/apps/media/
+  minecraft/app/world-size-configmap.yml`) walks the world tree and exports
+  `minecraft_world_size_bytes{server,world}` plus
+  `minecraft_server_data_size_bytes{server}`. It counts `st_blocks*512`, so it
+  matches `du` rather than overstating sparse region files, and it scans on a
+  300s timer in a background thread so a scrape never blocks on disk. A sidecar
+  is the only option available: the `media` namespace runs under the cluster
+  default PSA `baseline`, which forbids `hostPath`, so the node-exporter
+  textfile-collector route is closed and nothing outside the pod can see the
+  volume. `MinecraftWorldGrowingFast` / `MinecraftWorldLarge` now alert on that,
+  with `MinecraftWorldSizeExporterStale` so a dead exporter cannot read as
+  "no growth".
+* **Node disk is now its own alert.** `NodeFilesystemAlmostFull` /
+  `NodeFilesystemCriticallyFull` (80/90%) in `vm-stack/vmrules.yml`, per node,
+  named for what they measure. Note this closed a real gap rather than just
+  renaming one: **nothing else in the cluster watched node disk at all**, so the
+  mis-attributed Minecraft alert had been the only coverage — and only for the
+  two nodes that happened to hold a world. The 80% threshold sits above the
+  kubelet `imageGCHighThresholdPercent: 70` so routine GC churn stays quiet.
+* **The Synology share likewise.** `SynologyShareAlmostFull` (85%) reads
+  `kubelet_volume_stats` on a single pinned claim, because that metric genuinely
+  does report the backing share — pinned to one claim precisely because all ~34
+  nfs-client PVCs report identical numbers and an unpinned selector would fire
+  ~34 duplicate notifications for one condition. (`MinecraftBackupVolumeAlmostFull`
+  was the old form of this and has been removed.)
+
+**Still open (point 1):** the `storage:` requests remain fiction — `matcha-data`
+and `vanilla-data` still claim 20Gi and `plex-config-local` 50Gi with nothing
+enforcing any of it, and there is still no check that the sum of hostpath claims
+fits the node. The new alerts measure reality instead of the claims, which makes
+this less dangerous, but it does not make the numbers honest.
+
+**Action:** annotate the hostpath claims as advisory (or correct them), and add
+the per-node "sum of hostpath claims vs node capacity" alert described in
+point 3.
 
 ### Container image accumulation — capped, not solved
 
@@ -754,7 +787,16 @@ Immich is pinned to v2.7.5 with kysely migrations (see memory: `project_immich_m
 
 Immich library and the static `/volume2/Media` share both grow uncapped. No quota, no alert before Synology pool fills, no tiering plan. A full pool stops all DB writes cluster-wide.
 
-**Action:** Add a Synology pool-usage alert (synology metrics → the in-cluster VictoriaMetrics stack) at 80% and 90%; consider per-namespace `ResourceQuota` for PVC storage.
+**Partially done 2026-08-29:** `SynologyShareAlmostFull` (85%) now alerts on
+/volume2 filling, via `kubelet_volume_stats` on a pinned nfs-client claim — that
+metric reports the backing share, which is the wrong number per-PVC but the right
+one here. It is a single threshold off a proxy metric, not real Synology
+telemetry: there is no node-exporter on the NAS, so pool health, per-share usage
+and disk SMART state are all still invisible.
+
+**Action:** Ship real Synology metrics (SNMP or node-exporter on the NAS) for
+pool/per-share/SMART visibility, add the 90% critical tier, and consider
+per-namespace `ResourceQuota` for PVC storage.
 
 ### Immutable / second-offsite backup tier
 

@@ -116,59 +116,84 @@ spec:
               the limit must exceed the heap by roughly 1.5Gi.
 
     # -----------------------------------------------------------------------
-    # Storage — world data is on node-local openebs-hostpath, which cannot be
-    # expanded in place. Filling it corrupts saves, so warn early.
+    # Storage
+    #
+    # These alerts deliberately do NOT use kubelet_volume_stats_*. That metric
+    # family is meaningless for both of this stack's volume types:
+    #
+    #   * matcha-data / vanilla-data are openebs-hostpath -- a plain directory on
+    #     the node EPHEMERAL partition with no quota, so the kubelet reports the
+    #     NODE filesystem. Both PVCs report identical numbers (~97Gi capacity),
+    #     which is cp-N's /var shared with containerd, etcd and logs.
+    #   * mc-backups is nfs-client, so it reports the whole ~21TiB Synology
+    #     volume, not the backup directory.
+    #
+    # The previous MinecraftWorldVolumeAlmostFull/MinecraftBackupVolumeAlmostFull
+    # pair alerted on those numbers under Minecraft names. They fired on causes
+    # that had nothing to do with Minecraft (the one real investigation traced a
+    # firing alert to ~30GB of unused container images against ~1.4GB of world)
+    # and could never have caught a world growing on its own. Worse, because both
+    # world PVCs resolve to the same node filesystem, one full node produced two
+    # identical alerts.
+    #
+    # World size now comes from a real `du` in the world-size sidecar, and node
+    # disk has its own honest alert in the vm-stack rules. Note there is no
+    # "world exceeded its claim" alert, because there is no claim to exceed --
+    # the 20Gi in pvc.yml is advisory, unenforced by openebs-hostpath.
     # -----------------------------------------------------------------------
     - name: minecraft-storage
       rules:
-        - alert: MinecraftWorldVolumeAlmostFull
+        - alert: MinecraftWorldGrowingFast
+          # Worlds grow with exploration, not playtime, so a sudden climb means
+          # someone is running a chunk-generating trip (elytra, new dimension) or
+          # a chunk-loader is stuck. Catching the RATE is what gives useful
+          # warning; the absolute-size alert below is the backstop.
           expr: >
-            kubelet_volume_stats_available_bytes{namespace="media",persistentvolumeclaim=~"matcha-data|vanilla-data"}
-            / kubelet_volume_stats_capacity_bytes{namespace="media",persistentvolumeclaim=~"matcha-data|vanilla-data"}
-            < 0.15
+            increase(minecraft_server_data_size_bytes[6h]) > 2 * 1024 * 1024 * 1024
           for: 30m
           labels:
             severity: warning
           annotations:
-            summary: Minecraft world volume {{ $labels.persistentvolumeclaim }} almost full
+            summary: Minecraft server {{ $labels.server }} data grew {{ $value | humanize1024 }}B in 6h
             description: >
-              {{ $labels.persistentvolumeclaim }} has
-              {{ $value | humanizePercentage }} free. Worlds grow with
-              exploration, not playtime — constrain with /worldborder, or
-              recreate the PVC larger (openebs-hostpath cannot expand in place,
-              and the volume is pinned to one node).
+              {{ $labels.server }} has added {{ $value | humanize1024 }}B of world
+              data in six hours. This volume is node-local openebs-hostpath with
+              no quota, so it competes with containerd and etcd for the node
+              filesystem -- sustained growth ends in DiskPressure eviction, not a
+              clean "volume full" error. Constrain with /worldborder, or check for
+              a stuck chunk-loader.
 
-        - alert: MinecraftBackupVolumeAlmostFull
-          expr: >
-            kubelet_volume_stats_available_bytes{namespace="media",persistentvolumeclaim="mc-backups"}
-            / kubelet_volume_stats_capacity_bytes{namespace="media",persistentvolumeclaim="mc-backups"}
-            < 0.10
+        - alert: MinecraftWorldLarge
+          # Absolute backstop. 20Gi is the (unenforced) claim in pvc.yml, so
+          # crossing 15Gi means the advisory number is about to stop being a
+          # useful description of reality.
+          expr: minecraft_server_data_size_bytes > 15 * 1024 * 1024 * 1024
           for: 1h
           labels:
             severity: warning
           annotations:
-            summary: Minecraft backup volume almost full
+            summary: Minecraft server {{ $labels.server }} data is {{ $value | humanize1024 }}B
             description: >
-              mc-backups is {{ $value | humanizePercentage }} free. The
-              mc-backup sidecars prune at PRUNE_BACKUPS_DAYS=7; if this is still
-              filling, either the worlds have grown or pruning has stopped.
+              {{ $labels.server }} now holds {{ $value | humanize1024 }}B, past the
+              15Gi mark against a nominal 20Gi claim. That claim is advisory --
+              openebs-hostpath enforces no quota -- so the real ceiling is node
+              free space. Recreating the PVC larger does not help either; plan a
+              /worldborder trim or a world reset.
 
-    # -----------------------------------------------------------------------
-    # Crash looping
-    # -----------------------------------------------------------------------
-    - name: minecraft-stability
-      rules:
-        - alert: MinecraftServerRestarting
+        - alert: MinecraftWorldSizeExporterStale
+          # The whole point of the rules above is that they use a real
+          # measurement, so a silently dead exporter must not read as "no growth".
+          # The sidecar scans every 300s; 30m of staleness is six missed scans.
           expr: >
-            increase(kube_pod_container_status_restarts_total{namespace="media",pod=~"matcha-.*|vanilla-.*",container="app"}[1h])
-            > 2
-          for: 5m
+            time() - minecraft_world_size_last_scan_timestamp_seconds > 1800
+          for: 15m
           labels:
             severity: warning
           annotations:
-            summary: Minecraft container {{ $labels.pod }} is restarting repeatedly
+            summary: Minecraft world-size exporter for {{ $labels.server }} is stale
             description: >
-              {{ $labels.pod }} has restarted {{ $value }} times in the last
-              hour. Common causes: an unresolvable MODRINTH_PROJECTS entry (check
-              the loader actually has a Paper build), a heap/limit mismatch, or a
-              world the pinned VERSION cannot open.
+              The last completed scan for {{ $labels.server }} was
+              {{ $value | humanizeDuration }} ago (expected every 5m). The
+              MinecraftWorldGrowingFast and MinecraftWorldLarge alerts are blind
+              until this recovers -- check the `world-size` container in the
+              {{ $labels.server }} pod.
