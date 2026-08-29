@@ -33,6 +33,39 @@ spec:
         # RWO PVC on openebs-hostpath: a RollingUpdate would leave the new pod
         # Pending forever on a volume the old pod still holds.
         strategy: Recreate
+        initContainers:
+          # Stages the CouchDB config onto a WRITABLE volume. This exists
+          # because of a hard failure, not for tidiness: the entrypoint runs
+          # `find /opt/couchdb ! -user couchdb -exec chown -f couchdb:couchdb`
+          # under `set -e` (docker-entrypoint.sh:14,43). `chown -f` suppresses
+          # the error *message* but still returns 1 on a read-only mount, and
+          # `find -exec +` propagates that -- so a ConfigMap mounted anywhere
+          # under /opt/couchdb kills the entrypoint instantly with exit 1 and
+          # ZERO log output. ConfigMap volumes are always read-only in k8s, so
+          # dropping `readOnly: true` does not help; the file has to be copied
+          # onto a writable volume. Upstream's chart does the same thing.
+          #
+          # Uses the couchdb image (not alpine) so it copies the *matching*
+          # version's stock default.d drop-ins alongside ours -- the emptyDir
+          # shadows the image's default.d, and this keeps them in step on bump.
+          config:
+            image:
+              repository: couchdb
+              tag: "3.5.2"
+            command:
+              - sh
+              - -c
+              - |
+                set -e
+                cp /opt/couchdb/etc/default.d/*.ini /target/ 2>/dev/null || true
+                cp /cfg/10-livesync.ini /target/10-livesync.ini
+                ls -l /target/
+            resources:
+              requests:
+                memory: 16Mi
+                cpu: 10m
+              limits:
+                memory: 64Mi
         containers:
           app:
             image:
@@ -114,17 +147,27 @@ spec:
         existingClaim: couchdb-data
         globalMounts:
           - path: /opt/couchdb/data
+      # Raw ConfigMap goes ONLY to the initContainer, on a path outside
+      # /opt/couchdb so the entrypoint's recursive chown never sees it.
       config:
         type: configMap
         name: couchdb-config
-        # subPath so this lands as a single file in local.d instead of masking
-        # the directory -- the entrypoint touches and writes docker.ini there
-        # (the [admins] block built from COUCHDB_USER/COUCHDB_PASSWORD), and a
-        # whole-directory mount would hide it and leave CouchDB in admin party
-        # mode. Sorting matters too: local.d is read alphabetically and later
-        # files win, so 10-livesync.ini loads before docker.ini and never
-        # clobbers the admin credentials.
-        globalMounts:
-          - path: /opt/couchdb/etc/local.d/10-livesync.ini
-            subPath: 10-livesync.ini
-            readOnly: true
+        advancedMounts:
+          app:
+            config:
+              - path: /cfg
+                readOnly: true
+      # Writable staging volume that becomes the real default.d. Deliberately
+      # default.d rather than local.d: the entrypoint writes the [admins] block
+      # into local.d/docker.ini, and CouchDB reads default.d BEFORE local.d, so
+      # our declarative settings load first and the generated admin credentials
+      # still win. Shadowing local.d instead would discard the admin file (and
+      # any runtime config change) on every restart.
+      default-d:
+        type: emptyDir
+        advancedMounts:
+          app:
+            config:
+              - path: /target
+            app:
+              - path: /opt/couchdb/etc/default.d

@@ -254,7 +254,10 @@ command. Until each node reboots, `talosctl get discoveredvolumes` shows a large
 
 **Note:** workloads on `openebs-hostpath` are node-pinned and cannot reschedule, so
 they are down for the duration of their own node's reboot (~3–5 min). Check nobody is
-mid-session first — e.g. `rcon-cli list` for the Minecraft servers.
+mid-session first — e.g. `rcon-cli list` for the Minecraft servers. Obsidian LiveSync
+(`obsidian/couchdb`) is on this class too; clients retry on their own, so the visible
+effect is sync stalling rather than data loss, but an edit made on two devices during
+the window will need conflict resolution afterwards.
 
 ### Upgrade Talos
 
@@ -969,6 +972,13 @@ a single file to stdout — handy for piping a `.pgdump` straight into `pg_resto
 
 > **Untested.** No application snapshot has been restore-tested end-to-end either (see
 > TODO.md → "Backup restore actually works").
+
+> **Obsidian/CouchDB restores have two extra constraints.** The snapshot holds CouchDB
+> *shard files*, not markdown — restoring produces a database, and the vault only comes
+> back once a client re-syncs from it. And the shards are keyed by erlang node name, so
+> the restored CouchDB must run with the **same `NODENAME` (`127.0.0.1`)** as the one
+> that wrote them; a different value reads as an empty database. Restore into
+> `/opt/couchdb/data` with couchdb scaled to 0, then scale back up.
 
 ### Rebuild the paperless search index
 
