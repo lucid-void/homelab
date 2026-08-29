@@ -27,6 +27,25 @@ spec:
     collectors:
       enabled: true
 
+    # llm-1 carries workload=llm:NoSchedule (see design/llm-deployment.md §3).
+    # Without this entry Falco silently drops to 3 of 4 nodes -- the DaemonSet
+    # reports DESIRED 3 and looks perfectly healthy, so the gap is invisible
+    # unless you compare against the node count. llm-1 is also the node that
+    # pulls multi-GB model weights off the internet, i.e. the one most worth
+    # watching.
+    #
+    # Helm REPLACES lists rather than merging them, so the chart's two default
+    # control-plane tolerations must be repeated here or they are lost.
+    tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+      - effect: NoSchedule
+        key: workload
+        operator: Equal
+        value: llm
+
     resources:
       requests:
         cpu: 100m
