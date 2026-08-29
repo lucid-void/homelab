@@ -582,13 +582,21 @@ but the file is absent, and an Error-level check aborts startup with
 Ready, the Helm upgrade times out, and Flux rolls the release back. `optional:
 true` on the mount governs only the *kubelet*; it does nothing about the check.
 So if you ever remove the SealedSecret, remove that variable in the same commit.
-Confirm the pairing still holds:
+
+**Do not try to verify this before pushing.** Running
 
 ```bash
 kubectl exec deploy/paperless-app -n paperless -c app -- \
   env PAPERLESS_EMAIL_CERTIFICATE_LOCATION=/etc/ssl/protonmail/cert.pem \
   python manage.py check
 ```
+
+against the *currently running* pod fails with `Email cert … is not a file`, and
+that is correct rather than a fault: the Secret does not exist in the cluster
+until the commit is pushed, so the optional mount is an empty directory. The
+check is a post-push verification — see the end of this procedure. It is only
+meaningful as a pre-commit gate in the reverse direction, when *removing* the
+SealedSecret while leaving the variable behind.
 
 Then clean up and bring the bridge back:
 
@@ -618,7 +626,19 @@ the Service name would fail the handshake even with the certificate trusted. The
 `bridge` socat sidecar in the Paperless pod listens on `127.0.0.1:1143` and
 forwards to the bridge Service. See `design/decisions/protonmail-bridge.md`.
 
-**Verify** end to end:
+**Verify**, after the push has landed and a new Paperless pod is Running. The
+volume source changes `configMap` -> `secret` in that commit, so the rollout
+creates a fresh pod with the certificate mounted from the start:
+
+```bash
+kubectl get secret protonmail-bridge-cert -n paperless      # must exist first
+kubectl exec deploy/paperless-app -n paperless -c app -- \
+  ls -l /etc/ssl/protonmail/cert.pem                        # must be a file
+kubectl exec deploy/paperless-app -n paperless -c app -- python manage.py check
+```
+
+`System check identified no issues` means the variable and the Secret agree.
+Then end to end:
 
 ```bash
 kubectl exec deploy/paperless-app -n paperless -c app -- \
