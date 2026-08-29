@@ -64,6 +64,7 @@ Add static DHCP leases on UDM SE for these MACs before running:
 | cp-1 | `BC:24:11:01:20:00` | 172.16.20.11 |
 | cp-2 | `BC:24:11:01:21:00` | 172.16.20.12 |
 | cp-3 | `BC:24:11:01:22:00` | 172.16.20.13 |
+| llm-1 | `BC:24:11:01:23:00` | 172.16.20.14 |
 
 ```bash
 just plan && just apply

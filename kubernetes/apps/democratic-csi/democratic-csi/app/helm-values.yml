@@ -111,10 +111,45 @@ driver:
 #
 # Uncomment the lines/sections below appropriate for your desired use-case
 
+# Resource requests, sized from a 30d VictoriaMetrics window (p90 / peak MiB).
+# Every democratic-csi container previously ran with no requests at all. That
+# matters more here than for most platform components: the node DaemonSet stages
+# and publishes every NFS mount in the cluster, so evicting it under memory
+# pressure takes storage away from workloads that are themselves fine.
+#
+# Deliberately no memory LIMIT on the two `driver` containers: an OOMKill mid
+# mount/unmount can leave a volume stuck in a partially-staged state, which is
+# worse than the overrun. The helper sidecars are bounded and get limits.
 node:
   driver:
     image:
       tag: v1.9.5
+    resources:
+      requests:
+        cpu: 25m
+        memory: 224Mi   # p90 177, peak 201 (shared image with the controller)
+  driverRegistrar:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 48Mi    # p90 22, peak 31
+      limits:
+        memory: 96Mi
+  cleanup:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi    # p90 5, peak 5
+      limits:
+        memory: 32Mi
+
+csiProxy:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi      # p90 17, peak 19
+    limits:
+      memory: 64Mi
 
 controller:
   enabled: true
@@ -124,6 +159,22 @@ controller:
 
   externalResizer:
     enabled: false
+
+  externalProvisioner:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 80Mi    # p90 61, peak 62
+      limits:
+        memory: 160Mi
+
+  externalSnapshotter:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 80Mi    # p90 63, peak 64
+      limits:
+        memory: 160Mi
 
   # For Options 1 and 2
   strategy: deployment
@@ -135,6 +186,10 @@ controller:
   driver:
     image:
       tag: v1.9.5
+    resources:
+      requests:
+        cpu: 25m
+        memory: 224Mi   # p90 177, peak 201
     securityContext:
       allowPrivilegeEscalation: true
       capabilities:

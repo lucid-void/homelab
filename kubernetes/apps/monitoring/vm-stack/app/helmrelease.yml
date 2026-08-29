@@ -183,6 +183,17 @@ spec:
           cpu: 50m
         limits:
           memory: 512Mi
+      # The two dashboard/datasource sidecars are separate containers from
+      # grafana itself and inherit nothing from the block above -- they ran with
+      # no requests at all. One `sidecar.resources` covers both.
+      # 30d window: sc-dashboard p90 101/peak 103, sc-datasources p90 89/peak 91.
+      sidecar:
+        resources:
+          requests:
+            cpu: 10m
+            memory: 128Mi
+          limits:
+            memory: 256Mi
 
     # ---------------------------------------------------------------------------
     # VictoriaLogs — not enabled (future work)
@@ -220,6 +231,14 @@ spec:
 
     prometheus-node-exporter:
       enabled: true
+      # Sized from a 30d VictoriaMetrics window: p90 33, peak 35 MiB. Flat by
+      # nature -- it reads /proc and /sys per scrape and holds nothing.
+      resources:
+        requests:
+          cpu: 10m
+          memory: 48Mi
+        limits:
+          memory: 96Mi
 
     # Kubelet / API server / etcd scraping
     kubelet:

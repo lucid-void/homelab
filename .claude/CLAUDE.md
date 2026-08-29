@@ -185,12 +185,15 @@ manifests. Do not re-litigate them without reason.
 
 ```
 172.16.20.2    Synology RS1219+   — physical, NFS storage only (Btrfs /volume2)
-172.16.20.3    Proxmox MS-A2      — physical, hypervisor (LVM-thin; hosts the Talos VMs)
+172.16.20.3    Proxmox host       — physical, hypervisor (LVM-thin; hosts the Talos VMs)
+               Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E) — verified from /proc/cpuinfo.
+               NOT an MS-A2; that model is AMD. Exact Minisforum model still unconfirmed.
 172.16.20.4    DGX Spark          — physical, GPU box, WOL (not a k8s node)
 172.16.20.10   API VIP            — kube-apiserver endpoint (floats via leader election)
 172.16.20.11   cp-1               — Talos control plane (schedulable, runs workloads)
 172.16.20.12   cp-2               — Talos control plane (schedulable, runs workloads)
 172.16.20.13   cp-3               — Talos control plane (schedulable, runs workloads)
+172.16.20.14   llm-1              — Talos worker, LLM inference only (tainted workload=llm)
 172.16.20.23   VPN VM             — ZeroTier (plain compose, outside cluster)
 172.16.20.50   Gateway VIP        — pool-a, shared Gateway ingress (Cilium L2)
 172.16.20.51   pool-b             — Plex direct/GDM LoadBalancer

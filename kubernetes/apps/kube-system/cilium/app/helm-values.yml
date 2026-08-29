@@ -10,6 +10,27 @@ k8sServicePort: 7445
 # take effect on existing workloads.
 MTU: 9000
 
+# Resource requests. Sized from a 30d VictoriaMetrics window (p90 / peak MiB,
+# `container_memory_working_set_bytes` pinned to metrics_path="/metrics/cadvisor").
+# Before this, every Cilium container ran with NO requests at all: the 100m/10Mi
+# the scheduler showed for the agent pod came from its *init* containers, since
+# the scheduler takes max(sum of containers, max of init containers). That left
+# the CNI itself in BestEffort and first in line for eviction under node pressure.
+#
+# Deliberately no memory LIMIT on agent/envoy: an OOMKill of the datapath takes
+# pod networking down cluster-wide, which is strictly worse than the memory
+# overrun it would prevent. The operator is not on the packet path, so it gets one.
+resources:
+  requests:
+    cpu: 50m
+    memory: 640Mi   # p90 617, peak 631
+
+envoy:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 192Mi  # p90 155, peak 187
+
 ipam:
   mode: kubernetes
 
@@ -21,8 +42,28 @@ hubble:
   enabled: true
   relay:
     enabled: true
+    resources:
+      requests:
+        cpu: 10m
+        memory: 96Mi   # p90 84, peak 85
+      limits:
+        memory: 192Mi
   ui:
     enabled: true
+    backend:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 96Mi   # p90 76, peak 76
+        limits:
+          memory: 192Mi
+    frontend:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi   # p90 17, peak 17
+        limits:
+          memory: 64Mi
 
 cgroup:
   autoMount:
@@ -62,6 +103,12 @@ gatewayAPI:
 
 operator:
   replicas: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 256Mi  # p90 199, peak 229
+    limits:
+      memory: 512Mi
   prometheus:
     enabled: false
     serviceMonitor:

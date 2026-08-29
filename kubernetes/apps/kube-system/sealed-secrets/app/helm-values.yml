@@ -1,3 +1,13 @@
 ---
 fullnameOverride: sealed-secrets-controller
 keyrenewperiod: "0"
+
+# Resource requests, sized from a 30d VictoriaMetrics window (p90 105, peak 139 MiB).
+# The controller previously ran with none. It gates every app secret in the
+# cluster, so BestEffort was the wrong QoS class for it.
+resources:
+  requests:
+    cpu: 10m
+    memory: 128Mi
+  limits:
+    memory: 256Mi

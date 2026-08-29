@@ -32,6 +32,14 @@ spec:
         mayastor:
           enabled: false
     localpv-provisioner:
+      # Sized from a 30d VictoriaMetrics window: p90 49, peak 54 MiB.
+      localpv:
+        resources:
+          requests:
+            cpu: 10m
+            memory: 80Mi
+          limits:
+            memory: 160Mi
       hostpathClass:
         enabled: true
         name: openebs-hostpath

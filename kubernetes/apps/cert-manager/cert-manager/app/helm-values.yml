@@ -1,3 +1,29 @@
 ---
 crds:
   enabled: true
+
+# Resource requests. Sized from a 30d VictoriaMetrics window (p90 / peak MiB).
+# All three cert-manager containers previously ran with no requests at all,
+# leaving them BestEffort and first to be evicted under node pressure.
+resources:
+  requests:
+    cpu: 10m
+    memory: 128Mi   # p90 105, peak 107
+  limits:
+    memory: 256Mi
+
+cainjector:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 128Mi  # p90 92, peak 93
+    limits:
+      memory: 256Mi
+
+webhook:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 96Mi   # p90 74, peak 75
+    limits:
+      memory: 192Mi

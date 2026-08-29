@@ -21,10 +21,22 @@ spec:
     remediation:
       retries: 3
   values:
-    resources:
-      requests:
-        cpu: 25m
-        memory: 64Mi
-      limits:
-        cpu: 200m
-        memory: 256Mi
+    # Path is `controller.resources`, NOT a top-level `resources`. The chart
+    # renders no error for the wrong key -- it just drops it, and the container
+    # comes up with `resources: {}`. This block sat at the top level from
+    # creation and was a silent no-op the whole time (found 2026-08-29 by
+    # diffing declared requests against the live pod spec); the request below is
+    # therefore the first one that actually applies. Verify a change landed with
+    # `kubectl get pod -n kube-system -l app.kubernetes.io/name=k8s-cleaner \
+    #   -o jsonpath='{.items[*].spec.containers[*].resources}'` rather than
+    # trusting that Flux reconciled cleanly.
+    #
+    # Memory sized from a 30d VictoriaMetrics window: p90 105, peak 139 MiB.
+    controller:
+      resources:
+        requests:
+          cpu: 25m
+          memory: 128Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi

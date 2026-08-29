@@ -35,6 +35,19 @@ spec:
         cpu: 1000m
         memory: 1Gi
 
+    # The falcoctl artifact-follow sidecar ships with no requests of its own,
+    # unlike the falco and falcosidekick containers above. Sized from a 30d
+    # VictoriaMetrics window: p90 32, peak 72 MiB.
+    falcoctl:
+      artifact:
+        follow:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 96Mi
+            limits:
+              memory: 192Mi
+
     falcosidekick:
       enabled: true
       config:

@@ -25,3 +25,10 @@ spec:
       deployment:
         image:
           tag: "v1.0.112"
+        # Sized from a 30d VictoriaMetrics window: p90 94, peak 107 MiB.
+        resources:
+          requests:
+            cpu: 10m
+            memory: 128Mi
+          limits:
+            memory: 256Mi

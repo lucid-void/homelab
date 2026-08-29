@@ -3,3 +3,13 @@ monitoring:
   podMonitorEnable: true
   grafanaDashboard:
     create: true
+
+# Resource requests, sized from a 30d VictoriaMetrics window (p90 148, peak 162 MiB).
+# The operator previously ran with none. Note this is the operator only -- the
+# Postgres instances get their resources from the Cluster CR, not from here.
+resources:
+  requests:
+    cpu: 10m
+    memory: 192Mi
+  limits:
+    memory: 384Mi

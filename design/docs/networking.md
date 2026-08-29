@@ -5,12 +5,13 @@
 | Host | IP | Role |
 |---|---|---|
 | Synology RS1219+ | 172.16.20.2 | NFS storage (Btrfs /volume2) |
-| Proxmox MS-A2 | 172.16.20.3 | Hypervisor |
+| Proxmox host | 172.16.20.3 | Hypervisor (Intel Core Ultra 5 235HX / Arrow Lake-HX) |
 | DGX Spark | 172.16.20.4 | GPU workstation (WOL-managed) |
 | `.5–.9` | reserved | Future physical devices |
 | cp-1 | 172.16.20.11 | Talos control plane + workloads |
 | cp-2 | 172.16.20.12 | Talos control plane + workloads |
 | cp-3 | 172.16.20.13 | Talos control plane + workloads |
+| llm-1 | 172.16.20.14 | Talos worker — LLM inference only, tainted `workload=llm:NoSchedule` |
 | k8s API VIP | 172.16.20.10 | API server endpoint (floats via leader election) |
 | Gateway VIP | 172.16.20.50 | Cilium L2 announcement — `shared` Gateway |
 | Pool-B VIPs | 172.16.20.51–.52 | Cilium L2 announcement — direct LoadBalancer services (.51 Plex, .52 Velocity proxy) |
@@ -20,7 +21,7 @@
 **Service CIDR:** `10.96.0.0/12`
 **Cluster domain:** `blackcats.cc`
 
-The k8s control planes (`.11`–`.13`) and the API VIP (`.10`) are in the same `/24` as the rest of the homelab — no separate VLAN. (Swarm is retired; the cluster is the primary platform.)
+The k8s control planes (`.11`–`.13`), the `llm-1` worker (`.14`) and the API VIP (`.10`) are in the same `/24` as the rest of the homelab — no separate VLAN. (Swarm is retired; the cluster is the primary platform.)
 
 ---
 
