@@ -153,6 +153,7 @@ kubernetes/
 | FreshRSS | freshrss | `rss.example.com` | Zitadel OIDC |
 | Homebox | homebox | `homebox.example.com` | Built-in |
 | Joplin Server | joplin | `joplin.example.com` | Zitadel **SAML** (+ local break-glass admin) |
+| CouchDB (Obsidian LiveSync) | obsidian | `obsidian.example.com` | CouchDB HTTP Basic (no SSO — plugin has no OIDC path) |
 | Homepage | homepage | `home.example.com` | None |
 | Gotify | monitoring | `gotify.example.com` | SealedSecret admin creds |
 | Gatus | monitoring | `gatus.example.com` | Zitadel OIDC |

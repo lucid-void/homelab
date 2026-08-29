@@ -1,0 +1,130 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: couchdb
+  namespace: obsidian
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        # On the controller, NOT pod.annotations -- Reloader reads the
+        # Deployment's own metadata and a template-level annotation is a silent
+        # no-op (see the minecraft-events incident in .claude/CLAUDE.md).
+        annotations:
+          reloader.stakater.com/auto: "true"
+        # RWO PVC on openebs-hostpath: a RollingUpdate would leave the new pod
+        # Pending forever on a volume the old pod still holds.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: couchdb
+              tag: "3.5.2"
+            # Deliberately NO securityContext / runAsNonRoot here. The image
+            # ships with no USER and its entrypoint expects to start as root:
+            # it chowns /opt/couchdb to couchdb:couchdb (uid 5984) before
+            # dropping privileges itself. That chown is what makes a fresh,
+            # root-owned openebs-hostpath directory writable. Forcing
+            # runAsUser/runAsNonRoot skips it and CouchDB fails on its data dir.
+            # Upstream's own chart leaves the securityContext empty for the same
+            # reason. Root is permitted under the cluster-default PSA `baseline`.
+            env:
+              TZ: Europe/Brussels
+              # LOAD-BEARING. CouchDB keys its shard paths by the erlang node
+              # name. The image's shipped vm.args deliberately carries NO
+              # `-name` line, so the entrypoint appends `-name couchdb@$NODENAME`
+              # (docker-entrypoint.sh:62) -- and with NODENAME unset the VM falls
+              # back to a name derived from the container hostname. On a
+              # Deployment that hostname changes every rollout, so CouchDB would
+              # come back under a DIFFERENT node identity and report an EMPTY
+              # database while the real shards sit untouched on disk.
+              #
+              # 127.0.0.1 rather than the Service FQDN: this node never clusters,
+              # and a long erlang node name must resolve at VM boot -- pinning a
+              # literal removes a DNS dependency from the startup path. It also
+              # matches upstream CouchDB's own stock vm.args default, so the
+              # on-disk shard layout is the conventional one.
+              # NEVER change this once data exists.
+              NODENAME: 127.0.0.1
+            envFrom:
+              - secretRef:
+                  name: couchdb-admin-secret
+            probes:
+              # Authenticated exec rather than httpGet: chttpd.require_valid_user
+              # gates /_up too, so a plain httpGet gets 401 and the kubelet
+              # restart-loops a perfectly healthy pod. This mirrors what the
+              # official apache/couchdb-helm chart does under the same setting.
+              # Credentials come from the env, never the manifest.
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command:
+                      - sh
+                      - -c
+                      - >-
+                        curl -sf -u "$COUCHDB_USER:$COUCHDB_PASSWORD"
+                        http://localhost:5984/_up
+                  initialDelaySeconds: 20
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+            # Starting estimates only -- there is no 30d VictoriaMetrics history
+            # for a service that does not exist yet. Re-ground these once it has
+            # run a month, per the platform-requests convention:
+            #   quantile_over_time(0.90, container_memory_working_set_bytes{
+            #     namespace="obsidian", metrics_path="/metrics/cadvisor",
+            #     container!=""}[30d])
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 50m
+              limits:
+                memory: 1Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 5984
+
+    persistence:
+      data:
+        existingClaim: couchdb-data
+        globalMounts:
+          - path: /opt/couchdb/data
+      config:
+        type: configMap
+        name: couchdb-config
+        # subPath so this lands as a single file in local.d instead of masking
+        # the directory -- the entrypoint touches and writes docker.ini there
+        # (the [admins] block built from COUCHDB_USER/COUCHDB_PASSWORD), and a
+        # whole-directory mount would hide it and leave CouchDB in admin party
+        # mode. Sorting matters too: local.d is read alphabetically and later
+        # files win, so 10-livesync.ini loads before docker.ini and never
+        # clobbers the admin credentials.
+        globalMounts:
+          - path: /opt/couchdb/etc/local.d/10-livesync.ini
+            subPath: 10-livesync.ini
+            readOnly: true
