@@ -40,6 +40,16 @@ spec:
 
     replicaCount: 1
 
+    # The Login UI is a separate Deployment from zitadel itself and shipped with
+    # no requests. Sized from a 30d VictoriaMetrics window: p90 196, peak 228 MiB.
+    login:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 224Mi
+        limits:
+          memory: 512Mi
+
     # bitnami/kubectl has no version tags — only latest and digests.
     # Override the auto-derived Capabilities.KubeVersion tag to latest.
     setupJob:
