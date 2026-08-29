@@ -10,6 +10,7 @@ ARG RCLONE_VERSION
 RUN apk add --no-cache \
         bash \
         curl \
+        jq \
         unzip \
         ca-certificates \
         restic \
