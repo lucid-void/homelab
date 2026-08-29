@@ -396,8 +396,22 @@ Nothing is visibly broken — Cilium's rules win — but it is duplicated state,
 wasted resources, and a genuine source of confusion when debugging service
 routing (two authorities for the same iptables chains).
 
-**Action:** set `cluster.proxy.disabled: true` in `talconfig.yaml`, apply, and
-delete the DaemonSet. Verify service connectivity across all three nodes after.
+**Update 2026-08-29:** `cluster.proxy.disabled: true` **is now set** in
+`talconfig.yaml`, so Talos will not recreate the DaemonSet — but the DaemonSet
+itself is still running (3/3, object age 101d, i.e. it outlived the 72d node
+rebuild because it lives in etcd, not on the nodes). Talos does not garbage
+collect a bootstrap manifest it has stopped managing, and the object is not in
+git either (`owning-inventory: talos-bootstrap-manifests-inventory`), so neither
+Flux nor Talos will ever remove it. It is a pure orphan.
+
+This is also why kube-proxy was deliberately **excluded** from the 2026-08-29
+platform resource-request pass: sizing requests for a workload that should be
+deleted would only make it look intentional.
+
+**Action:** `kubectl delete daemonset kube-proxy -n kube-system`, then verify
+service connectivity from all three nodes. This is a live datapath change with
+no Flux/git rollback path (the object is not in git), so it wants a maintenance
+window rather than a drive-by.
 
 ### Degoog's FreshRSS plugin fails to start — stale API password — 2026-08-13
 

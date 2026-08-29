@@ -381,3 +381,10 @@ spec:
     victoria-metrics-operator:
       admissionWebhooks:
         enabled: false
+      # Sized from a 30d VictoriaMetrics window: p90 138, peak 145 MiB.
+      resources:
+        requests:
+          cpu: 10m
+          memory: 176Mi
+        limits:
+          memory: 352Mi
