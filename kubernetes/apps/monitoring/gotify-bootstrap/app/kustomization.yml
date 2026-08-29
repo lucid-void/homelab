@@ -4,3 +4,23 @@ kind: Kustomization
 resources:
   - ./rbac.yml
   - ./job.yml
+# The script is generated rather than inlined in the Job so that editing it is
+# what triggers a re-run: the generated name carries a content hash, so a change
+# alters the Job's pod spec, and `force: true` on the Flux Kustomization recreates
+# the (immutable) Job instead of failing on it. Flux prunes the superseded
+# ConfigMap once nothing references it.
+#
+# Deliberately NOT `options.immutable: true`. The hash suffix already means no
+# revision is ever edited in place, so the flag would only stop the kubelet
+# watching an object one short-lived pod reads — while blocking an emergency
+# in-place patch that Flux would anyway revert on the next reconcile.
+#
+# This is also why Reloader is not wired up here, despite it supporting Jobs
+# (ReCreateJobFromjob): it fires on in-place ConfigMap *content* updates, and a
+# hash-suffixed generator produces new names instead. Flux is already doing the
+# recreate, and `force: true` is needed regardless for edits to job.yml itself.
+configMapGenerator:
+  - name: gotify-bootstrap-script
+    namespace: monitoring
+    files:
+      - bootstrap.sh

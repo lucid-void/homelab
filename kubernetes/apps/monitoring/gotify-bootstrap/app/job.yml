@@ -4,199 +4,69 @@ kind: Job
 metadata:
   name: gotify-bootstrap
   namespace: monitoring
-  annotations:
-    # `apk add` writes to /etc/apk, /lib/apk and /var/cache
-    ignore-check.kube-linter.io/no-read-only-root-fs: "alpine bootstrap installs packages at startup"
-    # `apk add` at startup needs root; runAsNonRoot:true makes it fail silently
-    # with empty logs
-    ignore-check.kube-linter.io/run-as-non-root: "alpine bootstrap installs packages at startup"
 spec:
-  ttlSecondsAfterFinished: 86400
+  # Re-runs roughly hourly: the TTL deletes the finished Job and the Flux
+  # Kustomization (interval 30m) recreates it. That periodic run is what makes
+  # the drift check in bootstrap.sh worth anything — at the old 86400 a token
+  # lost just after midnight stayed dead until the next day.
+  ttlSecondsAfterFinished: 3600
+  # bootstrap.sh blocks on `until curl .../health` with no bound of its own. If
+  # Gotify never becomes reachable that loop would leave the pod Running and
+  # Ready forever with no failure — the exact shape that wedged three bootstrap
+  # Jobs for days in August 2026 and stalled everything downstream. A steady-state
+  # run takes ~10s, so 600s only fires on a genuine hang.
+  activeDeadlineSeconds: 600
   backoffLimit: 5
   template:
     spec:
       restartPolicy: OnFailure
       serviceAccountName: gotify-bootstrap
       securityContext:
-        runAsNonRoot: false
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
       containers:
         - name: bootstrap
-          image: alpine:3.24
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              set -eu
-              set -o pipefail
-
-              # Bounded and NOT silenced, both deliberately. `apk` has no default
-              # timeout, and this line used to end in `>/dev/null 2>&1`: on
-              # 2026-08-15 it hung on a transient network stall and sat there for
-              # 39h with the pod Running and Ready, zero log output, and `set -eu`
-              # blocking everything after it. That wedged this Job InProgress, so
-              # the gotify-bootstrap Kustomization health check never passed and
-              # falco / gatus / am-gotify-bridge / flux-notifications / vm-stack /
-              # proxmox-monitoring all stalled on the dependency -- which took out
-              # Alertmanager AND Flux's own failure alerting, so a Postgres primary
-              # crash-looping through the same window went unreported for four days.
-              # A retry fixes it (backoffLimit: 5), but only if it actually exits.
-              if ! timeout 300 apk add --no-cache curl jq kubectl; then
-                echo "FATAL: apk add failed or exceeded 300s — retrying via backoffLimit" >&2
-                exit 1
-              fi
-
-              GOTIFY_URL="http://gotify.monitoring.svc.cluster.local"
-
-              echo "Waiting for Gotify..."
-              until curl -sf "${GOTIFY_URL}/health" >/dev/null 2>&1; do sleep 5; done
-              echo "Gotify is ready."
-
-              # Fail fast on bad admin credentials. Otherwise every authenticated
-              # call 401s and each token silently resolves to empty — the failure
-              # mode that knocked out all notifications for days.
-              if ! curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" "${GOTIFY_URL}/current/user" >/dev/null; then
-                echo "FATAL: admin auth to Gotify failed — gotify-admin-secret does not match the Gotify admin password" >&2
-                exit 1
-              fi
-              echo "Admin auth OK."
-
-              upsert_secret() {
-                local ns="$1" name="$2" key="$3" value="$4"
-                kubectl create secret generic "$name" \
-                  --namespace="$ns" \
-                  --from-literal="${key}=${value}" \
-                  --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-              }
-
-              # Reads a token back out of the destination Secret. Empty if the
-              # Secret or key does not exist yet. `prefix` strips the non-token
-              # part of composite values (see flux-gotify below).
-              stored_token() {
-                local ns="$1" name="$2" key="$3" prefix="$4" raw
-                raw=$(kubectl get secret "$name" -n "$ns" -o "jsonpath={.data.${key}}" 2>/dev/null \
-                  | base64 -d 2>/dev/null) || raw=""
-                printf '%s' "${raw#"$prefix"}"
-              }
-
-              # Gotify 3 only ever discloses a token at creation or rotation —
-              # GET /application blanks the field (v2 returned it on every read).
-              # So the v2 "look it up each run" approach would no longer match an
-              # existing app and would create a duplicate application every run.
-              #
-              # Instead the destination Secret is the source of truth: if the app
-              # still exists in Gotify *and* we already hold its token, reuse it.
-              # Otherwise mint a new one — POST for a missing app, or
-              # PUT /application/{id}/security to rotate one whose token we lost.
-              # Rotation requires an elevated session; HTTP Basic auth satisfies
-              # that (auth.RequireElevatedClient accepts basic auth), so no
-              # /client/{id}/elevate dance is needed.
-              ensure_app_token() {
-                local name="$1" desc="$2" ns="$3" secret="$4" key="$5" prefix="${6:-}"
-                local id stored token
-
-                id=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" "${GOTIFY_URL}/application" \
-                  | jq -r --arg n "$name" 'map(select(.name == $n)) | first | .id // empty') || true
-                stored=$(stored_token "$ns" "$secret" "$key" "$prefix")
-
-                if [ -n "$id" ] && [ -n "$stored" ]; then
-                  token="$stored"
-                  echo "  ${name}: reused (app ${id})"
-                elif [ -n "$id" ]; then
-                  token=$(curl -sf -X PUT -u "admin:${GOTIFY_ADMIN_PASS}" \
-                    -H "Content-Type: application/json" \
-                    -d '{"regenerateToken":true}' \
-                    "${GOTIFY_URL}/application/${id}/security" \
-                    | jq -r '.regenerateToken.token // empty') || true
-                  echo "  ${name}: rotated (app ${id})"
-                else
-                  token=$(curl -sf -X POST -u "admin:${GOTIFY_ADMIN_PASS}" \
-                    -H "Content-Type: application/json" \
-                    -d "$(jq -nc --arg n "$name" --arg d "$desc" '{name: $n, description: $d}')" \
-                    "${GOTIFY_URL}/application" | jq -r '.token // empty') || true
-                  echo "  ${name}: created"
-                fi
-
-                if [ -z "$token" ]; then
-                  echo "FATAL: could not obtain app token for '${name}'" >&2
-                  exit 1
-                fi
-                upsert_secret "$ns" "$secret" "$key" "${prefix}${token}"
-              }
-
-              # Same idea for the streaming client token, except Gotify 3 has no
-              # client rotation endpoint — PUT /client/{id} returns only the
-              # public token prefix. Losing a client token therefore means
-              # delete + recreate. `expiresAfterInactivitySeconds: 0` opts out of
-              # the new automatic inactive-client cleanup.
-              ensure_client_token() {
-                local name="$1" ns="$2" secret="$3" key="$4"
-                local id stored token
-
-                id=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" "${GOTIFY_URL}/client" \
-                  | jq -r --arg n "$name" 'map(select(.name == $n)) | first | .id // empty') || true
-                stored=$(stored_token "$ns" "$secret" "$key" "")
-
-                if [ -n "$id" ] && [ -n "$stored" ]; then
-                  token="$stored"
-                  echo "  ${name} client: reused (client ${id})"
-                else
-                  if [ -n "$id" ]; then
-                    curl -sf -X DELETE -u "admin:${GOTIFY_ADMIN_PASS}" \
-                      "${GOTIFY_URL}/client/${id}" >/dev/null || true
-                    echo "  ${name} client: token lost — recreating (was client ${id})"
-                  else
-                    echo "  ${name} client: created"
-                  fi
-                  token=$(curl -sf -X POST -u "admin:${GOTIFY_ADMIN_PASS}" \
-                    -H "Content-Type: application/json" \
-                    -d "$(jq -nc --arg n "$name" '{name: $n, expiresAfterInactivitySeconds: 0}')" \
-                    "${GOTIFY_URL}/client" | jq -r '.token // empty') || true
-                fi
-
-                if [ -z "$token" ]; then
-                  echo "FATAL: could not obtain client token for '${name}'" >&2
-                  exit 1
-                fi
-                upsert_secret "$ns" "$secret" "$key" "$token"
-              }
-
-              # Names only — never token values, these land in pod logs.
-              echo "Provisioning tokens:"
-
-              ensure_app_token "etcd-snapshot"    "etcd snapshot backup notifications"    kube-system gotify-secret        GOTIFY_TOKEN
-              ensure_app_token "homebox-backup"   "Homebox backup job notifications"      homebox     gotify-secret        GOTIFY_TOKEN
-              ensure_app_token "postgres-backup"  "Postgres backup job notifications"     postgres    gotify-secret        GOTIFY_TOKEN
-              ensure_app_token "immich-backup"    "Immich backup job notifications"       immich      gotify-secret        GOTIFY_TOKEN
-              ensure_app_token "paperless-backup" "Paperless backup job notifications"    paperless   gotify-secret        GOTIFY_TOKEN
-              ensure_app_token "gitea-backup"     "Gitea backup job notifications"        gitea       gotify-secret        GOTIFY_TOKEN
-              ensure_app_token "joplin-backup"    "Joplin backup job notifications"       joplin      gotify-secret        GOTIFY_TOKEN
-              ensure_app_token "obsidian-backup"  "Obsidian CouchDB backup notifications" obsidian    gotify-secret        GOTIFY_TOKEN
-              ensure_app_token "minecraft-backup" "Minecraft backup job notifications"    media       gotify-secret        GOTIFY_TOKEN
-              ensure_app_token "minecraft-events" "Minecraft player join/leave events"   media       minecraft-events-gotify-secret GOTIFY_TOKEN
-              ensure_app_token "security-scanner" "Trivy weekly security report"          security    gotify-secret        GOTIFY_TOKEN
-              ensure_app_token "falco"            "Falco runtime security alerts"         security    falco-gotify-secret  GOTIFY_TOKEN
-              ensure_app_token "gatus"            "Gatus health monitoring alerts"        monitoring  gatus-gotify-secret  GOTIFY_TOKEN
-              ensure_app_token "alertmanager"     "AlertManager firing rule notifications" monitoring gotify-secret        GOTIFY_TOKEN
-
-              # Flux notification-controller Provider (flux-notifications) auths to
-              # Gotify with this header. Lives in `monitoring` (the Provider's own
-              # namespace — secretRef resolves there). Key is `headers` (not
-              # GOTIFY_TOKEN) because the generic webhook provider reads the token
-              # from an HTTP header, formatted as YAML `Header: value`.
-              ensure_app_token "flux" "Flux GitOps reconciliation failures" \
-                monitoring flux-gotify headers "X-Gotify-Key: "
-
-              ensure_client_token "admin" monitoring gotify-client-secret CLIENT_TOKEN
-
-              echo "Bootstrap complete."
+          # backup-tools bundles bash + curl + jq + kubectl, which is the whole
+          # dependency set. This used to be a bare alpine image running
+          # `apk add curl jq kubectl` at every start — a network fetch on every
+          # run, and on 2026-08-15 a transient stall hung it for 39h.
+          image: ghcr.io/lucid-void/backup-tools:v1.1.0
+          command: ["/bin/bash", "/scripts/bootstrap.sh"]
           env:
             - name: GOTIFY_ADMIN_PASS
               valueFrom:
                 secretKeyRef:
                   name: gotify-admin-secret
                   key: GOTIFY_DEFAULTUSER_PASS
+            # kubectl writes a discovery cache under $HOME; the root filesystem
+            # is read-only, so point it at the tmp emptyDir.
+            - name: HOME
+              value: /tmp
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: 64Mi
               cpu: 50m
             limits:
               memory: 128Mi
+      volumes:
+        # Generated by configMapGenerator, so the name carries a content hash.
+        # Editing bootstrap.sh therefore changes this pod spec, which is what
+        # drives the re-run — see kustomization.yml.
+        - name: script
+          configMap:
+            name: gotify-bootstrap-script
+            defaultMode: 0555
+        - name: tmp
+          emptyDir: {}

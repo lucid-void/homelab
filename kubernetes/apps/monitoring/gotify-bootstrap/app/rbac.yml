@@ -27,3 +27,35 @@ subjects:
   - kind: ServiceAccount
     name: gotify-bootstrap
     namespace: monitoring
+---
+# The run-classification state (script hash + last run) lives in a ConfigMap that
+# this Job writes itself, so it is deliberately namespaced rather than folded into
+# the cluster-wide Secret grant above.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gotify-bootstrap-state
+  namespace: monitoring
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["gotify-bootstrap-state"]
+    verbs: ["get", "update", "patch"]
+  # `create` cannot be restricted by resourceName — the object does not exist yet.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gotify-bootstrap-state
+  namespace: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gotify-bootstrap-state
+subjects:
+  - kind: ServiceAccount
+    name: gotify-bootstrap
+    namespace: monitoring

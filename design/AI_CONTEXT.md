@@ -100,7 +100,7 @@ Zitadel bootstrap Job provisions OIDC clients via Terraform + Zitadel API. Write
 
 **CNPG DB passwords:** `{app}-role-secret` in `postgres` namespace (CNPG-managed) → mirrored to app namespace by Reflector. Apps reference `secretKeyRef: {name: myapp-role-secret, key: password}`.
 
-**Gotify tokens:** plain k8s Secrets written by `gotify-bootstrap` Job (not SealedSecrets). `optional: true` on backup CronJob references. Includes the `flux` app token → `monitoring/flux-gotify` (`headers` key, not `GOTIFY_TOKEN`) consumed by the `flux-notifications` Provider.
+**Gotify tokens:** plain k8s Secrets written by `gotify-bootstrap` Job (not SealedSecrets). `optional: true` on backup CronJob references. Includes the `flux` app token → `monitoring/flux-gotify` (`headers` key, not `GOTIFY_TOKEN`) consumed by the `flux-notifications` Provider. The Job re-runs roughly hourly (`ttlSecondsAfterFinished: 3600` + 30m Kustomization interval), so a lost token self-heals; a repair on an unchanged script is reported as drift to Gotify at priority 8.
 
 **Flux failure alerting:** `flux-notifications` (in `monitoring`) = one generic-webhook `Provider` → Gotify + one `Alert` at `eventSeverity: error` watching `Kustomization` (cluster-wide via flux-system, the gapless backstop) and `HelmRelease` (per app namespace). Closes the meta-hole where Flux — which deploys the metrics-alerting stack — could itself fail silently.
 
@@ -191,7 +191,7 @@ Full inventory with storage details: `docs/services.md`.
 
 **Plex SQLite over NFS:** NFS causes SQLite WAL locking errors in Plex. Config PVC uses `openebs-hostpath` (local disk), not `nfs-client`.
 
-**gotify-bootstrap Job immutability:** Job spec is immutable after creation. If the manifest changes while the completed Job is within 24h TTL, delete it and let Flux recreate: `kubectl delete job gotify-bootstrap -n monitoring`.
+**Bootstrap Job immutability:** Job spec is immutable after creation, so a manifest change while the completed Job still exists fails the apply with `field is immutable` and leaves the Kustomization NotReady. Both `gotify-bootstrap` and `zitadel-bootstrap` set `force: true` on their Flux Kustomization, which makes Flux delete and recreate the Job instead — and is what turns "edit the script" into "re-run now". A Job without `force: true` still needs `kubectl delete job <name> -n <ns>` by hand.
 
 **Stakater Reloader image tag:** Chart v1.0.112 has a `vv1.0.112` double-v appVersion bug causing ImagePullBackOff. Override: `reloader.deployment.image.tag: "v1.0.112"` in HelmRelease values.
 

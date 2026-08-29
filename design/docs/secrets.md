@@ -211,7 +211,7 @@ Backup CronJobs (`immich-backup`, `paperless-backup`, etc.) need three secrets p
 | `restic-sealed` | `RESTIC_PASSWORD` | SealedSecret |
 | `gotify-secret` | `GOTIFY_TOKEN` | Written by `gotify-bootstrap` Job (not a SealedSecret) |
 
-`gotify-secret` is **not** a SealedSecret — `gotify-bootstrap` creates the Gotify app token via REST API and writes the plain Secret. This is intentional (idempotent re-provisioning after a Gotify DB reset). All backup jobs reference it with `optional: true` so they start even if the token hasn't been provisioned yet.
+`gotify-secret` is **not** a SealedSecret — `gotify-bootstrap` creates the Gotify app token via REST API and writes the plain Secret. This is intentional (idempotent re-provisioning after a Gotify DB reset). All backup jobs reference it with `optional: true` so they start even if the token hasn't been provisioned yet. The Job re-runs roughly hourly, so a deleted Secret is rewritten within the hour — and because that repair is indistinguishable from a normal run, a repair on an unchanged script is announced as drift (Gotify, priority 8) rather than passing quietly.
 
 **These Secrets are the source of truth for the token values.** Gotify 3 discloses a token only at creation or rotation — `GET /application` and `GET /client` blank the field — so the bootstrap Job cannot look a token back up from Gotify. It therefore reads the destination Secret first and reuses the stored token whenever the corresponding Gotify application still exists. A token is only minted when the app is missing (`POST /application`) or when the Secret is missing (`PUT /application/{id}/security` to rotate). Deleting one of these Secrets by hand silently rotates that token on the next bootstrap run.
 
