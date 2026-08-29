@@ -1,0 +1,25 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app protonmail-bridge
+  namespace: flux-system
+spec:
+  targetNamespace: paperless
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  # openebs only: the bridge has no secrets, no database and no ingress. It is
+  # deliberately NOT a dependency of `paperless` and paperless is not a
+  # dependency of it — paperless serves documents fine with the bridge down,
+  # and the bridge syncs mail fine with paperless down.
+  dependsOn:
+    - name: openebs
+  path: ./kubernetes/apps/paperless/protonmail-bridge/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: false
+  interval: 30m
+  timeout: 10m

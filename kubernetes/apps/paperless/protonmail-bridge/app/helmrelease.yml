@@ -1,0 +1,109 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: protonmail-bridge
+  namespace: paperless
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    timeout: 15m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 15m
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        # Pinned explicitly: an out-of-band scale-down otherwise sticks, since
+        # Flux does not reconcile replicas unless chart/values change (see the
+        # homebox decision). The bootstrap procedure scales this to 0.
+        replicas: 1
+        # Recreate, never RollingUpdate. Two things forbid a second pod: the
+        # RWO hostpath volume, and the bridge vault itself — two bridges on one
+        # vault race on the gluon SQLite state. A rolling update would also
+        # deadlock on the volume and leave the old pod serving.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/videocurio/proton-mail-bridge
+              tag: v3.24.2
+            env:
+              TZ: Europe/Brussels
+              # Baked into the image already; restated because they are the
+              # contract this Service depends on. The bridge itself only ever
+              # binds 127.0.0.1, so the entrypoint runs socat to republish it on
+              # the pod IP — CONTAINER_* is socat's listen side, PROTON_BRIDGE_*
+              # is the bridge's own. They must stay different or socat loops.
+              PROTON_BRIDGE_HOST: 127.0.0.1
+              PROTON_BRIDGE_IMAP_PORT: "1143"
+              PROTON_BRIDGE_SMTP_PORT: "1025"
+              CONTAINER_IMAP_PORT: "143"
+              CONTAINER_SMTP_PORT: "25"
+            probes:
+              # Probe the *bridge's* own listener, not socat's. socat binds
+              # :143 the moment the entrypoint runs and accepts connections
+              # whether or not the bridge behind it is up, so a TCP probe on
+              # :143 is always green and says nothing.
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command:
+                      - /bin/bash
+                      - -c
+                      - "netstat -ltn | grep -q '127.0.0.1:1143'"
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              # No liveness probe on purpose. The entrypoint is
+              # `cat faketty | bridge --cli`, so if the bridge exits the
+              # pipeline ends, PID 1 returns and the container restarts on its
+              # own. A liveness probe would add nothing except the risk of
+              # killing a long initial mailbox sync.
+              liveness:
+                enabled: false
+              startup:
+                enabled: false
+            # Runs as root by design: gpg/pass keep the vault key under /root,
+            # and socat binds the privileged ports 25/143. Namespace PSA is the
+            # cluster default (baseline), which permits both.
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 50m
+              limits:
+                # Sync is the peak, not steady state; the bridge decrypts and
+                # indexes every message on first login.
+                memory: 1Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          # IMAP only. The container also listens on :25, but nothing here
+          # sends mail through Proton, so it is left unpublished.
+          imap:
+            port: 143
+
+    persistence:
+      config:
+        existingClaim: protonmail-bridge-config
+        advancedMounts:
+          app:
+            app:
+              - path: /root

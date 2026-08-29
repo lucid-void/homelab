@@ -463,6 +463,119 @@ nft add rule ip nat prerouting tcp dport 443 redirect to :8006
 Do **not** front Proxmox behind the cluster Gateway (172.16.20.50) — that creates a
 circular dependency, since the Gateway runs on the VMs this host hypervises.
 
+### Bootstrap Proton Mail Bridge (one-time, and after a vault loss)
+
+Proton Mail is end-to-end encrypted, so Paperless can only read it through
+Proton Mail Bridge, which logs in and re-serves the mailbox as local IMAP.
+Login needs an account password and a 2FA code typed by a human, so unlike the
+Zitadel/Gotify/Kavita bootstraps **there is no Job for this** — it is manual,
+and it is only re-run if the `protonmail-bridge-config` volume is lost.
+
+Requires a **paid** Proton plan; bridge refuses to log in on free accounts.
+
+**1. Stop the running bridge.** Only one instance may hold the vault, and the
+container's entrypoint starts one automatically. Do not try to log in inside the
+live pod: `pkill bridge` there ends the entrypoint pipeline and the container
+dies out from under your exec session. Flux would also undo a bare `kubectl
+scale` at its next reconcile, so suspend it first.
+
+```bash
+flux suspend helmrelease protonmail-bridge -n paperless
+kubectl scale deploy/protonmail-bridge -n paperless --replicas=0
+kubectl wait --for=delete pod -l app.kubernetes.io/name=protonmail-bridge -n paperless --timeout=2m
+```
+
+**2. Start a throwaway pod on the same volume**, with the entrypoint overridden
+so no bridge starts on its own:
+
+```bash
+kubectl run protonmail-bridge-init -n paperless --restart=Never -it --rm \
+  --image=ghcr.io/videocurio/proton-mail-bridge:v3.24.2 \
+  --overrides='{"spec":{"containers":[{"name":"init","image":"ghcr.io/videocurio/proton-mail-bridge:v3.24.2","command":["sleep","infinity"],"stdin":true,"tty":true,"volumeMounts":[{"name":"config","mountPath":"/root"}]}],"volumes":[{"name":"config","persistentVolumeClaim":{"claimName":"protonmail-bridge-config"}}]}}' \
+  -- sleep infinity
+```
+
+Then, in a second terminal:
+
+```bash
+kubectl exec -it protonmail-bridge-init -n paperless -- /bin/bash
+```
+
+**3. Log in and export the certificate.** Inside that shell:
+
+```bash
+/app/entrypoint.sh &   # creates the gpg key + pass store on first run only
+sleep 5; pkill -f 'bridge --cli'   # stop the bridge it starts; keep the keyring
+/usr/bin/bridge --cli
+```
+
+At the `>>>` prompt:
+
+```
+login                       # username, password, 2FA — then wait for the sync
+info                        # copy the generated IMAP password (NOT your Proton password)
+cert export                 # write cert.pem/key.pem; give it /root when prompted
+exit
+```
+
+`info` prints `Address: 127.0.0.1, IMAP port: 1143, Security: STARTTLS` and a
+**generated** password unique to bridge. That password is what Paperless uses.
+Ignore the address/port it prints — see step 5 for what to actually enter.
+
+**4. Commit the certificate.** Bridge keeps its TLS certificate inside the
+encrypted vault, so this export is the only way to get it. It is a public
+certificate — a plain ConfigMap, nothing to seal:
+
+```bash
+kubectl exec protonmail-bridge-init -n paperless -- cat /root/cert.pem > /tmp/bridge-cert.pem
+
+kubectl create configmap protonmail-bridge-cert -n paperless \
+  --from-file=cert.pem=/tmp/bridge-cert.pem \
+  --dry-run=client -o yaml \
+  > kubernetes/apps/paperless/protonmail-bridge/app/cert-configmap.yml
+```
+
+Add `./cert-configmap.yml` to that directory's `kustomization.yml`, then clean up
+and bring the bridge back:
+
+```bash
+kubectl delete pod protonmail-bridge-init -n paperless
+flux resume helmrelease protonmail-bridge -n paperless
+kubectl scale deploy/protonmail-bridge -n paperless --replicas=1
+```
+
+Commit and push. Paperless mounts the ConfigMap `optional: true` and reads the
+file per mail fetch, so it needs no restart once the mount populates.
+
+**5. Add the mail account in the Paperless UI** (Settings → Mail, runtime app
+state, not GitOps):
+
+| Field | Value |
+|---|---|
+| IMAP server | `127.0.0.1` |
+| IMAP port | `1143` |
+| IMAP security | **STARTTLS** |
+| Username | your Proton address |
+| Password | the generated password from `info` |
+
+`127.0.0.1` is not a typo and not a shortcut. Bridge's certificate carries a
+single SAN, `IP:127.0.0.1`, and Paperless verifies hostnames unconditionally, so
+the Service name would fail the handshake even with the certificate trusted. The
+`bridge` socat sidecar in the Paperless pod listens on `127.0.0.1:1143` and
+forwards to the bridge Service. See `design/decisions/protonmail-bridge.md`.
+
+**Verify** end to end:
+
+```bash
+kubectl exec deploy/paperless-app -n paperless -c app -- \
+  python -c "import ssl,imaplib; c=ssl.create_default_context(cafile='/etc/ssl/protonmail/cert.pem'); \
+m=imaplib.IMAP4('127.0.0.1',1143); m.starttls(c); print(m.noop())"
+```
+
+`('OK', [b'...'])` means trust, hostname and reachability are all correct. A
+`CERTIFICATE_VERIFY_FAILED` means the ConfigMap is missing or stale; an
+`IP address mismatch` means something is dialling a name instead of `127.0.0.1`.
+
 ### Defragment etcd (`etcdDatabaseHighFragmentationRatio`)
 
 etcd is copy-on-write with MVCC: every write creates a new revision, and
@@ -789,7 +902,7 @@ a single file to stdout — handy for piping a `.pgdump` straight into `pg_resto
 search index, not source data. After restoring a paperless snapshot, rebuild it:
 
 ```bash
-mise exec -- kubectl exec -n paperless deploy/paperless-app -- \
+mise exec -- kubectl exec -n paperless deploy/paperless-app -c app -- \
   document_index reindex
 ```
 
