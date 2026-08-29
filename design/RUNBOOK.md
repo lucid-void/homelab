@@ -535,8 +535,28 @@ kubectl create configmap protonmail-bridge-cert -n paperless \
   > kubernetes/apps/paperless/protonmail-bridge/app/cert-configmap.yml
 ```
 
-Add `./cert-configmap.yml` to that directory's `kustomization.yml`, then clean up
-and bring the bridge back:
+In the **same commit**, do two more things or mail will not work:
+
+- add `./cert-configmap.yml` to that directory's `kustomization.yml`;
+- **uncomment `PAPERLESS_EMAIL_CERTIFICATE_LOCATION`** in
+  `kubernetes/apps/paperless/paperless/app/helmrelease.yml`.
+
+That env var is deliberately commented out until this point. Paperless
+registers a Django system check that raises an **Error** — `Email cert <path>
+is not a file` — when the variable is set but the file is absent, and an
+Error-level check aborts startup with `SystemCheckError`. Setting it before the
+ConfigMap exists is therefore a crash loop, not a deferred mail failure: the pod
+never goes Ready, the Helm upgrade times out, and Flux rolls the release back.
+The `optional: true` mount only stops the *kubelet* blocking on the missing
+ConfigMap; it does nothing about the check. Confirm before committing:
+
+```bash
+kubectl exec deploy/paperless-app -n paperless -c app -- \
+  env PAPERLESS_EMAIL_CERTIFICATE_LOCATION=/etc/ssl/protonmail/cert.pem \
+  python manage.py check
+```
+
+Then clean up and bring the bridge back:
 
 ```bash
 kubectl delete pod protonmail-bridge-init -n paperless

@@ -77,7 +77,25 @@ spec:
               # context with ssl.create_default_context(), where check_hostname
               # is True and not configurable, so connecting to the Service DNS
               # name fails verification no matter what CA is trusted.
-              PAPERLESS_EMAIL_CERTIFICATE_LOCATION: /etc/ssl/protonmail/cert.pem
+              #
+              # DELIBERATELY COMMENTED OUT UNTIL THE BRIDGE IS BOOTSTRAPPED.
+              # Uncomment in the same commit that adds cert-configmap.yml —
+              # RUNBOOK step 4. Setting it earlier is a HARD STARTUP FAILURE,
+              # not a deferred mail error: paperless registers a Django system
+              # check (paperless/checks.py::_email_certificate_validate) that
+              # raises Error "Email cert <path> is not a file" when the path is
+              # set but absent, and an Error-level check aborts boot with
+              # SystemCheckError. The optional mount below stops the kubelet
+              # blocking on a missing ConfigMap; it does NOT stop paperless
+              # refusing to start. Verified on 3.1.0 and 3.0.5 alike:
+              #   kubectl exec deploy/paperless-app -c app -- \
+              #     env PAPERLESS_EMAIL_CERTIFICATE_LOCATION=/nope \
+              #     python manage.py check
+              # Note also that load_verify_locations(cafile=...) REPLACES the
+              # default trust store rather than adding to it, so once this is
+              # set, any other mail account on a publicly-trusted IMAP server
+              # would stop verifying. Only the bridge is expected here.
+              # PAPERLESS_EMAIL_CERTIFICATE_LOCATION: /etc/ssl/protonmail/cert.pem
               # Defaults to true in 3.0.5, set explicitly because it is exactly
               # the kind of default that tightens: paperless 3.x resolves the
               # mail host and refuses non-public IPs (paperless_mail/mail.py,

@@ -1,0 +1,180 @@
+# Proton Mail Bridge — decisions
+
+Proton Mail is end-to-end encrypted, so there is no IMAP server to point
+Paperless at: mail is only decryptable by a client holding the account's PGP
+keys. Proton Mail Bridge is that client. It logs into the account, decrypts
+locally, and re-serves the mailbox as a **local** IMAP/SMTP server. Paperless
+then consumes ordinary IMAP.
+
+Lives in the `paperless` namespace because it exists solely for Paperless, but
+it is a separate Flux Kustomization and a separate Deployment: neither app
+depends on the other's Kustomization, and either can be down without the other
+noticing (Paperless just stops finding new mail).
+
+## Image: `ghcr.io/videocurio/proton-mail-bridge`, not `shenxn/protonmail-bridge`
+
+Proton ships no official container. `shenxn/protonmail-bridge` is the image
+almost every guide names (~690 stars) and it is the **wrong** choice as of
+2026-08: its CI has been red for over a year. `VERSION` in that repo tracks
+upstream (v3.26.0 on 2026-08-27) but **both** publish workflows fail on every
+bump, so the newest image actually pushed to Docker Hub is `3.19.0-build`,
+dated **2025-04-02**. The repo looks maintained — commits land monthly — while
+the registry has been frozen for ~16 months. Check the *registry tags*, never
+the commit log, before trusting it again.
+
+VideoCurio's image is a source build of the same upstream, published to GHCR
+with immutable `vX.Y.Z` tags (`v3.24.2`, 2026-04). Pinned to the exact tag per
+the repo-wide image policy; Renovate can follow the `v`-prefixed semver.
+
+Bridge talks to Proton's API and Proton deprecates old clients, so a stale
+bridge eventually stops authenticating. **Bridge version is a liveness
+dependency, not just a CVE concern** — if login starts failing, check the age of
+the pinned tag first.
+
+Note: bridge login **requires a paid Proton plan**. Free accounts cannot use it.
+
+## Storage: `openebs-hostpath`, and not backed up
+
+`/root` holds the gpg/`pass` keyring, the encrypted vault, and gluon's IMAP
+state database. Gluon is the IMAP server library Proton wrote for bridge v3 and
+it is **SQLite** (`ProtonMail/gluon` pulls in `mattn/go-sqlite3`), with a
+write-heavy message-literal cache beneath it. SQLite on NFS is the classic
+silent-corruption setup, so this follows the Minecraft-world precedent: local
+disk, node-pinned, acceptable because all three control planes are VMs on one
+Proxmox host.
+
+Deliberately **excluded from backups**. The volume is credentials plus a cache
+of mail that already lives at Proton; recovery is a re-login, and shipping an
+auth vault to Filen would be strictly worse than not having it. `openebs-hostpath`
+cannot expand in place, so it is sized (20Gi) for the mailbox up front — growing
+it means deleting the PVC and re-running the bootstrap.
+
+`strategy: Recreate` and `replicas: 1` are both load-bearing: two bridges on one
+vault race on the gluon database, and a RollingUpdate would deadlock on the RWO
+volume while the old pod kept serving.
+
+## The certificate is the whole problem
+
+Everything awkward about this deployment comes from one upstream fact.
+
+Bridge serves IMAP over **STARTTLS with a self-signed certificate, and there is
+no plaintext option** — the only setting is STARTTLS vs SSL. So the certificate
+must be dealt with; it cannot be skipped.
+
+Worse, that certificate carries exactly **one SAN: `IP:127.0.0.1`**. From
+`internal/certs/tls.go`: `CommonName: "127.0.0.1"`, `IPAddresses:
+{127.0.0.1}`, **no DNS names**, `IsCA: true`, 20-year validity. It is generated
+once and stored **inside the encrypted vault**, not as a file on disk — so there
+is no `cert.pem` for a sidecar to scrape.
+
+Paperless builds its context with `ssl.create_default_context()`
+(`paperless_mail/mail.py`), where `check_hostname` is `True` and not
+configurable. That means:
+
+- Trusting the certificate is only **half** the job. `PAPERLESS_EMAIL_CERTIFICATE_LOCATION`
+  fixes *trust*; it does nothing for *hostname verification*.
+- Connecting to `protonmail-bridge:143` fails verification no matter what CA is
+  trusted, because the name is not in the certificate.
+- The address dialled must be **literally `127.0.0.1`**.
+
+Hence the `bridge` socat sidecar in the Paperless pod. It listens on
+`127.0.0.1:1143` and forwards to the bridge Service. It is a **plain TCP** relay
+— it terminates no TLS, so STARTTLS is still negotiated end-to-end and the
+certificate arrives untouched; its only job is to make the dialled address match
+the one SAN. The mail account is therefore configured as host `127.0.0.1`, port
+`1143`, security **STARTTLS**.
+
+The certificate itself is exported once during bootstrap (`cert export` in the
+bridge CLI) and committed as a plain **ConfigMap** — a certificate is public,
+there is nothing to seal. It is mounted `optional: true` via `type: custom`,
+because app-template's `type: configMap` volume schema has no `optional` field
+and without it Paperless would sit in `ContainerCreating` from the moment the
+manifest lands until the bootstrap finishes. Mounted as a directory rather than
+a `subPath` so the kubelet refreshes it in place; Paperless loads the file per
+mail fetch, so a re-export needs no restart.
+
+### The bootstrap is two-phase, and skipping that caused an outage
+
+`PAPERLESS_EMAIL_CERTIFICATE_LOCATION` must stay **commented out** until the
+cert ConfigMap exists, and is uncommented in the same commit that adds it.
+
+This is not tidiness. Paperless registers a Django system check
+(`paperless/checks.py::_email_certificate_validate`) that emits an **`Error`** —
+`Email cert <path> is not a file` — whenever the variable is set and the path is
+absent. An Error-level system check aborts startup with `SystemCheckError`, so
+the container exits within seconds, never goes Ready, the Helm upgrade times out
+on `Deployment/paperless-app status: 'InProgress'`, and Flux rolls the release
+back. Present in 3.0.5 and 3.1.0 alike — this is not a version regression.
+
+The trap is that `optional: true` looks like it solves the ordering problem and
+does not. It governs the **kubelet**, which will happily start a pod with an
+absent optional ConfigMap; it has no bearing on whether the *application* agrees
+to boot. Reading `settings/__init__.py` alone reinforces the illusion —
+`get_path_from_env` does no existence validation whatsoever, so the path looks
+inert until it is read at mail-fetch time. The validation lives in a completely
+separate file. **Check `checks.py`, not just `settings.py`, before assuming a
+paperless env var is lazily evaluated.**
+
+Reproduce in one line, without touching the deployment:
+
+```bash
+kubectl exec deploy/paperless-app -n paperless -c app -- \
+  env PAPERLESS_EMAIL_CERTIFICATE_LOCATION=/nope python manage.py check
+```
+
+One further consequence worth knowing: `load_verify_locations(cafile=...)`
+**replaces** the default trust store rather than adding to it. Once this
+variable is set, a second mail account pointed at a publicly-trusted IMAP server
+would stop verifying. Only the bridge is expected here.
+
+**Rejected alternative:** bridge has a `cert import` CLI command that takes a
+custom cert/key path (stored in the vault as `CustomCertPath`, re-read at
+startup). A cert-manager certificate with a real DNS SAN would remove both the
+socat sidecar and the committed ConfigMap, and let Paperless dial the Service
+name. It was not taken because it needs a new self-signed CA issuer, a mounted
+keypair, and a Reloader hook to restart the bridge on renewal — a lot of moving
+parts to delete one 5 MB sidecar. Revisit if the sidecar becomes a nuisance.
+
+## `PAPERLESS_EMAIL_ALLOW_INTERNAL_HOSTS`
+
+Paperless 3.x resolves the mail host and refuses to connect if it lands on a
+non-public IP (`"Connection blocked: … resolves to a non-public address"`). The
+bridge is `127.0.0.1`, i.e. the most non-public address there is. It **defaults
+to `true` in 3.0.5** so nothing is broken today, but it is set explicitly
+because it is exactly the kind of default that tightens in a later release, and
+the failure would look like a mail problem rather than a policy one.
+
+## Login is interactive and cannot be GitOps'd
+
+Proton login needs an account password and a 2FA code typed by a human, so
+there is no Job that can do this — unlike the Zitadel/Gotify/Kavita bootstraps.
+It is a one-time manual procedure (RUNBOOK → "Bootstrap Proton Mail Bridge"),
+re-run only if the vault is lost.
+
+Two traps in that procedure:
+
+1. Only one bridge instance may hold the vault, and the container's entrypoint
+   **starts one automatically**. Logging in means stopping the Deployment first,
+   not exec'ing into the running pod — `pkill bridge` inside the live pod ends
+   the entrypoint pipeline and kills the container out from under the exec
+   session.
+2. Flux reverts a `kubectl scale` on its next reconcile (30m), so the HelmRelease
+   must be **suspended** for the duration.
+
+## Ports
+
+The bridge binds only `127.0.0.1` (1143 IMAP / 1025 SMTP); the image's entrypoint
+runs socat to republish those on the pod IP as `:143` / `:25`. `CONTAINER_*` is
+socat's listen side and `PROTON_BRIDGE_*` is the bridge's own — **they must stay
+different values or socat forwards to itself**.
+
+The Service publishes **IMAP only**. The container also listens on `:25`, but
+nothing here sends mail through Proton, so it is left unpublished.
+
+Readiness probes the *bridge's* listener (`netstat … 127.0.0.1:1143`), not
+socat's `:143` — socat binds immediately and accepts connections whether or not
+the bridge behind it is up, so a TCP probe on `:143` is green from second one
+and tells you nothing. There is no liveness probe: the entrypoint is
+`cat faketty | bridge --cli`, so if the bridge exits the pipeline ends and the
+container restarts on its own, and a liveness probe would only risk killing a
+long initial sync.
