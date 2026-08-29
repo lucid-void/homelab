@@ -338,7 +338,7 @@ spec:
           world-size:
             image:
               repository: python
-              tag: "3.13-alpine"
+              tag: "3.14-alpine"
             command: ["python3", "-u", "/exporter/exporter.py"]
             env:
               SERVER_NAME: matcha
