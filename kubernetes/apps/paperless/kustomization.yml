@@ -5,4 +5,5 @@ resources:
   - ./namespace.yml
   - ./database/ks.yml
   - ./paperless/ks.yml
+  - ./protonmail-bridge/ks.yml
   - ./backup/ks.yml

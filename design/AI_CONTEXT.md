@@ -146,6 +146,7 @@ kubernetes/
 | Zitadel | auth | `auth.blackcats.cc` | Self (IDP) |
 | Immich | immich | `immich.blackcats.cc` | Zitadel OIDC |
 | Paperless-ngx | paperless | `paperless.blackcats.cc` | Zitadel OIDC |
+| Proton Mail Bridge | paperless | — (ClusterIP `protonmail-bridge:143`, IMAP only) | Proton account, entered once by hand |
 | Gitea | gitea | `gitea.blackcats.cc` | Zitadel OIDC |
 | FreshRSS | freshrss | `rss.blackcats.cc` | Zitadel OIDC |
 | Homebox | homebox | `homebox.blackcats.cc` | Built-in |
@@ -180,6 +181,10 @@ Full inventory with storage details: `docs/services.md`.
 **Talos kubelet mount namespace:** Kubelet runs in a private mount namespace. Pod `hostPath` writes are invisible to the kubelet unless `machine.kubelet.extraMounts` is configured (required for OpenEBS `openebs-hostpath`). This is already patched in `talconfig.yaml`.
 
 **Static NFS PV nfsvers:** Talos kernel supports NFSv4 only for host-level static PV mounts. Always `nfsvers=4` in PV `mountOptions`. Democratic-csi dynamic PVCs are unaffected.
+
+**Proton Mail Bridge cert has one SAN, `IP:127.0.0.1`:** Proton Mail is E2E-encrypted, so Paperless reads mail only through Proton Mail Bridge, which serves STARTTLS with a self-signed cert (no plaintext option exists). That cert names **only `127.0.0.1`** — no DNS SANs — and Paperless verifies hostnames unconditionally (`ssl.create_default_context()`), so trusting the cert is only half the job: the address dialled must literally be `127.0.0.1`. A plain-TCP socat sidecar in the Paperless pod provides that. See `decisions/protonmail-bridge.md`.
+
+**`shenxn/protonmail-bridge` is stale despite active commits:** its CI has failed on every version bump for ~16 months, so the newest *published* image is from 2025-04 while `VERSION` tracks upstream. Check registry tags, not the commit log. We use `ghcr.io/videocurio/proton-mail-bridge`.
 
 **Plex SQLite over NFS:** NFS causes SQLite WAL locking errors in Plex. Config PVC uses `openebs-hostpath` (local disk), not `nfs-client`.
 

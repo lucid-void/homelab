@@ -82,6 +82,7 @@ The `security` namespace has `pod-security.kubernetes.io/enforce: privileged` �
 | immich-backup | immich | CronJob | — | — | Daily 03:00; Postgres dump + library PVC; restic → rclone-filen |
 | Paperless-ngx | paperless | HelmRelease | `paperless.blackcats.cc` | Zitadel OIDC (django-allauth 65.x) | `nfs-client` PVCs (data + media); CNPG Postgres |
 | paperless-backup | paperless | CronJob | — | — | Daily 04:00; Postgres dump + data/media PVCs; restic → rclone-filen |
+| Proton Mail Bridge | paperless | HelmRelease | — (ClusterIP `protonmail-bridge:143`, IMAP only) | Proton account, entered once via CLI; state in the pod's vault | `openebs-hostpath` PVC (vault + gluon SQLite + message cache). Not backed up — recovery is a re-login |
 | Gitea | gitea | HelmRelease | `gitea.blackcats.cc` (HTTPS via HTTPRoute; git-over-SSH on `:22` via TCPRoute) | Zitadel OIDC (web); SSH keys (git) | `nfs-client` PVC (repos/LFS/attachments); CNPG Postgres; bundled `valkey-cluster` for cache/session/queue |
 | gitea-valkey-cluster | gitea | StatefulSet (chart dep) | — | — | Cache/session/queue backing Gitea. 3 primaries + 1 replica each (`nodes: 6`, `replicas: 1`); `valkey-data-*` `nfs-client` PVCs. Disposable data — recreate rather than repair |
 | gitea-backup | gitea | CronJob | — | — | Daily 05:00; Postgres dump + data PVC; restic → rclone-filen |
