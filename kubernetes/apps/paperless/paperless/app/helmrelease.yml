@@ -63,6 +63,27 @@ spec:
               PAPERLESS_APPS: "allauth.socialaccount.providers.openid_connect"
               PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL: "https"
               PAPERLESS_ACCOUNT_EMAIL_VERIFICATION: "none"
+              # Proton Mail is end-to-end encrypted, so IMAP is only reachable
+              # through the local Proton Mail Bridge — see the protonmail-bridge
+              # HelmRelease alongside this one. Two settings are needed to talk
+              # to it, and both are about TLS, not about mail.
+              #
+              # The bridge's certificate is self-signed AND carries exactly one
+              # SAN: IP:127.0.0.1 (Proton hardcodes it — internal/certs/tls.go,
+              # CommonName "127.0.0.1", IPAddresses{127.0.0.1}, no DNS names).
+              # Trusting it is therefore only half the job; the address dialled
+              # must also be literally 127.0.0.1, which is what the `bridge`
+              # socat sidecar below exists to provide. Paperless builds its
+              # context with ssl.create_default_context(), where check_hostname
+              # is True and not configurable, so connecting to the Service DNS
+              # name fails verification no matter what CA is trusted.
+              PAPERLESS_EMAIL_CERTIFICATE_LOCATION: /etc/ssl/protonmail/cert.pem
+              # Defaults to true in 3.0.5, set explicitly because it is exactly
+              # the kind of default that tightens: paperless 3.x resolves the
+              # mail host and refuses non-public IPs (paperless_mail/mail.py,
+              # "Connection blocked: … resolves to a non-public address"). The
+              # bridge is 127.0.0.1, i.e. the most non-public address there is.
+              PAPERLESS_EMAIL_ALLOW_INTERNAL_HOSTS: "true"
             envFrom:
               - secretRef:
                   name: paperless-app-secret
@@ -87,6 +108,35 @@ spec:
                 cpu: 100m
               limits:
                 memory: 2Gi
+
+          # Loopback shim for Proton Mail Bridge. Plain TCP forwarding only —
+          # it terminates nothing, so STARTTLS is still negotiated end-to-end
+          # between paperless and the bridge and the bridge's certificate
+          # arrives untouched. Its entire purpose is to make the address
+          # paperless dials be 127.0.0.1, the one SAN in that certificate.
+          # Without it the mail account has to name the Service and Python
+          # rejects the handshake with a hostname mismatch.
+          bridge:
+            image:
+              repository: alpine/socat
+              tag: 1.8.1.3
+            args:
+              - TCP-LISTEN:1143,bind=127.0.0.1,fork,reuseaddr
+              - TCP:protonmail-bridge.paperless.svc.cluster.local:143
+            securityContext:
+              runAsUser: 65534
+              runAsGroup: 65534
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: ["ALL"]
+            resources:
+              requests:
+                memory: 16Mi
+                cpu: 10m
+              limits:
+                memory: 64Mi
 
       valkey:
         containers:
@@ -132,3 +182,23 @@ spec:
           app:
             app:
               - path: /consume
+      # The bridge's TLS certificate, exported once during bootstrap and
+      # committed as a ConfigMap (a certificate is public; nothing to seal).
+      # `type: custom` rather than `type: configMap` purely to get
+      # `optional: true` — app-template's configMap volume schema has no such
+      # field, and without it paperless would be stuck in ContainerCreating
+      # from the moment this lands until the bootstrap is finished. Mounted as
+      # a directory, not a subPath, so the kubelet refreshes the file in place
+      # if the certificate is ever re-exported; paperless loads it per mail
+      # fetch, so no restart is needed for it to take effect.
+      bridge-cert:
+        type: custom
+        volumeSpec:
+          configMap:
+            name: protonmail-bridge-cert
+            optional: true
+        advancedMounts:
+          app:
+            app:
+              - path: /etc/ssl/protonmail
+                readOnly: true

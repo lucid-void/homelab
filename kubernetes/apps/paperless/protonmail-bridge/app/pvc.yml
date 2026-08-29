@@ -1,0 +1,28 @@
+---
+# Bridge state on local disk, not NFS. `/root` holds three things that all
+# dislike NFS: the gpg/pass keyring the vault key is sealed with, the encrypted
+# vault itself, and — the real reason — gluon's IMAP state database, which is
+# SQLite (ProtonMail/gluon pulls in mattn/go-sqlite3). SQLite over NFS depends
+# on the server honouring byte-range locks and is the classic silent-corruption
+# setup; the message-literal cache underneath it is write-heavy during a sync.
+#
+# openebs-hostpath pins the bridge to one node. Acceptable here for the same
+# reason as the Minecraft worlds: all three control planes are VMs on the same
+# Proxmox host, so no availability is being given up. Nothing on this volume is
+# irreplaceable — it is credentials plus a cache of mail that lives at Proton —
+# so it is deliberately NOT backed up; recovery is a re-login (see RUNBOOK).
+#
+# openebs-hostpath cannot expand in place: growing this means deleting the PVC
+# and re-running the bootstrap, so it is sized for the mailbox up front.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: protonmail-bridge-config
+  namespace: paperless
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      storage: 20Gi
