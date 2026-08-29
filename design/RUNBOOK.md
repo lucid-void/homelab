@@ -398,7 +398,15 @@ flux reconcile kustomization <app-name>
 
 ### Re-run gotify-bootstrap (after Gotify DB reset)
 
-The `gotify-bootstrap` Job spec is immutable while the completed Job is within its 24h TTL:
+**Usually nothing to do.** The Job carries `ttlSecondsAfterFinished: 3600` and the
+Kustomization reconciles every 30m, so a finished Job is deleted and recreated
+roughly hourly — a Gotify DB reset repairs itself within the hour and reports
+itself (see the drift report below). Editing `bootstrap.sh` also re-runs it at
+once: the script is a `configMapGenerator`, so a change moves the ConfigMap's name
+hash, which changes the Job's pod spec, and `force: true` on the Kustomization
+recreates the immutable Job rather than failing on it.
+
+To force a run right now:
 
 ```bash
 kubectl delete job gotify-bootstrap -n monitoring
@@ -413,6 +421,20 @@ The Job logs one line per token showing which path it took:
   gatus: created                    # app did not exist → new token
   admin client: reused (client 1)
 ```
+
+A run that repairs anything on an **unchanged** script ends with a `DRIFT
+DETECTED` block and posts a Gotify message at priority 8, because that means
+something removed state on its own and the affected workloads had been posting
+with a dead token until that moment. The same repairs on a run whose script hash
+changed (an entry was added below) are printed as *expected*, not drift — the
+last-seen hash lives in the `gotify-bootstrap-state` ConfigMap in `monitoring`:
+
+```bash
+kubectl get configmap gotify-bootstrap-state -n monitoring -o jsonpath='{.data}'
+```
+
+The pod's logs are deleted with the Job an hour after it finishes, so the Gotify
+message is the durable record, not `kubectl logs`.
 
 After a Gotify **DB reset** every line reads `created` and every token changes.
 Long-running consumers that hold a token in their environment need a restart —
@@ -1132,8 +1154,10 @@ kubectl patch pvc <name> -n <namespace> -p '{"metadata":{"finalizers":null}}'
 
 ### Gotify-bootstrap Job immutable field error
 
-Job spec is immutable while completed Job is within 24h TTL window:
+Should no longer happen — the Kustomization sets `force: true`, so Flux deletes
+and recreates the Job when its spec changes. If a Job in another namespace hits
+`field is immutable`, the manual escape is the same shape:
 ```bash
-kubectl delete job gotify-bootstrap -n monitoring
-flux reconcile kustomization gotify-bootstrap
+kubectl delete job <name> -n <namespace>
+flux reconcile kustomization <name>
 ```

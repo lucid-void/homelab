@@ -13,6 +13,12 @@ spec:
     - name: gotify
   path: ./kubernetes/apps/monitoring/gotify-bootstrap/app
   prune: true
+  # Editing bootstrap.sh changes the generated ConfigMap's hash, which changes the
+  # Job's pod spec — and a Job spec is immutable. Without force, that apply fails
+  # with `field is immutable` and the Kustomization sits NotReady until someone
+  # deletes the Job by hand. With it, Flux recreates the Job, which is exactly the
+  # "re-run on change" behaviour. Same pattern as auth/bootstrap (zitadel).
+  force: true
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
