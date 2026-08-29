@@ -29,7 +29,7 @@ spec:
           # backup-tools already bundles bash + curl + kubectl, which is the whole
           # dependency set. Using it avoids the `apk add` at container start that
           # the bootstrap Jobs need — and that hung three Jobs for days in August.
-          image: ghcr.io/lucid-void/backup-tools:v1.0.2
+          image: ghcr.io/lucid-void/backup-tools:v1.1.0
           command: ["/bin/bash", "/scripts/watch.sh"]
           env:
             # kubectl writes a discovery cache under $HOME; the root filesystem is
