@@ -9,12 +9,14 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  # openebs only: the bridge has no secrets, no database and no ingress. It is
-  # deliberately NOT a dependency of `paperless` and paperless is not a
-  # dependency of it — paperless serves documents fine with the bridge down,
-  # and the bridge syncs mail fine with paperless down.
+  # openebs for the state volume; sealed-secrets because the bridge's exported
+  # TLS certificate ships as a SealedSecret alongside it. No database, no
+  # ingress. This is deliberately NOT a dependency of `paperless` and paperless
+  # is not a dependency of it — paperless serves documents fine with the bridge
+  # down, and the bridge syncs mail fine with paperless down.
   dependsOn:
     - name: openebs
+    - name: sealed-secrets
   path: ./kubernetes/apps/paperless/protonmail-bridge/app
   prune: true
   sourceRef:
