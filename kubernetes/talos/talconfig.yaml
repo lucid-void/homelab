@@ -200,10 +200,15 @@ nodes:
     ipAddress: 172.16.20.14
     installDisk: /dev/sda
     controlPlane: false
-    nodeLabels:
-      workload: llm
-    nodeTaints:
-      workload: llm:NoSchedule
+    patches:
+      - |-
+        machine:
+          kubelet:
+            extraConfig:
+              registerWithTaints:
+                - key: workload
+                  value: llm
+                  effect: NoSchedule
     # NOTE: node-level, NOT under networkInterfaces[] where the cp-1/2/3 blocks
     # below put it. talhelper's `Device` schema has no `nameservers` key and
     # genconfig drops unknown keys instead of erroring, so the interface-level
