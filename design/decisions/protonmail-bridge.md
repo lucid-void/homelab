@@ -111,8 +111,37 @@ plaintext on the state volume beside the vault that exists to keep it encrypted.
 Mounted `optional: true` via `type: custom`, because app-template's
 `type: secret` volume schema has no `optional` field and without it Paperless
 would sit in `ContainerCreating` whenever the Secret is absent. Mounted as a
-directory rather than a `subPath` so the kubelet refreshes it in place;
-Paperless loads the file per mail fetch, so a re-export needs no restart.
+directory rather than a `subPath` so the kubelet refreshes it in place — a
+`subPath` mount never updates at all. **But an in-place refresh is not enough:
+Paperless must still be restarted, see below.**
+
+### A cert refresh needs a restart — the resolved path is cached
+
+The mount refreshing in place does *not* mean the running process picks it up.
+Paperless reads the location through `Path(os.environ[key]).resolve()`
+(`src/paperless/settings/parsers.py`), and `.resolve()` dereferences the
+kubelet's atomic-writer symlink chain — `cert.pem` → `..data` →
+`..2026_08_29_20_20_47.1731907293/` — freezing the **timestamped** directory into
+`settings.EMAIL_CERTIFICATE_FILE` for the life of the process.
+
+Updating the Secret makes the kubelet write a **new** timestamped directory,
+repoint `..data`, and **delete the old one**. The long-running process is then
+holding an absolute path that no longer exists, and every fetch dies at
+`ssl_context.load_verify_locations(cafile=settings.EMAIL_CERTIFICATE_FILE)` with
+`FileNotFoundError: [Errno 2]` — surfacing in the UI as a failed mail-account
+test with no hint that a *path*, rather than the certificate or the credentials,
+is at fault.
+
+Hence `reloader.stakater.com/auto: "true"` on the paperless **controller**
+(`paperless/app/helmrelease.yml`) — on `controllers.app.annotations`, not
+`pod.annotations`, which Reloader never reads.
+
+The diagnosis is slippery because **every ad-hoc check passes while the server is
+broken**: `manage.py check` and any `python -c` are new processes that re-resolve
+`..data` to the current directory and see a valid file. `ls -lL` on the mount path
+likewise succeeds. An IMAP `NOOP` probe also succeeds, since it needs no login.
+Only the real fetch path fails. Verify with a `mailbox_login()` against the
+account, never with the system check.
 
 The certificate is valid **20 years** (the deployed one to 2046-08-24), so this
 is close to a one-time step — but it is regenerated if the vault is ever

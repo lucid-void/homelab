@@ -470,19 +470,14 @@ circular dependency, since the Gateway runs on the VMs this host hypervises.
 
 ### Bootstrap Proton Mail Bridge (one-time, and after a vault loss)
 
-Proton Mail is end-to-end encrypted, so Paperless can only read it through
-Proton Mail Bridge, which logs in and re-serves the mailbox as local IMAP.
 Login needs an account password and a 2FA code typed by a human, so unlike the
-Zitadel/Gotify/Kavita bootstraps **there is no Job for this** — it is manual,
-and it is only re-run if the `protonmail-bridge-config` volume is lost.
+Zitadel/Gotify/Kavita bootstraps **there is no Job for this**. Re-run it only if
+the `protonmail-bridge-config` volume is lost.
 
-Requires a **paid** Proton plan; bridge refuses to log in on free accounts.
+Requires a **paid** Proton plan — bridge refuses to log in on free accounts.
 
-**1. Stop the running bridge.** Only one instance may hold the vault, and the
-container's entrypoint starts one automatically. Do not try to log in inside the
-live pod: `pkill bridge` there ends the entrypoint pipeline and the container
-dies out from under your exec session. Flux would also undo a bare `kubectl
-scale` at its next reconcile, so suspend it first.
+**1. Free the vault.** Only one instance may hold it, and the container
+entrypoint starts one automatically.
 
 ```bash
 flux suspend helmrelease protonmail-bridge -n paperless
@@ -490,12 +485,12 @@ kubectl scale deploy/protonmail-bridge -n paperless --replicas=0
 kubectl wait --for=delete pod -l app.kubernetes.io/name=protonmail-bridge -n paperless --timeout=2m
 ```
 
+> **Do not log in inside the live pod.** `pkill bridge` there ends the entrypoint
+> pipeline and the container dies out from under your exec session. Suspend
+> before scaling — Flux would undo a bare `kubectl scale` at its next reconcile.
+
 **2. Start a throwaway pod on the same volume**, with the command overridden to
 `sleep` so no bridge starts on its own and the vault stays free.
-
-Create it **detached** — deliberately no `-it --rm`. With `--rm` the pod is
-deleted the moment you leave the attached session, which would destroy the
-`/tmp/cert.pem` that step 4 has to read back out.
 
 ```bash
 kubectl run protonmail-bridge-init -n paperless --restart=Never \
@@ -506,12 +501,16 @@ kubectl wait --for=condition=Ready pod/protonmail-bridge-init -n paperless --tim
 kubectl exec -it protonmail-bridge-init -n paperless -- /bin/bash
 ```
 
+> **Detached on purpose — no `-it --rm`.** With `--rm` the pod is deleted the
+> moment you leave the attached session, destroying the `/tmp/cert.pem` that
+> step 4 has to read back out.
+
 **3. Log in and export the certificate.** Inside that shell:
 
 ```bash
 # Bridge seals its vault key with gpg/pass, so the keyring must exist first.
-# This is exactly what the image entrypoint does on a first run — done directly
-# so that no bridge, socat or faketty is started and the vault stays free.
+# This is what the image entrypoint does on a first run — done directly here so
+# that no bridge, socat or faketty is started and the vault stays free.
 [ -d /root/.password-store ] || {
   gpg --generate-key --batch /app/GPGparams.txt && pass init ProtonMailBridge
 }
@@ -519,33 +518,29 @@ kubectl exec -it protonmail-bridge-init -n paperless -- /bin/bash
 /usr/bin/bridge --cli
 ```
 
-Do **not** run `/app/entrypoint.sh` here. It starts a bridge of its own, and
-racing two instances against one vault is the thing this whole procedure exists
-to avoid.
-
 At the `>>>` prompt:
 
 ```
 login                       # username, password, 2FA — then wait for the sync
 info                        # copy the generated IMAP password (NOT your Proton password)
-cert export                 # answer /tmp  (see note below)
+cert export                 # answer: /tmp
 exit
 ```
 
-`info` prints `Address: 127.0.0.1, IMAP port: 1143, Security: STARTTLS` and a
-**generated** password unique to bridge. That password is what Paperless uses.
-Ignore the address/port it prints — see step 5 for what to actually enter.
+`info` prints a **generated** password unique to bridge — that, not your Proton
+password, is what Paperless uses. Ignore the address/port it echoes; step 5 has
+the values to enter.
 
-`cert export` prompts for a **directory that already exists**, not a filename —
-it validates with `os.Stat()` + `IsDir()`, so `/root/cert.pem` is rejected and
-it silently re-prompts. It then writes **two** files into that directory:
-`cert.pem` *and* `key.pem`, the private key, both mode 0600.
+> **Never run `/app/entrypoint.sh` here.** It starts a bridge of its own, and
+> racing two instances against one vault is the thing this procedure exists to
+> avoid.
 
-Answer **`/tmp`**, not `/root`. `/root` is the PVC mount, so exporting there
-leaves the private key sitting in plaintext on the volume for the life of the
-deployment, right beside the vault whose whole job is to keep it encrypted.
-`/tmp` lives in the throwaway pod and is destroyed with it. Only `cert.pem` is
-needed downstream; `key.pem` never leaves the pod.
+> **`cert export` wants an existing directory, not a filename** — it validates
+> with `os.Stat()` + `IsDir()`, so `/root/cert.pem` is silently re-prompted. It
+> writes **two** files, `cert.pem` and `key.pem` (the private key), both 0600.
+> Answer `/tmp`, never `/root`: `/root` is the PVC, so exporting there strands the
+> private key in plaintext beside the vault that exists to encrypt it. Only
+> `cert.pem` is needed downstream.
 
 **4. Seal and commit the certificate.** Bridge keeps its TLS certificate inside
 the encrypted vault, so this export is the only way to get it.
@@ -562,46 +557,11 @@ kubectl create secret generic protonmail-bridge-cert -n paperless \
 
 kubeseal --cert kubernetes/flux/pub-cert.pem --format yaml \
   < $D/app-secret.yml > $D/app-sealed.yml
+
+git status --short $D       # app-sealed.yml must appear, app-secret.yml must not
 ```
 
-**Commit `app-sealed.yml`, never `app-secret.yml`.** `**/*secret.yml` is
-gitignored (`kubernetes/.gitignore`), which is deliberate — it is what stops a
-plaintext template ever reaching the remote. The trap is that it fails
-*silently* in this direction too: name the sealed output `app-secret.yml` and
-`git add` accepts it without complaint, the file never leaves the workstation,
-Flux never sees a Secret, and the only symptom is mail quietly failing to fetch.
-Verify with `git status --short $D` before committing.
-
-A certificate is public and needs no sealing on its own merits. It is sealed
-anyway so that everything an app is handed follows one convention and nobody has
-to work out which credential-shaped file is the exception.
-
-`PAPERLESS_EMAIL_CERTIFICATE_LOCATION` is already set in
-`kubernetes/apps/paperless/paperless/app/helmrelease.yml` and stays set — it is
-**coupled to this SealedSecret**. Paperless registers a Django system check that
-raises an **Error**, `Email cert <path> is not a file`, when the variable is set
-but the file is absent, and an Error-level check aborts startup with
-`SystemCheckError`: a crash loop, not a deferred mail failure. The pod never goes
-Ready, the Helm upgrade times out, and Flux rolls the release back. `optional:
-true` on the mount governs only the *kubelet*; it does nothing about the check.
-So if you ever remove the SealedSecret, remove that variable in the same commit.
-
-**Do not try to verify this before pushing.** Running
-
-```bash
-kubectl exec deploy/paperless-app -n paperless -c app -- \
-  env PAPERLESS_EMAIL_CERTIFICATE_LOCATION=/etc/ssl/protonmail/cert.pem \
-  python manage.py check
-```
-
-against the *currently running* pod fails with `Email cert … is not a file`, and
-that is correct rather than a fault: the Secret does not exist in the cluster
-until the commit is pushed, so the optional mount is an empty directory. The
-check is a post-push verification — see the end of this procedure. It is only
-meaningful as a pre-commit gate in the reverse direction, when *removing* the
-SealedSecret while leaving the variable behind.
-
-Then clean up and bring the bridge back:
+Clean up, bring the bridge back, then commit and push `app-sealed.yml`:
 
 ```bash
 kubectl delete pod protonmail-bridge-init -n paperless
@@ -609,10 +569,46 @@ flux resume helmrelease protonmail-bridge -n paperless
 kubectl scale deploy/protonmail-bridge -n paperless --replicas=1
 ```
 
-Commit and push. Paperless mounts the Secret `optional: true` and reads the file
-per mail fetch, so it needs no restart once the mount populates.
+Paperless mounts the Secret `optional: true`, and the `reloader.stakater.com/auto`
+annotation on its controller restarts it when the cert changes — which it must
+(see below).
 
-**5. Add the mail account in the Paperless UI** (Settings → Mail, runtime app
+> **Paperless caches the resolved cert path at startup — it needs a restart.**
+> `PAPERLESS_EMAIL_CERTIFICATE_LOCATION` is read through
+> `Path(os.environ[key]).resolve()` (`paperless/settings/parsers.py`), which
+> dereferences the kubelet atomic-writer symlinks and freezes the *timestamped*
+> target (`/etc/ssl/protonmail/..2026_08_29_20_20_47.../cert.pem`) for the life of
+> the process. Updating the Secret writes a **new** timestamped directory, repoints
+> `..data`, and **deletes the old one** — so the running process is left pointing at
+> a path that no longer exists and every fetch dies with `FileNotFoundError:
+> [Errno 2]`, surfacing in the UI as a failed mail-account test. The
+> `reloader.stakater.com/auto: "true"` annotation on the **controller** in
+> `paperless/app/helmrelease.yml` exists for exactly this. Note `manage.py check`
+> and an ad-hoc `python -c` both **pass** while the server is broken — they are new
+> processes that re-resolve — so verify with the mail test, not the system check.
+
+> **Commit `app-sealed.yml`, never `app-secret.yml`.** `**/*secret.yml` is
+> gitignored (`kubernetes/.gitignore`) to keep plaintext off the remote — but it
+> fails *silently* in this direction too: misname the sealed output and `git add`
+> accepts it, Flux never sees a Secret, and mail just quietly stops fetching.
+> Hence the `git status` check above.
+
+> **`PAPERLESS_EMAIL_CERTIFICATE_LOCATION` is coupled to this SealedSecret.**
+> Set the variable without the file and Paperless's Django check raises an
+> **Error** (`Email cert <path> is not a file`), which aborts startup with
+> `SystemCheckError` — a crash loop, not a deferred mail failure: pod never Ready,
+> Helm times out, Flux rolls back. `optional: true` governs the kubelet only, not
+> the check. **Remove the SealedSecret and the variable in the same commit.**
+
+> **Do not verify before pushing.** The Secret does not exist until the commit
+> lands, so the mount is an empty directory and `manage.py check` fails — that is
+> correct, not a fault. Verification is step 6. The check is only a *pre-commit*
+> gate in the reverse direction: removing the SealedSecret, keeping the variable.
+
+A certificate is public and needs no sealing on its own merits; it is sealed
+anyway so every credential-shaped file follows one convention.
+
+**5. Add the mail account in the Paperless UI** (Settings → Mail — runtime app
 state, not GitOps):
 
 | Field | Value |
@@ -623,15 +619,14 @@ state, not GitOps):
 | Username | your Proton address |
 | Password | the generated password from `info` |
 
-`127.0.0.1` is not a typo and not a shortcut. Bridge's certificate carries a
-single SAN, `IP:127.0.0.1`, and Paperless verifies hostnames unconditionally, so
-the Service name would fail the handshake even with the certificate trusted. The
-`bridge` socat sidecar in the Paperless pod listens on `127.0.0.1:1143` and
-forwards to the bridge Service. See `design/decisions/protonmail-bridge.md`.
+> **`127.0.0.1` is not a typo.** Bridge's certificate carries a single SAN,
+> `IP:127.0.0.1`, and Paperless verifies hostnames unconditionally — the Service
+> name fails the handshake even with the cert trusted. The `bridge` socat sidecar
+> in the Paperless pod listens on `127.0.0.1:1143` and forwards to the Service.
 
-**Verify**, after the push has landed and a new Paperless pod is Running. The
-volume source changes `configMap` -> `secret` in that commit, so the rollout
-creates a fresh pod with the certificate mounted from the start:
+**6. Verify**, after the push has landed and a new Paperless pod is Running. The
+volume source changes `configMap` → `secret` in that commit, so the rollout
+creates a fresh pod with the certificate mounted from the start.
 
 ```bash
 kubectl get secret protonmail-bridge-cert -n paperless      # must exist first
@@ -649,9 +644,11 @@ kubectl exec deploy/paperless-app -n paperless -c app -- \
 m=imaplib.IMAP4('127.0.0.1',1143); m.starttls(c); print(m.noop())"
 ```
 
-`('OK', [b'...'])` means trust, hostname and reachability are all correct. A
-`CERTIFICATE_VERIFY_FAILED` means the SealedSecret is missing or stale; an
-`IP address mismatch` means something is dialling a name instead of `127.0.0.1`.
+| Result | Meaning |
+|---|---|
+| `('OK', [b'...'])` | trust, hostname and reachability are all correct |
+| `CERTIFICATE_VERIFY_FAILED` | the SealedSecret is missing or stale |
+| `IP address mismatch` | something is dialling a name instead of `127.0.0.1` |
 
 ### Defragment etcd (`etcdDatabaseHighFragmentationRatio`)
 
