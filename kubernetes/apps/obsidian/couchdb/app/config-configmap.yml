@@ -1,0 +1,54 @@
+---
+# CouchDB settings required by Obsidian Self-hosted LiveSync. Values match the
+# plugin's own provisioner (utils/couchdb/provision.ts upstream), which writes
+# these through the _node/_local/_config API; putting them in a local.d drop-in
+# makes them declarative instead of a one-shot imperative bootstrap.
+#
+# Mounted with subPath so it lands as ONE file inside /opt/couchdb/etc/local.d/
+# rather than shadowing the directory -- the image's entrypoint generates
+# 10-docker.ini there from COUCHDB_USER/COUCHDB_PASSWORD at startup, and a
+# whole-directory mount would hide it and leave the admin unconfigured.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: couchdb-config
+  namespace: obsidian
+data:
+  10-livesync.ini: |
+    [couchdb]
+    ; Creates _users / _replicator / _global_changes on first boot. Without it
+    ; CouchDB 3.x comes up in an unconfigured cluster state and every request
+    ; fails until someone POSTs to /_cluster_setup by hand.
+    single_node = true
+    ; LiveSync packs vault chunks into documents; the 8MB default rejects them.
+    max_document_size = 50000000
+
+    [chttpd]
+    bind_address = any
+    ; No anonymous access. NOTE: this also gates /_up, which is why the health
+    ; probes in the HelmRelease are authenticated `exec` curls rather than a
+    ; plain httpGet -- same switch the official Apache couchdb-helm chart makes.
+    require_valid_user = true
+    max_http_request_size = 4294967296
+    enable_cors = true
+
+    [chttpd_auth]
+    require_valid_user = true
+    authentication_redirect = /_utils/session.html
+
+    [httpd]
+    ; Makes browsers/Fauxton present a login box instead of a bare 401 once
+    ; require_valid_user is on.
+    WWW-Authenticate = Basic realm="couchdb"
+    enable_cors = true
+
+    [cors]
+    ; Obsidian is not a normal web origin: desktop sends app://obsidian.md and
+    ; mobile (Capacitor) sends capacitor://localhost. Omit either and sync fails
+    ; on that platform only, with a CORS error the plugin surfaces as a generic
+    ; connection failure.
+    origins = app://obsidian.md,capacitor://localhost,http://localhost
+    credentials = true
+    headers = accept, authorization, content-type, origin, referer
+    methods = GET, PUT, POST, HEAD, DELETE
+    max_age = 3600

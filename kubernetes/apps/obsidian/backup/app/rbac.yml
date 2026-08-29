@@ -1,0 +1,35 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: obsidian-backup
+  namespace: obsidian
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: obsidian-backup
+  namespace: obsidian
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+    resourceNames: ["couchdb"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "update", "patch"]
+    resourceNames: ["couchdb"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: obsidian-backup
+  namespace: obsidian
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: obsidian-backup
+subjects:
+  - kind: ServiceAccount
+    name: obsidian-backup
+    namespace: obsidian

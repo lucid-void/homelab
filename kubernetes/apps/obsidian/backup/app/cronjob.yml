@@ -1,0 +1,83 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: obsidian-backup
+  namespace: obsidian
+  annotations:
+    # deliberate: the TTL and the history limits are complementary here, not
+    # conflicting. Whichever fires first removes the Job, and three runs of a
+    # daily job cannot accumulate inside 24h -- so the TTL always wins and the
+    # limits remain a cap. Without it a failed Job lingers until three MORE
+    # failures evict it, re-firing KubeJobFailed indefinitely.
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see comment"
+    # restic and rclone need a writable HOME for their cache
+    ignore-check.kube-linter.io/no-read-only-root-fs: "restic/rclone cache"
+spec:
+  # 02:30 -- a free slot between homebox (02:00) and immich (03:00).
+  schedule: "30 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 7200
+      backoffLimit: 0
+      # Self-clean after 24h; see the annotation above.
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          serviceAccountName: obsidian-backup
+          restartPolicy: Never
+          # Deliberately NO podAffinity, unlike joplin/homebox. Those mount
+          # nfs-client PVCs, which can bind anywhere, so they must be pinned to
+          # the app's node by hand. couchdb-data is openebs-hostpath: its PV
+          # carries nodeAffinity from first bind, so the scheduler already has
+          # to place this pod on the right node. Adding podAffinity on the app
+          # pod would make the job UNSCHEDULABLE whenever couchdb is already at
+          # 0 replicas -- exactly the state a previous failed run leaves behind.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            fsGroup: 65534
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: couchdb-data
+                readOnly: true
+            - name: rclone-config
+              secret:
+                secretName: rclone-secret
+                defaultMode: 0440
+            - name: script
+              configMap:
+                name: obsidian-backup-script
+                defaultMode: 0755
+          containers:
+            - name: backup
+              image: ghcr.io/lucid-void/backup-tools:v1.0.2
+              command: ["/bin/bash", "/scripts/backup.sh"]
+              envFrom:
+                - secretRef:
+                    name: restic-secret
+                - secretRef:
+                    name: gotify-secret
+                    optional: true
+              env:
+                - name: RCLONE_CONFIG
+                  value: /rclone-config/rclone.conf
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                  readOnly: true
+                - name: rclone-config
+                  mountPath: /rclone-config
+                  readOnly: true
+                - name: script
+                  mountPath: /scripts
+              resources:
+                requests:
+                  memory: 256Mi
+                  cpu: 100m
+                limits:
+                  memory: 1Gi

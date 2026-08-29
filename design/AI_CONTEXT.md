@@ -153,6 +153,7 @@ kubernetes/
 | FreshRSS | freshrss | `rss.blackcats.cc` | Zitadel OIDC |
 | Homebox | homebox | `homebox.blackcats.cc` | Built-in |
 | Joplin Server | joplin | `joplin.blackcats.cc` | Zitadel **SAML** (+ local break-glass admin) |
+| CouchDB (Obsidian LiveSync) | obsidian | `obsidian.blackcats.cc` | CouchDB HTTP Basic (no SSO — plugin has no OIDC path) |
 | Homepage | homepage | `home.blackcats.cc` | None |
 | Gotify | monitoring | `gotify.blackcats.cc` | SealedSecret admin creds |
 | Gatus | monitoring | `gatus.blackcats.cc` | Zitadel OIDC |

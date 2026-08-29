@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: couchdb-data
+  namespace: obsidian
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # NOT nfs-client. CouchDB is fsync-heavy and holds long-lived file locks on
+  # its .couch shard files -- the same reason RomM's valkey sits on emptyDir
+  # and Minecraft worlds sit here. Note capacity is ADVISORY on this class
+  # (plain dir on the node EPHEMERAL partition, no quota) and the PV is pinned
+  # to whichever node it first binds on, permanently.
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      storage: 10Gi

@@ -88,6 +88,9 @@ spec:
       namespace: network
     - kind: HelmRelease
       name: "*"
+      namespace: obsidian
+    - kind: HelmRelease
+      name: "*"
       namespace: openebs
     - kind: HelmRelease
       name: "*"

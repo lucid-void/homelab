@@ -1,0 +1,78 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: obsidian-backup-script
+  namespace: obsidian
+data:
+  backup.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    NAMESPACE=obsidian
+    DEPLOYMENT=couchdb
+    LOG=/tmp/backup.log
+    exec > >(tee "$LOG") 2>&1
+
+    notify_gotify() {
+      local title="$1" msg="$2" priority="${3:-5}"
+      curl -sf -X POST "http://gotify.monitoring.svc.cluster.local/message" \
+        -H "Content-Type: application/json" \
+        -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+        -d "{\"title\":\"${title}\",\"message\":\"${msg}\",\"priority\":${priority}}" \
+        >/dev/null || true
+    }
+
+    cleanup() {
+      local exit_code=$?
+      echo "[backup] Scaling ${DEPLOYMENT} back to 1 replica..."
+      kubectl scale deployment/${DEPLOYMENT} -n ${NAMESPACE} --replicas=1 || true
+      if [[ ${exit_code} -eq 0 ]]; then
+        notify_gotify "Backup: obsidian ✓" "Completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      else
+        local tail_log
+        tail_log=$(tail -10 "$LOG" 2>/dev/null | awk '{gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s\\n", $0}')
+        notify_gotify "Backup: obsidian ✗" "Exit ${exit_code} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n${tail_log}" 8
+      fi
+    }
+    trap cleanup EXIT
+
+    echo "[backup] Starting at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    # 1. Quiesce. CouchDB .couch files are append-only, but a snapshot taken
+    #    mid-write can still capture a torn header and a compaction rewrites
+    #    shards wholesale. The vault is small (text + a header per chunk), so
+    #    the copy takes seconds and stopping is cheaper than reasoning about
+    #    crash consistency. LiveSync clients reconnect on their own.
+    echo "[backup] Scaling down ${DEPLOYMENT}..."
+    kubectl scale deployment/${DEPLOYMENT} -n ${NAMESPACE} --replicas=0
+    kubectl rollout status deployment/${DEPLOYMENT} -n ${NAMESPACE} --timeout=120s
+    echo "[backup] ${DEPLOYMENT} is down"
+
+    # 2. Init restic repo on Filen if this is the first run
+    if ! restic cat config &>/dev/null; then
+      echo "[backup] Initialising new restic repository on Filen..."
+      restic init
+    fi
+
+    # 3. Snapshot the CouchDB data directory (shards + _users + .erlang.cookie)
+    echo "[backup] Running restic backup..."
+    restic backup /data \
+      --tag "$(date +%Y-%m-%d)" \
+      --tag obsidian \
+      --verbose
+
+    # 4. Forget old snapshots (30 daily, then 12 monthly) and prune from Filen.
+    #    --group-by '' is load-bearing: restic defaults to --group-by host,paths
+    #    and every Job pod has a unique hostname, so each snapshot forms a group
+    #    of one that --keep-daily 30 then trivially keeps and nothing is ever
+    #    pruned. One repo per job here, so there is nothing to group by.
+    echo "[backup] Pruning old snapshots..."
+    restic forget --group-by '' --keep-daily 30 --keep-monthly 12 --prune
+
+    # 5. Spot-check: verify 1/10th of the repository data
+    echo "[backup] Checking repository integrity..."
+    restic check --read-data-subset=1/10
+
+    echo "[backup] Done at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    # trap fires here → scale back up
