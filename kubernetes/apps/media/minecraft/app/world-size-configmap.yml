@@ -1,0 +1,180 @@
+---
+# Real per-world disk usage.
+#
+# Why this exists: `kubelet_volume_stats_*` is useless for these PVCs. An
+# openebs-hostpath volume is a plain directory on the node's EPHEMERAL partition
+# with NO quota, so the kubelet reports the *node filesystem* for every hostpath
+# claim -- matcha-data and vanilla-data both report ~97Gi capacity and identical
+# usage, which is cp-N's /var, not the world. (The same is true the other way for
+# nfs-client claims, which all report the whole 21TiB Synology volume.) That made
+# the old MinecraftWorldVolumeAlmostFull alert fire on unrelated node disk growth
+# -- container image accumulation, mostly -- while naming Minecraft as the cause,
+# and it could never have caught a world growing on its own.
+#
+# `du` is the only honest source here. It is I/O-heavy on a large world, so the
+# scan runs on a timer in a background thread and the HTTP handler only ever
+# serves the last completed result -- a scrape never blocks on the filesystem.
+#
+# Sizes use st_blocks*512 (actual allocated blocks, what `du` reports) rather
+# than st_size, so sparse region files are not overstated.
+#
+# NOTE: this is a separate ConfigMap key holding a real .py file rather than
+# Python inlined into a shell block scalar -- 0-indent Python inside a YAML `|`
+# breaks the kustomize parser (see .claude/CLAUDE.md).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minecraft-world-size
+  namespace: media
+data:
+  exporter.py: |
+    import http.server
+    import os
+    import stat
+    import threading
+    import time
+
+    SERVER = os.environ.get("SERVER_NAME", "unknown")
+    ROOT = os.environ.get("WORLD_ROOT", "/data")
+    INTERVAL = int(os.environ.get("SCAN_INTERVAL_SECONDS", "300"))
+    PORT = int(os.environ.get("METRICS_PORT", "9109"))
+
+    _lock = threading.Lock()
+    _state = {"worlds": {}, "total": 0, "ts": 0.0, "duration": 0.0,
+              "scans": 0, "errors": 0}
+
+
+    def tree_bytes(path):
+        """Allocated bytes under `path`, following `du` semantics.
+
+        Counts st_blocks so sparse files (Minecraft region files are sparse)
+        report what they actually consume. Hardlinks would be double counted,
+        but the world tree has none. Unreadable entries are skipped rather than
+        aborting the scan -- a partial number beats no number.
+        """
+        total = 0
+        errors = 0
+
+        def onerror(_exc):
+            nonlocal errors
+            errors += 1
+
+        for dirpath, _dirnames, filenames in os.walk(path, onerror=onerror):
+            for name in filenames:
+                try:
+                    st = os.lstat(os.path.join(dirpath, name))
+                except OSError:
+                    errors += 1
+                    continue
+                if stat.S_ISREG(st.st_mode) or stat.S_ISDIR(st.st_mode):
+                    total += st.st_blocks * 512
+        return total, errors
+
+
+    def scan_once():
+        started = time.time()
+        worlds = {}
+        errors = 0
+        try:
+            entries = sorted(os.scandir(ROOT), key=lambda e: e.name)
+        except OSError:
+            entries = []
+            errors += 1
+        for entry in entries:
+            # itzg lays worlds out as <LEVEL>, <LEVEL>_nether, <LEVEL>_the_end.
+            # Anything else under /data (plugins, jars, logs) rolls into the
+            # total but is not broken out as a world.
+            try:
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+            except OSError:
+                errors += 1
+                continue
+            if entry.name.startswith("world"):
+                size, errs = tree_bytes(entry.path)
+                worlds[entry.name] = size
+                errors += errs
+        total, errs = tree_bytes(ROOT)
+        errors += errs
+        with _lock:
+            _state["worlds"] = worlds
+            _state["total"] = total
+            _state["ts"] = time.time()
+            _state["duration"] = time.time() - started
+            _state["scans"] += 1
+            _state["errors"] += errors
+
+
+    def scan_loop():
+        while True:
+            try:
+                scan_once()
+            except Exception:
+                with _lock:
+                    _state["errors"] += 1
+            time.sleep(INTERVAL)
+
+
+    def render():
+        with _lock:
+            s = dict(_state)
+            worlds = dict(s["worlds"])
+        out = [
+            "# HELP minecraft_world_size_bytes Disk used by one world directory.",
+            "# TYPE minecraft_world_size_bytes gauge",
+        ]
+        for name, size in sorted(worlds.items()):
+            out.append(
+                'minecraft_world_size_bytes{server="%s",world="%s"} %d'
+                % (SERVER, name, size)
+            )
+        out += [
+            "# HELP minecraft_server_data_size_bytes Disk used by the whole "
+            "server data directory, worlds included.",
+            "# TYPE minecraft_server_data_size_bytes gauge",
+            'minecraft_server_data_size_bytes{server="%s"} %d' % (SERVER, s["total"]),
+            "# HELP minecraft_world_size_last_scan_timestamp_seconds Unix time "
+            "the last successful scan finished.",
+            "# TYPE minecraft_world_size_last_scan_timestamp_seconds gauge",
+            'minecraft_world_size_last_scan_timestamp_seconds{server="%s"} %f'
+            % (SERVER, s["ts"]),
+            "# HELP minecraft_world_size_scan_duration_seconds Duration of the "
+            "last scan.",
+            "# TYPE minecraft_world_size_scan_duration_seconds gauge",
+            'minecraft_world_size_scan_duration_seconds{server="%s"} %f'
+            % (SERVER, s["duration"]),
+            "# HELP minecraft_world_size_scans_total Completed scans.",
+            "# TYPE minecraft_world_size_scans_total counter",
+            'minecraft_world_size_scans_total{server="%s"} %d' % (SERVER, s["scans"]),
+            "# HELP minecraft_world_size_scan_errors_total Unreadable entries "
+            "skipped across all scans.",
+            "# TYPE minecraft_world_size_scan_errors_total counter",
+            'minecraft_world_size_scan_errors_total{server="%s"} %d'
+            % (SERVER, s["errors"]),
+        ]
+        return ("\n".join(out) + "\n").encode()
+
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_GET(self):
+            if self.path.split("?")[0] not in ("/metrics", "/"):
+                self.send_error(404)
+                return
+            # Serve the cached result even before the first scan finishes, so
+            # readiness does not depend on walking a multi-GB world.
+            body = render()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; version=0.0.4")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_args):
+            pass
+
+
+    if __name__ == "__main__":
+        threading.Thread(target=scan_loop, daemon=True).start()
+        http.server.ThreadingHTTPServer(("", PORT), Handler).serve_forever()

@@ -5,6 +5,7 @@ resources:
   - ./pvc.yml
   - ./minecraft-sealed.yml
   - ./patches-configmap.yml
+  - ./world-size-configmap.yml
   - ./helmrelease-valkey.yml
   - ./helmrelease-matcha.yml
   - ./helmrelease-vanilla.yml

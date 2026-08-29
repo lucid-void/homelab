@@ -18,3 +18,26 @@ spec:
     - port: metrics
       path: /metrics
       interval: 60s
+---
+# World-size exporter, one sidecar per game pod (kubernetes/apps/media/minecraft/).
+# Cross-namespace: the Services live in `media` while this CR lives in
+# `monitoring`, so namespaceSelector is required -- without it the selector is
+# scoped to `monitoring` and silently matches nothing.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: minecraft-world-size
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - media
+  selector:
+    matchLabels:
+      monitoring.blackcats.cc/scrape: minecraft-world-size
+  endpoints:
+    - port: metrics
+      path: /metrics
+      # The exporter rescans every 300s, so anything faster just re-serves the
+      # same cached numbers. World growth is a days-to-weeks signal.
+      interval: 120s

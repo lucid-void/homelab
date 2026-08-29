@@ -300,6 +300,49 @@ spec:
               limits:
                 memory: 256Mi
 
+          # Real world-size metrics. kubelet_volume_stats_* cannot provide this:
+          # openebs-hostpath has no quota, so the kubelet reports the node's /var
+          # for this PVC rather than the world. See world-size-configmap.yml.
+          #
+          # Mounted read-only and running as the unprivileged media UID -- it only
+          # ever stats the tree. The scan is on a timer inside the exporter, so a
+          # scrape never triggers disk I/O.
+          world-size:
+            image:
+              repository: python
+              tag: "3.13-alpine"
+            command: ["python3", "-u", "/exporter/exporter.py"]
+            env:
+              SERVER_NAME: vanilla
+              WORLD_ROOT: /data
+              METRICS_PORT: "9109"
+              SCAN_INTERVAL_SECONDS: "300"
+            securityContext:
+              runAsUser: 2202
+              runAsGroup: 2200
+            probes:
+              # Liveness only. Readiness here would gate Pod readiness, which
+              # strips the game Service's endpoints -- a metrics sidecar must
+              # never be able to disconnect players. Same reasoning as `files`.
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /metrics
+                    port: 9109
+                  initialDelaySeconds: 15
+                  periodSeconds: 30
+                  failureThreshold: 5
+              readiness:
+                enabled: false
+            resources:
+              requests:
+                memory: 32Mi
+                cpu: 10m
+              limits:
+                memory: 128Mi
+
     service:
       app:
         controller: app
@@ -317,6 +360,20 @@ spec:
           http:
             # 8081 — squaremap owns 8080 in this pod's network namespace.
             port: 8081
+      metrics:
+        controller: app
+        # Selector label for the VMServiceScrape. Deliberately NOT
+        # app.kubernetes.io/name -- Flux commonMetadata rewrites that on every
+        # resource in a Kustomization, so a scrape keyed off it silently matches
+        # the wrong Services or none at all.
+        labels:
+          monitoring.blackcats.cc/scrape: minecraft-world-size
+        # The game server's readiness must not gate metrics: a crash-looping or
+        # starting server is exactly when world size matters most.
+        publishNotReadyAddresses: true
+        ports:
+          metrics:
+            port: 9109
       map:
         controller: app
         ports:
@@ -331,6 +388,9 @@ spec:
             app:
               - path: /data
             backup:
+              - path: /data
+                readOnly: true
+            world-size:
               - path: /data
                 readOnly: true
             files:
@@ -368,3 +428,11 @@ spec:
             backup:
               - path: /backups
                 subPath: vanilla
+      exporter:
+        type: configMap
+        name: minecraft-world-size
+        advancedMounts:
+          app:
+            world-size:
+              - path: /exporter
+                readOnly: true
