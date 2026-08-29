@@ -650,6 +650,61 @@ m=imaplib.IMAP4('127.0.0.1',1143); m.starttls(c); print(m.noop())"
 | `CERTIFICATE_VERIFY_FAILED` | the SealedSecret is missing or stale |
 | `IP address mismatch` | something is dialling a name instead of `127.0.0.1` |
 
+### Onboard a device to Obsidian LiveSync
+
+The server side is fully declarative, but the vault database, the E2EE passphrase and
+the per-device configuration are all **client-side state that this repo does not hold**
+(see `design/decisions/obsidian-livesync.md`). This is the procedure for both the first
+device and every later one.
+
+Plugin is **Self-hosted LiveSync** (vrtmrz), from Obsidian's Community Plugins.
+
+Credentials:
+
+```bash
+mise exec -- kubectl get secret couchdb-admin-secret -n obsidian \
+  -o jsonpath='{.data.COUCHDB_USER}' | base64 -d; echo
+mise exec -- kubectl get secret couchdb-admin-secret -n obsidian \
+  -o jsonpath='{.data.COUCHDB_PASSWORD}' | base64 -d; echo
+```
+
+URL is `https://obsidian.blackcats.cc`. The vault currently lives in the database
+`notes`. **Off-LAN this needs Netbird up first** — the hostname resolves to
+`172.16.20.50`, which is internal with no port forwarding. On mobile a dropped VPN
+shows up as sync stalling rather than a clear error.
+
+**First device** (manual path — the wizard leads with a Setup URI you do not have yet):
+
+1. `Welcome to Self-hosted LiveSync` notice → `I am setting this up for the first time`.
+2. `Connection Method` → `Configure a remote manually` → `Proceed with manual configuration`.
+3. `End-to-End Encryption` → enable it, set a strong vault passphrase, and **store it with
+   the other recovery keys**. It is unrecoverable, it is not the Setup URI passphrase, and
+   it is what stops the shared admin credential from being equivalent to the vault.
+4. `Choose a synchronisation remote` → `CouchDB` → `Continue to CouchDB setup`.
+5. Enter URL, username, password, database name.
+6. `Create or connect to database and continue` — the credential is a server admin, so it
+   may create the database.
+7. `Restart and Initialise Server` → `I Understand, Overwrite Server`.
+8. `No Synchronisation Settings Found` → `Use this device's settings` (expected for a new DB).
+9. Acknowledge `All optional features are disabled`, leave Obsidian open until initialisation
+   clears, then sync a test note.
+
+**Every later device** — do not retype credentials, as a mismatched E2EE passphrase fails
+confusingly. On a working device, command palette →
+`Self-hosted LiveSync: Copy settings as a new Setup URI`, set a passphrase, copy it. Then on
+the new device: install the plugin → welcome notice →
+`I am adding a device to an existing synchronisation setup` → `Use a Setup URI (Recommended)`
+→ paste URI + passphrase → `Test Settings and Continue` → `Restart and Fetch Data` →
+`Overwrite all with remote files` for an empty vault.
+
+> **Do not accept server changes offered by `Check server requirements`.** Everything it
+> checks (`require_valid_user`, CORS origins, `max_document_size`, `max_http_request_size`)
+> is already set declaratively by `couchdb/app/config-configmap.yml`, so the check should
+> pass clean. Accepting a change writes it to `local.d/docker.ini`, which lives in the
+> container filesystem and **not** on the PVC — it would vanish on the next pod restart and
+> break sync later with no obvious cause. Anything genuinely missing belongs in the
+> ConfigMap and a git push.
+
 ### Defragment etcd (`etcdDatabaseHighFragmentationRatio`)
 
 etcd is copy-on-write with MVCC: every write creates a new revision, and

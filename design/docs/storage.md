@@ -122,15 +122,21 @@ Nodes are 100 GB (`EPHEMERAL` ≈ 105 GB after Talos claims the other partitions
 
 | Node | `/var/lib/containerd` | `/var/openebs` |
 |---|---|---|
-| cp-1 | ~14 GB | ~15 GB (Plex config) |
+| cp-1 | ~14 GB | ~15 GB (Plex config) + 164 KB (CouchDB / Obsidian vault) |
 | cp-2 | ~30 GB | ~1.4 GB → ~2.5 GB (matcha world, pregenerated) |
 | cp-3 | ~28 GB | ~1.4 GB → ~2.5 GB (vanilla world, pregenerated) |
 
-`obsidian/couchdb-data` is not in this table yet — it binds on first deploy and pins to
-whichever node the pod lands on, permanently. An Obsidian vault is text plus one header
-per chunk, so it is small next to the worlds, but it does add a fourth hostpath consumer
-to whichever node takes it. Check with
-`kubectl get pv -o custom-columns=PVC:.spec.claimRef.name,NODE:.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]`.
+`obsidian/couchdb-data` bound to **cp-1** on first deploy (2026-08-29) and is pinned
+there permanently, sharing the node with Plex's config. It is negligible in size — an
+Obsidian vault is text plus one header per chunk, measuring **164 KB** on disk shortly
+after setup — so it does not change the capacity picture, but it is a fourth hostpath
+consumer and it means cp-1 now carries both a media-server config DB and the notes
+sync backend. Re-check node placement after any rebuild with:
+
+```bash
+kubectl get pv -o custom-columns=PVC:.spec.claimRef.name,\
+NODE:.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]
+```
 
 Container images dominate, not application data. See *Image garbage collection* below.
 

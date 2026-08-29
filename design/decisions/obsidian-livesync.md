@@ -142,6 +142,45 @@ from first bind, so the scheduler is already constrained. Adding podAffinity on 
 app pod would make the job **unschedulable whenever couchdb is already at 0
 replicas** — exactly the state a previously failed run leaves behind.
 
+## Log noise that is not breakage
+
+Verified against the live service on 2026-08-29. All of the following appear at
+`[error]`/`[warning]` and none of them indicate a fault — they are recorded here so
+they are not chased a second time.
+
+**`Request to create N=3 DB but only 1 node(s)`** — logged at `[error]` on *every*
+database creation, including the system DBs at first boot. `[cluster] n` is not set, so
+CouchDB uses its compiled default of 3 and then clamps to what exists. It clamps
+**correctly**: the live `notes` database reports `{"q":2,"n":1,"w":1,"r":1}`, which is
+right for a single node. Cosmetic, but it will recur for every new database. Setting
+`[cluster] n = 1` in the ConfigMap would make the intent explicit and silence it (see
+`design/TODO.md`).
+
+**`database_does_not_exist … _users` with a `mem3_shards`/`chttpd_auth_cache` stack, at
+first boot only** — the auth cache starts listening for changes before `single_node`
+has finished creating `_users`. Self-resolves within seconds; the boot completes with
+`rexi_server : cluster stable`. Only ever seen once, at 19:41:37 on first start.
+
+**`open_result error {not_found,no_db_file} for _dbs` followed by `creating missing
+database: _dbs`** — normal first-boot bootstrapping of an empty data directory.
+
+**Multi-second durations on `_changes?feed=longpoll`** (tens of thousands of ms) are
+held-open change feeds with `heartbeat=30000`, not slow queries. This is the mechanism
+live sync runs on. Expect several concurrent feeds per connected client; a count that
+climbs steadily across reconnects would be the thing worth investigating.
+
+**`couch_httpd_auth: Authentication failed for user <name>`** is a real signal, not
+noise — but a short burst during initial device onboarding is just credentials being
+entered. Sustained repeats are not.
+
+## Client-side state that is not in git
+
+The database name and the LiveSync E2EE passphrase are chosen in the plugin, not here —
+the vault currently lives in a database named `notes`, created by the client on first
+connect. Nothing in this repo pins that name, so a rebuild plus a client pointed at a
+different name silently starts an empty vault rather than erroring. The E2EE passphrase
+is likewise client-side and unrecoverable; it belongs with the other recovery keys.
+
 ## Caveat
 
 The vault is stored as CouchDB documents, not plain markdown, so a restic snapshot

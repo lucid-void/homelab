@@ -773,6 +773,12 @@ makes real problems harder to spot.
   recommendations are fabricated" above).
 - **`observability` namespace is completely empty** — no resources at all. Either
   a leftover or an intent that never landed; delete it or document what it is for.
+- **CouchDB logs `Request to create N=3 DB but only 1 node(s)` at `[error]` on every
+  database creation** — `[cluster] n` is unset in `obsidian/couchdb`, so CouchDB uses
+  its compiled default of 3 and clamps down. It clamps *correctly* (the live `notes`
+  DB is `{"q":2,"n":1,"w":1,"r":1}`), so this is cosmetic — but it is an `[error]`-level
+  line that will recur for every new database and invites a wild goose chase. Fix is one
+  line, `[cluster] n = 1`, in `couchdb/app/config-configmap.yml`; needs a pod restart.
 - **FreshRSS liveness probe hits an OIDC-redirecting path** — the probe gets a 302
   to Zitadel and logs a continuous `ProbeWarning` with the pod IP embedded as
   `redirect_uri` (`http://10.244.5.55:80/i/oidc/`). The app is healthy; the probe
