@@ -1,0 +1,115 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: litellm
+  namespace: ai
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  timeout: 15m
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        annotations:
+          # Controller metadata, not pod.annotations — see the llama-swap
+          # HelmRelease for why that distinction is load-bearing. Restarts on
+          # config or credential rotation.
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              # The `-stable` suffix is part of the tag, not a channel alias:
+              # BerriAI publish no plain vX.Y.Z tags, only `-stable` releases and
+              # `main-*` builds. Renovate must track the `-stable` line.
+              repository: ghcr.io/berriai/litellm
+              tag: "v1.83.14-stable"
+            args:
+              - --config
+              - /app/config.yaml
+              - --port
+              - "4000"
+            env:
+              TZ: Europe/Brussels
+              # LiteLLM assembles DATABASE_URL from these four itself, quoting
+              # each component — which is what lets the CNPG-managed password
+              # arrive by reference rather than embedded in a URL string.
+              # Note DATABASE_USERNAME, not DATABASE_USER (Open WebUI uses the
+              # other spelling; they are different applications).
+              DATABASE_HOST: postgres-rw.postgres.svc.cluster.local
+              DATABASE_NAME: litellm
+              DATABASE_USERNAME:
+                valueFrom:
+                  secretKeyRef:
+                    name: litellm-role-secret
+                    key: username
+              DATABASE_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: litellm-role-secret
+                    key: password
+              LITELLM_MASTER_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: litellm-secret
+                    key: LITELLM_MASTER_KEY
+              LITELLM_SALT_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: litellm-secret
+                    key: LITELLM_SALT_KEY
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health/liveliness
+                    port: 4000
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 10
+                  failureThreshold: 5
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
+            resources:
+              requests:
+                cpu: 200m
+                memory: 512Mi
+              limits:
+                memory: 1Gi
+
+    service:
+      app:
+        controller: app
+        labels:
+          monitoring.blackcats.cc/scrape: litellm
+        ports:
+          http:
+            port: 4000
+
+    persistence:
+      config:
+        type: configMap
+        name: litellm-config
+        globalMounts:
+          - path: /app/config.yaml
+            subPath: config.yaml

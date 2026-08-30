@@ -18,7 +18,7 @@ locals {
   gateway    = "172.16.20.254"
   dns_server = "172.16.20.254"
   domain     = "blackcats.cc"
-  
+
   k8s_nodes = {
     cp-1 = {
       vm_id       = 2020
@@ -64,25 +64,37 @@ locals {
     #   disk — 100 GB with kubelet image GC at 70% leaves ~70 GB usable, which
     #   does not fit model weights alongside Talos and containerd. 250 GB here
     #   because weights live on an openebs-hostpath PVC on this node's local
-    #   disk (a 22 GB mmap over NFS is a slow cold start).
+    #   disk (a 35 GB mmap over NFS is a slow cold start).
     #
-    # 64 GB here, and the control planes drop 32 -> 30 GB to pay for it. This
-    # is design/llm-inference.md option C with 2 GB more per control plane:
-    # llm-1 holds Qwen3.6-35B-A3B Q4 (~22 GB) and Qwen3.8-27B + mmproj
-    # (~18.8 GB) resident together, which matters because a cold reload of
-    # either is tens of seconds off local disk.
+    # 70 GiB here (71680 MiB), and the control planes sit at 30 GB each, for a
+    # total of 160 GB — the full amount available, confirmed against the host.
+    # The earlier "154 GB is 4 GB OVER the 150 GB budget" warning is resolved:
+    # 150 was the conservative figure, 160 is the real one.
     #
-    # Two things to know before applying:
+    # The node holds ONE model — Qwen3.6-35B-A3B Q8_0 (34.4 GiB), which is
+    # effectively lossless. The extra 6 GB over the original 64 GB buys KV
+    # cache, i.e. context window, NOT a second model:
     #
-    #   Total is 154 GB, which is 4 GB OVER the 150 GB budget the design doc
-    #   assumes. Confirm actual installed host RAM (and what Proxmox itself
-    #   needs) before `tofu apply` — this is not verified in-repo.
+    #   weights 34.4 + KV ~24 @ 128K + node overhead ~2.5 = ~61 GiB
+    #   against ~68.3 GiB allocatable.
     #
-    #   Cutting the control planes is a change to three RUNNING nodes, so it
-    #   costs a rolling reboot and must be done one at a time. Per the design
-    #   doc, cp-3's limit sum is already 35.1 GiB against current usage of
-    #   ~9-13 GiB: steady state is fine, draining during a Talos upgrade is
-    #   where 30 GB gets tight.
+    # There is deliberately no separate vision model. Qwen3.6-35B-A3B is itself
+    # multimodal (image-text-to-text; the unsloth GGUF repo ships an 0.8 GiB
+    # mmproj-F16.gguf), so vision — if ever wanted for Paperless or Immich — is
+    # one extra file and one --mmproj flag, not another 17 GiB resident. The
+    # old plan here paired Q4 (~22 GB) with a distinct Qwen3.8-27B (~18.8 GB);
+    # that pairing is obsolete and was never deployed.
+    #
+    # The KV figure above is scaled from an estimate, not measured on this
+    # model. Boot llama-server once at --ctx-size 32768, read "KV self size"
+    # from its startup log, and scale from that before committing to 131072.
+    # There is no memory limit on the pod (mmap page-cache accounting), so an
+    # over-large context takes the node, not the container.
+    #
+    # Control planes stay at 8 vCPU for now. 3x8 + 8 = 32 vCPU on 14 physical
+    # cores is a 2.3x commit and inference is the workload most hurt by it, but
+    # cutting them is a change to three RUNNING nodes — deferred until the
+    # benchmark in design/llm-deployment.md shows contention is real.
     #
     # Does NOT fit Flash-Next IQ3_XXS (82 GB) — that needs option A (90 GB
     # here, 20 GB per control plane).
@@ -90,7 +102,7 @@ locals {
       vm_id       = 2014
       ip_last     = 14
       vcpus       = 8
-      memory      = 65536
+      memory      = 71680
       disk_gb     = 250
       mac_address = "BC:24:11:01:23:00"
       tags        = ["k8s_worker"]

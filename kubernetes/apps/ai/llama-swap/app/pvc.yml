@@ -1,0 +1,26 @@
+---
+# openebs-hostpath, not nfs-client: the weights are mmap'd by llama.cpp on every
+# load, and a 34 GiB mmap over NFS is a slow cold start. This binds node-local on
+# llm-1 and is why both this PVC's consumers (the Deployment and the model-fetch
+# Job) must be pinned to that node.
+#
+# The class is volumeBindingMode: WaitForFirstConsumer and its provisioner runs a
+# helper pod on the target node — verified to work against llm-1's
+# workload=llm:NoSchedule taint (design/llm-deployment.md §3.4), so no
+# Tolerations entry in cas.openebs.io/config is needed.
+#
+# 150Gi is advisory: openebs-hostpath enforces no quota, so this claim cannot be
+# "exceeded". The real limit is llm-1's 250 GB disk, which is what
+# NodeFilesystemAlmostFull actually watches.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-models
+  namespace: ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      storage: 150Gi

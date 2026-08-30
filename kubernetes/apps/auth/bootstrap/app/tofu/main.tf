@@ -479,3 +479,47 @@ resource "kubernetes_secret_v1" "immich_oidc_config" {
     })
   }
 }
+
+# Open WebUI reads every OAUTH_*/OPENID_* value from the environment, so this is
+# the flat env-var style (same as Kavita/RomM), consumed via `envFrom: secretRef`
+# in the HelmRelease.
+#
+# POST rather than BASIC deliberately: the HelmRelease pins
+# OAUTH_TOKEN_ENDPOINT_AUTH_METHOD=client_secret_post to match. Zitadel advertises
+# both methods in its discovery document, so leaving the client to infer one puts
+# the choice at the mercy of an upstream default — which is precisely how the
+# paperless 2.20.15 -> 3.0.4 bump silently flipped basic -> post.
+resource "zitadel_application_oidc" "openwebui" {
+  project_id = zitadel_project.homelab.id
+  org_id     = local.org_id
+  name       = "Open WebUI"
+
+  redirect_uris = [
+    "https://chat.blackcats.cc/oauth/oidc/callback",
+  ]
+  post_logout_redirect_uris = [
+    "https://chat.blackcats.cc/",
+  ]
+
+  response_types   = ["OIDC_RESPONSE_TYPE_CODE"]
+  grant_types      = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"]
+  app_type         = "OIDC_APP_TYPE_WEB"
+  auth_method_type = "OIDC_AUTH_METHOD_TYPE_POST"
+
+  access_token_type           = "OIDC_TOKEN_TYPE_BEARER"
+  id_token_userinfo_assertion = true
+
+  version  = "OIDC_VERSION_1_0"
+  dev_mode = false
+}
+
+resource "kubernetes_secret_v1" "openwebui_oidc_secret" {
+  metadata {
+    name      = "openwebui-oidc-secret"
+    namespace = "ai"
+  }
+  data = {
+    OAUTH_CLIENT_ID     = zitadel_application_oidc.openwebui.client_id
+    OAUTH_CLIENT_SECRET = zitadel_application_oidc.openwebui.client_secret
+  }
+}

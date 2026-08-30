@@ -1,0 +1,20 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: openwebui-role-secret
+  namespace: postgres
+spec:
+  encryptedData:
+    password: AgCPulLvilYVFqpg0bvc0cYWzLRVDIDUJCLylF4R9UyZ5SEa8ElTh7C7xguAff8PbPvm+QXIM7z0HdfJITXzWpNa3eV8O5CqTZc23oESb2r/DtW10JKJk+GyM562FGzHmweyuHwQVz+5vT3DVlck1WOYuaorRU4QqXGXKxxszz8G2ZOh4F6BroK2RucIgOqUnxvJDaQSd+qWs5nYcCJ6r4c3F1F7y+oiKaya3ClLFMxlHAvgIIthGOsg/SMAGGnht02+8nmae7U6f2VibGSuOgcQZZZvDgkP9kh5NbkaJ30Xr5/qMqcUQCG/LU7rbmVljt7w4nLzKcY7x31KRJ64rOfG06iDCHsllydVZbghxbmtfZ8V2ipEAxYVq2jJ9K3LtJxSuC8CnM07AvZSMuG+a762VrngD3xSmGVOjMixtqWJ9+v3E6h0nxPaSacba7MEVmL2D77tgqHpVRCi+iF4dN0YpMO6dLBA9EIcJlLMpbRrJklof7Qma8sYLgsaqk1xd9XfBTR7LFQ+WMHgzgnTXbPrQBoGoS9Ec32omfO2MneaPuVRr8bv92Df7uAVZKOJ+Ug+Ya+K6M/YiYLF9fLARcbgspmB1QgNrLoQbFrUqq2z1nukcWR+OzP/H29hgpXlhfNDovzlg3ckCVQt1a1YOSjb+FwLHq0NmtaudzGiNlYIOKthZQm+Xo+kN6Hrp6XEM4hAREauz1DWgV0tEx7XrVu5wFoR1b7eW4s=
+    username: AgAjUFp05zHS+S+4B8BksBJ99cnEYeFpTeXYkTA7Mq1kfkzd8IDptNH6uodbalgt77SHZaC40E9ka49CupWSb4Y6+03kDKov1AKVePB0C189uE+Q8qvDtGWOfW7wwdxXPowE/VejLIej+LRP6OQPNcBpglb8faFgoLv9fKWlFukcdqfe569rm9RsU6m2/wJ1kWw9gmSJpYIjo5NmM00zqUZNvasfZhhxeOFua0pAmm+9CmaylmmHhj7+eavQ9uN0Fp+QJ0hKdywpU/IbEVbpxeuntty1YJds+6rIb7xgzYYB2J20HM1bBQUXhldDwaqY51tAEqcxd2FYLbdCAXD4byRO38khN8fARceImRe3shhoY4832lRxYGXqDjejBLIUI0rzeejZkc6eIuHoX1ASqVE1ybp0ytJxxLyQV9ZFN/T2LOspcOW6MFyZgQaIHpX/nZLZwuVkpC7WpBFKdz0uPCZnF3VvKQs9RwIO/bVy2AlrR1e+KIO/GsgFdJ4CiB8mYLXIHlCsgbCD8sBAsoIalW+jrATVCb4Gvpv14HBIN5uB9FOTyHEcBkTwoEOeKIh46XYuaiWdmeXZttCiuNMLAaJtZngeEiqezNuxrm+ADI53tpYDyJ23yTECg+I9BoYDXwgvoqEO4XchR4+vjzt5wByU9k1LVQODGg1AblSk56ijH/ECJiSC9DPdcwyZ3+1kLdfpf5j1tkTsRIo=
+  template:
+    metadata:
+      annotations:
+        reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+        reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: ai
+        reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+        reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: ai
+      name: openwebui-role-secret
+      namespace: postgres
+    type: kubernetes.io/basic-auth

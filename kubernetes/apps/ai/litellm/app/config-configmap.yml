@@ -1,0 +1,82 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  namespace: ai
+data:
+  config.yaml: |
+    model_list:
+      # Names here are what clients ask for. They are deliberately generic
+      # (`local-smart`, not `qwen3.6-35b`) so the backing model can be swapped
+      # without reconfiguring Open WebUI, opencode and DeepSeek Harness.
+      #
+      # The `openai/` prefix tells LiteLLM to speak the OpenAI protocol; the part
+      # after it is the model id llama-swap routes on, so it must match a key in
+      # llama-swap's own config.
+      - model_name: local-smart
+        litellm_params:
+          model: openai/qwen-smart
+          api_base: http://llama-swap.ai.svc.cluster.local:8080/v1
+          api_key: none
+          # Decode is single-digit tok/s and a long prompt can spend minutes in
+          # prefill. LiteLLM's default timeout would abandon a request that is
+          # progressing normally.
+          timeout: 1800
+        model_info:
+          mode: chat
+
+      - model_name: local-embed
+        litellm_params:
+          model: openai/local-embed
+          api_base: http://llama-swap.ai.svc.cluster.local:8080/v1
+          api_key: none
+        model_info:
+          mode: embedding
+
+      # ---------------------------------------------------------------------
+      # NO CLOUD FALLBACK — deliberate. This deployment is local-only.
+      #
+      # Know what that costs before relying on it: decode is fine, prefill is
+      # not. An agentic coding loop that re-reads a large context each turn
+      # spends minutes per turn, and with nothing to fall back to those requests
+      # simply take as long as they take. Interactive chat about code is the
+      # workload this serves well.
+      #
+      # If that trade stops being acceptable, adding one is small: put the
+      # provider key in litellm-secret, re-seal, add
+      #
+      #   - model_name: cloud-smart
+      #     litellm_params:
+      #       model: <provider>/<model>
+      #       api_key: os.environ/<PROVIDER>_API_KEY
+      #
+      # and uncomment router_settings below. Nothing else changes — clients ask
+      # for `local-smart` either way, which is the whole point of the generic
+      # model names above.
+      # ---------------------------------------------------------------------
+
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY
+      # NO database_url key here, deliberately. Virtual keys, budgets and spend
+      # logs live in Postgres, but the connection is assembled by LiteLLM from
+      # the split DATABASE_HOST / DATABASE_USERNAME / DATABASE_PASSWORD /
+      # DATABASE_NAME env vars (see the HelmRelease). That path exists precisely
+      # so the CNPG-managed password can arrive by secretKeyRef instead of being
+      # baked into a URL string, and it URL-encodes the credentials for us.
+      # Setting `database_url: os.environ/DATABASE_URL` as well would point at an
+      # env var that is never defined.
+      #
+      # Issue one virtual key per consumer (Open WebUI, opencode, DeepSeek
+      # Harness) so usage is attributable and individually revocable.
+
+    litellm_settings:
+      drop_params: true
+      # llama.cpp does not implement every OpenAI parameter, and clients send
+      # them anyway. Without drop_params an unsupported field is a hard 400
+      # rather than a silently ignored hint.
+      set_verbose: false
+
+    # router_settings:
+    #   fallbacks:
+    #     - local-smart: ["cloud-smart"]

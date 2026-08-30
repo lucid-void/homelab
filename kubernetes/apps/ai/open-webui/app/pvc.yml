@@ -1,0 +1,19 @@
+---
+# nfs-client, not openebs-hostpath: this pod runs on a control plane (llm-1 is
+# tainted for inference only), and a node-local volume would pin it to whichever
+# CP happened to bind first.
+#
+# Holds uploaded documents and the Chroma vector store. Chat history and users
+# live in Postgres, so this is not the whole of Open WebUI's state.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: open-webui-data
+  namespace: ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 20Gi

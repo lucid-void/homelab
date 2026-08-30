@@ -1,0 +1,129 @@
+---
+# LLM stack alerts. Route through Alertmanager → am-gotify-bridge → Gotify, same
+# path as minecraft and proxmox-host.
+#
+# Metric sources (every name below was checked against live VictoriaMetrics
+# before this file was written — an alert on a metric that does not exist is
+# indistinguishable from an alert that never fires):
+#   up{}                → the VMServiceScrape targets in vmservicescrape.yml
+#   kube_*              → kube-state-metrics (vm-stack)
+#   container_*         → cAdvisor via kubelet scrape
+#   node_*              → node-exporter DaemonSet
+#
+# THERE IS DELIBERATELY NO TOKEN-RATE ALERT. Decode and prefill rates come from
+# llama.cpp's `llamacpp:*` counters, which live on the llama-server child
+# process and are not exposed through llama-swap's /metrics (see
+# vmservicescrape.yml). Shipping a "decode rate below floor" rule against a
+# series that is never ingested would produce a rule that can never fire while
+# looking like coverage. Throughput is measured by hand for now.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: ai-stack
+  namespace: monitoring
+spec:
+  groups:
+    # -----------------------------------------------------------------------
+    # Availability
+    # -----------------------------------------------------------------------
+    - name: ai-availability
+      rules:
+        - alert: LlamaSwapDown
+          expr: up{job=~".*llama-swap.*"} == 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: llama-swap is not being scraped
+            description: >
+              The inference backend on llm-1 has not answered a scrape for 10m.
+              Every local model is unavailable and LiteLLM will be returning
+              upstream errors. Check `kubectl -n ai get pods -o wide` and the
+              pod's logs — a model load failure (missing or truncated GGUF)
+              leaves the process running but useless.
+
+        - alert: LlamaSwapNotReady
+          # Distinct from the scrape alert: this fires when the Deployment has no
+          # available replica at all, e.g. the pod cannot schedule because the
+          # llama-models PVC will not bind, or the node is cordoned.
+          expr: kube_deployment_status_replicas_available{namespace="ai", deployment="llama-swap"} == 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: llama-swap has no available replica
+            description: >
+              Deployment llama-swap in namespace ai has been at 0 available
+              replicas for 15m. strategy is Recreate and the model PVC is
+              node-local RWO on llm-1, so a pod that cannot schedule there stays
+              Pending indefinitely rather than moving elsewhere.
+
+        - alert: LiteLLMNotReady
+          expr: kube_deployment_status_replicas_available{namespace="ai", deployment="litellm"} == 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: LiteLLM router has no available replica
+            description: >
+              Deployment litellm in namespace ai has been at 0 available replicas
+              for 15m. llm.blackcats.cc is down and every client — Open WebUI,
+              opencode, DeepSeek Harness — has lost its endpoint, including the
+              cloud fallback.
+
+        - alert: OpenWebUINotReady
+          expr: kube_deployment_status_replicas_available{namespace="ai", deployment="open-webui"} == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Open WebUI has no available replica
+            description: >
+              chat.blackcats.cc is down. If this began right after a fresh
+              install, check for CreateContainerConfigError — the pod requires
+              openwebui-oidc-secret, which the zitadel-bootstrap Terraform Job
+              writes, and it cannot start before that Secret exists.
+
+    # -----------------------------------------------------------------------
+    # Capacity — llm-1 is deliberately run close to full, so these matter
+    # -----------------------------------------------------------------------
+    - name: ai-capacity
+      rules:
+        - alert: LlmNodeMemoryLow
+          # llama-swap runs with NO memory limit by design (mmap page-cache
+          # accounting), so there is no per-container ratio to alert on and a
+          # cgroup OOM will never fire. The node's own free memory is the only
+          # honest signal that the model plus KV cache no longer fit.
+          #
+          # Pinned by instance because node-exporter series carry no `node`
+          # label — only instance=IP:9100. 172.16.20.14 is llm-1. An unpinned
+          # selector would also sweep in the Proxmox host, which reports under
+          # job="proxmox-node" with a completely different baseline.
+          expr: node_memory_MemAvailable_bytes{instance="172.16.20.14:9100"} < 4e9
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: llm-1 has under 4 GiB of available memory
+            description: >
+              Available memory on llm-1 has been below 4 GiB for 15m. The likely
+              cause is --ctx-size raised beyond what the KV cache can fit
+              alongside the weights. This does not present as an OOMKill; it
+              presents as the model becoming mysteriously slow, because the
+              kernel starts reclaiming and refaulting the mmap'd GGUF pages.
+              Lower --ctx-size in the llama-swap ConfigMap.
+
+        - alert: ModelFetchJobFailed
+          expr: kube_job_status_failed{namespace="ai", job_name=~"model-fetch.*"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: model-fetch Job failed on llm-1
+            description: >
+              Weight download did not complete. llama-swap will start but every
+              inference request fails on a missing model file. Check
+              `kubectl -n ai logs job/model-fetch` — the script pins each file's
+              exact byte size, so a size mismatch there means a truncated or
+              redirected download rather than a missing one. Re-running is safe;
+              it resumes from the .part file.

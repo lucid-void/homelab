@@ -1,0 +1,135 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: llama-swap
+  namespace: ai
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  # Longer than the house default: the image is large and the first pull onto a
+  # fresh node is slow.
+  timeout: 30m
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        # openebs-hostpath is node-local RWO and the model is 34 GiB: a rolling
+        # update would schedule a second pod that cannot bind the volume, so the
+        # rollout would stall with the old pod still holding it.
+        strategy: Recreate
+        annotations:
+          # On the CONTROLLER's own metadata, NOT pod.annotations. Reloader reads
+          # this from the Deployment object; under spec.template it is a silent
+          # no-op — no error, no event, and config edits simply never take
+          # effect. app-template maps controllers.<n>.annotations here and
+          # controllers.<n>.pod.annotations to the template, which is exactly how
+          # this gets copied wrong.
+          reloader.stakater.com/auto: "true"
+        pod:
+          # kubernetes.io/hostname, not a workload=llm label: node labels set via
+          # Talos machine config are rejected by NodeRestriction on a worker, so
+          # only the stock kubelet-set labels are reliably present. See
+          # design/llm-deployment.md §3.2.
+          nodeSelector:
+            kubernetes.io/hostname: llm-1
+          tolerations:
+            - key: workload
+              operator: Equal
+              value: llm
+              effect: NoSchedule
+        containers:
+          app:
+            image:
+              # The LEGACY :cpu image is correct here. Upstream's recommended
+              # "unified" image (llama-server + ik-llama + whisper built from
+              # source) is only published for cuda and vulkan. Legacy reads its
+              # config from /app/config.yaml, which is where it is mounted below.
+              repository: ghcr.io/mostlygeek/llama-swap
+              tag: "v251-cpu-b10680"
+            env:
+              TZ: Europe/Brussels
+            args:
+              - --config
+              - /app/config.yaml
+              - --listen
+              - :8080
+            probes:
+              # Targets /v1/models, not an inference endpoint: llama-swap is a
+              # proxy that answers immediately while models load lazily on first
+              # request. Probing anything that triggers a load would leave the
+              # pod unready for minutes on every restart.
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /v1/models
+                    port: 8080
+                  initialDelaySeconds: 15
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
+            resources:
+              requests:
+                cpu: 4
+                memory: 60Gi
+              # NO memory limit, deliberately. llama.cpp mmaps the GGUF, so those
+              # pages count toward the cgroup as reclaimable page cache. A limit
+              # anywhere near the working set does not OOMKill cleanly — it
+              # causes continuous reclaim-and-refault against the NVMe, which
+              # presents as "the model got mysteriously slow" with no event and
+              # nothing in the logs. The node is dedicated and tainted, so there
+              # is nothing here to protect from an overrun.
+              #
+              # 60Gi request, not 64Gi: allocatable is ~68.3 GiB after the 70 GB
+              # resize and the DaemonSets already request ~1 GiB, so 64Gi sits
+              # close enough to the ceiling that one more DaemonSet would make
+              # this pod unschedulable.
+              #
+              # No CPU limit either, matching the house style — a CPU limit is
+              # throttling, and throttling llama-server is directly a token-rate
+              # cut.
+
+    service:
+      app:
+        controller: app
+        labels:
+          # The scrape selector keys off THIS label, not app.kubernetes.io/name,
+          # which Flux commonMetadata rewrites across the whole Kustomization —
+          # selecting on that would silently match the wrong Services or none.
+          monitoring.blackcats.cc/scrape: llama-swap
+        ports:
+          http:
+            port: 8080
+
+    persistence:
+      models:
+        existingClaim: llama-models
+        globalMounts:
+          - path: /models
+      config:
+        type: configMap
+        name: llama-swap-config
+        globalMounts:
+          - path: /app/config.yaml
+            subPath: config.yaml

@@ -1,0 +1,172 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: open-webui
+  namespace: ai
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  timeout: 15m
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        annotations:
+          # Controller metadata, not pod.annotations. Restarts the app when the
+          # Terraform-written OIDC secret appears or rotates — without it, the
+          # pod that started before zitadel-bootstrap ran keeps running with no
+          # OIDC config and the login button never appears.
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: ghcr.io/open-webui/open-webui
+              tag: "v0.7.2"
+            envFrom:
+              # Written by the zitadel-bootstrap Terraform Job with the keys
+              # OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET.
+              #
+              # This is NOT optional, and it cannot be made optional here:
+              # app-template v3.7.3 strips `optional` from an envFrom secretRef
+              # (verified by rendering — it does not error, the key just never
+              # reaches the manifest), and putting `optional` on a map-form
+              # secretKeyRef fails the chart's values schema outright. Making it
+              # genuinely optional would mean rewriting all 22 env vars into the
+              # raw array form.
+              #
+              # So: until this Secret exists the pod sits in
+              # CreateContainerConfigError, exactly like Kavita. That is
+              # acceptable because ks.yml has `dependsOn: zitadel-bootstrap`, so
+              # Flux does not apply this release until the Job has run. Reloader
+              # restarts the app on later credential rotation.
+              - secretRef:
+                  name: openwebui-oidc-secret
+            env:
+              TZ: Europe/Brussels
+
+              # -- database ------------------------------------------------
+              # Open WebUI only builds a URL from these when ALL FIVE are set
+              # (`all(DB_VARS.values())`); miss one and it silently falls back to
+              # SQLite on the PVC, which looks like it works right up until you
+              # wonder where the data went. Note DATABASE_USER here vs
+              # DATABASE_USERNAME in LiteLLM — different apps, different spelling.
+              #
+              # Open WebUI does NOT URL-encode the password before interpolating
+              # it, so the generated role password is deliberately alphanumeric.
+              # A regenerated password containing @ : / or # would corrupt the
+              # connection string.
+              DATABASE_TYPE: postgresql
+              DATABASE_HOST: postgres-rw.postgres.svc.cluster.local
+              DATABASE_PORT: "5432"
+              DATABASE_NAME: openwebui
+              DATABASE_USER:
+                valueFrom:
+                  secretKeyRef:
+                    name: openwebui-role-secret
+                    key: username
+              DATABASE_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: openwebui-role-secret
+                    key: password
+
+              # -- model access via LiteLLM --------------------------------
+              OPENAI_API_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
+              OPENAI_API_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: open-webui-secret
+                    key: OPENAI_API_KEY
+
+              # -- auth ----------------------------------------------------
+              WEBUI_URL: https://chat.blackcats.cc
+              WEBUI_SECRET_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: open-webui-secret
+                    key: WEBUI_SECRET_KEY
+              OPENID_PROVIDER_URL: https://zitadel.blackcats.cc/.well-known/openid-configuration
+              OPENID_REDIRECT_URI: https://chat.blackcats.cc/oauth/oidc/callback
+              OAUTH_PROVIDER_NAME: Zitadel
+              OAUTH_SCOPES: openid email profile
+              # Pinned to match the Zitadel app's OIDC_AUTH_METHOD_TYPE_POST.
+              # Left unset, the client infers this from the discovery document —
+              # and Zitadel advertises both methods, so the inference is at the
+              # mercy of an upstream default. That is exactly how the paperless
+              # 2.20.15 -> 3.0.4 bump silently flipped basic -> post.
+              OAUTH_TOKEN_ENDPOINT_AUTH_METHOD: client_secret_post
+              # Defaults to FALSE. Without it OIDC is configured, the button
+              # renders, and the very first login fails — there is no account and
+              # nothing will create one.
+              ENABLE_OAUTH_SIGNUP: "true"
+              # Defaults to TRUE, which copies config into the database on first
+              # boot and then IGNORES the environment. Git stops being the source
+              # of truth and later rotations of anything above do nothing.
+              ENABLE_PERSISTENT_CONFIG: "false"
+
+              # -- RAG -----------------------------------------------------
+              # Without these, Open WebUI downloads a sentence-transformers model
+              # at first boot and runs embeddings on the CPU of whichever control
+              # plane it lands on — a recurring tax on a node also running etcd.
+              RAG_EMBEDDING_ENGINE: openai
+              RAG_OPENAI_API_BASE_URL: http://litellm.ai.svc.cluster.local:4000/v1
+              RAG_OPENAI_API_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: open-webui-secret
+                    key: OPENAI_API_KEY
+              RAG_EMBEDDING_MODEL: local-embed
+              # VECTOR_DB stays at its default (chroma, on the PVC). pgvector
+              # would need the extension enabled in the openwebui database and
+              # buys nothing at this scale.
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 10
+                  failureThreshold: 5
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
+            resources:
+              requests:
+                cpu: 200m
+                memory: 1Gi
+              limits:
+                memory: 3Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 8080
+
+    persistence:
+      data:
+        existingClaim: open-webui-data
+        globalMounts:
+          - path: /app/backend/data

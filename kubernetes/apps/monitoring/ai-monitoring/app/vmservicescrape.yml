@@ -1,0 +1,56 @@
+---
+# Cross-namespace: the Services live in `ai` while these CRs live in
+# `monitoring`, so namespaceSelector is REQUIRED — without it the selector is
+# scoped to `monitoring` and silently matches nothing.
+#
+# Selectors key off monitoring.blackcats.cc/scrape rather than
+# app.kubernetes.io/name, because Flux commonMetadata rewrites the latter on
+# every resource in a Kustomization.
+#
+# WHAT /metrics ON LLAMA-SWAP ACTUALLY SERVES: only its own system metrics —
+# llamaswap_cpu_util_percent, llamaswap_memory_*, llamaswap_load_average,
+# llamaswap_network_bytes_total (plus GPU series that stay empty on a CPU node).
+# It does NOT aggregate llama.cpp's `llamacpp:*` inference counters; those are
+# exposed by the llama-server child process on a dynamic internal port and are
+# only reachable through the /upstream/{model}/ passthrough. Do not scrape that
+# path: on a model that is not loaded, the request would trigger a 34 GiB load.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: llama-swap
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - ai
+  selector:
+    matchLabels:
+      monitoring.blackcats.cc/scrape: llama-swap
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 60s
+---
+# LiteLLM's Prometheus endpoint has moved behind its enterprise tier in some
+# releases. If /metrics 404s on the pinned version, DELETE this object rather
+# than leaving a scrape target permanently failing — a chronically red `up`
+# series trains everyone to ignore the one alert that matters.
+#
+# Verify before relying on it:
+#   kubectl -n ai exec deploy/litellm -- curl -s localhost:4000/metrics | head
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: litellm
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - ai
+  selector:
+    matchLabels:
+      monitoring.blackcats.cc/scrape: litellm
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 60s

@@ -1,0 +1,9 @@
+---
+# No pod-security label: this namespace inherits the cluster-default `baseline`
+# enforcement, which is all the LLM stack needs. Deliberately NOT `privileged` —
+# the one thing that would have required it is llama.cpp's --mlock (needs
+# IPC_LOCK), and that flag is not used. See design/llm-deployment.md §5.1.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai
