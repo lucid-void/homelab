@@ -93,9 +93,24 @@ spec:
             resources:
               requests:
                 cpu: 200m
-                memory: 512Mi
-              limits:
                 memory: 1Gi
+              # 4Gi, not the 1Gi this shipped with. LiteLLM OOMKilled (exit 137)
+              # 11 seconds into startup, twice, with NO log output at all --
+              # it dies inside the Prisma migration before the proxy logs
+              # anything, so the only evidence is lastState.terminated.reason.
+              # The Node query engine Prisma spawns is the spike; steady state
+              # is far lower. Same shape as the trivy-operator incident: a
+              # startup peak that a limit sized from steady state cannot survive.
+              #
+              # This is a ceiling picked to get it running, NOT a measured
+              # number. Tighten it from
+              #   max_over_time(container_memory_working_set_bytes{
+              #     namespace="ai",container="app",
+              #     metrics_path="/metrics/cadvisor"}[7d])
+              # once there is a week of data -- note the metrics_path pin, or
+              # the kubelet's two endpoints double every container_* series.
+              limits:
+                memory: 4Gi
 
     service:
       app:
