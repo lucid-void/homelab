@@ -6,6 +6,14 @@ metadata:
   namespace: ai
 data:
   config.yaml: |
+    # Defaults to "proxy", which forwards only llama-swap's own request log and
+    # SWALLOWS llama-server's. That hides the two things you actually need from
+    # this pod: the "KV self size" line that tells you what --ctx-size costs in
+    # memory, and any model-load failure — a bad GGUF or an out-of-memory abort
+    # otherwise shows up as nothing at all in `kubectl logs`, just a request that
+    # never returns. Found the hard way trying to size the context window.
+    logToStdout: both
+
     models:
       qwen-smart:
         aliases: [default]
