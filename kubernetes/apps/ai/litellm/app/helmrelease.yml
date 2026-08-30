@@ -102,8 +102,12 @@ spec:
               # is far lower. Same shape as the trivy-operator incident: a
               # startup peak that a limit sized from steady state cannot survive.
               #
-              # This is a ceiling picked to get it running, NOT a measured
-              # number. Tighten it from
+              # MEASURED 2026-08-30, once it was up: 941 MiB steady state.
+              # That explains the OOM exactly — steady state sits just under the
+              # old 1Gi (1024 MiB) limit, so the startup spike had nowhere to go.
+              # 4Gi is kept as headroom for that spike, whose true peak is still
+              # unknown; a limit costs nothing until it is used, and only the
+              # 1Gi request reserves capacity. Tighten from
               #   max_over_time(container_memory_working_set_bytes{
               #     namespace="ai",container="app",
               #     metrics_path="/metrics/cadvisor"}[7d])
@@ -115,8 +119,9 @@ spec:
     service:
       app:
         controller: app
-        labels:
-          monitoring.blackcats.cc/scrape: litellm
+        # No monitoring.blackcats.cc/scrape label: LiteLLM's /metrics is 404 on
+        # this version (enterprise-gated), so there is no scrape to select it.
+        # See kubernetes/apps/monitoring/ai-monitoring/app/vmservicescrape.yml.
         ports:
           http:
             port: 4000

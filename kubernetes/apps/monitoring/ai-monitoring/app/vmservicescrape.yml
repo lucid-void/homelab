@@ -31,26 +31,22 @@ spec:
       path: /metrics
       interval: 60s
 ---
-# LiteLLM's Prometheus endpoint has moved behind its enterprise tier in some
-# releases. If /metrics 404s on the pinned version, DELETE this object rather
-# than leaving a scrape target permanently failing — a chronically red `up`
-# series trains everyone to ignore the one alert that matters.
+# THERE IS DELIBERATELY NO LiteLLM SCRAPE.
 #
-# Verify before relying on it:
-#   kubectl -n ai exec deploy/litellm -- curl -s localhost:4000/metrics | head
-apiVersion: operator.victoriametrics.com/v1beta1
-kind: VMServiceScrape
-metadata:
-  name: litellm
-  namespace: monitoring
-spec:
-  namespaceSelector:
-    matchNames:
-      - ai
-  selector:
-    matchLabels:
-      monitoring.blackcats.cc/scrape: litellm
-  endpoints:
-    - port: http
-      path: /metrics
-      interval: 60s
+# Its /metrics endpoint returns 404 on the pinned version — Prometheus metrics
+# are behind LiteLLM's enterprise tier. Verified against the running pod
+# 2026-08-30:
+#
+#   $ curl -o /dev/null -w '%{http_code}' http://litellm.ai.svc:4000/metrics
+#   404          ({"detail":"Not Found"}; /health/liveliness returns 200)
+#
+# A scrape was written first and removed after that check, rather than left
+# pointing at a 404. A permanently-red `up` series is worse than no series: it
+# trains everyone to ignore the one alert that matters, and LlamaSwapDown reads
+# from the same `up` metric.
+#
+# Coverage is not lost. LiteLLM availability is alerted from
+# kube_deployment_status_replicas_available (see vmrules.yml), and per-request
+# accounting lives in its Postgres spend log. If a future version exposes
+# /metrics without a licence, re-add a VMServiceScrape here and put the
+# monitoring.blackcats.cc/scrape label back on the Service.
