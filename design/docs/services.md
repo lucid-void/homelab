@@ -94,6 +94,10 @@ The `security` namespace has `pod-security.kubernetes.io/enforce: privileged` �
 | CouchDB (Obsidian LiveSync) | obsidian | HelmRelease | `obsidian.blackcats.cc` | **CouchDB HTTP Basic** (SealedSecret) — not Zitadel | `couchdb-data` PVC (`openebs-hostpath`, RWO — shards + _users) |
 | obsidian-backup | obsidian | CronJob | — | — | Daily 02:30; quiesced CouchDB data dir; restic → rclone-filen |
 | Homepage | homepage | HelmRelease | `home.blackcats.cc` | — | ConfigMap-only config |
+| llama-swap | ai | HelmRelease | — (ClusterIP `llama-swap:8080`) | none — ClusterIP only, reached via LiteLLM | `llama-models` PVC (`openebs-hostpath`, RWO, node-local on `llm-1`). **No memory limit** — llama.cpp mmaps the GGUF and a limit near the working set causes reclaim-thrash, not a clean OOMKill. Weights are NOT backed up (re-downloadable) |
+| model-fetch | ai | Job | — | — | One-shot, on `llm-1`, writes the same node-local PVC llama-swap reads. Pins each GGUF's exact byte size; a mismatch fails the job rather than leaving a truncated file |
+| LiteLLM | ai | HelmRelease | `llm.blackcats.cc` | LiteLLM virtual keys (one per client), master key in `litellm-secret` | CNPG Postgres (`litellm`) for keys/budgets/spend. Memory limit **4Gi** — OOMKilled at 1Gi during the Prisma migration with no log output |
+| Open WebUI | ai | HelmRelease | `chat.blackcats.cc` | Zitadel OIDC | `open-webui-data` PVC (`nfs-client`, chroma vector store + uploads); CNPG Postgres (`openwebui`) for users/chats |
 | Degoog | degoog | HelmRelease | `degoog.blackcats.cc` | — | Self-hosted search engine aggregator; `ghcr.io/degoog-org/degoog:0.18.0`; `nfs-client` PVC for engines/plugins/themes data |
 
 **CouchDB** (`couchdb:3.5.2`, port 5984) is the sync backend for **Obsidian Self-hosted LiveSync**, and is deliberately a *central* server rather than a Syncthing-style peer mesh: peer sync only converges when two devices are awake simultaneously (a phone edit would sit unreplicated until a laptop opened), a peer mesh has no canonical copy for the nightly restic job to snapshot, and iOS has no usable Syncthing client. Single `app-template` controller `app` → Deployment/Service `couchdb`.
@@ -165,6 +169,7 @@ Backends run `ONLINE_MODE=FALSE` and trust Velocity's **modern forwarding**, sig
 | Kavita | `https://kavita.blackcats.cc/signin-oidc` | ASP.NET OIDC middleware path; creds read from `/config/appsettings.json` (`OpenIdConnectSettings`), merged in by an initContainer |
 | RomM | `https://romm.blackcats.cc/api/oauth/openid` | Web app / `client_secret_basic`; needs "User Info inside ID Token" enabled in Zitadel. All `OIDC_*` vars written into `media/romm-oidc-secret` by Terraform bootstrap — except `OIDC_ALLOW_REGISTRATION` (new in v5, pinned to `true` in the HelmRelease), which must stay true for a Zitadel user's first login to create the RomM account |
 | Proxmox VE | `https://pve.blackcats.cc:8006` (+ `:443`) | Bare-metal host (172.16.20.3), not in-cluster. Redirect = web UI base URL (no path); `client_secret_basic`. Creds in `auth/proxmox-oidc-secret`, copied into a Proxmox OIDC realm manually (`pveum`). See RUNBOOK. |
+| Open WebUI | `https://chat.blackcats.cc/oauth/oidc/callback` | Web app / `client_secret_post`, pinned client-side via `OAUTH_TOKEN_ENDPOINT_AUTH_METHOD` to match the Zitadel app. **`ENABLE_OAUTH_SIGNUP` defaults to `false`** — without it the button renders and the first login fails with no account to create. Creds in `ai/openwebui-oidc-secret` (keys `OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET`) |
 | Goldilocks | TBD | Standard OIDC redirect |
 | Gatus | TBD | Standard OIDC redirect |
 

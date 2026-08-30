@@ -1,8 +1,9 @@
 # Local LLM — deployment spec
 
 **Date:** 2026-08-30
-**Status:** **Manifests written and validated; not yet reconciled.** Node work is done,
-including the 70 GB resize (`tofu apply`ed, verified live).
+**Status:** **DEPLOYED and serving.** All four Kustomizations Ready, both hostnames
+answering through the Gateway, weights on disk, model loaded and generating. Deployed
+2026-08-30 over commits `7a9cc83`…`90147fc`.
 **Rationale and alternatives considered:** [design/llm-inference.md](llm-inference.md).
 
 This document holds decisions and traps. It deliberately does **not** reproduce the
@@ -15,6 +16,7 @@ manifests — those live under `kubernetes/apps/ai/` and are the source of truth
 | | |
 |---|---|
 | Model | **Qwen3.6-35B-A3B, Q8_0, 34.4 GiB** — effectively lossless, 86.0 GPQA |
+| Served as | **`local-smart`** (thinking) and **`local-fast`** (thinking off) — one process, one copy of the weights |
 | Embeddings | **nomic-embed-text-v1.5 Q8_0**, 139 MiB |
 | Vision | **None.** Usage is text and coding. See §2. |
 | Inference server | llama.cpp behind **llama-swap** |
@@ -273,21 +275,31 @@ covers it; the dashboard shows `/var` free directly.
 
 ---
 
-## 6. Order of operations
+## 6. What deploying it actually cost
 
-1. ~~**Resize `llm-1` to 70 GB**~~ — **done.** Applied and verified: 71515740Ki
-   (68.2 GiB) allocatable, taint intact.
-2. **`ai-database`** first, so CNPG has created the roles before anything needs them.
-3. **`llama-swap`** — PVC, then `model-fetch` (~35 GiB, expect a wait), then the
-   HelmRelease. The Job and Deployment are in one Kustomization with `wait: false`, so
-   llama-swap comes up before the weights land and only fails on actual inference.
-4. **`zitadel-bootstrap`** — re-run so the Open WebUI OIDC app is registered and
-   `openwebui-oidc-secret` lands in `ai`.
-5. **`litellm`**, then **`open-webui`**.
-6. **Benchmark** (§8), then raise `--ctx-size`.
-7. **`ai-monitoring`** last, once there is something to scrape.
+Everything below was found by deploying, not by review. Each is fixed in git.
 
-Host BIOS checks (§2) before step 6.
+| Problem | Cause | Fix |
+|---|---|---|
+| **LiteLLM OOMKilled**, exit 137, dead in 11 s, **no log output at all** | Dies inside the Prisma migration before the proxy logs anything. Only evidence is `lastState.terminated.reason`. Steady state measured 941 MiB — just under the 1Gi limit, leaving the startup spike nowhere to go. | limit → 4Gi (`7529ad4`) |
+| **LiteLLM `/metrics` 404** | Prometheus metrics are behind LiteLLM's enterprise tier. The scrape sat at `up=0`. | scrape deleted, not left red (`c2cefad`) |
+| **`KV self size` unobtainable** | `logToStdout` defaults to `proxy` and swallows llama-server's log entirely — invisible in `kubectl logs`, `GET /logs` *and* `/logs/stream/upstream`. | `logToStdout: both` (`9c8b106`) |
+| **`--cache-reuse 256` never ran** | `cache_reuse is not supported by this context, it will be disabled`. Guard is `!llama_memory_can_shift(...)` — a property of the model's KV implementation, not a flag. | removed (`796ee73`) |
+| **128K budget was wrong** | `cache_ram_mib` defaults to **8192 MiB** and is on unasked. Adding it, 128K no longer fits. | `--ctx-size` stays 32768 (`796ee73`) |
+| **CNPG managed-role race** | Exactly as documented — CNPG evaluated the roles before Sealed Secrets decrypted, then never retried. | annotate-nudge |
+
+The pattern worth keeping: **four of the six were silent.** No error, no event — a flag
+discarded at startup, a metrics endpoint quietly 404ing, a log stream that was never
+forwarded, and a default that consumed 8 GiB without appearing anywhere in the config. The
+one that surfaced loudly (the OOM) still produced zero log output.
+
+### Order it was brought up in
+
+`ai-database` → `llama-swap` (PVC → `model-fetch` → HelmRelease) → `zitadel-bootstrap`
+re-run → `litellm` → `open-webui` → `ai-monitoring`. The node resize came first.
+
+`model-fetch` took ~36 minutes for 35 GiB (~16 MB/s) and both files landed at exactly
+their pinned byte sizes.
 
 ---
 
@@ -297,8 +309,7 @@ Both tools from the original brief consume `llm.blackcats.cc` over the OpenAI pr
 belong on the workstation:
 
 - **opencode** — `anomalyco/opencode`. Note the old Go repo `opencode-ai/opencode` is
-  **archived** since Sep 2025 and most search results still point at it. Custom provider
-  via `@ai-sdk/openai-compatible`, `baseURL` = `https://llm.blackcats.cc/v1`.
+  **archived** since Sep 2025 and most search results still point at it.
 - **DeepSeek Harness** — `deepseek-ai/deepseek-harness`, npm `@deepseek-ai/dsh`. Provider
   config in `$DSH_HOME/settings.yaml` (`api: openai-completions`, `baseURL`, `apiKeyEnv`).
 
@@ -308,19 +319,75 @@ preview and iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
 UI binds `127.0.0.1:3080` and opens a local browser — a personal dev tool, not a shared
 service. Revisit at a stable minor.
 
-Issue **one LiteLLM virtual key per client** so usage is attributable and revocable.
+### Working opencode config
 
-**The honest expectation: local serves interactive code chat well and agentic loops
-badly.** At an estimated 50–80 tok/s prefill, a cold 20K-token context is 4–7 minutes
-before the first token. `--cache-reuse 256` only helps when the prefix is stable — **a
-timestamp in a system prompt defeats it entirely**. Point agents at the cloud fallback and
-`local-smart` at interactive use.
+`~/.config/opencode/opencode.jsonc`:
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "homelab": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Homelab",
+      "options": {
+        "baseURL": "https://llm.blackcats.cc/v1",
+        "apiKey": "sk-…"                       // LiteLLM virtual key, alias `opencode`
+      },
+      "models": {
+        "local-fast":  { "name": "Qwen3.6-35B (fast)",  "limit": { "context": 32768, "output": 8192 } },
+        "local-smart": { "name": "Qwen3.6-35B (think)", "limit": { "context": 32768, "output": 8192 } }
+      }
+    }
+  }
+}
+```
+
+**Declare `context: 32768`, not 128000.** The server truncates silently otherwise.
+
+### Virtual keys
+
+One per client, minted against the master key, so usage is attributable and each is
+revocable alone:
+
+```bash
+curl -sX POST http://litellm.ai.svc.cluster.local:4000/key/generate \
+  -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
+  -d '{"key_alias":"opencode","models":["local-smart","local-fast","local-embed"]}'
+```
+
+**The `models` list is enforced and is a real trap.** A key minted before `local-fast`
+existed rejects it with `key not allowed to access model` — and `/v1/models` is filtered
+per key, so the model simply does not appear rather than erroring usefully. Adding a model
+to LiteLLM means updating existing keys via `/key/update`.
+
+### Thinking is the dominant cost, not prefill
+
+Qwen3.6 is a reasoning model, and llama-server splits `reasoning_content` from `content`.
+Measured end to end on *"Reply with exactly: ok"*:
+
+| | reasoning | output tokens | ≈ time @ 8.4 tok/s |
+|---|---|---|---|
+| `local-smart` | 572 chars | 152 | ~18 s |
+| `local-fast` | 0 | 2 | ~0.2 s |
+
+`local-fast` is the **same process and the same resident weights** with
+`enable_thinking: false` pushed into the chat template via `extra_body` — not a second
+model, no extra memory. The overhead is **per turn**, so it compounds across a tool-calling
+loop in a way it never does for a single chat reply. **Point coding agents at
+`local-fast`.**
+
+**The honest expectation: local serves focused, small-context work well and
+large-context agentic loops badly.** Prefill is still unmeasured on a realistic prompt,
+and it is worse than first estimated because `--cache-reuse` does not work with this model
+at all (§6) — there is no mid-prompt cache recovery, only llama-server's cross-request
+prompt cache for exact shared prefixes.
 
 > **There is no cloud fallback, by choice.** `router_settings.fallbacks` in the LiteLLM
 > ConfigMap is commented out and no cloud model is registered. Agentic requests therefore
 > take as long as they take rather than being routed away. Adding one later is small — a
 > key in `litellm-secret`, one `model_list` entry, uncomment the block — and no client
-> changes, because they all ask for `local-smart` either way.
+> changes, because they all ask for the same model names either way.
 
 ---
 
@@ -385,13 +452,28 @@ Nothing here is destructive to existing services, and the control planes are not
 
 ## 10. Open questions
 
-1. **Control planes to 4 vCPU** — deferred, not closed. 3 x 8 + 8 = 32 vCPU on 14 physical
-   cores is a 2.3x commit and inference is the workload most hurt by it. Decide from the
-   Phase D numbers, not from the ratio.
-2. **`.claude/CLAUDE.md` says MS-A2** — it is an **MS-02 Ultra** (Intel Core Ultra 5
-   235HX; MS-A2 is the AMD line). The Proxmox host being named `pve-msa2` is probably where
-   this came from. The CPU identity underpins every performance number in the rationale doc.
+1. **Prefill on a realistic prompt is still unmeasured.** This is the one number that
+   decides whether agentic coding is viable here, and the only reason it is still open is
+   that every measurement so far used a trivial prompt where fixed overhead dominates
+   (11–15 tokens reading 23–27 tok/s, which means nothing). Measure with a ~5–20K prompt
+   before drawing any conclusion about opencode.
+2. **`--ctx-size` is 32768 and the path to more is not linear.** The 128K target died on
+   the 8 GiB prompt cache (§6). Raising it needs a measured KV figure, and `KV self size`
+   does not appear in this build's log even at verbosity 3 — so the honest method is to
+   raise it one step, watch `node_memory_MemAvailable_bytes` on llm-1, and back off. With
+   no memory limit a bad value takes the node.
+3. **Control planes to 4 vCPU** — deferred, not closed. 3 × 8 + 8 = 32 vCPU on 14 physical
+   cores is a 2.3× commit and inference is the workload most hurt by it. Decide from the
+   prefill numbers, not from the ratio.
+4. **Open WebUI's virtual key is still a placeholder.** `open-webui-secret.yml` holds
+   `REPLACE_WITH_LITELLM_VIRTUAL_KEY`; opencode's key was minted, Open WebUI's was not. It
+   can reach the router but cannot authenticate to it.
+5. **Host BIOS: DIMM count, clock, XMP.** Still unchecked, and worth ~50% of the token rate
+   between them (§2). Decode measured 8.4–8.9 tok/s *without* knowing whether the memory is
+   running at its rated speed.
 
-*Resolved this revision:* vision (dropped), `llm-1` memory (70 GB — **applied, verified at
-71515740Ki / 68.2 GiB allocatable**), context target (128K), model filename and quant,
-cloud fallback (none), all five upstream drift corrections in §2.
+*Resolved this revision:* the stack is deployed and serving; vision (dropped); `llm-1`
+memory (70 GB, verified 68.2 GiB allocatable); model filename and quant; cloud fallback
+(none, deliberate); thinking cost quantified and `local-fast` added; `--cache-reuse` proven
+dead; the 8 GiB prompt cache found and budgeted; LiteLLM sizing measured; **MS-02 Ultra**
+corrected in `.claude/CLAUDE.md`.

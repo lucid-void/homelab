@@ -1,15 +1,33 @@
 # Local LLM inference — design proposal
 
-**Date:** 2026-08-28
-**Status:** **PROPOSED — not implemented.** Nothing in this document is deployed.
+**Date:** 2026-08-28, superseded in part 2026-08-30
+**Status:** **RATIONALE ONLY — the stack is deployed; this document is not the current
+state.** Read [design/llm-deployment.md](llm-deployment.md) for what actually runs. Kept
+because the reasoning and the rejected options are still worth having; the numbers in it
+are pre-deployment estimates unless marked otherwise.
 **Constraint:** CPU + RAM only, on the existing MS-02 Ultra. No GPU.
-**Settled sizing:** `cp-1/2/3` at **30 GB** each, new `llm-1` worker at **64 GB**.
+**Settled sizing:** `cp-1/2/3` at **30 GB** each, `llm-1` worker at **70 GB** (was 64 in
+this document's original sizing).
 **Goal:** Serve a local LLM to Open WebUI, bots and tooling, with routing, observability
 and SSO consistent with the rest of the homelab.
 
 > **Implementation plan: [design/llm-deployment.md](llm-deployment.md).**
 > This document is the *rationale* — what fits, what was rejected and why. The
 > deployment spec holds the manifests, placement, ordering and verification.
+
+> ### Superseded by deployment — read this before trusting any number below
+>
+> | This document says | Actual, measured 2026-08-30 |
+> |---|---|
+> | `qwen-smart` ~5–8 tok/s | **8.4–8.9 tok/s decode** — better than estimated |
+> | `qwen-vision` as a second model | **dropped.** Qwen3.6-35B-A3B is itself multimodal (`image-text-to-text`, ships `mmproj-F16.gguf`), so a separate 27B bought nothing |
+> | `qwen-fast` as a second, smaller model | **replaced** by `local-fast` — the *same* weights with thinking disabled, no extra memory |
+> | `--cache-reuse` helps follow-up turns | **it never runs.** `cache_reuse is not supported by this context` — gated on `!llama_memory_can_shift(...)` for this model's KV implementation |
+> | 64 GB, three models co-resident | **70 GB, one model.** Budget also missed llama-server's 8 GiB default prompt cache |
+> | `qwen-smart` filename `UD-Q8_0` | no such file; it is `Qwen3.6-35B-A3B-Q8_0.gguf` |
+>
+> The largest *unmeasured* claim below is prefill (~50–80 tok/s). It is still unmeasured on
+> a realistic prompt and is the number the agentic-coding verdict rests on.
 
 ---
 
@@ -505,24 +523,37 @@ Recommended alongside the RAM change:
 
 ## 6. Expectations
 
+Rewritten 2026-08-30 against the deployed stack. The original table assumed three models
+(`qwen-fast`, `qwen-vision`) that were never deployed.
+
 | Use case | Model | Workable? |
 |---|---|---|
-| Considered questions where the answer matters | `qwen-smart` | **yes** — 86.0 GPQA at Q8, near-lossless |
-| Open WebUI chat | `qwen-fast` | **yes** — 10–15 tok/s is above reading speed |
-| Bots, notifications, hermes | either | **yes** — async, latency irrelevant |
-| Summarisation, RSS triage, tagging | `qwen-smart` | **yes** — batch, runs overnight |
-| Paperless / Immich enrichment | `qwen-vision` | **yes** — short outputs hide the low tok/s |
-| Code autocomplete | `qwen-fast` | **marginal** — needs tight context |
-| opencode / agentic coding | cloud | **no** — see below |
+| Considered questions where the answer matters | `local-smart` | **yes** — 86.0 GPQA at Q8, near-lossless |
+| Open WebUI chat | `local-smart` | **yes** — 8.4–8.9 tok/s is around reading speed, and thinking is visible as `reasoning_content` |
+| Bots, notifications | either | **yes** — async, latency irrelevant |
+| Summarisation, RSS triage, tagging | `local-fast` | **yes** — batch, and thinking is pure overhead for these |
+| Code chat, focused small-context work | `local-fast` | **yes** |
+| Vision (Paperless / Immich) | — | **not deployed.** Available for ~0.8 GiB via `--mmproj` if ever wanted |
+| Code autocomplete | `local-fast` | **marginal** — needs tight context |
+| opencode / large-context agentic loops | — | **no.** See below |
 
-**Agentic coding still does not work on this hardware.** Agent workloads are
-*prefill-dominated* — an enormous prompt for a short tool call — and prefill is
-compute-bound, exactly where the missing AVX-512/AMX hurts. Expect ~50–80 tok/s prefill,
-so a cold 20K-token context is **4–7 minutes to first token** on every cache miss.
-`--cache-reuse` helps follow-up turns enormously and does nothing for the first, and
-agent loops break cache constantly through nondeterministic tool ordering and compaction.
-Route opencode to a cloud model through the same LiteLLM; the fallback chain already
-supports it.
+**Thinking, not prefill, is the cost that was underestimated.** Qwen3.6 is a reasoning
+model. Measured on *"Reply with exactly: ok"*: `local-smart` emitted 572 characters of
+`reasoning_content` and 152 output tokens (~18 s at 8.4 tok/s); `local-fast`, the same
+weights with `enable_thinking: false`, emitted 0 and 2 (~0.2 s). That overhead is **per
+turn**, so it compounds across a tool-calling loop far more than across a chat reply.
+
+**Agentic coding on large contexts still does not work here, and one reason is worse than
+this document assumed.** Agent workloads are prefill-dominated, and prefill is
+compute-bound — exactly where the missing AVX-512/AMX hurts. The original text claimed
+`--cache-reuse` "helps follow-up turns enormously"; **it does not run at all** with this
+model, so there is no mid-prompt cache recovery. What remains is llama-server's
+cross-request prompt cache (`--cache-ram`, 8 GiB by default), which only helps an *exact*
+shared prefix.
+
+The practical split: `local-fast` for scoped, small-context agent work; treat a refactor
+that re-reads a large codebase each turn as the case this hardware does not serve. There
+is deliberately no cloud fallback configured — see llm-deployment.md §7.
 
 ---
 
