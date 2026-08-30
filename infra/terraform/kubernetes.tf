@@ -75,8 +75,15 @@ locals {
     # effectively lossless. The extra 6 GB over the original 64 GB buys KV
     # cache, i.e. context window, NOT a second model:
     #
-    #   weights 34.4 + KV ~24 @ 128K + node overhead ~2.5 = ~61 GiB
-    #   against ~68.3 GiB allocatable.
+    #   weights 34.4 + prompt cache 8.0 + KV ~24 @ 128K + overhead ~2.5
+    #   = ~69 GiB against 68.2 GiB allocatable -- does NOT fit.
+    #
+    # The 8 GiB is llama-server's cross-request prompt cache: cache_ram_mib
+    # defaults to 8192 MiB and is on without being asked for. It was missed in
+    # the first budget, which is why 128K no longer closes and --ctx-size is
+    # still 32768. The resize to 70 GiB is still right -- it is what makes the
+    # 34.4 GiB model plus that cache comfortable -- but the context target has
+    # to be re-derived from a measured KV figure, not linear scaling.
     #
     # There is deliberately no separate vision model. Qwen3.6-35B-A3B is itself
     # multimodal (image-text-to-text; the unsloth GGUF repo ships an 0.8 GiB
