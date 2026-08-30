@@ -25,7 +25,24 @@ data:
           --model /models/Qwen3.6-35B-A3B-Q8_0.gguf
           --threads 6 --ctx-size 32768
           --cache-type-k q8_0 --cache-type-v q8_0 --flash-attn on
-          --cache-reuse 256 --jinja --metrics
+          --jinja --metrics
+
+      # NO --cache-reuse HERE, and it must not be re-added for this model.
+      # It was in the first revision and llama-server threw it away at startup:
+      #
+      #   W srv load_model: cache_reuse is not supported by this context,
+      #                     it will be disabled
+      #
+      # The guard is `if (!llama_memory_can_shift(...))` in server-context.cpp
+      # — a property of this model's KV implementation, not something a flag can
+      # turn on. A dead flag in git that reads as a performance optimisation is
+      # worse than no flag: it invites someone to "explain" a slow prefill with
+      # a setting that was never in effect.
+      #
+      # The live prefix-caching mechanism is llama-server's cross-request prompt
+      # cache (--cache-ram), which is NOT gated by that check and is already on:
+      # cache_ram_mib defaults to 8192 MiB. Left at the default deliberately —
+      # but budget for it, it is 8 GiB of real memory.
 
       local-embed:
         ttl: 0

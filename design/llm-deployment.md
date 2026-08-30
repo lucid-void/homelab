@@ -40,8 +40,15 @@ figure, 160 is the real one.
 | Talos + kubelet + Cilium | 2.5 |
 | `qwen-smart` Q8_0 | 34.4 |
 | `local-embed` | 0.14 |
+| llama-server prompt cache (`--cache-ram` default) | **8.0** |
 | KV cache @ 128K, q8_0 | ~24 |
-| **Total** | **~61 GiB** of ~68.3 GiB allocatable |
+| **Total** | **~69 GiB** against 68.2 GiB allocatable — **does not fit** |
+
+**That total is why `--ctx-size` is still 32768.** The 8 GiB prompt cache was
+missed in the original budget: `cache_ram_mib` defaults to 8192 MiB and is on
+without being asked for. At 128K the numbers no longer close, so the context
+target needs re-deriving from a measured KV figure rather than the linear scaling
+the first revision assumed — see §5.
 
 ---
 
@@ -189,6 +196,28 @@ openebs ────────┴─► llama-swap ──► litellm ──►
 ## 5. Traps encoded in the manifests
 
 Each of these is commented at the point it matters; this is the index.
+
+**Measured on first load (2026-08-30):** decode **8.4–8.9 tok/s**, above the
+5–8 estimate. Prefill on an 11-token prompt read 23 tok/s, which is dominated by
+fixed overhead and is *not* a usable prefill number — a large-prompt measurement
+is still owed. Model load is ~10 s, because llama.cpp mmaps and pages in lazily
+rather than reading 34 GiB up front. Runtime confirms `n_threads = 6`,
+`n_slots = 4`, `n_ctx_slot = 32768`, `kv_unified = true`.
+
+**`--cache-reuse` does not work with this model and was removed.** llama-server
+logs `cache_reuse is not supported by this context, it will be disabled` — the
+guard is `!llama_memory_can_shift(...)`, a property of the model's KV
+implementation that no flag turns on. The live prefix-caching mechanism is the
+cross-request prompt cache (`--cache-ram`), which is not gated by that check and
+defaults to 8192 MiB. Budget for it: that is 8 GiB of real memory, and missing it
+is what broke the 128K arithmetic above.
+
+**`logToStdout` must be `both`.** It defaults to `proxy`, which forwards only
+llama-swap's request log and swallows llama-server's entirely — not visible in
+`kubectl logs`, `GET /logs`, or `/logs/stream/upstream`. That hides model-load
+failures completely: a bad GGUF or an OOM abort surfaces as a request that never
+returns, while the proxy keeps answering `/v1/models` and the pod stays Ready.
+It is also the only place the `cache_reuse` warning above appears.
 
 **`--ctx-size` pre-allocates the whole KV cache at startup**, and `llama-swap` runs with no
 memory limit — so a bad value takes the **node**, not the pod. The config ships at
