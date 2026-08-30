@@ -26,6 +26,31 @@ data:
         model_info:
           mode: chat
 
+      # Same llama-server process and the same resident weights as local-smart
+      # -- this is NOT a second model and costs no extra memory. The only
+      # difference is enable_thinking=false pushed into the chat template.
+      #
+      # Qwen3.6 is a reasoning model, and thinking is not free at 8.4 tok/s.
+      # Measured on "Reply with exactly: ok":
+      #
+      #   local-smart  448 chars of reasoning_content, 120 output tokens (~14 s)
+      #   local-fast     0 chars,                        2 output tokens (~0.2 s)
+      #
+      # That overhead is per turn, so it dominates an agentic loop far more than
+      # it dominates a single chat answer. Use local-fast for coding agents and
+      # tool-calling loops; use local-smart when the reasoning is the point.
+      - model_name: local-fast
+        litellm_params:
+          model: openai/qwen-smart
+          api_base: http://llama-swap.ai.svc.cluster.local:8080/v1
+          api_key: none
+          timeout: 1800
+          extra_body:
+            chat_template_kwargs:
+              enable_thinking: false
+        model_info:
+          mode: chat
+
       - model_name: local-embed
         litellm_params:
           model: openai/local-embed
