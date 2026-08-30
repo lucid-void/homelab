@@ -1,0 +1,47 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llama-swap-config
+  namespace: ai
+data:
+  config.yaml: |
+    models:
+      qwen-smart:
+        aliases: [default]
+        # Never unload. Reloading 34 GiB off local disk is tens of seconds, and
+        # nothing else on this node is competing for the memory.
+        ttl: 0
+        cmd: >
+          /app/llama-server --host 0.0.0.0 --port ${PORT}
+          --model /models/Qwen3.6-35B-A3B-Q8_0.gguf
+          --threads 6 --ctx-size 32768
+          --cache-type-k q8_0 --cache-type-v q8_0 --flash-attn on
+          --cache-reuse 256 --jinja --metrics
+
+      local-embed:
+        ttl: 0
+        cmd: >
+          /app/llama-server --host 0.0.0.0 --port ${PORT}
+          --model /models/nomic-embed-text-v1.5.Q8_0.gguf
+          --embeddings --threads 2 --ctx-size 8192 --metrics
+
+    # LOAD-BEARING. Both keys default to TRUE, so in the single default group
+    # every embedding call from Open WebUI's RAG would unload the 34 GiB chat
+    # model and reload it afterwards — a multi-second stall on each document
+    # chunk, with nothing in the logs that names the cause.
+    #
+    #   swap: false      -> members may run simultaneously
+    #   exclusive: false -> running a member does not unload other groups
+    #
+    # Do not also add a top-level `routing:` block. It is the newer canonical
+    # form of this same config and llama-swap rejects a file that uses both.
+    groups:
+      chat:
+        swap: false
+        exclusive: false
+        members: [qwen-smart]
+      embed:
+        swap: false
+        exclusive: false
+        members: [local-embed]

@@ -7,6 +7,10 @@
 **Goal:** Serve a local LLM to Open WebUI, bots and tooling, with routing, observability
 and SSO consistent with the rest of the homelab.
 
+> **Implementation plan: [design/llm-deployment.md](llm-deployment.md).**
+> This document is the *rationale* — what fits, what was rejected and why. The
+> deployment spec holds the manifests, placement, ordering and verification.
+
 ---
 
 ## 1. What 64 GB actually buys
@@ -61,24 +65,26 @@ bytes read per token. Start at Q8_0, drop to Q6_K if the speed bothers you.
 
 ### Memory budget for `llm-1`
 
-llama-swap loads **one model at a time** by default, so peak usage is set by the largest
-entry, not their sum.
+**Live as of 2026-08-28:** the control-plane resize is **done** (29.3 GiB allocatable
+each) and `llm-1` is **built and joined** (62.3 GiB allocatable). That is 154 GB of the
+**160 GB** available.
 
-| Item | Size |
-|---|---|
-| Talos + kubelet + Cilium | ~2.5 GB |
-| llama-swap proxy | ~0.1 GB |
-| Largest resident model (`qwen-smart` Q8_0) | 36.9 GB |
-| KV cache, 32K ctx at `q8_0` k/v | ~4–6 GB |
-| **Peak** | **~45 GB** |
-| **Headroom in 64 GB** | **~19 GB** |
+| Item | at 64 GB | at 70 GB |
+|---|---|---|
+| Talos + kubelet + Cilium | 2.5 | 2.5 |
+| llama-swap proxy | 0.1 | 0.1 |
+| `qwen-smart` Q8_0 | 36.9 | 36.9 |
+| `local-embed` | 0.3 | 0.3 |
+| `qwen-vision` | *swaps in* | 18.8 |
+| KV cache, 32K ctx at `q8_0` k/v | ~6 | ~6 |
+| **Peak** | **~45.8** | **~64.6** |
+| **Allocatable** | 62.3 | ~68.3 |
 
-Comfortable. The headroom matters: it is page cache for the mmap'd weights, and it is
-what lets a model swap happen without thrashing.
-
-**Note the total.** 30 × 3 + 64 = **154 GB**, which is 4 GB over the 150 GB you quoted.
-Confirm the host has it before applying; if not, take `llm-1` to 60 GB — the budget above
-still fits.
+**Spend the remaining 6 GB — take `llm-1` to 70 GB.** At 64 GB `qwen-vision` has to swap
+in, which evicts the 36.9 GB chat model on every Paperless or Immich call and reloads it
+afterwards. At 70 GB all three stay resident and nothing swaps. The node has to be
+drained and rebooted to fix its taint anyway (see
+[llm-deployment.md](llm-deployment.md) §3), so the resize is effectively free.
 
 ---
 
@@ -613,8 +619,8 @@ LiteLLM as a cloud endpoint instead; the fallback chain already supports exactly
 
 ## 9. Open questions
 
-1. **Total RAM.** 30 × 3 + 64 = 154 GB against the 150 GB quoted. Confirm the host has
-   it, or drop `llm-1` to 60 GB.
+1. **`llm-1` at 70 GB or 64?** 160 GB is available and 154 is assigned. 70 keeps all
+   three models co-resident; 64 makes `qwen-vision` swap. Recommended: 70.
 2. **Free space on the Proxmox LVM-thin pool** for a 250 GB `llm-1` disk. Not verifiable
    from here — SSH to `172.16.20.3` was refused.
 3. **Is reducing cp-1/2/3 to 4 vCPU acceptable?** It is the right call for LLM

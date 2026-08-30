@@ -84,6 +84,16 @@ spec:
         inherit: true
         passwordSecret:
           name: joplin-role-secret
+      - name: litellm
+        login: true
+        inherit: true
+        passwordSecret:
+          name: litellm-role-secret
+      - name: openwebui
+        login: true
+        inherit: true
+        passwordSecret:
+          name: openwebui-role-secret
 
   storage:
     size: 20Gi

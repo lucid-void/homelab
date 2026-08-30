@@ -1,0 +1,22 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: litellm
+  namespace: postgres
+spec:
+  name: litellm
+  cluster:
+    name: postgres
+  owner: litellm
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: openwebui
+  namespace: postgres
+spec:
+  name: openwebui
+  cluster:
+    name: postgres
+  owner: openwebui

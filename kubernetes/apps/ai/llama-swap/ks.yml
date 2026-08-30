@@ -1,0 +1,30 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app llama-swap
+  namespace: flux-system
+spec:
+  targetNamespace: ai
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: openebs
+  path: ./kubernetes/apps/ai/llama-swap/app
+  prune: true
+  # Editing fetch-models.sh changes the generated ConfigMap's hash, which changes
+  # the model-fetch Job's pod spec — and a Job spec is immutable. Without force,
+  # that apply fails with `field is immutable` and the Kustomization sits NotReady
+  # until someone deletes the Job by hand. Same pattern as gotify-bootstrap.
+  force: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  # wait: false — the model-fetch Job downloads ~35 GiB and can run for well over
+  # an hour. Waiting on it would block every dependent Kustomization behind a
+  # download, and llama-swap itself comes up fine without the weights (it answers
+  # /v1/models immediately and only fails on an actual inference request).
+  wait: false
+  interval: 30m
+  timeout: 15m

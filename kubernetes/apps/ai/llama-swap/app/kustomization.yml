@@ -1,0 +1,17 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./pvc.yml
+  - ./config-configmap.yml
+  - ./model-fetch-job.yml
+  - ./helmrelease.yml
+# Generated rather than inlined in the Job so that editing the script is what
+# triggers a re-run: the generated name carries a content hash, so a change alters
+# the Job's pod spec, and `force: true` on the Flux Kustomization recreates the
+# (immutable) Job instead of failing on it.
+configMapGenerator:
+  - name: model-fetch-script
+    namespace: ai
+    files:
+      - fetch-models.sh

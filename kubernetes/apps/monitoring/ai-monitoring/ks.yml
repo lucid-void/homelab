@@ -1,0 +1,25 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app ai-monitoring
+  namespace: flux-system
+spec:
+  targetNamespace: monitoring
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  # Needs the VictoriaMetrics operator CRDs (VMServiceScrape / VMRule) from
+  # vm-stack. The `ai` namespace is deliberately NOT a dependency — the scrape
+  # simply finds nothing until llama-swap exists, which is correct behaviour and
+  # avoids a dependency cycle with a stack this one only observes.
+  dependsOn:
+    - name: vm-stack
+  path: ./kubernetes/apps/monitoring/ai-monitoring/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: false
+  interval: 30m
+  timeout: 10m
