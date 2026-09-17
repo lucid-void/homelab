@@ -1,68 +1,211 @@
+--all
+--autocreate
+--base
+--batch
+--cache-ram
 --cache-reuse
+--cache-type-k
+--cache-type-v
+--cert
+--cli
+--client-id
+--client-key
 --cluster
+--controller-name
+--controller-namespace
 --ctx-size
+--data-urlencode
+--default
+--drain
+--dry-run
+--embeddings
+--endpoints
 --exclude
 --exit-error
+--fetch-cert
+--field-selector
+--file
+--flash-attn
 --follow
+--for
+--format
 --from
+--from-file
+--generate-key
 --group-by
+--head
+--host
 --http2
+--image
+--include
+--insecure
+--issuer-url
 --keep-daily
 --keep-monthly
+--kubelet-insecure-tls
+--level
+--metrics
+--mlock
 --mmproj
+--mode
+--model
+--nodes
+--overrides
 --overwrite
+--pod-recommendation-min-
+--port
 --prune
+--raw
+--read-data
+--read-data-subset
+--reboot
 --recover-from
 --reload-on-create
+--remove-all
 --replicas
+--restart
+--save
+--short
+--skip-diff-on-install
 --subresource
+--suppress-diff
+--system-labels-to-wipe
+--tail
+--talosconfig
 --target
 --threads
+--threads-batch
+--time
+--timeout
 --type
+--username-claim
 --version
 --wait
+--watch
+--with-source
+/config/
 /config/appsettings.json
+/config/certificate.yml
+/config/cilium-l2.yml
+/config/crd/experimental
 /config/flux.yml
+/config/httproute-redirect.yml
+/data/classification_model.pickle
 /data/gotify.db
 /data/index
+/data/plugin-settings.json
+/data/plugins/degoog-org-official-extensions-freshrss/index.js
+/etc/network/interfaces
+/etc/nut/upsmon.conf
+/etc/ssl/protonmail/..2026_08_29_20_20_47.../cert.pem
+/etc/ssl/protonmail/cert.pem
 /etc/systemd
 /home/suwayomi
 /home/suwayomi/.local/share/Tachidesk
+/media/media-nfs/
 /media/minecraft
 /media/minecraft/app/world-size-configmap.yml
 /media/plex/
 /media/romm/
+/media/sonarr/app/migration-job.yml
 /opt/couchdb
+/opt/couchdb/data
+/opt/couchdb/etc/default.d
+/opt/couchdb/etc/local.d/10-livesync.ini
+/tmp/bridge-cert.pem
+/tmp/cert.pem
+/tmp/etcd-restore
+/tmp/etcd-restore/tmp/etcd.snap
+/tmp/new-secret.yaml
 /tmp/pylib
+/tmp/r
+/tmp/secret.yaml
+/tmp/ss-key.yaml
+/usr/bin/bridge
 /usr/src/paperless/
+/var/lib/containerd
+/var/lib/etcd
+/var/lib/postgresql/data/pgdata
+/var/lib/postgresql/data/pgdata.broken
+/var/log/pods/
+/var/openebs
+/var/openebs/local
+/volume2/Kubernetes/v/
+/volume2/Kubernetes/v/gitea-valkey-data-gitea-valkey-cluster-0
+/volume2/Media
 /volume2/Media/
+/volume2/Media/Manga/
 /volume2/backups/
+/volume2/backups/keys/
+/volume2/backups/keys/sealed-secrets-key.sops.yaml
+/volume2/kubernetes.nfs
+/volume2/kubernetes.nfs/
+0.0.0.0
 0.0.1
 0.015
+0.02
 0.03
+0.038
+0.041
+0.05
+0.051
+0.1
+0.1.1-rc.2
 0.112
+0.14
+0.179
+0.18.0
+0.2
 0.25.0
 0.28.3
 0.29.0
+0.3
+0.8
+0.9
+0.9.0
 0.90
+1.0.0
 1.1
 1.1.1.1
 1.19.6
+1.2
 1.20
+1.20.0
+1.21.2
+1.21.x
 1.29.1
 1.30.0
 1.31
+1.36.3
+1.4
+1.41.7
 1.43.3
+1.43.3.10828
+1.43.3.10896
 1.43.3.10896-cb3ebc72d-ls321
+1.45
+1.5
 1.5.1
+1.56
 1.6
+1.6.0
 1.6.1
 1.6.x
+1.7
 1.7.0
+10.244.0.0
+10.244.0.0/16
+10.244.5.55
 10.244.x.x
+10.96.0.0
+10.96.0.0/12
 100.80.x.x
+12.5-hour-old
 127.0.0.1
+172.16.20.0
+172.16.20.0/24
 172.16.20.10
+172.16.20.102
 172.16.20.11
 172.16.20.12
 172.16.20.13
@@ -75,38 +218,138 @@
 172.16.20.50
 172.16.20.51
 172.16.20.52
+172.16.20.x
+18.8
+19.7
+19.8
+2.0
+2.1
+2.2
 2.20.15
+2.3
+2.4
+2.5
 2.8.8
+2.84
 2.9.2
+2026.7.2-java25
+22.1
+24.2
 26.1.2
+26.2
+26.5
+29.3
+3.0
+3.0.0
 3.0.4
+3.0.5
+3.1
+3.1.0
+3.19.0-build
+3.2
+3.21
+3.3
+3.4
+3.5
+3.5.1
+3.5.2
+3.54
+3.6
+3.7
+3.7.1
 3.7.3
+3.8
 34.4
+35.1
+35.8
+36.9
+4.0
+4.0.13
+4.0.19.2979-ls322
 4.1
+4.5-minute
+4.5.1
+45.8
+5.0.0
 5.1.2-ls270
+5.23.3
+5.4
+5.6
+57.8
+6.1
+62.3
+64.6
+65.0
 65.12
 65.16
+68.2
+68.3
+69.0
+71.5
+72.5
+8.0
 8.4
 8.9
+86.0
+9.1-alpine
+91.7
+ADVERTISE_IP
 AI_CONTEXT
 ALLOW_ONLY_EXTERNAL_REGISTRATION
+API_BASE_URL
+API_KEY
+APP_BASE_URL
 AUTH_MODE
 BIND_PORT
+CERTIFICATE_VERIFY_FAILED
+CFG_QUICKCHAT_SERVER_ID
 CLIENT_TOKEN
+CLUSTER_DOMAIN
+CLUSTER_NAME
+COUCHDB_ERLANG_COOKIE
+COUCHDB_PASSWORD
+COUCHDB_USER
+DAC_OVERRIDE
+DATABASE_URL
+DATABASE_USER
+DATABASE_USERNAME
+DB_CLIENT
+DB_PASSWORD
 DB_VECTOR_EXTENSION
+DELETE_EXPIRED_SESSIONS_SCHEDULE
 DISABLE_REGISTRATION
 DOWNLOAD_AS_CBZ
+DSH_HOME
+EMAIL_CERTIFICATE_FILE
 ENABLE_INSTANCE_MANAGER_IN_PLACE_UPDATES
+ENABLE_OAUTH_PERSISTENT_CONFIG
 ENABLE_OAUTH_SIGNUP
 ENABLE_PERSISTENT_CONFIG
 EXPORT_SERVERS
 EXTENSION_REPOS
 FLARESOLVERR_ENABLED
 FLARESOLVERR_URL
+FLOW_TYPE_SAML_RESPONSE
 GOTIFY_SERVER_PORT
 GOTIFY_TOKEN
+HASHEOUS_API_ENABLED
 HBOX_AUTH_API_KEY_PEPPER
+IMAGE_VERSION
 INSTALLED_APPS
+IPC_LOCK
+IQ1_S
+IQ3_XXS
+LITELLM_MASTER_KEY
+LITELLM_SALT_KEY
+LOCAL_AUTH_ENABLED
+MODRINTH_DOWNLOAD_DEPENDENCIES
+MODRINTH_PROJECTS
+NET_ADMIN
+NET_RAW
+OAUTH_CLIENT_ID
+OAUTH_CLIENT_SECRET
+OAUTH_TOKEN_ENDPOINT_AUTH_METHOD
+OIDC_ALLOW_REGISTRATION
 OIDC_AUTH_METHOD_TYPE_POST
 OIDC_CLIENT_CRYPTO_KEY
 OIDC_CLIENT_ID
@@ -114,145 +357,457 @@ OIDC_CLIENT_SECRET
 OIDC_ENABLED
 OIDC_REMOTE_USER_CLAIM
 OIDC_X_FORWARDED_HEADERS
+ONLINE_MODE
+OPENAI_API_BASE_URL
+O_DIRECT
 PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL
 PAPERLESS_ACCOUNT_EMAIL_VERIFICATION
 PAPERLESS_APPS
+PAPERLESS_EMAIL_ALLOW_INTERNAL_HOSTS
+PAPERLESS_EMAIL_CERTIFICATE_LOCATION
 PAPERLESS_SOCIALACCOUNT_PROVIDERS
+PATCH_DEFINITIONS
+POD_IP
+Q4_K_M
+Q4_K_XL
+Q5_K_M
+Q6_K
 Q8_0
+Q8_K_XL
+RAG_EMBEDDING_ENGINE
+RAG_EMBEDDING_MODEL
+RAG_OPENAI_API_BASE_URL
+RCLONE_CONFIG
+REMOVE_OLD_DATAPACKS
+REPLACE_WITH_LITELLM_VIRTUAL_KEY
+RESOURCE_PACK
+RESOURCE_PACK_ENFORCE
+RESOURCE_PACK_ID
+RESOURCE_PACK_SHA1
+RESTIC_CACHE_DIR
+RESTIC_PASSWORD
+RESTIC_REPOSITORY
+ROMM_AUTH_SECRET_KEY
+ROMM_DB_DRIVER
+SAML_ENABLED
+SECRET_CLOUDFLARE_EMAIL
+SIGNUP_ENABLED
+SPIGET_RESOURCES
 SSH_DOMAIN
 SSH_PORT
 START_SSH_SERVER
+STOP_DURATION
+STORAGE_DRIVER
+SYS_ADMIN
+SYS_RESOURCE
 TALOS_VERSION
+TRIGGER_TYPE_PRE_SAML_RESPONSE_CREATION
 VALKEY_CLUSTER_CREATOR
+VELOCITY_VERSION
+` (`
 ` (allauth 65.x path is `
+` / `
 ` against `
 ` and compare `
+` and no `
 ` block); otherwise `
+` for the MTU checks, reading `
 ` for the filen backend, Gateway API `
+` has **no `
+` hunks for `
+` is a JS `
+` otherwise. Note also that `
 ` pin, without it the kubelet's two endpoints double every `
 ` series. Set `
+` under `
+` | django-allauth 65.x path; provider_id must be `
 ` }`
 ` — **the `
 ` — NOT `
 ` — node-collector tries to `
 ` — note the `
+` — that `
 ` → `
+`!llama_memory_can_shift(...)`
 `!llama_memory_can_shift`
+`"Connection blocked: … resolves to a non-public address"`
+`$(POD_IP)`
+`$DSH_HOME/settings.yaml`
+`${CLUSTER_DOMAIN}`
+`${CLUSTER_NAME}`
+`${SECRET_CLOUDFLARE_EMAIL}`
 `''`
 `'anyOf' failed`
+`('OK', [b'...'])`
+`) | `
+`) — individual app HTTPRoutes only need to target the `
 `). Must also set `
+`). `
+`**/*secret.yml`
+`*-database`
+`*-oidc-secret`
+`*-sealed.yml`
+`*-secret.yml`
+`*.blackcats.cc`
+`*Avx512*`
+`, **no DNS names**, `
+`, `
 `, or compare against the live object with `
 `, then remove it. Check with `
+`, then remove the annotation. Verify with `
 `, using a file holding only the `
 `- id: … objects: […]`
+`--cache-ram`
+`--cache-reuse 256`
 `--cache-reuse`
+`--cache-type-k/v q8_0`
 `--ctx-size`
 `--exclude=/data/index`
 `--exit-error`
+`--flash-attn`
 `--group-by '' --keep-daily 30 --keep-monthly 12`
 `--group-by ''`
 `--group-by host,paths`
+`--insecure`
 `--keep-daily 30`
+`--kubelet-insecure-tls=false`
+`--metrics`
+`--mlock`
 `--mmproj`
+`--pod-recommendation-min-*`
 `--prune`
+`--recover-from`
 `--reload-on-create`
+`--remove-all`
+`--rm`
+`--save ""`
+`--tail=0`
+`--target`
+`--threads 6`
+`--threads-batch 8`
+`--v=4`
 `--wait`
+`-Xms`
+`-Xmx`
+`-availability.rules`
+`-histogram.rules`
+`-it --rm`
+`-java21`
+`-javaNN`
+`-lockfile=readonly`
 `-march=native`
+`-name couchdb@$NODENAME`
+`-name`
 `-o text -O /work/kubent.out`
+`-platform=linux_amd64`
 `-port`
 `-printf`
 `-readable`
 `. Dashboard at `
 `. Flux reporting `
+`. Guard is `
 `. Hit going 2.8.8 → 2.9.2 on the three `
+`..2026_08_29_20_20_47.1731907293/`
+`..data`
+`./config/crd/experimental`
+`./kubernetes/apps`
 `.10`
+`.11 → .12 → .13`
 `.11`
 `.12`
 `.13`
+`.14`
+`.17`
 `.254`
+`.50:22`
 `.50`
+`.51`
 `.52`
+`.5–.9`
 `.address`
 `.change.actions`
+`.claude/CLAUDE.md:184`
+`.claude/CLAUDE.md`
+`.couch`
 `.github/kube-linter-config.yaml`
 `.github/kube-linter-run.sh`
 `.github/renovate.json`
+`.github/scripts/`
+`.github/workflows/image-scan.yml`
+`.github/workflows/manifest-scan.yml`
 `.managed.json`
+`.pgdump`
+`.resolve()`
 `.resource_changes[].change.after`
 `.terraform.lock.hcl`
+`/.cache/restic`
 `/.local`
+`/24`
+`/_cluster_setup`
+`/_up`
 `/api/account/register`
+`/api/oauth/mobile-redirect`
 `/app/data/gotify.db`
+`/app/data/plugin-settings.json`
+`/app/entrypoint.sh`
+`/cache`
 `/client/{id}/elevate`
 `/config/appsettings.json`
+`/data/classification_model.pickle`
+`/data/index`
 `/data`
+`/dev/sda4`
+`/etc/network/interfaces`
+`/etc/nut/upsmon.conf`
+`/etc/ssl/protonmail/..2026_08_29_20_20_47.../cert.pem`
 `/home/suwayomi/.local/share/Tachidesk`
 `/home/suwayomi`
 `/i/?get=oidc`
+`/key/update`
 `/logs/stream/upstream`
+`/logs/stream`
 `/media`
 `/metrics/cadvisor`
 `/metrics/resource`
 `/metrics`
+`/msg`
+`/opt/couchdb/data`
+`/opt/couchdb/etc/default.d`
+`/opt/couchdb/etc/local.d/10-livesync.ini`
 `/opt/couchdb`
+`/redis-data`
+`/romm/library`
+`/root/cert.pem`
+`/root`
+`/saml-idp/idp.xml`
+`/saml-sp/sp.xml`
 `/server`
 `/stream?token=CLIENT_TOKEN`
+`/stream`
 `/sys/kernel/btf/vmlinux`
+`/tmp/cert.pem`
+`/tmp`
+`/ui`
+`/upstream/{model}/`
 `/usr/src/paperless/*`
+`/v1/chat/completions`
+`/v1/completions`
+`/v1/embeddings`
+`/v1/models`
+`/v1`
+`/var/lib/containerd`
+`/var/lib/etcd`
+`/var/log/pods/`
+`/var/openebs/local`
+`/var/openebs`
 `/var`
+`/volume2/Media/Manga/`
 `/volume2/Media/`
+`/volume2/Media`
 `/volume2/backups/`
+`/volume2/backups/keys/`
+`/volume2/backups/keys/sealed-secrets-key.sops.yaml`
+`/volume2/kubernetes.nfs/`
 `/volume2`
+`0.0.0.0:8080`
+`0.1.1-rc.2`
 `0.25.0`
+`0001_initial_models`
+`0082_save_origin_device`
+`0083`
+`031af82`
 `0600`
 `0644`
+`0755`
+`1.21.x`
+`1.43.3.10828-…-ls315`
+`1.43.3.10896-cb3ebc72d-ls321`
+`1.43.3.10896-…-ls321`
 `1.43.3`
+`10-docker-default.ini`
+`10.244.0.0/16`
 `10.244.x.x`
+`10.96.0.0/12`
+`100.80.x.x/16`
+`100.80.x.x`
+`100Mi`
+`1143`
+`127.0.0.1:1143`
+`127.0.0.1:3080`
+`127.0.0.1:7445`
+`127.0.0.1`
+`15m`
+`172.16.20.0/24`
+`172.16.20.10`
+`172.16.20.11/.12/.13`
+`172.16.20.11:6443`
+`172.16.20.13`
+`172.16.20.14`
+`172.16.20.254`
+`172.16.20.2:/volume2/Media`
+`172.16.20.2:/volume2/kubernetes.nfs`
+`172.16.20.2:3493`
+`172.16.20.2`
+`172.16.20.3`
+`172.16.20.50`
+`172.16.20.51:32400`
 `172.16.20.51`
+`172.16.20.52:25565`
 `172.16.20.52`
+`2/3`
+`2026-08-01T00:52Z`
+`20Gi`
+`2200`
+`2202`
+`25Mi`
+`3.19.0-build`
+`32768`
+`34952533`
+`3m`
+`401`
+`5.1.2-ls270`
+`503`
+`50Mi`
+`5m`
+`65536`
 `7.*`
+`71680`
+`7529ad4`
+`796ee73`
+`7a9cc83`
+`7m`
+`90147fc`
+`97656250000Ki`
+`9c8b106`
+`: litellm`
+`:143`
 `:2222`
+`:22`
+`:2381`
+`:25`
+`:43`
+`:443`
+`:6379`
+`:8080`
 `:latest`
+`; requires `
+`<1.6.0`
 `<1.7.0`
+`<=>`
+`<app>-backup`
+`<app>-bootstrap`
+`<app>-config`
+`<app>-database`
+`<app>-role-secret`
+`<app>`
 `<cluster>-<n>-join`
+`<namespace>-<pvcname>`
 `<ns>-<pvc>`
 `<ns>`
+`<user>@zitadel`
 `> file 2>&1`
 `>/dev/null 2>&1`
 `>/dev/null || true`
+`>>>`
 `?ref=`
+`@deepseek-ai/dsh`
 `@param`
+`ADVERTISE_IP`
+`AI_CONTEXT.md`
+`ALLOWED DISRUPTIONS 0`
 `ALLOW_ONLY_EXTERNAL_REGISTRATION: true`
+`API_BASE_URL`
+`APP_BASE_URL`
+`ARCHITECTURE.md`
+`ARG`
+`AUTH=PLAIN … STARTTLS`
 `AUTH_MODE=none`
 `Alert`
+`All optional features are disabled`
 `Applying Policy: keep 30 daily snapshots`
 `Authority`
+`BC:24:11:01:20:00`
+`BC:24:11:01:21:00`
+`BC:24:11:01:22:00`
+`BC:24:11:01:23:00`
 `BIND_PORT`
+`BackoffLimitExceeded`
 `Backup`
+`CERTIFICATE_VERIFY_FAILED: self-signed certificate`
+`CERTIFICATE_VERIFY_FAILED`
+`CFG_QUICKCHAT_SERVER_ID`
 `CLUSTER REPLICATE`
+`CONTAINER_*`
+`COUCHDB_ERLANG_COOKIE`
+`CPUThrottlingHigh`
+`CRITICAL`
+`Check server requirements`
+`Choose a synchronisation remote`
+`CiliumClusterwideNetworkPolicy`
 `CiliumEnvoyConfig`
+`CiliumL2AnnouncementPolicy`
+`CiliumLoadBalancerIPPool`
+`CiliumNetworkPolicy`
 `ClientId`
+`ClientServer`
 `Cluster in healthy state`
 `Cluster`
+`CommonName: "127.0.0.1"`
+`Configure a remote manually`
+`Connection Method`
+`ContainerCreating`
+`Continue to CouchDB setup`
+`CouchDB`
+`Could not login using email "undefined"`
+`Create or connect to database and continue`
 `CreateContainerConfigError`
 `CreateJobFromCronjob`
 `CronJob`
+`CustomCertPath`
+`DATABASE_*`
+`DATABASE_URL`
+`DATABASE_USERNAME`
+`DATABASE_USER`
+`DATAPACKS`
+`DB_CLIENT=pg`
 `DB_VECTOR_EXTENSION`
+`DELETE_EXPIRED_SESSIONS_SCHEDULE=""`
+`DESIRED 3`
+`DESIRED 4`
 `DISABLE_REGISTRATION: false`
 `DOWNLOAD_AS_CBZ=true`
 `DRIFT:`
+`DRuggeri/nut_exporter`
 `Database`
 `DeadlineExceeded`
+`Deployment/paperless-app status: 'InProgress'`
+`DiskPressure`
+`DisplayName`
 `Downloads/`
 `ENABLE_INSTANCE_MANAGER_IN_PLACE_UPDATES`
+`ENABLE_OAUTH_PERSISTENT_CONFIG=false`
+`ENABLE_OAUTH_PERSISTENT_CONFIG`
 `ENABLE_OAUTH_SIGNUP`
 `ENABLE_PERSISTENT_CONFIG`
+`EPHEMERAL`
+`EXIT`
 `EXPORT_SERVERS`
 `EXTENSION_REPOS`
+`Email cert <path> is not a file`
+`Email`
 `Enabled`
+`End-to-End Encryption`
 `EndpointSlice`
+`Error`
+`Exit 11`
+`FLARESOLVERR_*`
 `FLARESOLVERR_ENABLED`
 `FLARESOLVERR_URL`
+`FLOW_TYPE_SAML_RESPONSE`
+`Failed to contact API server`
+`FileNotFoundError: [Errno 2]`
+`FirstName`
+`FullName`
 `GET /application`
 `GET /client`
 `GET /logs`
@@ -262,28 +817,65 @@ VALKEY_CLUSTER_CREATOR
 `GOTIFY_SERVER_PORT`
 `GOTIFY_TOKEN`
 `GRPCRoute`
+`Games/roms/<platform>/…`
+`Games/roms/switch/*.nsp`
+`Games`
 `GatewayClass.status.supportedFeatures`
 `GetKind()`
+`HASHEOUS_API_ENABLED=true`
 `HBOX_AUTH_API_KEY_PEPPER`
+`HIGH`
+`HOME=/`
+`HOME=/tmp`
 `HTTPRoute`
 `HasTCPRouteSupport`
 `HelmRelease`
 `Host`
+`Hostname mismatch`
+`I Understand, Overwrite Server`
+`I am adding a device to an existing synchronisation setup`
+`I am setting this up for the first time`
+`IMAGE_VERSION`
+`IP address mismatch`
 `IP:127.0.0.1`
+`IPC_LOCK`
 `IfNotPresent`
+`Image Scans Passed`
 `Ingress`
+`InstalledOptionalKinds`
 `Instance Status Extraction Error: HTTP communication issue`
+`InternalIP`
+`IsDir()`
+`KV self size`
+`KubeAPIErrorBudgetBurn`
+`KubeClientErrors`
 `KubeDeploymentReplicasMismatch`
+`KubeDeploymentRolloutStuck`
 `KubeJobFailed`
 `KubePodCrashLooping`
 `KubePodNotReady`
 `Kustomization`
+`LEVEL`
+`LITELLM_MASTER_KEY`
+`LITELLM_SALT_KEY`
+`LOCAL_AUTH_ENABLED=true`
+`Lease`
+`LoadBalancer`
+`LogErrors`
 `Login`
+`LvmThinPoolDataHigh`
+`MEMORY=6G`
+`MEMORY`
+`MODRINTH_DOWNLOAD_DEPENDENCIES: required`
+`MODRINTH_PROJECTS`
 `MTU: 9000`
 `Manga/`
 `Manga`
+`Manifest Scan Passed`
 `Media`
+`MemberRemove`
 `MinecraftBackupVolumeAlmostFull`
+`MinecraftMemoryNearLimit`
 `MinecraftProxyDown`
 `MinecraftServerDown`
 `MinecraftWorldGrowingFast`
@@ -291,148 +883,419 @@ VALKEY_CLUSTER_CREATOR
 `MinecraftWorldSizeExporterStale`
 `MinecraftWorldVolumeAlmostFull`
 `Movies/`
+`NAMESPACE`
 `NODENAME`
+`NOOP`
 `NOT NULL constraint failed: new_users.group_users`
+`NOTIFYCMD`
 `Namespace`
+`NetworkPolicy`
+`No Synchronisation Settings Found`
+`NoSchedule`
 `NodeFilesystemAlmostFull`
 `NodeFilesystemCriticallyFull`
+`OAUTH_CLIENT_ID`
+`OAUTH_CLIENT_SECRET`
+`OAUTH_TOKEN_ENDPOINT_AUTH_METHOD`
 `OCIRepository`
+`OIDC_*`
+`OIDC_ALLOW_REGISTRATION`
 `OIDC_CLIENT_CRYPTO_KEY`
 `OIDC_CLIENT_ID`
 `OIDC_CLIENT_SECRET`
 `OIDC_ENABLED=1`
+`OIDC_ENABLED`
 `OIDC_REMOTE_USER_CLAIM`
 `OIDC_X_FORWARDED_HEADERS`
+`ONLINE_MODE=FALSE`
+`OPENAI_API_BASE_URL`
+`OPS`
+`OPTFLAGS = -march=native`
+`OPTFLAGS="-march=x86-64-v3"`
 `OPTFLAGS`
+`O_DIRECT`
 `OpenIdConnectSettings`
+`Overwrite all with remote files`
 `PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL=https`
 `PAPERLESS_ACCOUNT_EMAIL_VERIFICATION=none`
+`PAPERLESS_EMAIL_ALLOW_INTERNAL_HOSTS`
+`PAPERLESS_EMAIL_CERTIFICATE_LOCATION`
 `PAPERLESS_SOCIALACCOUNT_PROVIDERS`
+`PATCH_DEFINITIONS`
 `PATH`
+`PGID=2200`
+`PLUGINS`
+`POST /api/greader.php/accounts/ClientLogin`
 `POST /api/settings`
 `POST /application`
+`PROTON_BRIDGE_*`
+`PUID/PGID`
+`PUID=2202`
 `PUT /application/{id}/security`
 `PUT /client/{id}`
 `PYTHONPATH=/tmp/pylib`
+`Passwd`
+`Path(os.environ[key]).resolve()`
 `Photos/`
 `Primary instance is being restarted without a switchover`
+`ProbeWarning`
+`Proceed with manual configuration`
 `Programmed`
+`ProtonMail/gluon`
 `Provider`
+`ProvisioningSucceeded`
+`Proxmox VE`
+`Q4_K_M`
+`Qwen3.6-35B-A3B-Q8_0.gguf`
+`Qwen3.6-35B-A3B-UD-Q8_0.gguf`
+`Qwen3.6-35B-A3B`
+`REMOVE_OLD_DATAPACKS`
+`REPLACE_WITH_LITELLM_VIRTUAL_KEY`
+`RESOURCE_PACK_ENFORCE`
+`RESOURCE_PACK_ID`
+`RESOURCE_PACK_SHA1`
+`RESOURCE_PACK`
+`RESTIC_CACHE_DIR`
+`RESTIC_PASSWORD`
+`ROMM_AUTH_SECRET_KEY`
+`ROMM_DB_DRIVER=postgresql`
+`RST`
+`RUNBOOK.md`
 `ReCreateJobFromjob`
+`Ready: False`
 `Ready`
+`ReconcileErrors`
+`RecordingRulesNoData`
+`Released`
+`ReplicationDestination`
+`ReplicationSource`
+`Request to create N=3 DB but only 1 node(s)`
+`ResourceQuota`
 `Resource`
+`Restart and Fetch Data`
+`Restart and Initialise Server`
 `Retain`
+`SAML_ENABLED`
+`SHUTDOWNCMD`
+`SIGNUP_ENABLED=false`
+`SPIGET_RESOURCES`
 `SSH_DOMAIN`
 `SSH_PORT`
 `START_SSH_SERVER`
+`STATE`
+`STOP_DURATION: 90`
+`STORAGE_DRIVER: "Type=Filesystem; Path=/mnt/joplin-blobs"`
+`SYS_ADMIN`
 `ScheduledBackup`
 `Secret`
+`Self-hosted LiveSync: Copy settings as a new Setup URI`
 `Series/`
+`ServiceDown`
+`Service`
+`String()`
+`String(value)`
+`SurName`
 `SynologyShareAlmostFull`
+`System check identified no issues`
+`SystemCheckError`
 `TALOS_VERSION`
+`TCPRoute.status.parents`
 `TCPRoute.status`
 `TCPRoute`
+`TCP`
+`TRIGGER_TYPE_PRE_SAML_RESPONSE_CREATION`
+`TYPE=PAPER`
+`TYPE`
+`TargetDown`
+`Test Settings and Continue`
+`Tolerations`
+`True`
 `Type=Database`
+`UD-Q8_0`
+`UD-Q8_K_XL.gguf`
+`UDPRoute`
+`UPSBatteryReplace`
+`UPSCommunicationLost`
+`UPSLoadHigh`
+`UPSLowBattery`
+`UPSOnBattery`
+`UPSRuntimeLow`
+`USER`
+`Unauthorized!`
+`UnknownDependencyException`
 `Unknown`
+`UnsupportedClassVersionError`
 `UpdateSettings`
+`Use a Setup URI (Recommended)`
+`Use this device's settings`
+`UserID`
+`UserModel.ssoLogin`
+`UserName`
 `VALKEY_CLUSTER_CREATOR=yes`
+`VELOCITY_VERSION`
+`VERSION`
 `VMRule`
 `VMServiceScrape`
+`ValidatingAdmissionPolicy`
+`WHITELIST`
+`WaitForFirstConsumer`
 `Warning: at least one source file could not be read`
+`Welcome to Self-hosted LiveSync`
 `X-Forwarded-Host`
 `X-Gotify-Key: <token>`
 `X.Y.Z`
 `["Admin"]`
 `["https://github.com/keiyoushi/extensions/tree/repo"]`
+`[A-Za-z0-9_]{1,16}`
 `[]ResourceResult{ Resource *unstructured.Unstructured \`
+`[admins]`
+`[chttpd] bind_address = any`
+`[chttpd] require_valid_user = true`
+`[cluster] n = 1`
+`[cluster] n`
 `[connected player] N (/ip) has connected`
+`[connected player] Name (/ip) has connected`
+`[connected player] Name (/ip:port) has connected`
+`[couchdb] single_node = true`
+`[error]`
+`[forced-hosts]`
+`[on\|off\|auto]`
 `[server connection] N -> matcha has connected`
+`[server connection] Name -> matcha has connected`
+`[servers]`
+`[warning]`
+`^ens[0-9]+`
+`__builtin_cpu_supports`
+`_changes?feed=longpoll`
+`_count`
+`_global_changes`
 `_helpers.tpl`
+`_node/_local/_config`
+`_replicator`
+`_security`
+`_sum`
+`_users`
+`activeDeadlineSeconds: 14400`
 `activeDeadlineSeconds: 600`
 `activeDeadlineSeconds`
 `addAllBuiltIn: true`
+`admin@localhost`
+`advertise-address`
+`advertisedSubnets`
 `aggregatedSelection`
+`ai-database`
+`ai-monitoring`
+`ai/openwebui-oidc-secret`
 `ai`
 `album`
+`alembic_version`
 `allauth 65.16`
 `allowSchedulingOnControlPlanes: true`
+`allowedRoutes.namespaces.from: All`
+`alpine:3.21`
 `alpine`
+`am-gotify-bridge`
+`anomalyco/opencode`
+`apache/couchdb-helm`
+`api.modrinth.com/v2/project/<slug>`
+`api.v1.attributes.setCustomAttribute(key, nameFormat, value)`
+`api: openai-completions`
+`apiKeyEnv`
+`apiserver_request:burnrate1h`
+`apk add bash curl jq kubectl`
 `apk add curl jq kubectl`
 `apk add rclone`
 `apk add`
 `apk`
+`app-sealed.yml`
+`app-secret.yml`
 `app-template`
+`app.immich:///oauth-callback`
 `app.kubernetes.io/name`
 `app/bootstrap.sh`
+`app://obsidian.md`
 `appVersion: vv1.0.112`
 `app`
+`appendonly no`
+`apply request took too long`
 `apps.projectsveltos.io/v1alpha1`
+`apps.yml`
+`apps/<ns>/<app>/{ks.yml,app/}`
 `apps/<ns>/kustomization.yml`
+`apps/`
+`apps/ai/`
+`apps/auth/bootstrap-rbac/`
+`apps/cnpg-system/`
+`apps/kube-system/`
+`apps/postgres/cluster/app/cluster.yml`
+`apt install nut-client`
 `aquasec/trivy-db`
 `aquasecurity/trivy-operator`
+`asset_face_entity`
 `asset`
+`assets/`
+`auth-database`
 `auth.RequireElevatedClient`
 `auth.api_key_pepper must be set to at least 32 bytes`
+`auth.blackcats.cc`
 `auth/gotify-secret`
+`auth/proxmox-oidc-secret`
 `auth/zitadel-bootstrap-state`
+`auth_method_type = BASIC`
 `auth_method_type = OIDC_AUTH_METHOD_TYPE_POST`
 `auth`
+`autoDirectNodeRoutes: true`
 `autoDiscoverUrl`
+`backendRef.name`
+`backendRef`
+`backend_commit_duration`
 `backoffLimit: 0`
 `backoffLimit`
 `backup-tools`
+`backup.barmanObjectStore`
+`backup`
 `barmanObjectStore`
+`baseURL`
 `baseline`
+`battery.runtime`
+`bind-address=0.0.0.0`
 `bjw-s/app-template`
+`blackcats.cc`
+`bootstrap-rbac`
+`bootstrap.sh`
+`both`
+`bpf.masquerade: true`
+`bpg/proxmox`
+`bridge`
+`c2cefad`
 `cache.ADAPTER`
+`cache_ram_mib`
+`cache_reuse is not supported by this context`
+`cache_reuse`
+`cannotReconcile: failed to get password secret ... not found`
 `cannotReconcile: failed to get password secret … not found`
+`capacitor://localhost`
+`cas.openebs.io/config`
+`cat faketty | bridge --cli`
+`cert export`
+`cert import`
+`cert-manager-config`
+`cert-manager`
+`cert.pem`
 `channel`
+`chart:`
 `chat.blackcats.cc`
+`checkCRDs`
+`check_hostname`
 `check`
 `checks.exclude`
+`checks.py`
 `chmod 777`
 `chown -f`
+`chown`
+`chttpd_auth_cache`
+`cilium-config`
+`cilium-gateway-shared`
+`cilium-l2.yml`
+`cilium-l2announce-<ns>-<svc>`
+`cilium-operator`
 `cilium_vxlan`
 `cilium_wg0`
 `cilium`
+`client-recipe-fix`
 `client_id`
 `client_secret_basic`
 `client_secret_post`
 `client_secret`
+`cloud-*`
+`cloudflare-api-token`
 `cloudnative-pg`
 `cluster nodes`
+`cluster-apps`
+`cluster-secrets`
+`cluster-settings`
+`cluster.apiServer.extraArgs.advertise-address: <LAN IP>`
 `cluster.nodes`
+`cluster.proxy.disabled: true`
 `cluster.update.addNodes: true`
 `cluster_state:ok`
+`cluster`
+`clusterconfig/`
+`cnpg-system`
 `commonMetadata`
+`concurrencyPolicy: Forbid`
+`config-version`
+`config.yml`
 `configHash`
 `configMapGenerator`
+`configMap`
+`configauditreports ... already exists`
+`configmaps,secrets: get/watch/list`
 `container_*`
 `container_cpu_usage_seconds_total`
 `container_memory_working_set_bytes`
+`content`
+`context deadline exceeded`
+`context: 32768`
+`controlPlane.patches`
+`controlPlane: false`
 `controller.flags.on-by-default: true`
 `controller.resources`
 `controllers.<n>.containers.<c>.envFrom[].secretRef.optional`
 `controllers.<name>.annotations`
 `controllers.<name>.pod.annotations`
+`controllers.app.annotations`
+`cosine_distance`
+`couch_httpd_auth: Authentication failed for user <name>`
+`couchdb-admin-secret`
+`couchdb-data`
+`couchdb/app/config-configmap.yml`
+`couchdb:3.5.2`
+`couchdb`
 `count by (metrics_path) (<metric>{...})`
 `cp /tf-config/*.tf`
 `cp-1/2/3`
+`cp-3`
+`cpu.type = "host"`
+`crds: CreateReplace`
 `created`
 `curl -s .../cilium/<ver>/go.mod \| grep gateway-api`
+`curl -u "$COUCHDB_USER:$COUCHDB_PASSWORD"`
 `curl -v --http2 https://<host>/... 2>&1 | grep -i alpn`
+`curl`
 `curlimages/curl`
+`currentPrimary`
+`customManagers`
+`data/`
 `data["values.yaml"]`
+`database/app/`
+`database_does_not_exist … _users`
+`database_specific.severity`
 `databases.yml`
+`decisions/protonmail-bridge.md`
+`deepseek-ai/deepseek-harness`
+`default.d`
 `defaultAgeRestriction=-1`
 `defaultIncludeUnknowns=true`
 `defaultLibraries=<all>`
 `defaultLibraries`
 `defaultRoles=["Login"]`
 `defaultRoles`
+`defrag`
+`degoog-data`
+`degoog-org-official-extensions-freshrss`
+`degoog.blackcats.cc`
+`democratic-csi-nfs-node`
+`democratic-csi`
 `dependsOn: gotify-bootstrap`
+`dependsOn: zitadel-bootstrap`
 `dependsOn`
 `deployed`
+`design/AI_CONTEXT.md`
+`design/ARCHITECTURE.md:50`
+`design/ARCHITECTURE.md`
+`design/RUNBOOK.md`
+`design/TODO.md`
 `design/`
 `design/decisions/immich.md`
 `design/decisions/joplin.md`
@@ -443,199 +1306,566 @@ VALKEY_CLUSTER_CREATOR
 `design/decisions/proxmox-oidc.md`
 `design/decisions/romm.md`
 `design/docs/`
+`design/docs/gitops.md`
+`design/docs/networking.md`
+`design/docs/secrets.md`
+`design/docs/services.md`
+`design/docs/storage.md`
 `design/llm-deployment.md`
+`design/llm-inference.md`
+`dev`
+`disk_gb`
+`displayName`
+`dmidecode -t memory`
+`dnsNames: ["*.blackcats.cc", "blackcats.cc"]`
+`docker-entrypoint.sh:14`
+`docker-entrypoint.sh:37-43`
+`docker-entrypoint.sh:62`
+`docker-entrypoint.sh`
+`docs/gitops.md`
+`docs/networking.md`
+`docs/secrets.md`
+`docs/services.md`
 `docs/storage.md`
 `document_index reindex`
+`domain.EmailAddress`
 `downloads.rclone.org`
 `driver.kind: modern_ebpf`
 `driver`
 `du`
+`ea78cbd`
+`email`
 `emptyDir`
 `enable-gateway-api-proxy-protocol`
+`enableAlpn: true`
+`enableAppProtocol: true`
 `enable_thinking: false`
 `enabled: true`
+`encryption.type: wireguard`
 `ens18`
 `env:`
 `envFrom … optional: true`
 `envFrom: secretRef`
 `envFrom`
+`env`
+`etcd status`
+`etcd-custom`
 `etcd-snapshot`
+`etcdDatabaseHighFragmentationRatio`
+`etcd_disk_backend_commit_duration_seconds`
+`etcd_disk_wal_fsync_duration_seconds`
+`etcd_network_peer_round_trip_time_seconds`
+`etcd_server_leader_changes_seen_total`
+`etcd_server_proposals_failed_total`
+`etcd_server_proposals_pending`
+`etcd_server_slow_apply_total`
+`etcdserver: request timed out`
 `eventSeverity: error`
 `exclude`
+`exclusive: false`
 `exec > >(tee "$LOG") 2>&1`
 `exec`
 `executor/worker.go:721`
 `exit_code`
 `expiresAfterInactivitySeconds: 0`
 `export-for-prometheus`
+`external-dns.alpha.kubernetes.io/enabled: "true"`
+`external-dns.alpha.kubernetes.io/hostname`
+`external-dns`
 `externalTrafficPolicy: Cluster`
+`externalTrafficPolicy`
 `extraEnvFrom: gitea-db-env`
 `extraEnvFrom`
+`extraMounts`
 `extra_body`
+`extract-images.py`
+`factory.talos.dev`
 `failed-pods`
 `failedJobsHistoryLimit: 3`
 `fairwinds-stable/vpa`
+`falco`
 `falcosecurity/falco`
+`falcosidekick`
 `false`
+`field is immutable`
 `fieldRef`
+`file-format`
+`file`
+`filebrowser-init`
+`filebrowser/filebrowser:v2.63.23`
+`filebrowser`
 `filen`
+`files`
+`find -exec +`
+`find -exec … +`
 `find`
+`finding data that is still in use for 33 snapshots`
+`finishedAt`
+`flag provided but not defined: -promscrape.maxConcurrency`
 `flaresolverr`
+`flux get kustomizations --watch`
 `flux reconcile`
+`flux resume`
 `flux suspend`
 `flux-notifications`
 `flux-system`
 `flux`
+`force-new-cluster`
 `force: true`
 `forget --prune`
+`forget`
 `freshrss-oidc-secret`
+`freshrss/freshrss-notify-state`
+`fullnameOverride`
+`game_versions`
+`gateway-api-hostnetwork-enabled`
+`gateway-api-service-externaltrafficpolicy`
+`gateway-api`
+`gateway-grpcroute`
+`gateway-httproute`
+`gateway.cilium.io/backend-port`
 `gateway.cilium.io/backend-service`
+`gateway.networking.k8s.io/gateway-name: shared`
 `gateway.networking.k8s.io/v1`
 `gatewayAPI.enableAlpn: true`
+`gatewayAPI.enabled: true`
 `gateway`
+`gatus.blackcats.cc`
 `gatus`
+`get_path_from_env`
 `ghcr.io/...`
+`ghcr.io/degoog-org/degoog:0.18.0`
 `ghcr.io/doitintl/kube-no-trouble`
 `ghcr.io/flaresolverr/flaresolverr`
+`ghcr.io/lucid-void/*`
 `ghcr.io/lucid-void/backup-tools`
+`ghcr.io/lucid-void/postgres-cnpg-immich`
+`ghcr.io/mostlygeek/llama-swap:cpu`
+`ghcr.io/opentofu/opentofu`
+`ghcr.io/seerr-team/seerr:v3.2.0`
 `ghcr.io/seerr-team/seerr`
+`ghcr.io/suwayomi/suwayomi-server:v2.2.2100`
 `ghcr.io/suwayomi/suwayomi-server`
+`ghcr.io/videocurio/proton-mail-bridge`
 `ghcr.io/videocurio/…`
+`git add`
+`git status`
 `git@gitea.blackcats.cc:...`
+`gitea-backup`
 `gitea-charts/gitea`
+`gitea-database`
 `gitea-db-bootstrap`
+`gitea-db-env`
 `gitea-http`
 `gitea-oidc-secret`
+`gitea-role-secret.password`
 `gitea-ssh`
+`gitea-valkey-cluster`
+`gitea.blackcats.cc`
 `gitea.oauth[].name`
 `gitea.oauth`
+`gitea/gitea-valkey-cluster`
+`gitea/valkey-data-gitea-valkey-cluster-{0..5}`
 `gitea`
+`github.com/lucid-void/Homelab`
+`goldilocks-matcha/app`
+`goldilocks.blackcats.cc`
 `goldilocks`
+`google-bad-token: true`
 `gotify-admin-secret`
+`gotify-bootstrap-state`
 `gotify-bootstrap`
 `gotify-secret`
+`gotify-telegram`
 `gotify.blackcats.cc`
+`gotify/server:3.0.0`
 `gotify/server`
+`gotify`
+`grafana-oidc-secret`
+`grafana.blackcats.cc`
 `grafana_dashboard: "1"`
+`greader.php`
+`grep -c avx512 /proc/cpuinfo`
 `grep`
+`groupName: linuxserver`
+`group_wait`
+`groups[].max_severity`
+`groups`
+`h2`
+`hard`
+`headers: X-Gotify-Key`
 `headers`
+`heartbeat=30000`
 `helm`
+`helmrelease.yml`
+`home.blackcats.cc`
+`homebox-backup`
 `homebox-secret`
+`homebox.blackcats.cc`
 `homebox`
+`homelab-k8s`
+`hostIPC: true`
+`hostNetwork: true`
 `hostPath`
 `host_mtu`
+`hostname`
+`http/1.1`
+`http://10.244.5.55:80/i/oidc/`
 `http://gotify.monitoring.svc.cluster.local/message`
+`httpGet: /_up`
+`httpGet: /api/ping`
+`httpGet`
+`httpHeaders: [{name: Host, value: joplin.blackcats.cc}]`
+`http`
+`httproute-redirect`
 `https://charts.fairwinds.com/stable`
+`https://chat.blackcats.cc/oauth/oidc/callback`
 `https://dl.gitea.com/charts/`
 `https://falcosecurity.github.io/charts`
 `https://gitea.blackcats.cc/user/oauth2/Zitadel/callback`
+`https://github.com/kubernetes-sigs/gateway-api`
 `https://gotify.blackcats.cc`
+`https://huggingface.co/<repo>/resolve/main/<file>`
+`https://immich.blackcats.cc/api/oauth/mobile-redirect`
+`https://joplin.blackcats.cc/api/saml`
+`https://joplin.blackcats.cc`
 `https://kavita.blackcats.cc/signin-oidc`
 `https://kubernetes-sigs.github.io/descheduler/`
+`https://obsidian.blackcats.cc`
+`https://pve.blackcats.cc:8006`
+`https://pve.blackcats.cc`
+`https://romm.blackcats.cc/api/oauth/openid`
 `https://rss.blackcats.cc/i/oidc/`
+`https://zitadel.blackcats.cc/saml/v2/metadata`
+`huggingface-cli download`
+`human.displayName`
+`human.email.email`
+`human.email`
+`human.profile`
+`idTemplate`
+`if (user && !user.is_external) return null;`
+`ignore-check.kube-linter.io/<check>: "reason"`
 `ignore-check.kube-linter.io/<check>`
 `ignore-check.kube-linter.io/job-ttl-seconds-after-finished`
+`ik_llama.cpp`
 `image-scan`
+`image-text-to-text`
+`image.toolkit.fluxcd.io/v1beta2`
 `imageGCHighThresholdPercent: 70`
+`imageGCHighThresholdPercent: 85`
 `imagePullPolicy`
 `imagecatalog.yml`
+`immich-backup-29764980`
+`immich-backup-cache`
+`immich-backup`
+`immich-cache-verify`
+`immich-database`
+`immich-db-extensions`
 `immich-library`
+`immich-server`
+`immich.blackcats.cc`
+`immich`
 `includeUnknowns=false`
+`info`
+`infra/packer/Talos/talos-base.pkr.hcl`
+`infra/proxmox/nut/`
 `infra/terraform/`
 `infra/terraform/kubernetes.tf`
+`infrastructure/`
 `initialOnlyNoReset`
 `initialOnlyRequireReset`
 `initialSetup`
+`inner_product`
+`insecureSkipVerify`
 `insmod`
+`internal/actions/object/user.go`
+`internal/certs/tls.go`
+`is_external`
+`itzg/mc-backup`
 `itzg/mc-monitor`
+`itzg/mc-proxy:java25`
+`itzg/mc-proxy`
+`itzg/minecraft-server:2026.7.2-java25`
+`itzg/minecraft-server`
+`jei-recipe-bridge`
+`jeirecipefix`
 `job-ttl-seconds-after-finished`
+`joplin-backup`
+`joplin-blobs`
+`joplin-role-secret`
+`joplin.blackcats.cc`
+`joplin/server:3.7.1`
+`joplin/server`
+`joplin://`
 `joplin`
 `jq '.Reports | length' … || echo "0"`
 `jq`
 `justfile`
 `k8s-cleaner-rules`
 `k8s-cleaner`
+`k8s-cp-*`
+`k8s-cp-3`
+`k8sServiceHost: localhost`
+`k8sServicePort: 7445`
 `kavita-admin-secret`
 `kavita-bootstrap`
+`kavita-config`
 `kavita-oidc-secret`
+`kavita.blackcats.cc`
 `kavita`
 `keep 1 snapshots:`
 `keepUpdated`
+`key not allowed to access model`
+`key.pem`
 `key`
+`keyrenewperiod: "0"`
+`ks.yml`
+`kube-apiserver-burnrate.rules`
+`kube-controller-manager`
 `kube-proxy`
+`kube-scheduler-cp-1`
+`kube-state-metrics`
 `kube-system/etcd-snapshot`
+`kube-system/gotify-secret`
 `kube-system`
+`kubeControllerManager`
+`kubeEtcd.endpoints`
+`kubeEtcd`
+`kubeProxyReplacement: true`
+`kubeProxyReplacement`
+`kubeReserved`
+`kubeScheduler`
 `kube_pod_container_*`
 `kubeconform`
+`kubectl apply -k kubernetes/bootstrap/flux`
+`kubectl apply`
+`kubectl cp`
 `kubectl create job --from=cronjob/kubent`
+`kubectl delete daemonset kube-proxy -n kube-system`
 `kubectl delete job <name> -n <ns>`
+`kubectl delete pvc`
 `kubectl exec <pod> -- ps -o pid,etime,args`
+`kubectl exec`
+`kubectl get <kind> -A -o yaml | kubectl apply -f -`
 `kubectl get cluster postgres -n postgres`
+`kubectl get deploy -n ai`
 `kubectl get deploy <n> -o jsonpath='{..envFrom}'`
 `kubectl get deploy <n> -o jsonpath='{.metadata.annotations}'`
 `kubectl get deployments -n <ns>`
 `kubectl get endpointslice -n gateway`
+`kubectl get svc -n <namespace>`
 `kubectl get tcproutes.v1.gateway.networking.k8s.io`
 `kubectl logs --follow`
 `kubectl logs -c notify`
 `kubectl logs`
 `kubectl scale sts … --replicas=0`
+`kubectl scale`
+`kubectl taint node llm-1 workload-`
+`kubectl taint nodes`
+`kubectl top`
 `kubectl`
 `kubelet_volume_stats_*`
 `kubelet_volume_stats`
 `kubent`
 `kubernetes-sigs/descheduler`
+`kubernetes-sigs/gateway-api`
+`kubernetes.io/hostname: llm-1`
+`kubernetes.nfs`
+`kubernetes.tf`
+`kubernetes/**`
+`kubernetes/.gitignore`
+`kubernetes/`
+`kubernetes/apps/<namespace>/<app>/app/`
+`kubernetes/apps/<namespace>/<app>/ks.yml`
+`kubernetes/apps/<namespace>/kustomization.yml`
+`kubernetes/apps/<namespace>/namespace.yml`
+`kubernetes/apps/<ns>/kustomization.yml`
 `kubernetes/apps/`
 `kubernetes/apps/ai/`
+`kubernetes/apps/ai/llama-swap/app/config-configmap.yml`
+`kubernetes/apps/ai/{litellm,open-webui}`
 `kubernetes/apps/auth/`
 `kubernetes/apps/auth/bootstrap-rbac/`
+`kubernetes/apps/auth/bootstrap/app/tofu/main.tf`
+`kubernetes/apps/cert-manager/`
+`kubernetes/apps/cnpg-system/`
+`kubernetes/apps/democratic-csi/`
+`kubernetes/apps/gateway/`
+`kubernetes/apps/gitea/gitea/app/helmrelease.yml`
 `kubernetes/apps/gitea/gitea/app/tcproute.yml`
 `kubernetes/apps/immich/`
+`kubernetes/apps/immich/backup/app/pvc.yml`
 `kubernetes/apps/joplin/`
+`kubernetes/apps/joplin/joplin/app/saml-sp-configmap.yml`
+`kubernetes/apps/kube-system/`
+`kubernetes/apps/kube-system/cilium/`
 `kubernetes/apps/kube-system/cilium/app/helm-values.yml`
+`kubernetes/apps/kube-system/cilium/config/cilium-l2.yml`
+`kubernetes/apps/kube-system/gateway-api/`
+`kubernetes/apps/kustomization.yml`
+`kubernetes/apps/media/media-nfs/`
 `kubernetes/apps/media/minecraft*/`
 `kubernetes/apps/media/minecraft/app/world-size-configmap.yml`
 `kubernetes/apps/media/plex/`
 `kubernetes/apps/media/romm/`
+`kubernetes/apps/media/sonarr/app/migration-job.yml`
 `kubernetes/apps/monitoring/ai-monitoring/`
 `kubernetes/apps/monitoring/flux-notifications/`
+`kubernetes/apps/monitoring/ups-monitoring/`
+`kubernetes/apps/monitoring/vm-stack/app/vmrules.yml`
+`kubernetes/apps/network/external-dns/`
 `kubernetes/apps/obsidian/`
+`kubernetes/apps/openebs/`
 `kubernetes/apps/paperless/paperless/`
 `kubernetes/apps/paperless/protonmail-bridge/`
+`kubernetes/apps/postgres/backup/app/...`
+`kubernetes/apps/postgres/backup/app/databases.yml`
+`kubernetes/apps/postgres/cluster/app/cluster.yml:90`
+`kubernetes/apps/postgres/cluster/app/cluster.yml`
 `kubernetes/bootstrap/flux/kustomization.yml`
+`kubernetes/bootstrap/helmfile.yml`
+`kubernetes/flux/.../apps.yaml`
+`kubernetes/flux/`
 `kubernetes/flux/config/flux.yml`
+`kubernetes/flux/pub-cert.pem`
+`kubernetes/flux/repositories/git/gateway-api.yml`
+`kubernetes/flux/repositories/helm/`
+`kubernetes/flux/repositories/helm/kustomization.yml`
 `kubernetes/images/postgres-cnpg-immich/`
 `kubernetes/talos/`
+`kubernetes/talos/talconfig.yaml:105`
+`kubernetes/talos/talconfig.yaml`
+`kubernetes/talos/talsecret.sops.yaml`
+`kubernetesSDCheckInterval`
+`kubernetesVersion`
+`kubernetes`
+`kubeseal --cert kubernetes/flux/pub-cert.pem`
 `kubeseal`
 `kustomization.yml`
+`kv_unified = true`
+`l2_distance`
+`l2announcements.enabled: true`
+`lastState.terminated.reason`
 `lastSuccessfulTime`
+`latest.log`
 `latest`
+`lbipam.cilium.io/ips`
+`lbipam.cilium.io/sharing-cross-namespace`
+`lbipam.cilium.io/sharing-key: pool-b-shared`
+`lbipam.cilium.io/sharing-key`
+`lbpool: pool-b`
+`leader election lost`
+`leaderelection lost/stopped`
+`leaseTransitions`
+`letsencrypt-production`
+`level-name`
 `lint kubernetes/`
 `linuxserver`
+`listen-metrics-urls: http://0.0.0.0:2381`
+`listen-metrics-urls`
+`litellm-role-secret`
+`litellm-secret`
+`litellm`
+`llama-models`
+`llama-server`
+`llama-swap-app`
+`llama-swap:8080`
+`llama-swap`
+`llamacpp:*`
+`llamacpp:predicted_tokens_seconds`
+`llamacpp:prompt_seconds_total`
+`llamacpp:prompt_tokens_total`
+`llamacpp:tokens_predicted_total`
+`llamaswap_*`
 `llm-1`
 `llm.blackcats.cc`
+`load_verify_locations(cafile=...)`
+`loaders`
+`local-embed`
 `local-fast`
+`local-lvm`
 `local-smart`
+`local-vision`
+`local.d/docker.ini`
+`local.d/…`
+`local.d`
+`locks: 0`
+`logToStdout: both`
 `logToStdout`
+`login: true`
 `logs --follow`
+`lost connection: Disconnected`
+`lowerBound == target == upperBound`
+`ls -lL`
 `ls`
+`lscr.io/linuxserver/kavita:0.9.0`
+`lscr.io/linuxserver/plex:1.41.7`
+`lscr.io/linuxserver/plex:1.43.3`
+`lscr.io/linuxserver/plex`
+`lscr.io/linuxserver/prowlarr:1.36.3`
+`lscr.io/linuxserver/radarr:5.23.3`
+`lscr.io/linuxserver/sabnzbd:4.5.1`
+`lscr.io/linuxserver/sonarr:4.0.13`
 `lxc*`
+`machine.kubelet.extraConfig`
+`machine.kubelet.extraMounts`
+`machine.kubelet.nodeIP.validSubnets: [172.16.20.0/24]`
+`machine.nodeTaints`
+`macros:`
+`madvise`
+`mailbox_login()`
 `main.tf`
 `main`
+`make`
+`manage.py check`
+`managed.roles`
 `manifest-scan`
+`masterkey-sealed.yml`
+`matchFileNames`
+`matcha-data`
+`matcha-files.blackcats.cc`
+`matcha-map.blackcats.cc`
 `matcha-metrics`
+`matcha.blackcats.cc`
+`matcha`
+`matches[].vulnerability.severity`
+`matrix`
+`mattn/go-sqlite3`
+`max_document_size`
+`max_http_request_size`
+`maxim`
+`mc-backup`
+`mc-backups`
+`mc-monitor`
+`mc-router`
 `media-nfs`
+`media/matcha`
 `media/minecraft-backup-29786820`
 `media/minecraft-events`
+`media/minecraft-proxy`
+`media/plex-config`
+`media/plex`
+`media/romm-oidc-secret`
+`media/tranga-config`
 `media`
+`mem3_shards`
+`memory.current`
 `memory`
 `meta.json`
 `metadata.annotations`
 `metadata.namespace`
+`metadata_xml`
+`metricRelabelConfigs`
+`metric_relabel_configs`
+`metrics-server`
 `metrics_path="/metrics/cadvisor"`
+`minecraft-backup`
 `minecraft-events-gotify-secret`
+`minecraft-events`
 `minecraft-monitoring`
 `minecraft-proxy`
+`minecraft-secret`
+`minecraft-valkey`
 `minecraft_server_data_size_bytes{server}`
 `minecraft_status_players_online_count`
 `minecraft_status_response_time_seconds`
@@ -643,7 +1873,15 @@ VALKEY_CLUSTER_CREATOR
 `minimum-three-replicas`
 `mirror.gcr.io/ghcr.io/...`
 `mise exec -- <tool>`
+`mise exec -- talhelper genconfig`
+`mise exec`
+`mmproj-F16.gguf`
+`model-fetch`
+`model_list`
+`models`
 `monitoring.blackcats.cc/scrape: <target>`
+`monitoring.blackcats.cc/scrape: llama-swap`
+`monitoring.blackcats.cc/scrape`
 `monitoring/`
 `monitoring/flux-gotify`
 `monitoring/gotify-bootstrap-secret`
@@ -651,46 +1889,133 @@ VALKEY_CLUSTER_CREATOR
 `monitoring/gotify-client-secret`
 `monitoring/gotify-telegram`
 `monitoring/minecraft-monitoring`
+`monitoring/vm-stack-grafana`
+`monitoring/vmsingle-vm-stack-victoria-metrics-k8s-stack`
 `monitoring`
+`monuser`
 `mountOptions`
 `mtu: 9000`
+`myapp/myapp-role-secret`
+`n_ctx_slot = 32768`
+`n_slots = 4`
+`n_threads = 6`
+`name`
+`namespaceSelector`
+`netstat … 127.0.0.1:1143`
+`networking.md`
 `nfs-client`
 `nfsvers=4.1`
 `nfsvers=4`
+`node-role: llm`
+`nodeAffinity`
+`nodeIP.validSubnets`
+`nodeLabels`
+`nodeSelector: {node-role: llm}`
+`nodeTaints`
+`node_memory_MemAvailable_bytes`
 `nodes = primaries + primaries * replicas`
 `nodes.conf`
 `nodes: 3 / replicas: 0`
 `nodes: 6, replicas: 1`
+`nodes: 6`
 `nodes`
+`nomic-embed-text-v1.5`
+`non-existent-service-account`
+`notes`
+`notification.toolkit.fluxcd.io/v1beta2`
+`notification.toolkit.fluxcd.io`
 `notify_gotify`
 `notify`
+`nut-client`
+`nut_exporter`
+`nzb.blackcats.cc`
+`oauthId`
+`observability`
+`obsidian-backup`
+`obsidian.blackcats.cc`
+`obsidian/couchdb-data`
+`obsidian/couchdb`
 `obsidian`
 `oci://ghcr.io/gianlucam76/charts`
 `oidc-config`
+`on_boot`
+`onboot: 1`
+`open-webui-data`
+`open-webui-secret.yml`
 `open-webui`
+`open_result error {not_found,no_db_file} for _dbs`
+`opencode-ai/opencode`
+`opencode`
 `openebs-hostpath`
+`openebs.io/local`
 `openid_connect.APPS[].provider_id = "zitadel"`
 `openwebui-oidc-secret`
+`openwebui`
+`operator/pkg/gateway-api/cell.go`
+`ops`
 `optional: true`
 `optional`
 `options.immutable`
+`org.democratic-csi.nfs-client`
+`os.Stat()`
+`os:admin`
+`os:operator`
+`owner: <app>`
+`owner`
+`owning-inventory: talos-bootstrap-manifests-inventory`
+`paper-global.yml`
+`paper`
 `paperless-app`
+`paperless-backup`
 `paperless-oidc-secret`
+`paperless.blackcats.cc`
+`paperless/app/helmrelease.yml`
+`paperless/checks.py::_email_certificate_validate`
+`paperless/settings/parsers.py`
+`paperless_mail/mail.py`
 `paperless`
+`parentRefs: [{name: shared, namespace: gateway}]`
+`pass`
 `password authentication failed`
 `passwordMode: initialOnlyNoReset`
+`passwordSecret.name: <app>-role-secret`
 `password`
 `pending-upgrade`
 `person`
 `pg_basebackup`
+`pg_dump`
+`pg_restore`
+`pgdata.broken`
+`pgdata`
 `pip install --target /tmp/pylib`
+`pkill bridge`
+`plex-config-local`
+`plex-direct`
+`plex.blackcats.cc`
 `plex:1.43.3.10896-cb3ebc72d-ls321`
+`plugin.yml`
+`plugins/Quickchat/redis.yml`
 `pod-security.kubernetes.io/enforce: privileged`
+`pod.annotations`
 `podAffinity`
+`pods.metrics.k8s.io`
+`pods/log`
+`pods`
+`policy: sync`
+`pool-a`
+`pool-b`
+`post-up`
 `post-upgrade`
+`postBuild.substituteFrom`
+`postRenderers`
+`postStart`
 `postgres-backup`
 `postgres-cluster`
 `postgres-cnpg-immich`
+`postgres-primary`
+`postgres-rw.postgres.svc.cluster.local:5432`
+`postgres/<app>/database/app/role-sealed.yml`
+`postgres/myapp-role-secret`
 `postgres`
 `postgresql-ha.enabled: false`
 `postgresql.enabled: false`
@@ -698,102 +2023,270 @@ VALKEY_CLUSTER_CREATOR
 `primaryUpdateMethod: restart`
 `primaryUpdateStrategy: unsupervised`
 `priority`
+`privileged: true`
 `privileged`
+`progress deadline exceeded`
+`project_immich_migration`
 `prometheus-exporter`
+`promscrape.maxConcurrency`
 `promtool check rules`
+`protonmail-bridge-config`
+`protonmail-bridge:143`
 `provisionAccounts=true`
 `provisionAccounts`
+`prowlarr.blackcats.cc`
+`proxies.velocity.*`
 `proxmox-monitoring`
+`proxmox-oidc-secret`
 `proxmox-openid`
 `proxy`
+`prune --dry-run`
 `prune: true`
 `publishNotReadyAddresses: true`
+`pvc-641863e1-a4aa-49e9-9594-5568086f2369`
 `pvc.yml`
+`pve-guests`
 `pve-msa2`
+`pveproxy`
+`pveum`
+`python -c`
 `python -u`
+`q8_0`
+`qm shutdown --timeout 60`
+`qm shutdown`
+`qm start 2020 2021 2022`
 `queue.TYPE`
+`quickchatv2`
+`quota-backend-bytes`
+`qwen-fast`
+`qwen-smart`
+`qwen-vision`
+`radarr.blackcats.cc`
+`radarr/`
+`radarr/app/migration-job.yml`
+`rc=11`
+`rclone-sealed.yml`
+`rclone-sealed`
 `rclone-secret`
+`rclone:filen:backups/restic/`
 `rclone:filen:backups/restic/etcd-snapshot`
+`rclone:filen:backups/restic/gitea`
+`rclone:filen:backups/restic/homebox`
+`rclone:filen:backups/restic/immich`
+`rclone:filen:backups/restic/joplin`
+`rclone:filen:backups/restic/minecraft`
+`rclone:filen:backups/restic/obsidian`
+`rclone:filen:backups/restic/paperless`
+`rclone:filen:backups/restic/postgres`
 `rclone:filen:backups/restic/{name}`
+`rcon-cli list`
+`readOnly: true`
+`reasoning_content`
+`reclaimPolicy: Delete`
+`reclaimPolicy: Retain`
+`redirect_uri`
 `redis-cluster.enabled: false`
+`redis-cluster.enabled`
 `redis-cluster`
+`redis.server-id`
 `reflector.v1.k8s.emberstack.com/reflection-auto-*`
+`reflector`
+`regex:`
 `reloader.deployment.image.tag: "v1.0.112"`
 `reloader.stakater.com/auto: "true"`
 `reloader.stakater.com/auto`
+`renovate.json`
+`repeat_interval: 24h`
 `replicas: 1`
 `report.sh`
 `report`
+`repository:`
 `requireVerifiedEmail=false`
 `requireVerifiedEmail`
+`require_valid_user_except_for_up`
+`require_valid_user`
 `required_providers`
+`resource-pack`
 `resourceFieldRef`
+`resourceNames`
 `resources: {}`
 `resources:`
 `resources`
 `restartPolicy: Never`
+`restic backup`
+`restic check --read-data-subset=1/10`
+`restic check --read-data`
+`restic dump <id> <path>`
+`restic forget --keep-daily 30 --prune`
+`restic forget --prune`
+`restic repair packs`
+`restic restore latest --time "2026-07-15 04:00:00"`
+`restic unlock --remove-all`
+`restic unlock`
+`restic-sealed`
 `restic-secret`
+`restic`
+`rexi_server : cluster stable`
+`role "<app>" does not exist`
 `role "x" does not exist`
+`romm-config`
+`romm-oidc-secret`
+`romm-role-secret`
+`romm-secret`
+`romm.blackcats.cc`
+`romm`
+`rommapp/romm:5.0.0`
+`rommapp/romm`
 `rotated`
+`router_settings.fallbacks`
+`routes/api/login.ts`
+`routing:`
+`routingMode: native`
+`rss.blackcats.cc`
 `run.sh`
+`runAsNonRoot`
+`runAsUser`
 `sabnzbd:5.1.2-ls270`
+`safe-upgrades.gateway.networking.k8s.io`
+`saml-idp-metadata`
+`save-all`
+`save-off`
+`save-on`
+`scan-report.py`
+`scan-vulnerabilityreport-*`
+`scan-vulnerabilityreport-5dc5f95f99`
 `scanJobsConcurrentLimit: 2`
 `scan`
+`schematic.customization.systemExtensions`
+`sda4`
+`sda`
+`sealed-secrets-controller`
+`secretKeyRef: {name: myapp-role-secret, key: password}`
 `secretKeyRef`
 `secretRef.optional`
 `secret`
+`secrets.md`
+`sectionName: ssh`
 `security-report`
 `security/falco-gotify-secret`
 `securityContext`
 `security`
+`seerr.blackcats.cc`
 `selectAllByDefault`
 `server did not agree on a protocol`
 `server-reference.conf`
 `server.properties`
+`server_resource_pack`
+`service`
 `session.PROVIDER`
 `set -e`
+`settings.EMAIL_CERTIFICATE_FILE`
+`settings.py`
 `settings.token_auth_method`
+`settings/__init__.py`
+`severity: info`
+`shared-tls`
+`shared_preload_libraries: [vchord.so]`
 `shared`
+`shenxn/protonmail-bridge`
 `shenxn/…`
+`siderolabs/lldpd`
+`siderolabs/netbird`
+`siderolabs/nut-client`
+`siderolabs/qemu-guest-agent`
+`single_node = true`
 `single_node`
+`sleep`
+`snapshot a7ddaf50 saved`
 `snapshot … saved`
+`soft`
+`some`
+`sonarr.blackcats.cc`
+`sonarr:4.0.*`
+`sops -e`
+`sources`
+`spark`
+`spec.managed.roles`
 `spec.replicas`
 `spec.targetNamespace`
 `spec.template.metadata.annotations`
 `spec.template: Invalid value`
+`src/paperless/settings/parsers.py`
 `ssh`
+`ssl.create_default_context()`
+`ssoLogin`
 `st_blocks*512`
 `standalone`
+`startedAt`
+`startup { up_delay = N }`
+`startup`
+`stat .../pgdata: no such file or directory`
 `stat .../pgdata`
+`statefulset.yaml:145-155`
 `status.image`
 `status.storedVersions`
+`status`
+`storage:`
+`storageClass: nfs-client`
+`storageClassName: nfs-client`
+`strategy: Recreate`
+`string`
+`subPath`
 `succeeded-pods`
 `sum by (...)`
+`supervc-stack`
 `suwayomi-app:4567`
 `suwayomi-app`
 `suwayomi-config`
 `suwayomi-flaresolverr:8191`
 `suwayomi-flaresolverr`
+`suwayomi.blackcats.cc`
 `swap/exclusive: true`
+`swap: true, exclusive: true`
+`systemReserved`
+`systemctl poweroff`
 `tag:`
 `tail -10 "$LOG"`
 `talconfig.yaml`
+`talenv.sops.yaml`
+`talhelper apply`
+`talhelper genconfig`
 `talhelper`
+`talos/talenv.sops.yaml`
+`talosVersion`
+`talos_schematic_id`
 `talosconfig-secret`
+`talosconfig`
+`talosctl -n 172.16.20.11 version`
+`talosctl apply-config`
 `talosctl bootstrap --recover-from <snap>`
+`talosctl bootstrap --recover-from`
 `talosctl bootstrap`
 `talosctl etcd snapshot`
+`talosctl get discoveredvolumes`
 `talosctl get links -o yaml \| grep -iE 'id:\|mtu:'`
+`talosctl reset`
+`talosctl shutdown`
 `talosctl`
+`talsecret.sops.yaml`
 `tank/backups/keys/`
+`tank/kubernetes.nfs`
 `targetNamespace: auth`
 `targetNamespace`
+`tcp://172.16.20.2:3493`
 `tcp://`
 `tcp://gitea.blackcats.cc:22`
+`tcp_proxy`
+`tensorchord`
+`terminationGracePeriodSeconds: 120`
 `timeout 300`
+`tls.certificateRefs`
+`tls: bad record MAC`
 `tofu apply tfplan`
 `tofu apply`
+`tofu destroy`
 `tofu init -lockfile=readonly`
+`tofu init`
 `tofu plan -out=tfplan`
 `tofu show -json tfplan`
 `tofu_state`
@@ -801,52 +2294,141 @@ VALKEY_CLUSTER_CREATOR
 `token`
 `traefik:v3.1`
 `trap cleanup EXIT`
+`trivy-operator`
 `trivy.dbRepository`
+`true`
 `ttlSecondsAfterFinished: 3600`
 `ttlSecondsAfterFinished: 86400`
 `ttlSecondsAfterFinished`
+`txtOwnerId: homelab-k8s`
+`type: custom`
 `type: generic`
+`type: secret`
+`typeof x === 'string'`
+`typeof`
+`uid: minecraft`
+`unknown value for --flash-attn: '--cache-reuse'`
+`unlock`
 `until curl .../health`
+`up=0`
+`upperBound`
+`ups.delay.shutdown`
+`ups.load`
+`ups.realpower`
+`ups.status`
+`ups`
+`upsc ups`
+`upsmon -c fsd`
+`upsmon`
+`url:`
+`usbhid-ups`
+`utils/couchdb/provision.ts`
 `v1.0.112`
+`v1.6.1`
+`v166-cpu-b6795`
 `v1`
 `v1alpha2`
+`v1beta3`
+`v251-cpu-b10680`
+`v3.24.2`
+`v<ver>-cpu-b<llama-build>`
+`vX.Y.Z`
 `valkey-cli --cluster create`
 `valkey-cluster.resources`
 `valkey-cluster.valkey.resources`
 `valkey-cluster`
+`valkey-data-*`
+`valkey-data-gitea-valkey-cluster-{0,1,2}`
+`valkey/valkey:9.1-alpine`
 `valueFrom`
 `value`
 `values.yaml`
+`valuesFrom.valuesKey`
 `valuesFrom`
+`vanilla-data`
+`vanilla-files.blackcats.cc`
+`vanilla-map.blackcats.cc`
 `vanilla-metrics`
+`vanilla.blackcats.cc`
+`vanilla`
+`vchord`
+`vchordrq`
 `vector.so`
+`vectors.so`
+`vectors`
+`velocity-config.yml`
+`velocity-secret`
+`velocity.enabled: false`
+`velocity.toml`
+`verifyImages`
+`version: "3.7.*"`
+`version:`
+`victoria-metrics-k8s-stack`
+`vlogs`
 `vm-stack/vmrules.yml`
 `vm-stack`
+`vm.args`
+`vmagent-...-cd79fb77d`
+`vmagent.spec.extraArgs.promscrape.maxConcurrency: "4"`
+`vmagent`
+`vmsingle`
+`vpa-recommender`
+`vv1.0.112`
 `wait: true`
+`wal_fsync_duration`
+`workload=llm:NoSchedule`
+`workload=llm`
 `world-size-configmap.yml`
 `world-size`
+`world`
 `wt0`
 `xbackends`
+`zitadel-bootstrap-auth`
 `zitadel-bootstrap`
+`zitadel-role-secret`
+`zitadel-setup`
 `zitadel.blackcats.cc`
+`zitadel_action.joplin_saml_attributes`
+`zitadel_application_saml.joplin`
+`zitadel_trigger_actions`
+`zitadel`
+`{"patches":[…]}`
+`{"q":2,"n":1,"w":1,"r":1}`
 `{"regenerateToken":true}`
 `{Authority,ClientId,Secret}`
 `{app}-database`
 `{app}-role-secret`
+`{name}-app`
+`{name}-files`
+`{name}-map`
 `{release-name}-http`
 `{release-name}-{controller}`
+`{release-name}-{name}`
 `{release-name}-{service-name}`
 `{release-name}`
 `{resources = {{resource = obj}, …}}`
+`{server}-files.blackcats.cc`
+`{server}-files`
 `|| echo "0"`
+`~/.config/opencode/opencode.jsonc`
+`~/.talos/config`
+`~> 3.0`
 `…/Tachidesk/downloads`
+`…/api/oauth/openid`
+`…/api/saml`
 `…10828-…-ls315`
 `…10896-…-ls321`
 `✅ no new violations`
+api.modrinth.com/v2
+api.modrinth.com/v2/project/
 app.kubernetes.io/name
 apps.projectsveltos.io/v1alpha1
+cas.openebs.io/config
 charts.fairwinds.com/stable
+chat.blackcats.cc/oauth/oidc/callback
+cnpg.io/cluster
 curl jq
+curl the
 design/AI_CONTEXT.md
 design/ARCHITECTURE.md
 design/CLAUDE.md
@@ -871,12 +2453,30 @@ design/llm-deployment.md
 design/llm-inference.md
 dl.gitea.com/charts
 dl.gitea.com/charts/
+docs.openwebui.com/features
+docs.openwebui.com/features/authentication-access/auth/sso/
+docs.rs-online.com/b339
+docs.rs-online.com/b339/A700000009976135.pdf
+external-dns.alpha.kubernetes.io/enabled
+external-dns.alpha.kubernetes.io/hostname
+factory.talos.dev/installer/
+factory.talos.dev/metal-installer/
 falcosecurity.github.io/charts
+flux diff
+flux get
+flux helm
+flux logs
 flux reconcile
+flux resume
 flux suspend
+flux version
+gateway.cilium.io/backend-port
 gateway.cilium.io/backend-service
+gateway.networking.k8s.io/gateway-name
 gateway.networking.k8s.io/v1
 ghcr.io/
+ghcr.io/degoog-org
+ghcr.io/degoog-org/degoog:0.18.0
 ghcr.io/doitintl
 ghcr.io/doitintl/kube-no-trouble
 ghcr.io/flaresolverr
@@ -884,102 +2484,322 @@ ghcr.io/flaresolverr/flaresolverr
 ghcr.io/gianlucam76
 ghcr.io/gianlucam76/charts
 ghcr.io/lucid-void
+ghcr.io/lucid-void/
 ghcr.io/lucid-void/backup-tools
+ghcr.io/lucid-void/backup-tools:v1.0.2
+ghcr.io/lucid-void/postgres-cnpg-immich
+ghcr.io/mostlygeek
+ghcr.io/mostlygeek/llama-swap:cpu
+ghcr.io/opentofu
+ghcr.io/opentofu/opentofu
 ghcr.io/seerr-team
 ghcr.io/seerr-team/seerr
+ghcr.io/seerr-team/seerr:v3.2.0
 ghcr.io/suwayomi
 ghcr.io/suwayomi/suwayomi-server
+ghcr.io/suwayomi/suwayomi-server:v2.2.2100
+ghcr.io/token
+ghcr.io/v2
+ghcr.io/v2/linuxserver/plex/manifests/1.43.3
 ghcr.io/videocurio
 ghcr.io/videocurio/
+ghcr.io/videocurio/proton-mail-bridge
+ghcr.io/videocurio/proton-mail-bridge:v3.24.2
 gitea.blackcats.cc/user/oauth2/Zitadel/callback
+github.com/FareedKhan-dev/kimi-k3-in-c
+github.com/filebrowser
+github.com/filebrowser/filebrowser/security/advisories
 github.com/fluxcd
 github.com/fluxcd/notification-controller/issues/784
+github.com/ggml-org
+github.com/ggml-org/llama.cpp/issues/19480
+github.com/gtsteffaniak
+github.com/gtsteffaniak/filebrowser
 github.com/keiyoushi
 github.com/keiyoushi/extensions/tree/repo
+github.com/kubernetes-sigs
+github.com/kubernetes-sigs/gateway-api
+github.com/laurent22
+github.com/laurent22/joplin/issues/14252
+github.com/lucid-void
+github.com/lucid-void/Homelab
+github.com/mostlygeek
+github.com/mostlygeek/llama-swap
+github.com/networkupstools
+github.com/networkupstools/nut/issues/3010
+github.com/pelican-dev
+github.com/pelican-dev/panel/discussions/933
+github.com/rommapp
+github.com/rommapp/romm/issues/1302
 helm template
+helm.toolkit.fluxcd.io/v2
+homelab.blackcats.cc/workload
 ignore-check.kube-linter.io/job-ttl-seconds-after-finished
+image.toolkit.fluxcd.io/v1beta2
+immich.blackcats.cc/api/oauth/mobile-redirect
 infra/packer/
+infra/packer/Talos/talos-base.pkr.hcl
+infra/proxmox/nut/
 infra/terraform/
 infra/terraform/kubernetes.tf
+joplin.blackcats.cc/api/saml
 jq filter
+jq or
 jq that
 kavita.blackcats.cc/signin-oidc
 kubeconform was
 kubectl access
 kubectl annotate
+kubectl apply
+kubectl cp
 kubectl create
 kubectl delete
+kubectl describe
 kubectl exec
 kubectl get
+kubectl kubeseal
 kubectl logs
 kubectl patch
+kubectl rollout
+kubectl run
 kubectl scale
+kubectl taint
+kubectl top
+kubectl wait
 kubent error
+kubent kubent-precheck
 kubent row
+kubent to
 kubernetes-sigs.github.io/descheduler
 kubernetes-sigs.github.io/descheduler/
+kubernetes.io/hostname
+kubernetes.io/hostname:k8s-cp-3
+kubernetes/**
+kubernetes/.gitignore
+kubernetes/apps
 kubernetes/apps/
 kubernetes/apps/ai/
+kubernetes/apps/ai/llama-swap/app/config-configmap.yml
 kubernetes/apps/auth/
 kubernetes/apps/auth/bootstrap-rbac/
+kubernetes/apps/auth/bootstrap/app/tofu/main.tf
+kubernetes/apps/cert-manager/
+kubernetes/apps/cnpg-system/
+kubernetes/apps/democratic-csi/
+kubernetes/apps/gateway/
+kubernetes/apps/gateway/shared-gateway/config/certificate.yml
+kubernetes/apps/gateway/shared-gateway/config/httproute-redirect.yml
+kubernetes/apps/gitea/gitea/app/helmrelease.yml
 kubernetes/apps/gitea/gitea/app/tcproute.yml
 kubernetes/apps/immich/
+kubernetes/apps/immich/backup/app/pvc.yml
 kubernetes/apps/joplin/
+kubernetes/apps/joplin/joplin/app/saml-sp-configmap.yml
+kubernetes/apps/kube-system/
+kubernetes/apps/kube-system/cilium/
 kubernetes/apps/kube-system/cilium/app/helm-values.yml
+kubernetes/apps/kube-system/cilium/config/cilium-l2.yml
+kubernetes/apps/kube-system/gateway-api/
+kubernetes/apps/kustomization.yml
+kubernetes/apps/media/
+kubernetes/apps/media/media-nfs/
 kubernetes/apps/media/minecraft*/
 kubernetes/apps/media/minecraft/app/world-size-configmap.yml
 kubernetes/apps/media/plex/
 kubernetes/apps/media/romm/
+kubernetes/apps/media/sonarr/app/migration-job.yml
 kubernetes/apps/monitoring/ai-monitoring/
 kubernetes/apps/monitoring/flux-notifications/
+kubernetes/apps/monitoring/ups-monitoring/
+kubernetes/apps/monitoring/vm-stack/app/vmrules.yml
+kubernetes/apps/myapp/
+kubernetes/apps/myapp/kustomization.yml
+kubernetes/apps/myapp/myapp/app
+kubernetes/apps/myapp/myapp/app/credentials-sealed.yml
+kubernetes/apps/myapp/myapp/app/route.yml
+kubernetes/apps/network/external-dns/
 kubernetes/apps/obsidian/
+kubernetes/apps/openebs/
 kubernetes/apps/paperless/paperless/
 kubernetes/apps/paperless/protonmail-bridge/
+kubernetes/apps/paperless/protonmail-bridge/app
+kubernetes/apps/postgres/backup/app/
+kubernetes/apps/postgres/backup/app/databases.yml
+kubernetes/apps/postgres/cluster/app/cluster.yml
+kubernetes/bootstrap/flux
+kubernetes/bootstrap/flux/github-deploy-key.sealed.yml
 kubernetes/bootstrap/flux/kustomization.yml
+kubernetes/bootstrap/helmfile.yml
+kubernetes/flux/
+kubernetes/flux/.../apps.yaml
+kubernetes/flux/config
 kubernetes/flux/config/flux.yml
+kubernetes/flux/pub-cert.pem
+kubernetes/flux/repositories/git/gateway-api.yml
+kubernetes/flux/repositories/helm/
+kubernetes/flux/repositories/helm/kustomization.yml
+kubernetes/flux/repositories/helm/myregistry.yml
+kubernetes/flux/vars/cluster-secrets.sealed.yml
+kubernetes/flux/vars/cluster-settings.yml
 kubernetes/images/postgres-cnpg-immich/
 kubernetes/talos/
+kubernetes/talos/clusterconfig/homelab-k8s-cp-1.yaml
+kubernetes/talos/clusterconfig/homelab-k8s-cp-2.yaml
+kubernetes/talos/clusterconfig/homelab-k8s-llm-1.yaml
+kubernetes/talos/clusterconfig/talosconfig
+kubernetes/talos/talconfig.yaml
+kubernetes/talos/talsecret.sops.yaml
+kustomize.config.k8s.io/v1beta1
+kustomize.toolkit.fluxcd.io/v1
+lbipam.cilium.io/ips
+lbipam.cilium.io/sharing-cross-namespace
+lbipam.cilium.io/sharing-key
+llm.blackcats.cc/v1
+llm.blackcats.cc/v1/chat/completions
+lscr.io/linuxserver
+lscr.io/linuxserver/kavita:0.9.0
+lscr.io/linuxserver/plex
+lscr.io/linuxserver/plex:1.41.7
+lscr.io/linuxserver/plex:1.43.3
+lscr.io/linuxserver/prowlarr:1.36.3
+lscr.io/linuxserver/radarr:5.23.3
+lscr.io/linuxserver/sabnzbd:4.5.1
+lscr.io/linuxserver/sonarr:4.0.13
+manpages.debian.org/testing/llama.cpp-tools/llama-server.1.en.html
 mirror.gcr.io/ghcr.io
 mirror.gcr.io/ghcr.io/
+mise activate
+mise and
+mise costs
 mise exec
+mise gives
+mise shims
 monitoring.blackcats.cc/scrape
+networkupstools.org/ddl/Eaton/Ellipse_PRO_650.html
+northflank.com/blog
+northflank.com/blog/what-is-kimi-k3-self-hosting
+notification.toolkit.fluxcd.io/v1beta2
+openebs.io/local
+operator.victoriametrics.com/v1beta1
 paperless.blackcats.cc/accounts/oidc/zitadel/login/callback/
 pod-security.kubernetes.io/enforce
 promtool check
+raw.githubusercontent.com/cilium
+raw.githubusercontent.com/cilium/cilium/v
 rclone backend
 rclone binary
+rclone config
+rclone creds
 rclone crypt
 rclone filen
 rclone needs
 rclone v
 reflector.v1.k8s.emberstack.com/reflection-auto-
+reflector.v1.k8s.emberstack.com/reflection-auto-allowed
+reflector.v1.k8s.emberstack.com/reflection-auto-allowed-namespaces
+reflector.v1.k8s.emberstack.com/reflection-auto-enabled
+reflector.v1.k8s.emberstack.com/reflection-auto-namespaces
 reloader.stakater.com/auto
+restic a
+restic aborts
+restic append-only
+restic backup
+restic cannot
+restic check
+restic command
 restic defaults
+restic did
+restic dump
 restic exits
+restic flow
+restic forget
+restic job
+restic lock
+restic maintenance
+restic mover
+restic normally
 restic over
+restic parallelises
+restic pipeline
+restic process
+restic repair
 restic repo
 restic repos
+restic restore
+restic runs
+restic snapshot
+restic snapshots
+restic to
+restic unlock
+romm.blackcats.cc/api/oauth/openid
 rss.blackcats.cc/i/oidc/
+sealedsecrets.bitnami.com/sealed-secrets-key
+sigs.k8s.io/gateway-api
+source.toolkit.fluxcd.io/v1
+store.minisforum.com/products
+store.minisforum.com/products/minisforum-ms-02-ultra-workstation
+talhelper adds
+talhelper apply
+talhelper environment
+talhelper genconfig
+talhelper gensecret
+talosctl apply-config
 talosctl bootstrap
+talosctl dmesg
 talosctl etcd
 talosctl get
+talosctl health
+talosctl kubeconfig
+talosctl reset
+talosctl service
+talosctl shutdown
+talosctl talhelper
+talosctl upgrade
+talosctl upgrade-k
 tofu apply
+tofu destroy
 tofu init
 tofu plan
 tofu show
 v0.11.1
 v0.26.x
+v0.76.0
+v0.9.0.2-ls121
 v1.0.112
+v1.0.2
 v1.1.0
 v1.1.1
+v1.13.2
+v1.36.1
 v1.4.1
+v1.5
+v1.5.1
 v1.6.0
 v1.6.1
 v1.69
+v2.2.2100
+v2.63.23
+v2.7.5
+v2.9.0
 v2.9.1
 v3.0
 v3.0.0
 v3.1
+v3.2.0
+v3.24.2
+v3.26.0
+v3.5.0
+v3.7.3
+v4.1
+www.eaton.com/content
+www.eaton.com/content/dam/eaton/products/backup-power-ups-surge-it-power-distribution/backup-power-ups/eaton-ellipse-pro-ups/Eaton
+www.eaton.com/gb
+www.eaton.com/gb/en-gb/skuPage.ELP850IEC.html
+www.synology.com/en-us
+www.synology.com/en-us/compatibility
+zitadel.blackcats.cc/saml/v2/metadata
 # --- baseline metrics (not facts) ---
-# .claude/CLAUDE.md: 80247 B ~21688 tok
+# Corpus: AGENTS.md (282 B, formerly .claude/CLAUDE.md), design/*.md design/*/*.md
+# AGENTS.md: 80247 B ~21688 tok
 # design/ total: 368465 B
+# Total facts extracted: 2800
