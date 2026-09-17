@@ -86,6 +86,8 @@ All protected services use Zitadel OIDC directly (no forward-auth proxy). Non-ob
 
 Zitadel bootstrap Job provisions OIDC clients via Terraform + Zitadel API. Writes `*-oidc-secret` Secrets into app namespaces (env-var style for most apps; Helm-valuesFrom style for Gitea).
 
+It re-runs roughly hourly (`ttlSecondsAfterFinished: 3600` + 30m Kustomization interval) and **reports drift**: the `tofu` initContainer plans to a file, writes the JSON plan to a shared `emptyDir`, then applies that plan; a `report` container (`backup-tools`, for jq/kubectl/curl the OpenTofu image lacks) classifies the run against the config hash in `auth/zitadel-bootstrap-state` and posts to Gotify at priority 8 when an *unchanged* config still had resources to change. That matters more here than anywhere else: `main.tf` owns every `client_id`/`client_secret` in the cluster, so a Zitadel DB reset silently reissues credentials for eight applications and rewrites seven Secrets across six namespaces — apps without a Reloader annotation keep using the old ones. Providers are pinned by a committed `.terraform.lock.hcl` and `tofu init -lockfile=readonly`; see `docs/secrets.md`.
+
 ---
 
 ## Secrets Model
@@ -169,11 +171,25 @@ kubernetes/
 | minecraft-proxy (Velocity 3.5.1) | media | LoadBalancer `172.16.20.52:25565` (own IP; never share with Plex) | — |
 | minecraft-valkey | media | ClusterIP `:6379` — QuickChat cross-server chat bus | — |
 | minecraft-events | media | — (no Service) — Velocity log watcher → Gotify player join/leave notifications | — |
+| llama-swap (llama.cpp) | ai | — (ClusterIP `llama-swap:8080`) — **only workload on `llm-1`** | None; ClusterIP, reached via LiteLLM |
+| LiteLLM | ai | `llm.blackcats.cc` | LiteLLM virtual keys, one per client |
+| Open WebUI | ai | `chat.blackcats.cc` | Zitadel OIDC |
 | CNPG cluster `postgres` | postgres | — | Per-DB roles |
 
 Full inventory with storage details: `docs/services.md`.
 
 ---
+
+**The `ai` namespace runs on a dedicated, tainted node and is sized to fill it.** `llm-1`
+(`172.16.20.14`, 70 GiB, 8 vCPU) carries `workload=llm:NoSchedule` and holds one 34.4 GiB
+model resident. Three consequences that do not apply anywhere else in the cluster:
+`llama-swap` runs with **no memory limit** on purpose (llama.cpp mmaps the GGUF, so those
+pages are reclaimable page cache — a limit near the working set causes continuous
+reclaim-and-refault, which presents as "the model got slow" with nothing in the logs);
+`--ctx-size` **pre-allocates the whole KV cache at startup**, so a bad value takes the node
+rather than the pod; and the taint silently excluded two DaemonSets, of which `falco` was
+given a toleration and `democratic-csi-nfs-node` deliberately was not — meaning **no
+`nfs-client` PVC can ever schedule on `llm-1`**. See `design/llm-deployment.md`.
 
 ## Non-Obvious Decisions
 
