@@ -42,3 +42,35 @@ subjects:
   - kind: ServiceAccount
     name: zitadel-bootstrap
     namespace: auth
+---
+# The run-classification state (config hash + last run) lives in a ConfigMap that
+# the report container writes itself, so it is deliberately separate from the
+# Terraform backend grant above.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: zitadel-bootstrap-report
+  namespace: auth
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["zitadel-bootstrap-state"]
+    verbs: ["get", "update", "patch"]
+  # `create` cannot be restricted by resourceName — the object does not exist yet.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: zitadel-bootstrap-report
+  namespace: auth
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: zitadel-bootstrap-report
+subjects:
+  - kind: ServiceAccount
+    name: zitadel-bootstrap
+    namespace: auth
