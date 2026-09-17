@@ -1,198 +1,205 @@
-# Minecraft — decisions
+# Minecraft
 
-Extracted verbatim from the `.claude/CLAUDE.md` key-decisions table. Do not
-re-litigate without reason.
+**Read before editing:** `kubernetes/apps/media/minecraft*/`
 
-## Servers, proxy, storage, backups, plugins
+## Current state
 
-Two servers in `media`, both `app-template` and both **`TYPE=PAPER`**: **matcha** (with
-plugins) and **vanilla** (plugin-free — the name is about content, not engine).
-`itzg/minecraft-server` (image tag and `VERSION` pinned in each HelmRelease —
-Minecraft moved to **calendar versioning**, so do not assume `1.21.x`).
+Two Paper servers in `media`, both `app-template`, both `TYPE=PAPER`: **matcha** (with
+plugins) and **vanilla** (plugin-free). Image `itzg/minecraft-server`, tag and
+`VERSION` pinned per HelmRelease — Minecraft uses **calendar versioning**, so do not
+assume `1.21.x`. One pod each, three containers: server + `itzg/mc-backup` +
+`filebrowser`.
 
-**The `-javaNN` image variant must be ≥ the Java the server jar targets**: MC 26.2 is
-class file 69.0 (Java 25), so `-java21` (class file 65.0) crash-looped on
-`UnsupportedClassVersionError` before startup — bump the variant alongside `VERSION`.
-One pod each, three containers: server + `itzg/mc-backup` + `filebrowser`.
+World data lives on `openebs-hostpath`, never NFS. Backups are quiesced snapshots: the
+`mc-backup` sidecar does RCON `save-off`/`save-all`/`save-on` → tarball → the RWX
+`mc-backups` PVC every 2h, and the `minecraft-backup` CronJob (07:00) restics that to
+Filen.
 
-**World data on `openebs-hostpath`, never NFS** — Anvil region files are random small
-I/O in large files, and a chunk load blocking the single-threaded tick loop is directly
-visible as TPS drop; the Synology is HDD-backed and shared with the media stack, and
-`hard` NFS mounts turn a NAS stall into a wedged JVM. Node-pinning is free here (all 3
-CPs are VMs on one Proxmox host).
+Routing is raw TCP, not the Gateway: **Velocity** (Service `minecraft-proxy`, image
+`itzg/mc-proxy`, pinned to a **3.x** build) owns `172.16.20.52:25565` on its own
+pool-b address (`lbipam.cilium.io/ips`) and selects the backend from the handshake
+hostname via `[forced-hosts]`. Backends run `ONLINE_MODE=FALSE` and trust Velocity's
+signed modern forwarding (`velocity-secret`); backend Services stay ClusterIP-only.
+`proxies.velocity.*` is applied via itzg `PATCH_DEFINITIONS` as a **patch** against
+`paper-global.yml`, not a mounted replacement of the file.
 
-**Backups are quiesced snapshots, not continuous sync** — rsyncing a live world
-yields torn region files that only fail at restore; the mc-backup sidecar does RCON
-`save-off`/`save-all`/`save-on` → tarball → RWX `mc-backups` PVC every 2h, and
-`minecraft-backup` (07:00) restics that to Filen.
+Chat is bridged across servers, not merged by Velocity itself: `quickchatv2` relays
+chat/`/msg`/staffchat/join-leave through `minecraft-valkey` (`emptyDir`, `--save ""` +
+`appendonly no`) and must be installed on **both** servers — on only one, the bridge is
+one-way.
 
-**Routing is raw TCP, not the Gateway**: **Velocity** (`minecraft-proxy`,
-`itzg/mc-proxy`, Velocity pinned to a **3.x** build — *not* 4.x, which changes the
-`velocity.toml` schema; bump `VELOCITY_VERSION` and `config-version` together) owns
-`172.16.20.52:25565` — **its own pool-b address**, pinned with `lbipam.cilium.io/ips`
-— and selects the backend from the handshake hostname via `[forced-hosts]` (replaced
-`mc-router` 2026-08-02). It used to *share* `.51` with Plex via
-`lbipam.cilium.io/sharing-key: pool-b-shared`; **never do that again**. Cilium's L2
-announcer keeps one `Lease` per *Service* and elects each leader independently, so the
-shared IP was announced by two nodes at once (mc-router→cp-3, plex-direct→cp-2) and
-both answered ARP for it. With `externalTrafficPolicy: Cluster` the receiving node
-SNATs the flow locally, so when a client's ARP entry flipped mid-session its packets
-were re-SNATed on the other node, hit the backend pod as an unknown 4-tuple, and got
-`RST` ~2s after joining. Brutal to diagnose: short HTTP bursts to the same IP succeed
-(they finish before a flip), clients on the nodes' own L2 segment are fine (ARP entry
-stays pinned) while anything routed in from another VLAN breaks constantly, and the
-`RST` carries the *pod's* TTL so it looks like the game server did it. Server logs show
-only a generic `lost connection: Disconnected`, ~7s late, because the server finds out
-when a keepalive write fails — the client-side `latest.log` timestamp is the real
-event time. A new server = HelmRelease + two lines in `velocity-config.yml`
-(`[servers]` + `[forced-hosts]`) + a name in the proxy Service's `external-dns`
-hostname list — which is why external-dns has `service` in `sources`.
+`filebrowser` (`{server}-files.blackcats.cc`) is for datapacks/world imports/config
+edits only, with local auth from `minecraft-secret` — not Zitadel. Each server exposes
+three Services: `{name}-app` 25565, `{name}-files` 8081, `{name}-map` 8080 (squaremap's
+internal webserver binds `0.0.0.0:8080` from inside the JVM, so filebrowser was moved
+off it to 8081).
 
-**Backends run `ONLINE_MODE=FALSE`** and trust Velocity's *modern* forwarding signed
-with `velocity-secret`; Paper rejects unsigned logins so they still can't be joined
-directly — but that makes the secret load-bearing and the backend Services must stay
-ClusterIP-only. The `proxies.velocity.*` keys are applied via itzg `PATCH_DEFINITIONS`
-(a **patch**, not a mounted `paper-global.yml` — replacing the whole file would reset
-every other Paper setting to defaults).
+Sizing: `MEMORY=6G`, container memory limit `9Gi`. `terminationGracePeriodSeconds: 120`
++ `STOP_DURATION: 90` (the 30s default SIGKILLs the JVM mid-save).
 
-**Velocity does NOT merge chat**: `quickchatv2` on *both* servers relays
-chat/`/msg`/staffchat/join-leave through `minecraft-valkey` (in-memory, `--save ""` +
-`appendonly no`); install it on one server only and the bridge is one-way. Three traps,
-all hit in practice: (1) **`PATCH_DEFINITIONS` pointing at a *directory* wants a bare
-PatchDefinition** (`file`/`ops`/`file-format`) — the `{"patches":[…]}` *patch-set*
-wrapper is only valid when it names a single file, and getting it wrong is **not** a
-silent no-op: mc-image-helper fails to parse, the init script exits non-zero and the
-server crash-loops *before Paper starts* (symptom: `2/3` containers ready, since the
-backup and filebrowser sidecars stay up, and `paper-global.yml` still showing
-`velocity.enabled: false`). (2) **QuickChat hard-depends on LuckPerms +
-PlaceholderAPI**, declared in its `plugin.yml` but **not** in Modrinth's dependency
-metadata — so `MODRINTH_DOWNLOAD_DEPENDENCIES: required` does not fetch them, the jar
-downloads, then fails to load with `UnknownDependencyException` and the server starts
-*healthy* with chat silently un-bridged. Both must be listed explicitly in
-`MODRINTH_PROJECTS`. (3) Redis config lives in **`plugins/Quickchat/redis.yml`**, not
-`config.yml` (whose `storage:` block only offers YAML/MYSQL); `redis.server-id` **must
-be unique per server**, so it comes from `CFG_QUICKCHAT_SERVER_ID` per HelmRelease.
-QuickChat publishes no source or wiki, so that schema can only be read off a running
-server — which also means the patch targets a plugin-generated file and has nothing
-to patch on a rebuilt PVC's first boot.
+Player join/leave notifications are a separate component, `media/minecraft-events`: a
+Deployment that streams the Velocity pod's log via `kubectl logs --follow` and posts to
+Gotify.
 
-**Never upload jars**: `TYPE`+`VERSION` fetch the server,
-`MODRINTH_PROJECTS`/`SPIGET_RESOURCES`/`PLUGINS` declare plugins in git so they survive
-PVC loss.
+## Rules
 
-**`server.properties` is unmanaged PVC state read once at boot** — hand-editing it
-via filebrowser appears to do nothing until the pod cycles (a cleared `resource-pack`
-stayed live for 10h), and it silently drifts (a bad `level-name` pointed at a
-half-migrated stub and crash-looped the server). Drive every property from itzg env
-instead — `LEVEL`, `RESOURCE_PACK`/`RESOURCE_PACK_SHA1`/`RESOURCE_PACK_ENFORCE`,
-`DATAPACKS`/`REMOVE_OLD_DATAPACKS`, `OPS`, `WHITELIST` — so itzg rewrites the file
-each boot and Flux rolls the pod when the value changes.
+- **Bump the `-javaNN` image variant alongside `VERSION`** — it must be ≥ the Java the
+  server jar targets. MC 26.2 is class file 69.0 (Java 25); `-java21` (class file 65.0)
+  crash-loops on `UnsupportedClassVersionError` before startup.
+- **Keep world data on `openebs-hostpath`, never NFS** — Anvil region files are random
+  small I/O in large files, and a chunk load blocking the single-threaded tick loop
+  shows up directly as TPS drop; `hard` NFS mounts (required to avoid silent
+  corruption) turn a NAS stall into a wedged JVM. Node-pinning costs nothing here — all
+  3 CPs are VMs on one Proxmox host.
+- **Never rsync a live world** — a live rsync yields torn region files that only fail
+  at restore time; quiesce with RCON `save-off`/`save-all`/`save-on` first, which is
+  what `mc-backup` does.
+- **Never share a pool-b LoadBalancer IP across two Services via
+  `lbipam.cilium.io/sharing-key`** — Cilium's L2 announcer holds one `Lease` per
+  Service and elects each leader independently, so a shared IP gets announced by two
+  nodes at once. With `externalTrafficPolicy: Cluster` the receiving node SNATs
+  locally, so an ARP flip mid-session re-SNATs on the other node and the backend sees
+  an unknown 4-tuple and sends `RST`. Tell: cross-VLAN clients break constantly while
+  same-segment clients are fine, the `RST` carries the *pod's* TTL (looks like the
+  game server did it), and the server log only shows a generic
+  `lost connection: Disconnected` several seconds late.
+- **A new server needs a HelmRelease, two `velocity-config.yml` lines
+  (`[servers]` + `[forced-hosts]`), and a name in the proxy Service's `external-dns`
+  hostname list, together** — the last is why external-dns has `service` in `sources`.
+- **Pin Velocity to a `3.x` build, not `4.x`** — 4.x changes the `velocity.toml`
+  schema; bump `VELOCITY_VERSION` and `config-version` together.
+- **A `PATCH_DEFINITIONS` entry pointed at a *directory* wants a bare
+  `PatchDefinition` (`file`/`ops`/`file-format`), not the `{"patches":[…]}` patch-set
+  wrapper** (only valid naming a single file) — wrong shape is not a silent no-op:
+  mc-image-helper fails to parse and the server crash-loops before Paper starts
+  (symptom: `2/3` containers ready, since the sidecars stay up).
+- **List `LuckPerms` and `PlaceholderAPI` explicitly in `MODRINTH_PROJECTS`** —
+  QuickChat hard-depends on both in its `plugin.yml`, but not in Modrinth's dependency
+  metadata, so `MODRINTH_DOWNLOAD_DEPENDENCIES: required` does not fetch them: the jar
+  loads and fails with `UnknownDependencyException`, and the server starts *healthy*
+  with chat silently un-bridged.
+- **QuickChat's Redis config lives in `plugins/Quickchat/redis.yml`, not
+  `config.yml`** (whose `storage:` block only offers YAML/MYSQL); `redis.server-id`
+  must be unique per server, set via `CFG_QUICKCHAT_SERVER_ID` per HelmRelease.
+  QuickChat has no public source or wiki, so this schema is only readable off a
+  running server — and it has nothing to patch on a rebuilt PVC's first boot.
+- **Never upload jars by hand** — `TYPE`+`VERSION` fetch the server, and
+  `MODRINTH_PROJECTS`/`SPIGET_RESOURCES`/`PLUGINS` declare plugins in git so they
+  survive PVC loss.
+- **Never hand-edit `server.properties` via filebrowser** — it is unmanaged PVC state
+  read once at boot, so an edit does nothing until the pod cycles, and it drifts
+  silently otherwise. Drive every property from itzg env instead: `LEVEL`,
+  `RESOURCE_PACK`/`RESOURCE_PACK_SHA1`/`RESOURCE_PACK_ENFORCE`,
+  `DATAPACKS`/`REMOVE_OLD_DATAPACKS`, `OPS`, `WHITELIST` — itzg rewrites the file each
+  boot and Flux rolls the pod when the value changes.
+- **`RESOURCE_PACK_SHA1` must match the file byte-for-byte** — a wrong value fails the
+  `server_resource_pack` configuration task and disconnects *every* joining client with
+  "Unexpected error during configuration," while the server and mc-monitor both still
+  report healthy, since status pings never reach the configuration phase.
+  `RESOURCE_PACK_ID` is optional (derived as a stable v3 UUID from the URL); a single
+  zip can be both datapack and resource pack (`data/` + `assets/`) regardless of what
+  Modrinth's `loaders` label says.
+- **Decouple readiness in both directions between the game and filebrowser
+  Services** — the `files` container carries no readiness probe (else a file-manager
+  hiccup drops the game Service endpoint and kicks players), and `{server}-files` sets
+  `publishNotReadyAddresses: true` (else a crash-looping game server strips the
+  filebrowser endpoints, taking it offline exactly when needed to fix the crash).
+  Fixing only one direction leaves the other broken.
+- **`strategy: Recreate` is mandatory** — an RWO volume plus two JVMs on one world
+  means corruption under a rolling update.
+- **Size the container memory limit at `MEMORY` (heap) plus ~3Gi, not ~1.5Gi** — itzg
+  sets `-Xms` as well as `-Xmx` from `MEMORY`, so the heap commits its full size and
+  never returns it, and non-heap overhead (metaspace/GC/direct buffers) runs ~1.2Gi.
+  Undersizing puts steady-state RSS at ~90% of the limit by construction, so
+  `MinecraftMemoryNearLimit` (threshold 0.9) fires permanently rather than warning of
+  anything — the metric is RSS, not reclaimable page cache, so the headroom is real.
+- **Check any new plugin's port against the sidecars before installing it** — plugins
+  share the pod network namespace, which is how squaremap's `0.0.0.0:8080` collided
+  with filebrowser's default port.
+- **Regenerate the world after adding a worldgen datapack, and run Chunky
+  pregeneration after the datapack, never before** — a datapack only affects chunks
+  generated after it loads, so adding one to existing terrain leaves a hard seam.
+- **Install `jeirecipefix` on both servers for any recipe viewer (JEI/REI/EMI) to
+  work** — since **MC 1.21.2** the server sends recipe-book *displays* only, for
+  already-unlocked recipes, not full recipe data (a vanilla protocol change, not a
+  Paper bug; JEI's own "install server-side" advice is impossible because JEI is a mod
+  and Paper takes plugins). Matters most on matcha, whose custom recipes are datapack
+  recipes and never reach the client — the client-side `client-recipe-fix` workaround
+  only restores vanilla recipes. **Do not substitute `jei-recipe-bridge`** — it stops
+  at `26.1.2` and hits the loader trap below on later versions.
+- **Verify a Modrinth project's `loaders` includes `paper` and `game_versions`
+  includes the pinned `VERSION` before relying on it**
+  (`api.modrinth.com/v2/project/<slug>`) — a slug resolving on Modrinth does not mean
+  a Paper build exists; an unresolvable project fails startup.
+- **Watch the Velocity proxy log for join/leave events, not the two backends or a
+  plugin** — tailing both backends double-counts `/server` switches and needs a
+  container inside the game pod (stripping pod readiness and dropping players, the
+  same trap that forces the `files` sidecar to have no readiness probe); a
+  join-webhook plugin is another `MODRINTH_PROJECTS` entry subject to the loader trap
+  above; and `minecraft_status_players_online_count` is a 60s poll with no player
+  names, where an Alertmanager alert stays firing until the last player leaves rather
+  than firing once per event. Pair Velocity's
+  `[connected player] Name (/ip:port) has connected` (the true session boundary) with
+  the following `[server connection] Name -> matcha has connected` (which backend;
+  also fires on a `/server` switch) to tell "joined" from "switched" — the script
+  holds the first until the second names the server. Names are matched against the MC
+  username charset (`[A-Za-z0-9_]{1,16}`) before JSON interpolation, so an unexpected
+  log line can only fail to match, never corrupt the body.
+- **Recycle the `kubectl logs --follow` stream hourly and read a heartbeat file for
+  liveness** — the API server can silently drop a follow connection, leaving the
+  container Running with no output forever; `--tail=0` on reconnect replays nothing,
+  and an idle server emits no log lines for hours, so output cannot be the health
+  signal.
+- **Read the `minecraft-events-gotify-secret` token from an optional mounted secret
+  volume, re-read per event — not `envFrom`** — the house pattern (`envFrom` plus
+  `reloader.stakater.com/auto`) failed silently here: env vars are fixed at pod start,
+  and the Reloader annotation only works from the Deployment's own
+  `metadata.annotations`. The mounted-volume approach self-heals once
+  `gotify-bootstrap` runs or rotates the token, with no restart — also why this
+  Kustomization deliberately does **not** `dependsOn: gotify-bootstrap`. Uses the
+  `backup-tools` image (already carries bash+curl+kubectl).
 
-**`RESOURCE_PACK_SHA1` must match the file byte-for-byte**: a wrong value (the URL
-pasted in) fails the `server_resource_pack` configuration task and disconnects *every*
-joining client with "Unexpected error during configuration" — the server still starts
-and looks healthy, and mc-monitor still reports it up, because status pings never reach
-the configuration phase. `RESOURCE_PACK_ID` is optional (server derives a stable v3
-UUID from the URL). Note a single zip can be **both** datapack and resource pack
-(`data/` + `assets/`), regardless of how Modrinth labels its `loaders`.
+## Monitoring
 
-**`terminationGracePeriodSeconds: 120` + `STOP_DURATION: 90`**: the 30s default
-SIGKILLs the JVM mid-save. filebrowser (`{server}-files.blackcats.cc`) is for
-datapacks/world imports/config edits only; local auth from `minecraft-secret`, **not**
-Zitadel.
+`monitoring/minecraft-monitoring`: **mc-monitor** (`itzg/mc-monitor`,
+`export-for-prometheus`) runs in `monitoring`, pinging both servers cross-namespace via
+`EXPORT_SERVERS` and exporting `minecraft_status_healthy`,
+`minecraft_status_players_online_count`, `minecraft_status_players_max_count` and
+`minecraft_status_response_time_seconds` — protocol-level, not plugin-level, so it is
+identical for Paper and vanilla and unaffected by MC version upgrades. It also pings
+`minecraft-proxy` as a third target, since Velocity exports no Prometheus metrics of
+its own; pinging the backends directly separates a proxy fault from a backend fault
+(`MinecraftServerDown` excludes the proxy target; `MinecraftProxyDown` matches only
+it).
 
-**The two Services select the same pod and pod readiness is all-or-nothing, so both
-directions need decoupling** (learned the hard way): the `files` container has **no
-readiness probe** (else a file-manager hiccup drops the game Service endpoint and kicks
-players), *and* the `{server}-files` Service sets **`publishNotReadyAddresses: true`**
-(else a crash-looping game server strips the filebrowser endpoints — taking the file
-manager offline exactly when it's needed to fix the bad config that caused the crash).
-Fixing only one direction leaves the other live. `strategy: Recreate` is mandatory (RWO
-volume + two JVMs on one world = corruption).
+**There is no TPS metric, and no maintained exporter provides one** — a server-side
+plugin is the only possible source, so tick health is inferred instead from
+`minecraft_status_response_time_seconds` (answered on the main thread) plus container
+CPU.
 
-**Container memory limit must exceed `MEMORY` (heap) by ~3Gi**, not the ~1.5Gi
-originally assumed: itzg sets **`-Xms` as well as `-Xmx`** from `MEMORY`, so the heap
-commits to its full size and never returns it, and measured non-heap overhead
-(metaspace/GC/direct buffers) is ~1.2Gi. At `MEMORY=6G` on an 8Gi limit that puts
-*steady-state* RSS at ~7.2Gi = **90% of the limit by construction**, so
-`MinecraftMemoryNearLimit` (threshold 0.9) fires permanently once the heap fills rather
-than warning of anything — vanilla tripped it 2026-08-04 with matcha at 86% on the
-same trajectory. Both are 6G/**9Gi**. The metric is RSS, not reclaimable page cache, so
-the headroom is real. Keep the two servers identical so one leads the other into the
-alert.
+World size comes from a **`world-size` sidecar** in each game pod
+(`world-size-configmap.yml`, a stdlib-only Python exporter on `:9109`, scraped via the
+`matcha-metrics`/`vanilla-metrics` Services), exporting
+`minecraft_world_size_bytes{server,world}` and
+`minecraft_server_data_size_bytes{server}`. It counts `st_blocks*512` to match `du` on
+sparse region files and rescans on a `300s` timer so a scrape never blocks on disk.
+Alerts are `MinecraftWorldGrowingFast` (rate), `MinecraftWorldLarge` (absolute) and
+`MinecraftWorldSizeExporterStale` (a dead exporter otherwise reads as "no growth"). The
+sidecar is liveness-only and `publishNotReadyAddresses: true`, so it can never gate
+pod readiness and disconnect players.
 
-**Plugin ports share the pod network namespace**: squaremap's internal webserver binds
-`0.0.0.0:8080` from inside the server JVM, so filebrowser was moved to **8081** — any
-new plugin that opens a port must be checked against the sidecars. Each server exposes
-three Services (`{name}-app` 25565, `{name}-files` 8081, `{name}-map` 8080).
+- **Never source a per-PVC storage alert for these worlds from `kubelet_volume_stats`**
+  — it reports the node/NAS filesystem, not the claim, and `openebs-hostpath` enforces
+  no quota and cannot expand in place, so the `20Gi` in the PVC spec is advisory. Use
+  the `world-size` sidecar's `minecraft_world_size_bytes` instead.
 
-**Worldgen datapacks only affect chunks generated after they load** — Terralith on
-vanilla's existing `world` leaves a hard seam against pre-existing terrain; regenerate
-the world for a clean result, and always run Chunky pregeneration *after* the datapack,
-never before.
+Gatus additionally runs `tcp://` checks against the public hostnames, exercising the
+full DNS → `.51` → router → backend path that the in-cluster scrape bypasses.
 
-**Recipe viewers (JEI/REI/EMI) need a server-side plugin — `jeirecipefix` on both
-servers.** Since **MC 1.21.2** the server no longer sends recipe data to clients: it
-sends recipe-book *displays* only, and only for recipes that player has already
-unlocked. A recipe viewer on a plugin server therefore shows **nothing**. This is a
-vanilla protocol change, not a Paper bug, and JEI's own advice — install JEI
-server-side — is impossible here, because JEI is a *mod* and Paper takes plugins. The
-fix has to run on the server. It matters most on **matcha**, whose Matcha Flavoured
-recipes are **datapack** recipes: those never reach the client at all, so the popular
-client-side workaround (`client-recipe-fix`, a Fabric mod) cannot recover them — it
-only restores vanilla recipes. vanilla needs it too, since plain vanilla recipes
-stopped syncing as well. `jeirecipefix` is dependency-free and covers vanilla,
-datapack and plugin recipes, refreshing after a datapack reload. **Do not substitute
-`jei-recipe-bridge`** despite its much larger download count — it stops at 26.1.2, so
-on 26.2 it hits the loader/game-version trap below and aborts startup.
+## Verify
 
-**Modrinth loader trap:** a slug resolving on Modrinth does *not* mean a Paper build
-exists — `spark` publishes only fabric/forge/neoforge/quilt and was removed after
-being added by mistake; always check `loaders` (curl
-`api.modrinth.com/v2/project/<slug>`) includes `paper` **and** `game_versions` includes
-the pinned `VERSION`, since an unresolvable project fails startup.
-
-**Player join/leave notifications watch the Velocity console, not the backends and
-not a plugin.** The `minecraft-events` Deployment in `media` streams the proxy pod's
-log with `kubectl logs --follow` (RBAC scoped to `pods` + `pods/log` in one namespace)
-and posts to Gotify, which the existing bridge forwards to Telegram. Three rejected
-alternatives, each for a concrete reason: (1) **tailing the two backends** double-counts
-anyone who uses `/server`, and would need a container inside the game pods — where any
-non-running container strips pod readiness and drops players, the same trap that forced
-the `files` sidecar to have no readiness probe; (2) **a join-webhook plugin** is another
-`MODRINTH_PROJECTS` entry to keep resolvable against the pinned `VERSION` on every bump,
-on both servers, subject to the loader trap above; (3) **the metrics already collected**
-can't do it — `minecraft_status_players_online_count` is a 60s poll carrying no player
-names, and an Alertmanager alert fires once and then stays firing until the last player
-leaves, which is not an event. Velocity emits a *pair* of lines per join —
-`[connected player] Name (/ip:port) has connected` (the true session boundary) followed by
-`[server connection] Name -> matcha has connected` (which backend; also fires on a
-`/server` switch) — so the script holds the first until the second names the server, and
-that pairing is the only thing distinguishing "joined" from "switched". Names are matched
-against the Minecraft username charset (`[A-Za-z0-9_]{1,16}`) *before* they are
-interpolated into the Gotify JSON, so an unexpected log line can only fail to match, never
-corrupt the body. Two failure modes are designed around: a `kubectl logs --follow` the API
-server has quietly dropped leaves the container Running with no output forever, so the
-script recycles its own stream hourly (`--tail=0` means a reconnect replays nothing), and
-the outer loop touches a heartbeat file that both probes read — an idle server emits no log
-lines for hours, so output cannot be the health signal. The image is `backup-tools`
-precisely because it already carries bash + curl + kubectl, avoiding the container-start
-`apk add` that hung three Jobs for days in August. The token Secret
-(`minecraft-events-gotify-secret`, written by `gotify-bootstrap`) is read from an
-**optional mounted secret volume, re-read per event** — not `envFrom` — and the
-Kustomization deliberately does **not** `dependsOn` gotify-bootstrap, because coupling one
-more Kustomization to that Job is exactly what made the 2026-08-15 stall so wide. The house
-pattern (`envFrom` + `reloader.stakater.com/auto`) was tried first and failed silently on
-2026-08-22: env vars are fixed at pod start, so it needs Reloader to fire on the Secret's
-*creation*, and **the annotation must sit on the Deployment's own `metadata.annotations` —
-Reloader does not look at the pod template**. Placed one level too deep it is a no-op with
-no error anywhere; the watcher logged real joins for ten minutes while sending nothing.
-(bjw-s app-template users never meet this: `controllers.<name>.annotations` targets the
-controller object, `controllers.<name>.pod.annotations` the template.) The kubelet
-populates an optional secret volume once the Secret appears, so re-reading the file makes
-the component self-heal about a minute after bootstrap runs, pick up a rotation with no
-restart, and depend on nothing outside its own Deployment.
-
-**Monitoring** lives in `monitoring/minecraft-monitoring` (see the Monitoring stack
-row).
-
+```bash
+mise exec -- kubectl get pods -n media -l app.kubernetes.io/instance=matcha
+mise exec -- kubectl get svc -n media minecraft-proxy -o jsonpath='{.status.loadBalancer}'
+mise exec -- kubectl get vmservicescrape -n monitoring minecraft-monitoring
+```
