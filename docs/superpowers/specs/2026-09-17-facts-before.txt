@@ -1,0 +1,986 @@
+` }`
+` → `
+`''`
+0.0.1
+0.015
+0.03
+0.112
+`0.25.0`
+0.25.0
+0.28.3
+0.29.0
+`0600`
+`0644`
+0.90
+`.10`
+100.80.x.x
+`10.244.x.x`
+10.244.x.x
+`…10828-…-ls315`
+`…10896-…-ls321`
+`.11`
+1.1
+1.1.1.1
+1.19.6
+`.12`
+1.20
+127.0.0.1
+1.29.1
+`.13`
+1.30.0
+1.31
+`1.43.3`
+1.43.3
+1.43.3.10896-cb3ebc72d-ls321
+1.5.1
+1.6
+1.6.1
+1.6.x
+`<1.7.0`
+1.7.0
+172.16.20.10
+172.16.20.11
+172.16.20.12
+172.16.20.13
+172.16.20.14
+172.16.20.2
+172.16.20.23
+172.16.20.254
+172.16.20.3
+172.16.20.4
+172.16.20.50
+`172.16.20.51`
+172.16.20.51
+`172.16.20.52`
+172.16.20.52
+2.20.15
+`:2222`
+`.254`
+26.1.2
+2.8.8
+2.9.2
+3.0.4
+34.4
+3.7.3
+4.1
+`.50`
+5.1.2-ls270
+`.52`
+65.12
+65.16
+`7.*`
+8.4
+8.9
+`activeDeadlineSeconds`
+`activeDeadlineSeconds: 600`
+`addAllBuiltIn: true`
+`.address`
+`["Admin"]`
+` against `
+`aggregatedSelection`
+`ai`
+AI_CONTEXT
+`album`
+`Alert`
+`allauth 65.16`
+` (allauth 65.x path is `
+ALLOW_ONLY_EXTERNAL_REGISTRATION
+`ALLOW_ONLY_EXTERNAL_REGISTRATION: true`
+`allowSchedulingOnControlPlanes: true`
+`alpine`
+` and compare `
+`'anyOf' failed`
+`/api/account/register`
+`apk`
+`apk add`
+`apk add curl jq kubectl`
+`apk add rclone`
+`app`
+`app/bootstrap.sh`
+`{app}-database`
+`/app/data/gotify.db`
+`app.kubernetes.io/name`
+app.kubernetes.io/name
+`Applying Policy: keep 30 daily snapshots`
+`{app}-role-secret`
+`apps/<ns>/kustomization.yml`
+`apps.projectsveltos.io/v1alpha1`
+apps.projectsveltos.io/v1alpha1
+`app-template`
+`appVersion: vv1.0.112`
+`aquasec/trivy-db`
+`aquasecurity/trivy-operator`
+`asset`
+`auth`
+`auth.api_key_pepper must be set to at least 32 bytes`
+`auth/gotify-secret`
+`auth_method_type = OIDC_AUTH_METHOD_TYPE_POST`
+AUTH_MODE
+`AUTH_MODE=none`
+`Authority`
+`{Authority,ClientId,Secret}`
+`auth.RequireElevatedClient`
+`auth/zitadel-bootstrap-state`
+`autoDiscoverUrl`
+`backoffLimit`
+`backoffLimit: 0`
+`Backup`
+`backup-tools`
+`barmanObjectStore`
+`baseline`
+`BIND_PORT`
+BIND_PORT
+`bjw-s/app-template`
+` block); otherwise `
+`cache.ADAPTER`
+--cache-reuse
+`--cache-reuse`
+`cannotReconcile: failed to get password secret … not found`
+`.change.actions`
+`channel`
+charts.fairwinds.com/stable
+`chat.blackcats.cc`
+`check`
+`checks.exclude`
+`chmod 777`
+`chown -f`
+`cilium`
+`CiliumEnvoyConfig`
+`cilium_vxlan`
+`cilium_wg0`
+`client_id`
+`ClientId`
+`/client/{id}/elevate`
+`client_secret`
+`client_secret_basic`
+`client_secret_post`
+CLIENT_TOKEN
+`cloudnative-pg`
+--cluster
+`Cluster`
+`Cluster in healthy state`
+`<cluster>-<n>-join`
+`cluster nodes`
+`cluster.nodes`
+`CLUSTER REPLICATE`
+`cluster_state:ok`
+`cluster.update.addNodes: true`
+`commonMetadata`
+/config/appsettings.json
+`/config/appsettings.json`
+/config/flux.yml
+`configHash`
+`configMapGenerator`
+`[connected player] N (/ip) has connected`
+`container_*`
+`container_cpu_usage_seconds_total`
+`container_memory_working_set_bytes`
+`controller.flags.on-by-default: true`
+`controller.resources`
+`controllers.<name>.annotations`
+`controllers.<name>.pod.annotations`
+`controllers.<n>.containers.<c>.envFrom[].secretRef.optional`
+`count by (metrics_path) (<metric>{...})`
+`cp-1/2/3`
+`cp /tf-config/*.tf`
+`CreateContainerConfigError`
+`created`
+`CreateJobFromCronjob`
+`CronJob`
+--ctx-size
+`--ctx-size`
+`curlimages/curl`
+curl jq
+`curl -s .../cilium/<ver>/go.mod \| grep gateway-api`
+`curl -v --http2 https://<host>/... 2>&1 | grep -i alpn`
+`. Dashboard at `
+`/data`
+`Database`
+`databases.yml`
+/data/gotify.db
+/data/index
+`data["values.yaml"]`
+`DB_VECTOR_EXTENSION`
+DB_VECTOR_EXTENSION
+`DeadlineExceeded`
+`defaultAgeRestriction=-1`
+`defaultIncludeUnknowns=true`
+`defaultLibraries`
+`defaultLibraries=<all>`
+`defaultRoles`
+`defaultRoles=["Login"]`
+`dependsOn`
+`dependsOn: gotify-bootstrap`
+`deployed`
+`design/`
+design/AI_CONTEXT.md
+design/ARCHITECTURE.md
+design/CLAUDE.md
+design/decisions/
+`design/decisions/immich.md`
+design/decisions/immich.md
+`design/decisions/joplin.md`
+design/decisions/joplin.md
+`design/decisions/minecraft.md`
+design/decisions/minecraft.md
+`design/decisions/obsidian-livesync.md`
+design/decisions/obsidian-livesync.md
+`design/decisions/plex.md`
+design/decisions/plex.md
+`design/decisions/protonmail-bridge.md`
+design/decisions/protonmail-bridge.md
+`design/decisions/proxmox-oidc.md`
+design/decisions/proxmox-oidc.md
+`design/decisions/romm.md`
+design/decisions/romm.md
+`design/docs/`
+design/docs/
+design/docs/gitops.md
+design/docs/networking.md
+design/docs/secrets.md
+design/docs/services.md
+design/docs/storage.md
+`design/llm-deployment.md`
+design/llm-deployment.md
+design/llm-inference.md
+design/RUNBOOK.md
+design/TODO.md
+`>/dev/null 2>&1`
+`>/dev/null || true`
+DISABLE_REGISTRATION
+`DISABLE_REGISTRATION: false`
+dl.gitea.com/charts
+dl.gitea.com/charts/
+`docs/storage.md`
+`document_index reindex`
+DOWNLOAD_AS_CBZ
+`DOWNLOAD_AS_CBZ=true`
+`Downloads/`
+`downloads.rclone.org`
+`DRIFT:`
+`driver`
+`driver.kind: modern_ebpf`
+`du`
+`|| echo "0"`
+`emptyDir`
+`Enabled`
+`enabled: true`
+`enable-gateway-api-proxy-protocol`
+`ENABLE_INSTANCE_MANAGER_IN_PLACE_UPDATES`
+ENABLE_INSTANCE_MANAGER_IN_PLACE_UPDATES
+`ENABLE_OAUTH_SIGNUP`
+ENABLE_OAUTH_SIGNUP
+`ENABLE_PERSISTENT_CONFIG`
+ENABLE_PERSISTENT_CONFIG
+`enable_thinking: false`
+`EndpointSlice`
+`ens18`
+`env:`
+`envFrom`
+`envFrom … optional: true`
+`envFrom: secretRef`
+`etcd-snapshot`
+/etc/systemd
+`eventSeverity: error`
+--exclude
+`exclude`
+`--exclude=/data/index`
+`exec`
+`exec > >(tee "$LOG") 2>&1`
+`executor/worker.go:721`
+`exit_code`
+--exit-error
+`--exit-error`
+`expiresAfterInactivitySeconds: 0`
+`export-for-prometheus`
+`EXPORT_SERVERS`
+EXPORT_SERVERS
+`EXTENSION_REPOS`
+EXTENSION_REPOS
+`externalTrafficPolicy: Cluster`
+`extra_body`
+`extraEnvFrom`
+`extraEnvFrom: gitea-db-env`
+`failedJobsHistoryLimit: 3`
+`failed-pods`
+`fairwinds-stable/vpa`
+`falcosecurity/falco`
+falcosecurity.github.io/charts
+`false`
+`fieldRef`
+`> file 2>&1`
+`filen`
+`find`
+`flaresolverr`
+`FLARESOLVERR_ENABLED`
+FLARESOLVERR_ENABLED
+`FLARESOLVERR_URL`
+FLARESOLVERR_URL
+`flux`
+`flux-notifications`
+`flux reconcile`
+flux reconcile
+`. Flux reporting `
+`flux suspend`
+flux suspend
+`flux-system`
+--follow
+`force: true`
+`forget --prune`
+` for the filen backend, Gateway API `
+`freshrss-oidc-secret`
+--from
+`gateway`
+`gatewayAPI.enableAlpn: true`
+`gateway.cilium.io/backend-service`
+gateway.cilium.io/backend-service
+`GatewayClass.status.supportedFeatures`
+`gateway.networking.k8s.io/v1`
+gateway.networking.k8s.io/v1
+`gatus`
+`GET /application`
+`GET /client`
+`GetKind()`
+`GET /logs`
+`ghcr.io/...`
+ghcr.io/
+ghcr.io/doitintl
+`ghcr.io/doitintl/kube-no-trouble`
+ghcr.io/doitintl/kube-no-trouble
+ghcr.io/flaresolverr
+`ghcr.io/flaresolverr/flaresolverr`
+ghcr.io/flaresolverr/flaresolverr
+ghcr.io/gianlucam76
+ghcr.io/gianlucam76/charts
+ghcr.io/lucid-void
+`ghcr.io/lucid-void/backup-tools`
+ghcr.io/lucid-void/backup-tools
+ghcr.io/seerr-team
+`ghcr.io/seerr-team/seerr`
+ghcr.io/seerr-team/seerr
+ghcr.io/suwayomi
+`ghcr.io/suwayomi/suwayomi-server`
+ghcr.io/suwayomi/suwayomi-server
+`ghcr.io/videocurio/…`
+ghcr.io/videocurio
+ghcr.io/videocurio/
+`gitea`
+gitea.blackcats.cc/user/oauth2/Zitadel/callback
+`gitea-charts/gitea`
+`GITEA__database__PASSWD`
+`gitea-db-bootstrap`
+`gitea-http`
+`gitea.oauth`
+`gitea.oauth[].name`
+`gitea-oidc-secret`
+`gitea-ssh`
+`git@gitea.blackcats.cc:...`
+github.com/fluxcd
+github.com/fluxcd/notification-controller/issues/784
+github.com/keiyoushi
+github.com/keiyoushi/extensions/tree/repo
+`.github/kube-linter-config.yaml`
+`.github/kube-linter-run.sh`
+`.github/renovate.json`
+`goldilocks`
+`gotify-admin-secret`
+`gotify.blackcats.cc`
+`gotify-bootstrap`
+`GOTIFY_DATABASE_*`
+`GOTIFY_DEFAULTUSER_*`
+`gotify-secret`
+`gotify/server`
+`GOTIFY_SERVER_PORT`
+GOTIFY_SERVER_PORT
+`GOTIFY_TOKEN`
+GOTIFY_TOKEN
+`grafana_dashboard: "1"`
+`grep`
+--group-by
+`--group-by ''`
+`--group-by host,paths`
+`--group-by '' --keep-daily 30 --keep-monthly 12`
+`GRPCRoute`
+`HasTCPRouteSupport`
+`HBOX_AUTH_API_KEY_PEPPER`
+HBOX_AUTH_API_KEY_PEPPER
+`headers`
+`helm`
+`HelmRelease`
+helm template
+`_helpers.tpl`
+`. Hit going 2.8.8 → 2.9.2 on the three `
+`homebox`
+`homebox-secret`
+/home/suwayomi
+`/home/suwayomi`
+/home/suwayomi/.local/share/Tachidesk
+`/home/suwayomi/.local/share/Tachidesk`
+`Host`
+`host_mtu`
+`hostPath`
+--http2
+`http://gotify.monitoring.svc.cluster.local/message`
+`HTTPRoute`
+`https://charts.fairwinds.com/stable`
+`https://dl.gitea.com/charts/`
+`https://falcosecurity.github.io/charts`
+`https://gitea.blackcats.cc/user/oauth2/Zitadel/callback`
+`["https://github.com/keiyoushi/extensions/tree/repo"]`
+`https://gotify.blackcats.cc`
+`https://kavita.blackcats.cc/signin-oidc`
+`https://kubernetes-sigs.github.io/descheduler/`
+`https://rss.blackcats.cc/i/oidc/`
+`- id: … objects: […]`
+`IfNotPresent`
+`/i/?get=oidc`
+`ignore-check.kube-linter.io/<check>`
+`ignore-check.kube-linter.io/job-ttl-seconds-after-finished`
+ignore-check.kube-linter.io/job-ttl-seconds-after-finished
+`imagecatalog.yml`
+`imageGCHighThresholdPercent: 70`
+`imagePullPolicy`
+`image-scan`
+`immich-library`
+`includeUnknowns=false`
+infra/packer/
+`infra/terraform/`
+infra/terraform/
+`infra/terraform/kubernetes.tf`
+infra/terraform/kubernetes.tf
+`Ingress`
+`initialOnlyNoReset`
+`initialOnlyRequireReset`
+`initialSetup`
+`insmod`
+INSTALLED_APPS
+`Instance Status Extraction Error: HTTP communication issue`
+`IP:127.0.0.1`
+`itzg/mc-monitor`
+`job-ttl-seconds-after-finished`
+`joplin`
+`jq`
+jq filter
+`jq '.Reports | length' … || echo "0"`
+jq that
+`justfile`
+`k8s-cleaner`
+`k8s-cleaner-rules`
+`kavita`
+`kavita-admin-secret`
+kavita.blackcats.cc/signin-oidc
+`kavita-bootstrap`
+`kavita-oidc-secret`
+`keep 1 snapshots:`
+--keep-daily
+`--keep-daily 30`
+--keep-monthly
+`keepUpdated`
+`key`
+`kubeconform`
+kubeconform was
+`kubectl`
+kubectl access
+kubectl annotate
+kubectl create
+`kubectl create job --from=cronjob/kubent`
+kubectl delete
+`kubectl delete job <name> -n <ns>`
+kubectl exec
+`kubectl exec <pod> -- ps -o pid,etime,args`
+kubectl get
+`kubectl get cluster postgres -n postgres`
+`kubectl get deployments -n <ns>`
+`kubectl get deploy <n> -o jsonpath='{..envFrom}'`
+`kubectl get deploy <n> -o jsonpath='{.metadata.annotations}'`
+`kubectl get endpointslice -n gateway`
+`kubectl get tcproutes.v1.gateway.networking.k8s.io`
+`kubectl logs`
+kubectl logs
+`kubectl logs -c notify`
+`kubectl logs --follow`
+kubectl patch
+kubectl scale
+`kubectl scale sts … --replicas=0`
+`KubeDeploymentReplicasMismatch`
+`KubeJobFailed`
+`kubelet_volume_stats_*`
+`kubelet_volume_stats`
+`kubent`
+kubent error
+kubent row
+`kube_pod_container_*`
+`KubePodCrashLooping`
+`KubePodNotReady`
+`kube-proxy`
+`kubernetes/apps/`
+kubernetes/apps/
+`kubernetes/apps/ai/`
+kubernetes/apps/ai/
+`kubernetes/apps/auth/`
+kubernetes/apps/auth/
+`kubernetes/apps/auth/bootstrap-rbac/`
+kubernetes/apps/auth/bootstrap-rbac/
+`kubernetes/apps/gitea/gitea/app/tcproute.yml`
+kubernetes/apps/gitea/gitea/app/tcproute.yml
+`kubernetes/apps/immich/`
+kubernetes/apps/immich/
+`kubernetes/apps/joplin/`
+kubernetes/apps/joplin/
+`kubernetes/apps/kube-system/cilium/app/helm-values.yml`
+kubernetes/apps/kube-system/cilium/app/helm-values.yml
+`kubernetes/apps/media/minecraft*/`
+kubernetes/apps/media/minecraft*/
+`kubernetes/apps/media/minecraft/app/world-size-configmap.yml`
+kubernetes/apps/media/minecraft/app/world-size-configmap.yml
+`kubernetes/apps/media/plex/`
+kubernetes/apps/media/plex/
+`kubernetes/apps/media/romm/`
+kubernetes/apps/media/romm/
+`kubernetes/apps/monitoring/ai-monitoring/`
+kubernetes/apps/monitoring/ai-monitoring/
+`kubernetes/apps/monitoring/flux-notifications/`
+kubernetes/apps/monitoring/flux-notifications/
+`kubernetes/apps/obsidian/`
+kubernetes/apps/obsidian/
+`kubernetes/apps/paperless/paperless/`
+kubernetes/apps/paperless/paperless/
+`kubernetes/apps/paperless/protonmail-bridge/`
+kubernetes/apps/paperless/protonmail-bridge/
+`kubernetes/bootstrap/flux/kustomization.yml`
+kubernetes/bootstrap/flux/kustomization.yml
+`kubernetes/flux/config/flux.yml`
+kubernetes/flux/config/flux.yml
+`kubernetes/images/postgres-cnpg-immich/`
+kubernetes/images/postgres-cnpg-immich/
+`kubernetes-sigs/descheduler`
+kubernetes-sigs.github.io/descheduler
+kubernetes-sigs.github.io/descheduler/
+`kubernetes/talos/`
+kubernetes/talos/
+`kubeseal`
+`kube-system`
+`kube-system/etcd-snapshot`
+`Kustomization`
+`kustomization.yml`
+`lastSuccessfulTime`
+`:latest`
+`latest`
+`lint kubernetes/`
+`linuxserver`
+`!llama_memory_can_shift`
+`llm-1`
+`llm.blackcats.cc`
+`/.local`
+`local-fast`
+`local-smart`
+`Login`
+`logs --follow`
+`/logs/stream/upstream`
+`logToStdout`
+`ls`
+`lxc*`
+`main`
+`main.tf`
+`.managed.json`
+`Manga/`
+`Manga`
+`manifest-scan`
+`-march=native`
+`matcha-metrics`
+`/media`
+`media`
+`Media`
+/media/minecraft
+/media/minecraft/app/world-size-configmap.yml
+`media/minecraft-backup-29786820`
+`media/minecraft-events`
+`media-nfs`
+/media/plex/
+/media/romm/
+`memory`
+`metadata.annotations`
+`metadata.namespace`
+`meta.json`
+`/metrics`
+`/metrics/cadvisor`
+`metrics_path="/metrics/cadvisor"`
+`/metrics/resource`
+`MinecraftBackupVolumeAlmostFull`
+`minecraft-events-gotify-secret`
+`minecraft-monitoring`
+`minecraft-proxy`
+`MinecraftProxyDown`
+`minecraft_server_data_size_bytes{server}`
+`MinecraftServerDown`
+`minecraft_status_players_online_count`
+`minecraft_status_response_time_seconds`
+`MinecraftWorldGrowingFast`
+`MinecraftWorldLarge`
+`minecraft_world_size_bytes{server,world}`
+`MinecraftWorldSizeExporterStale`
+`MinecraftWorldVolumeAlmostFull`
+`minimum-three-replicas`
+`mirror.gcr.io/ghcr.io/...`
+mirror.gcr.io/ghcr.io
+mirror.gcr.io/ghcr.io/
+mise exec
+`mise exec -- <tool>`
+--mmproj
+`--mmproj`
+`monitoring/`
+`monitoring`
+monitoring.blackcats.cc/scrape
+`monitoring.blackcats.cc/scrape: <target>`
+`monitoring/flux-gotify`
+`monitoring/gotify-bootstrap-secret`
+`monitoring/gotify-bootstrap-state`
+`monitoring/gotify-client-secret`
+`monitoring/gotify-telegram`
+`monitoring/minecraft-monitoring`
+`mountOptions`
+`Movies/`
+`mtu: 9000`
+`MTU: 9000`
+`). Must also set `
+`Namespace`
+`nfs-client`
+`nfsvers=4`
+`nfsvers=4.1`
+` — node-collector tries to `
+`NodeFilesystemAlmostFull`
+`NodeFilesystemCriticallyFull`
+`NODENAME`
+`nodes`
+`nodes: 3 / replicas: 0`
+`nodes: 6, replicas: 1`
+`nodes.conf`
+`nodes = primaries + primaries * replicas`
+`✅ no new violations`
+` — NOT `
+` — note the `
+`notify`
+`notify_gotify`
+`NOT NULL constraint failed: new_users.group_users`
+`<ns>`
+`<ns>-<pvc>`
+`obsidian`
+`oci://ghcr.io/gianlucam76/charts`
+`OCIRepository`
+OIDC_AUTH_METHOD_TYPE_POST
+`OIDC_CLIENT_CRYPTO_KEY`
+OIDC_CLIENT_CRYPTO_KEY
+`OIDC_CLIENT_ID`
+OIDC_CLIENT_ID
+`OIDC_CLIENT_SECRET`
+OIDC_CLIENT_SECRET
+`oidc-config`
+OIDC_ENABLED
+`OIDC_ENABLED=1`
+`OIDC_REMOTE_USER_CLAIM`
+OIDC_REMOTE_USER_CLAIM
+`OIDC_X_FORWARDED_HEADERS`
+OIDC_X_FORWARDED_HEADERS
+`openebs-hostpath`
+`openid_connect.APPS[].provider_id = "zitadel"`
+`OpenIdConnectSettings`
+`open-webui`
+`openwebui-oidc-secret`
+/opt/couchdb
+`/opt/couchdb`
+`OPTFLAGS`
+`optional`
+`optional: true`
+`options.immutable`
+`, or compare against the live object with `
+`-o text -O /work/kubent.out`
+--overwrite
+`paperless`
+PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL
+`PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL=https`
+PAPERLESS_ACCOUNT_EMAIL_VERIFICATION
+`PAPERLESS_ACCOUNT_EMAIL_VERIFICATION=none`
+`paperless-app`
+PAPERLESS_APPS
+paperless.blackcats.cc/accounts/oidc/zitadel/login/callback/
+`paperless-oidc-secret`
+`PAPERLESS_SOCIALACCOUNT_PROVIDERS`
+PAPERLESS_SOCIALACCOUNT_PROVIDERS
+`@param`
+`password`
+`password authentication failed`
+`passwordMode: initialOnlyNoReset`
+`PATH`
+`pending-upgrade`
+`person`
+`pg_basebackup`
+`Photos/`
+` pin, without it the kubelet's two endpoints double every `
+`pip install --target /tmp/pylib`
+`plex:1.43.3.10896-cb3ebc72d-ls321`
+`podAffinity`
+pod-security.kubernetes.io/enforce
+`pod-security.kubernetes.io/enforce: privileged`
+`-port`
+`POST /api/settings`
+`POST /application`
+`postgres`
+`postgres-backup`
+`postgres-cluster`
+`postgres-cnpg-immich`
+`postgresql.enabled: false`
+`postgresql-ha.enabled: false`
+`post-upgrade`
+`prConcurrentLimit: 6`
+`Primary instance is being restarted without a switchover`
+`primaryUpdateMethod: restart`
+`primaryUpdateStrategy: unsupervised`
+`-printf`
+`priority`
+`privileged`
+`Programmed`
+`prometheus-exporter`
+promtool check
+`promtool check rules`
+`Provider`
+`provisionAccounts`
+`provisionAccounts=true`
+`proxmox-monitoring`
+`proxmox-openid`
+`proxy`
+--prune
+`--prune`
+`prune: true`
+`publishNotReadyAddresses: true`
+`PUT /application/{id}/security`
+`PUT /client/{id}`
+`pvc.yml`
+`pve-msa2`
+`PYTHONPATH=/tmp/pylib`
+`python -u`
+Q8_0
+`queue.TYPE`
+rclone backend
+rclone binary
+rclone crypt
+rclone filen
+`rclone:filen:backups/restic/etcd-snapshot`
+`rclone:filen:backups/restic/{name}`
+rclone needs
+`rclone-secret`
+rclone v
+`-readable`
+`Ready`
+--recover-from
+`ReCreateJobFromjob`
+`redis-cluster`
+`redis-cluster.enabled: false`
+`?ref=`
+`reflector.v1.k8s.emberstack.com/reflection-auto-*`
+reflector.v1.k8s.emberstack.com/reflection-auto-
+`{"regenerateToken":true}`
+`{release-name}`
+`{release-name}-{controller}`
+`{release-name}-http`
+`{release-name}-{service-name}`
+`reloader.deployment.image.tag: "v1.0.112"`
+`reloader.stakater.com/auto`
+reloader.stakater.com/auto
+`reloader.stakater.com/auto: "true"`
+--reload-on-create
+`--reload-on-create`
+--replicas
+`replicas: 1`
+`report`
+`report.sh`
+`required_providers`
+`requireVerifiedEmail`
+`requireVerifiedEmail=false`
+`Resource`
+`.resource_changes[].change.after`
+`resourceFieldRef`
+`[]ResourceResult{ Resource *unstructured.Unstructured \`
+`resources: {}`
+`resources:`
+`resources`
+`{resources = {{resource = obj}, …}}`
+`restartPolicy: Never`
+restic defaults
+restic exits
+restic over
+restic repo
+restic repos
+`restic-secret`
+`Retain`
+`role "x" does not exist`
+`rotated`
+rss.blackcats.cc/i/oidc/
+`run.sh`
+`sabnzbd:5.1.2-ls270`
+`scan`
+`scanJobsConcurrentLimit: 2`
+`ScheduledBackup`
+`secret`
+`Secret`
+`secretKeyRef`
+`secretRef.optional`
+`security`
+`securityContext`
+`security/falco-gotify-secret`
+`security-report`
+`selectAllByDefault`
+`Series/`
+` series. Set `
+`/server`
+`[server connection] N -> matcha has connected`
+`server did not agree on a protocol`
+`server.properties`
+`server-reference.conf`
+`session.PROVIDER`
+`set -e`
+`settings.token_auth_method`
+`shared`
+`shenxn/…`
+`single_node`
+`snapshot … saved`
+`spec.replicas`
+`spec.targetNamespace`
+`spec.template: Invalid value`
+`spec.template.metadata.annotations`
+`ssh`
+`SSH_DOMAIN`
+SSH_DOMAIN
+`SSH_PORT`
+SSH_PORT
+`standalone`
+`START_SSH_SERVER`
+START_SSH_SERVER
+`stat .../pgdata`
+`status.image`
+`status.storedVersions`
+`st_blocks*512`
+`/stream?token=CLIENT_TOKEN`
+--subresource
+`succeeded-pods`
+`sum by (...)`
+`suwayomi-app`
+`suwayomi-app:4567`
+`suwayomi-config`
+`suwayomi-flaresolverr`
+`suwayomi-flaresolverr:8191`
+`swap/exclusive: true`
+`SynologyShareAlmostFull`
+`/sys/kernel/btf/vmlinux`
+`…/Tachidesk/downloads`
+`tag:`
+`tail -10 "$LOG"`
+`talconfig.yaml`
+`talhelper`
+`talosconfig-secret`
+`talosctl`
+`talosctl bootstrap`
+talosctl bootstrap
+`talosctl bootstrap --recover-from <snap>`
+talosctl etcd
+`talosctl etcd snapshot`
+talosctl get
+`talosctl get links -o yaml \| grep -iE 'id:\|mtu:'`
+`TALOS_VERSION`
+TALOS_VERSION
+`tank/backups/keys/`
+--target
+`targetNamespace`
+`targetNamespace: auth`
+`tcp://`
+`tcp://gitea.blackcats.cc:22`
+`TCPRoute`
+`TCPRoute.status`
+`.terraform.lock.hcl`
+` — **the `
+`, then remove it. Check with `
+--threads
+`timeout 300`
+/tmp/pylib
+`tofu`
+`tofu apply`
+tofu apply
+`tofu apply tfplan`
+tofu init
+`tofu init -lockfile=readonly`
+tofu plan
+`tofu plan -out=tfplan`
+tofu show
+`tofu show -json tfplan`
+`tofu_state`
+`token`
+`traefik:v3.1`
+`trap cleanup EXIT`
+`trivy.dbRepository`
+`ttlSecondsAfterFinished`
+`ttlSecondsAfterFinished: 3600`
+`ttlSecondsAfterFinished: 86400`
+--type
+`Type=Database`
+`type: generic`
+`Unknown`
+`until curl .../health`
+`UpdateSettings`
+`, using a file holding only the `
+/usr/src/paperless/
+`/usr/src/paperless/*`
+v0.11.1
+v0.26.x
+`v1`
+`v1.0.112`
+v1.0.112
+v1.1.0
+v1.1.1
+v1.4.1
+v1.6.0
+v1.6.1
+v1.69
+`v1alpha2`
+v2.9.1
+v3.0
+v3.0.0
+v3.1
+`valkey-cli --cluster create`
+`valkey-cluster`
+VALKEY_CLUSTER_CREATOR
+`VALKEY_CLUSTER_CREATOR=yes`
+`valkey-cluster.resources`
+`valkey-cluster.valkey.resources`
+`value`
+`valueFrom`
+`valuesFrom`
+`values.yaml`
+`vanilla-metrics`
+`/var`
+`vector.so`
+--version
+`VMRule`
+`VMServiceScrape`
+`vm-stack`
+`vm-stack/vmrules.yml`
+`/volume2`
+/volume2/backups/
+`/volume2/backups/`
+/volume2/Media/
+`/volume2/Media/`
+--wait
+`--wait`
+`wait: true`
+`Warning: at least one source file could not be read`
+`world-size`
+`world-size-configmap.yml`
+`wt0`
+`xbackends`
+`X-Forwarded-Host`
+`X-Gotify-Key: <token>`
+`X.Y.Z`
+`zitadel.blackcats.cc`
+`zitadel-bootstrap`
+
+# --- baseline metrics (not facts) ---
+# .claude/CLAUDE.md: 80247 B ~21688 tok
+# design/ total: 368465 B
