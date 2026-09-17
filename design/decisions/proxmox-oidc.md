@@ -1,17 +1,21 @@
-# Proxmox OIDC — decisions
+# Proxmox OIDC
 
-Extracted verbatim from the `.claude/CLAUDE.md` key-decisions table. Do not
-re-litigate without reason.
+**Read before editing:** `kubernetes/apps/auth/`, `infra/terraform/`
 
-## Bare-metal OIDC wiring
+## Current state
 
-Proxmox VE is **bare metal (172.16.20.3), not a k8s workload** — the Zitadel app +
+Proxmox VE is bare metal (`172.16.20.3`), not a k8s workload. The Zitadel app and
 `proxmox-oidc-secret` are still provisioned by `zitadel-bootstrap` Terraform, but the
-secret lands in the **`auth` namespace** (no consumer pod; it's a retrieval mechanism).
-Cross-ns RBAC role `zitadel-bootstrap-auth` in `bootstrap-rbac`. Redirect URI = Proxmox
-web UI **base URL, no path** (`https://pve.blackcats.cc:8006` + `:443`);
-`auth_method_type = BASIC` (proxmox-openid Rust crate uses `client_secret_basic`).
-Credentials are entered into a Proxmox OIDC realm manually via `pveum` (see RUNBOOK)
-— **never front Proxmox behind the cluster Gateway** (circular dependency: Gateway
-runs on VMs this host hypervises).
+secret lands in the `auth` namespace with no consumer pod — it is a retrieval
+mechanism only. Cross-namespace RBAC role `zitadel-bootstrap-auth` lives in
+`bootstrap-rbac`. Redirect URI is the Proxmox web UI base URL with no path
+(`https://pve.blackcats.cc:8006` + `:443`); `auth_method_type = BASIC` (the
+`proxmox-openid` Rust crate uses `client_secret_basic`). Credentials are entered into a
+Proxmox OIDC realm manually via `pveum` (see RUNBOOK).
 
+## Rules
+
+- **Never front Proxmox behind the cluster Gateway** — the Gateway runs on VMs that
+  this host hypervises, so routing Proxmox's own management UI through it is circular:
+  a Gateway outage would take down the only way to reach the hypervisor that runs the
+  Gateway.

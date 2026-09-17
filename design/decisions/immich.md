@@ -1,81 +1,57 @@
-# Immich — decisions
+# Immich
 
-Extracted verbatim from the `.claude/CLAUDE.md` key-decisions table. Do not
-re-litigate without reason.
+**Read before editing:** `kubernetes/apps/immich/`, `kubernetes/images/postgres-cnpg-immich/`
 
-## OAuth (Zitadel)
+## Current state
 
-Zitadel Web app type + `/api/oauth/mobile-redirect` endpoint as redirect URI (proxies
-to `app.immich:///oauth-callback`); Web type required because Native type rejects
-https:// redirect URIs.
-
-## User migration
-
-Must transfer `asset` + `album` + `person` rows; omitting `person` breaks mobile sync
-(FK violation on `asset_face_entity`).
-
-## Vector DB (VectorChord)
+OIDC via Zitadel uses the Web app type (not Native — Native rejects `https://` redirect
+URIs), with `/api/oauth/mobile-redirect` as the redirect URI, proxying to
+`app.immich:///oauth-callback`.
 
 Embeddings run on **VectorChord** (`vchord`; embedding indexes use the `vchordrq`
-access method) in the shared CNPG Postgres. `DB_VECTOR_EXTENSION` is intentionally
-**unset** in the HelmRelease — Immich v3 auto-selects VectorChord over pgvector, and
-the value cannot be *changed* once initialized (it must be absent for Immich to
-migrate). Custom image `ghcr.io/lucid-void/postgres-cnpg-immich` bundles pgvector +
-VectorChord; cluster `shared_preload_libraries: [vchord.so]`.
+access method) in the shared CNPG Postgres, via the custom image
+`ghcr.io/lucid-void/postgres-cnpg-immich` (bundles pgvector + VectorChord; the cluster
+sets `shared_preload_libraries: [vchord.so]`). `pgvecto.rs` (`vectors`) was fully
+removed after the Immich v3 migration.
 
-**VectorChord moved org `tensorchord` → `supervc-stack`** (repo transfer, not a fork)
-— the Dockerfile now fetches from the new org, since GitHub's rename redirect dies if
-anyone ever re-creates the old path. pgvector and VectorChord are built from pinned
-source/release archives that no Renovate manager sees natively, so both are covered by
-`customManagers` in `renovate.json` — and each version lives in **two** places
+VectorChord's upstream org is `supervc-stack` (moved from `tensorchord` via a repo
+transfer — the Dockerfile fetches from the new org since GitHub's rename redirect does
+not survive someone re-creating the old path). pgvector and VectorChord build from
+pinned source/release archives that no Renovate manager sees natively, so both are
+covered by `customManagers` in `renovate.json`; each version lives in **two** places
 (Dockerfile `ARG` default + workflow `env`) that must move together. `IMAGE_VERSION` in
 the build workflow is the newest **built** tag; `imagecatalog.yml` pins the
-**deployed** one and is intentionally allowed to lag, because moving it rolls the DB.
+**deployed** one, and is intentionally allowed to lag.
 
-**pgvector must be built with an explicit `OPTFLAGS`** — this is the single most
-expensive gotcha in this image. pgvector's Makefile defaults to
-`OPTFLAGS = -march=native`, so a bare `make` bakes the *GitHub Actions runner's* ISA
-into `vector.so`. The runner fleet is mixed, so the same pinned source produces
-different bytes run to run, and nothing in git records which ISA you got. The Dockerfile
-now pins `OPTFLAGS="-march=x86-64-v3"` (AVX2 + FMA, satisfied by every CPU here, no
-AVX-512). Do not remove it and do not "restore the default".
+## Rules
 
-**2026-08-13 → 08-17 incident.** Renovate #155 moved `imagecatalog.yml` v1.1.0 → v1.1.1
-and crash-looped the shared Postgres primary every ~9 minutes for four days (593
-restarts), taking Immich down and stalling every `*-database` Kustomization behind
-`postgres-cluster`'s health check:
+- **Never set `DB_VECTOR_EXTENSION`** — Immich v3 auto-selects VectorChord over
+  pgvector, the value cannot be *changed* once initialized, and it must stay absent for
+  Immich to migrate correctly.
+- **User migration must transfer `asset` + `album` + `person`** — omitting `person`
+  breaks mobile sync with a foreign-key violation on `asset_face_entity`.
+- **Build pgvector with an explicit `OPTFLAGS`, pinned to `-march=x86-64-v3`** —
+  pgvector's Makefile defaults to `OPTFLAGS = -march=native`, which bakes the GitHub
+  Actions runner's ISA into `vector.so`. The runner fleet mixes AVX-512 and
+  non-AVX-512 machines, and an AVX-512 build SIGILLs on this cluster's nodes (no
+  AVX-512). `-march=x86-64-v3` (AVX2 + FMA) is satisfied by every CPU here.
+- **Image tag `v1.1.1` is permanently broken — never deploy it.** It auto-vectorized
+  `cosine_distance`, `inner_product`, `l2_distance` and ~30 other unguarded pgvector
+  functions with EVEX instructions, which SIGILLs on non-AVX-512 hardware. `vchord.so`
+  is unaffected (byte-identical to `v1.1.0`); only `vector.so` differs. Both the
+  workflow and `imagecatalog.yml` note this inline.
+- **Gate any new pgvector build with the AVX-512 symbol check before deploying it**
+  (see Verify) — only `*Avx512*`-guarded symbols (pgvector's own
+  `__builtin_cpu_supports` helpers) may appear; `cosine_distance` or similar in the
+  list means the build is not portable.
+- **Never move `imagecatalog.yml` forward casually** — it is a deploy trigger, not a
+  version to chase: moving it rolls the Postgres pods. Renovate is disabled on it
+  (`matchFileNames` rule, `enabled: false`) while `IMAGE_VERSION` in the build workflow
+  stays tracked so builds keep publishing.
 
-    server process was terminated by signal 4: Illegal instruction
-    Failed process was running: ... face_search.embedding <=> $1 ...
-    shutting down because "restart_after_crash" is off
+## Verify
 
-The v1.1.1 build (2026-08-01) landed on an AVX-512 runner and auto-vectorized
-`cosine_distance`, `inner_product`, `l2_distance` and ~30 other **unguarded** functions
-with EVEX instructions. The nodes are **Intel Core Ultra 5 235HX** (Arrow Lake-HX) with
-`cpu.type = "host"`; Intel fuses AVX-512 off on hybrid P/E-core parts, so
-`grep -c avx512 /proc/cpuinfo` is **0**. Immich's first `<=>` comparison raised SIGILL.
-
-VectorChord was **not** at fault, and "same version, same source" is not evidence —
-diff the actual binaries:
-
-    vchord.so   v1.1.0 == v1.1.1   (sha256 1300ed9e…, byte-identical)
-    vector.so   v1.1.0 != v1.1.1   (7a9c44ef… vs 45a0933d…)
-
-Gate any new build on this before deploying it:
-
-    objdump -d vector.so | awk '/^[0-9a-f]+ <.*>:/{fn=$2} /%zmm|%k[1-7]/{print fn}' | sort -u
-
-Only `*Avx512*` symbols may appear — those are pgvector's own
-`__builtin_cpu_supports`-guarded helpers and are safe on any CPU. `cosine_distance` in
-that list means the build is not portable; do not ship it. **v1.1.1 is a permanently
-broken tag** — it is still published, and both the workflow and `imagecatalog.yml` say
-so inline.
-
-**Renovate no longer touches `imagecatalog.yml`** (`matchFileNames` rule, `enabled:
-false`). That file is a deploy trigger, not a version to chase: moving the line rolls
-the Postgres pods. `IMAGE_VERSION` in the workflow is still tracked, so builds keep
-being published; only the deploy is manual now.
-
-**pgvecto.rs** (`vectors`) was fully removed after the v3 migration (extension dropped,
-`vectors.so` out of shared_preload, layer dropped from the image).
-
+```bash
+objdump -d vector.so | awk '/^[0-9a-f]+ <.*>:/{fn=$2} /%zmm|%k[1-7]/{print fn}' | sort -u
+grep -c avx512 /proc/cpuinfo
+```

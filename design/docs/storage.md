@@ -78,7 +78,12 @@ Manifests: `kubernetes/apps/democratic-csi/`
 
 The Synology `Media` share (`172.16.20.2:/volume2/Media`) is exposed as a **static** PV/PVC pair named `media-nfs` in the `media` namespace. This is not provisioned by democratic-csi — it is a manual binding to a pre-existing NFS export.
 
-**Critical:** Talos kernel only supports **NFSv4** (not NFSv4.1) for host-level static NFS mounts. Always set `nfsvers=4` in PV `mountOptions`. Using `nfsvers=4.1` fails with "Protocol not supported" at the kernel level.
+> **Rule — always set `nfsvers=4` in a static PV's `mountOptions`, never `nfsvers=4.1`:**
+> the Talos kernel supports only NFSv4 for host-level static PV mounts. `nfsvers=4.1`
+> fails with "Protocol not supported" at the kernel level. This applies only to
+> host-level (static PV) mounts — democratic-csi dynamic PVCs are unaffected, because
+> they mount inside privileged containers rather than through the host kernel's NFS
+> client.
 
 ```yaml
 # PV
@@ -97,8 +102,6 @@ spec:
     - nfsvers=4   # NOT nfsvers=4.1 — Talos kernel limitation
   persistentVolumeReclaimPolicy: Retain
 ```
-
-This restriction applies **only** to host-level (static PV) mounts. Democratic-csi dynamic PVCs mount inside privileged containers and are unaffected.
 
 Manifest: `kubernetes/apps/media/media-nfs/`
 
