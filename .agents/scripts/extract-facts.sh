@@ -7,8 +7,10 @@
 #
 # Each pattern runs as its OWN grep pass. A single multi-pattern grep consumes
 # characters left-to-right and never rescans them, so a broad pattern starves a
-# narrow one that overlaps it (measured: 253 facts combined vs 982 separated).
+# narrow one that overlaps it (measured: 253 facts combined vs 982 separated with
+# multi-`-e` form; alternation-joined single pattern yields ~2400).
 set -euo pipefail
+export LC_ALL=C
 
 if [[ $# -gt 0 ]]; then
   FILES=("$@")
@@ -16,7 +18,7 @@ else
   mapfile -t FILES < <(
     { ls AGENTS.md .claude/CLAUDE.md 2>/dev/null
       find design -name '*.md' 2>/dev/null
-    } | sort -u
+    } | LC_ALL=C sort -u
   )
 fi
 [[ ${#FILES[@]} -eq 0 ]] && { echo "extract-facts: no input files" >&2; exit 1; }
@@ -38,5 +40,5 @@ for p in "${PATTERNS[@]}"; do
   cat "${FILES[@]}" 2>/dev/null | grep -ohE -e "$p" || true
 done \
   | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[.,;:)]+$//' \
-  | grep -vE '^[[:space:]]*$' \
-  | sort -u
+  | { grep -vE '^[[:space:]]*$' || true; } \
+  | LC_ALL=C sort -u
