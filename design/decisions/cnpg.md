@@ -12,7 +12,7 @@ replica), chart `cloudnative-pg`. It is configured
 **Backups are logical dumps only.** There is **no** `ScheduledBackup`/`Backup`/
 `barmanObjectStore` — no WAL archiving, no PITR. The only DB backup is the
 `postgres-backup` CronJob (03:30) doing `pg_dump` off the read replica. Consequence:
-CNPG's removal of in-tree Barman Cloud support is a non-event here. Apps that run their
+CNPG 1.31's removal of in-tree Barman Cloud support is a non-event here. Apps that run their
 own quiesced backup job are excluded from `postgres-backup`'s `databases.yml` list.
 
 **Passwords.** CNPG managed-role secrets (`{app}-role-secret`) in the `postgres`

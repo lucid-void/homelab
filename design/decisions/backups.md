@@ -39,9 +39,9 @@ reconciliation, with data restored from Filen.
 rebuilding from git is primary, so the snapshot only covers in-cluster state git never
 held. Never restore-tested.
 
-`backup-tools` bundles bash, curl, **jq**, kubectl, restic, rclone and
-postgresql17-client — but **not** python3, and its `find` is busybox (no `-printf`, no
-`-readable`).
+`backup-tools` bundles bash, curl, **jq** (added in image v1.1.0 — older tags lack
+it), kubectl, restic, rclone and postgresql17-client — but **not** python3, and its
+`find` is busybox (no `-printf`, no `-readable`).
 
 Gotify notifications are priority 5 on success, 8 on failure. The token comes from the
 `gotify-secret` Secret managed by the `gotify-bootstrap` Job (not a SealedSecret), wired
@@ -65,11 +65,11 @@ in `optional: true` so jobs run before bootstrap completes.
   app's node** (joplin, homebox) — scale-down happens inside the script, so the job
   mounts the PVC while the app pod still holds it, and an `nfs-client` PV can bind
   anywhere. immich is exempt only because `immich-library` is RWX.
-- **A hostpath-backed backup job must NOT have `podAffinity`** (obsidian) — that PV
-  already carries nodeAffinity from its first bind, so the scheduler is constrained
-  anyway, while podAffinity on the app pod makes the job unschedulable whenever the app
-  is already at 0 replicas — exactly the state a prior failed run leaves behind.
-  `openebs-hostpath` claims are the ones this applies to.
+- **A hostpath-backed (`openebs-hostpath`) job must NOT have `podAffinity`** (obsidian) —
+  that PV already carries nodeAffinity from its first bind, so the scheduler is
+  constrained anyway, while podAffinity on the app pod makes the job unschedulable
+  whenever the app is already at 0 replicas — exactly the state a prior failed run
+  leaves behind.
 - **Exclude derived data the app writes non-world-readable** — jobs run as uid 65534
   against read-only PVC mounts, so any file the app leaves unreadable fails the whole
   run: restic exits **3** ("snapshot saved, but at least one source file could not be
