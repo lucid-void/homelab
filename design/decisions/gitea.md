@@ -48,12 +48,13 @@ valid values are `keepUpdated`, `initialOnlyNoReset`, `initialOnlyRequireReset`)
 - **Never declare `cache.ADAPTER`, `session.PROVIDER` or `queue.TYPE` while valkey is
   enabled** — the chart overwrites all three unconditionally, so a `memory`/`channel`
   value in git is not what the pod runs.
-- **After bumping the Gateway API CRD bundle, `kubectl -n kube-system rollout restart deploy/cilium-operator`**
-  — Cilium discovers optional GW API CRDs once at startup with
-  a version-exact check, so a running operator ignores a newly installed v1 TCPRoute.
-  Symptom: an empty `TCPRoute.status` with every Gateway listener `Programmed` and the
-  port refusing connections; `GatewayClass.status.supportedFeatures` lists TCPRoute the
-  whole time regardless and is not evidence it works.
+- **Never roll the Gateway API bundle below `1.6.x`, and after bumping it run `kubectl -n kube-system rollout restart deploy/cilium-operator`**
+  — this SSH TCPRoute needs the v1 TCPRoute CRD, which only ships at bundle 1.6; Cilium
+  also discovers optional GW API CRDs once at startup with a version-exact check, so a
+  running operator ignores a newly installed v1 TCPRoute. Symptom: an empty
+  `TCPRoute.status` with every Gateway listener `Programmed` and the port refusing
+  connections; `GatewayClass.status.supportedFeatures` lists TCPRoute the whole time
+  regardless and is not evidence it works.
 - **Check `kubectl get endpointslice -n gateway` for SSH routing, not the
   `CiliumEnvoyConfig`** — Cilium serves TCPRoute without Envoy: it generates an
   `EndpointSlice` on the Gateway's own Service (annotated
@@ -67,12 +68,19 @@ valid values are `keepUpdated`, `initialOnlyNoReset`, `initialOnlyRequireReset`)
   the StatefulSet being Ready *before* post-upgrade hooks fire, so it deadlocks; cluster
   creation otherwise happens only in pod 0's entrypoint
   (`VALKEY_CLUSTER_CREATOR=yes`), which fires only when pod 0's data dir is empty. The
-  rollout that works: `flux suspend` → `kubectl scale sts … --replicas=0` → wipe the
-  data dirs in place → resume → scale to the target.
+  rollout that works: `flux suspend` → scale the StatefulSet to 0 → wipe the data
+  directories in place (commands below) → resume → scale to the target.
 - **Deleting the valkey PVCs does not clear the data** — `nfs-client` share paths are
   derived from namespace+PVC name and the class is `Retain`, so a same-named PVC
   re-adopts the old directory and pod 0 skips cluster creation, re-forming the old
-  topology with stale node IDs. Wipe the directory contents in place instead.
+  topology with stale node IDs. Wipe the directory contents in place instead:
+
+  ```bash
+  kubectl scale sts <name> -n <ns> --replicas=0
+  # run a throwaway root pod mounting each PVC, then:
+  #   find /d -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+  kubectl scale sts <name> -n <ns> --replicas=<n>
+  ```
 - **Scaling the StatefulSet to 0 makes Helm's `--wait` succeed trivially** (0/0 reads as
   Ready) — a stuck `pending-upgrade` release can flip to `deployed` while the live
   StatefulSet is empty. Check `spec.replicas` against the chart, not just HR `Ready`.
