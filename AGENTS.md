@@ -17,6 +17,7 @@ cluster workloads (Flux, from `main`). A tiny compose remnant survives only for 
 - **Never use a rolling image tag** (`latest`, `3`) — and linuxserver.io images need the FULL tag, their short `X.Y.Z` is mutable
 - **Never put Python at 0-indent** inside a YAML `|` block scalar — it breaks the kustomize parser
 - **Never `apk add` without `timeout 300`** in a Job or initContainer — an unbounded stall wedges the pod Running with empty logs forever
+- **Never run an `apk add` Job as non-root** — set `runAsUser: 0`; `runAsNonRoot: true` fails it silently at exit 99, with empty logs
 - **Never install rclone from Alpine apk** where the filen backend is needed — it needs v1.69+, from `downloads.rclone.org`
 - **Never trust `optional: true` on an app-template `envFrom`** — chart 3.7.3 strips it silently
 - **Never assume a Helm values path took effect** — a wrong path is a silent no-op; render or check the live object
@@ -27,7 +28,8 @@ cluster workloads (Flux, from `main`). A tiny compose remnant survives only for 
 All k8s tooling is managed by mise and is NOT on `PATH`:
 `mise exec -- kubectl|flux|kubeseal|talosctl|talhelper|helm|kubeconform`
 
-After editing a manifest: `.agents/scripts/validate-manifests.sh <path>`
+After editing a manifest, run `.agents/scripts/validate-manifests.sh <path>` — a schema
+violation that reaches `main` wedges the whole Flux Kustomization, not just that file.
 
 Repo task runner: `justfile`.
 
@@ -49,10 +51,8 @@ Repo task runner: `justfile`.
 
 Netbird (`wt0`, `100.80.x.x/16`) runs as a Talos extension on every node, not on a VM.
 
-Synology shares: `/volume2/Media/` — one NFS export, the `media-nfs` RWX PVC, holding
-`Series/`, `Movies/`, `Downloads/`, `Photos/`, `Manga/`. `/volume2/backups/` holds the
-restic repos (offsite staging), DB dumps, recovery keys. Per-app config uses `nfs-client`
-dynamic PVCs; CNPG data lives on cluster storage, never on the media share.
+Storage: media lives on the Synology `media-nfs` RWX PVC, per-app config on `nfs-client`
+dynamic PVCs — but CNPG database data lives on cluster storage, never on the media share.
 
 Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02 Ultra
 — NOT an MS-A2, despite the `pve-msa2` hostname. 6 P-cores is why llama.cpp runs
@@ -67,7 +67,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | HTTPRoute, DNS, certs, Gateway API                    | design/docs/networking.md             |
 | Cilium config, MTU, ALPN, TCPRoute                    | design/decisions/cilium-gateway.md    |
 | Postgres, CNPG, DB passwords, Reflector               | design/decisions/cnpg.md              |
-| PVCs, storage classes, NFS                            | design/docs/storage.md                |
+| PVCs, storage classes, NFS, Synology shares, `extraMounts` | design/docs/storage.md           |
 | Sealed Secrets, OIDC bootstrap secrets                | design/docs/secrets.md                |
 | a HelmRelease, app-template, Reloader                 | design/decisions/helm-charts.md       |
 | backup CronJobs, restic, etcd snapshots               | design/decisions/backups.md           |
@@ -75,11 +75,10 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Minecraft metrics, mc-monitor, world-size alerts      | design/decisions/minecraft-monitoring.md |
 | Gotify, notifications, the telegram bridge            | design/decisions/gotify.md            |
 | Trivy, Falco, kubent, kube-linter, k8s-cleaner        | design/decisions/security-tooling.md  |
-| any Job, CronJob, or initContainer script             | design/decisions/jobs-and-scripts.md  |
 | image tags, Renovate                                  | design/decisions/images.md            |
 | Zitadel, SSO, the Terraform bootstrap                 | design/decisions/zitadel.md           |
 | Gitea                                                 | design/decisions/gitea.md             |
-| FreshRSS or Paperless OIDC                            | design/decisions/oidc-apps.md         |
+| FreshRSS, or Paperless (OIDC and the app itself)       | design/decisions/oidc-apps.md         |
 | Immich                                                | design/decisions/immich.md            |
 | Plex                                                  | design/decisions/plex.md              |
 | sonarr/radarr/prowlarr/sabnzbd/seerr/suwayomi/kavita  | design/decisions/media-stack.md       |
@@ -92,9 +91,10 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | changedetection.io, sockpuppetbrowser, its non-Zitadel login | design/decisions/changedetection.md |
 | Proxmox OIDC                                          | design/decisions/proxmox-oidc.md      |
 | the LLM stack                                         | design/decisions/llm.md               |
+| a Job/CronJob/initContainer script no row above covers | design/decisions/jobs-and-scripts.md  |
 | service inventory, hostnames, auth model              | design/docs/services.md               |
-| topology, nodes, IP plan, Netbird, Synology shares    | design/architecture.md                |
-| bootstrap, upgrades, recovery                         | design/runbook.md                     |
+| topology, nodes, IP plan, Netbird, `talconfig.yaml`    | design/architecture.md                |
+| bootstrap, upgrades, recovery, VM provisioning (Packer, OpenTofu) | design/runbook.md         |
 | open work, known gaps                                 | design/TODO.md                        |
 
 ## Keeping docs in sync
