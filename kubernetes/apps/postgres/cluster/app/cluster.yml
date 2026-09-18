@@ -94,6 +94,11 @@ spec:
         inherit: true
         passwordSecret:
           name: openwebui-role-secret
+      - name: keycloak
+        login: true
+        inherit: true
+        passwordSecret:
+          name: keycloak-role-secret
 
   storage:
     size: 20Gi

@@ -1,0 +1,24 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app keycloak-operator
+  namespace: flux-system
+spec:
+  # Deliberately NO targetNamespace. The upstream kustomization.yml already pins
+  # `namespace: keycloak` and runs a NamespaceTransformer with
+  # `setRoleBindingSubjects: allServiceAccounts`, so the ServiceAccount subjects in
+  # its RoleBindings and ClusterRoleBinding are rewritten correctly on its own.
+  # Setting targetNamespace here would fight that transformer and is the reason
+  # this operator lives in `keycloak` rather than next to Zitadel in `auth`.
+  #
+  # Also no commonMetadata: this path installs upstream CRDs, and relabelling
+  # them buys nothing while making a future upstream diff noisier.
+  interval: 1h
+  path: ./kubernetes
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: keycloak-operator
+  wait: true
+  timeout: 5m

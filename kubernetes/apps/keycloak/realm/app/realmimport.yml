@@ -1,0 +1,48 @@
+---
+# NOT a reconciling resource. The operator imports this realm by running a Job;
+# it creates the realm when absent but does not continuously correct drift on an
+# existing one. Treat this file as the realm's initial shape, not its live state:
+# once users and clients exist, a change here may need the realm deleted (or the
+# setting changed by hand in the admin console) before it takes effect.
+#
+# Clients are deliberately absent. Nothing is wired to Keycloak yet — Zitadel
+# still serves every app — and the client mechanism (KeycloakOIDCClient CRs vs
+# OpenTofu) is chosen at first-app migration, not here.
+apiVersion: k8s.keycloak.org/v2beta1
+kind: KeycloakRealmImport
+metadata:
+  name: homelab
+  namespace: keycloak
+spec:
+  keycloakCRName: keycloak
+  realm:
+    realm: homelab
+    displayName: Homelab
+    enabled: true
+
+    # Self-registration off: accounts are created by an admin, matching how the
+    # Zitadel org is run today.
+    registrationAllowed: false
+    resetPasswordAllowed: true
+    rememberMe: true
+    loginWithEmailAllowed: true
+    duplicateEmailsAllowed: false
+    verifyEmail: false
+
+    # Requests from private network addresses are exempt; this only forces HTTPS
+    # for genuinely external clients, which reach Keycloak through the Gateway.
+    sslRequired: external
+
+    passwordPolicy: "length(12)"
+
+    # Reuses the mailrise SMTP relay in the auth namespace that Zitadel already
+    # sends through — it forwards to Gotify. Cross-namespace ClusterIP, cleartext
+    # on the internal VLAN, no auth, same as Zitadel's notification config.
+    smtpServer:
+      host: mailrise.auth.svc.cluster.local
+      port: "8025"
+      from: keycloak@blackcats.cc
+      fromDisplayName: Keycloak
+      ssl: "false"
+      starttls: "false"
+      auth: "false"

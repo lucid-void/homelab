@@ -1,0 +1,58 @@
+---
+apiVersion: k8s.keycloak.org/v2beta1
+kind: Keycloak
+metadata:
+  name: keycloak
+  namespace: keycloak
+spec:
+  instances: 1
+
+  db:
+    vendor: postgres
+    host: postgres-rw.postgres.svc.cluster.local
+    port: 5432
+    database: keycloak
+    # Reflector mirrors postgres/keycloak-role-secret into this namespace.
+    usernameSecret:
+      name: keycloak-role-secret
+      key: username
+    passwordSecret:
+      name: keycloak-role-secret
+      key: password
+
+  # Full URL, not a bare hostname: TLS terminates at the shared Gateway, so
+  # Keycloak must be told the external scheme or it advertises http:// in the
+  # OIDC discovery document and every redirect_uri breaks.
+  hostname:
+    hostname: https://sso.blackcats.cc
+
+  # Keycloak itself speaks plain HTTP; the Gateway owns the certificate.
+  http:
+    httpEnabled: true
+
+  proxy:
+    headers: xforwarded
+
+  # Ingress objects are never used in this cluster — see httproute.yml.
+  ingress:
+    enabled: false
+
+  # The operator defaults to requests 1700Mi / limits 2Gi per instance, which is
+  # far more than a homelab realm needs and would eat request headroom on a
+  # control plane that is already overcommitted on limits. Revisit from a 30d
+  # VictoriaMetrics window once it has run, per the platform sizing convention:
+  #   quantile_over_time(0.90, container_memory_working_set_bytes{
+  #     namespace="keycloak", metrics_path="/metrics/cadvisor", container!=""}[30d])
+  resources:
+    requests:
+      cpu: 100m
+      memory: 768Mi
+    limits:
+      memory: 1536Mi
+
+  additionalOptions:
+    # Postgres traffic is cleartext on the internal VLAN by convention (the same
+    # choice Zitadel makes with SSL.Mode=disable). Without this the JDBC driver
+    # defaults to sslmode=prefer and negotiates TLS it does not verify.
+    - name: db-url-properties
+      value: "?sslmode=disable"
