@@ -79,6 +79,15 @@ with default policies. Depends on the `cilium` Flux Kustomization.
   load, and if the workflow captures that failure into its own JSON output instead of
   erring, both base and PR violation counts silently read `0` and the gate passes
   without linting anything.
+- **Never let a simplified invocation replace `.github/kube-linter-run.sh`'s leaf-dir
+  discovery** (e.g. reverting to plain `kube-linter lint kubernetes/`) — kube-linter
+  treats any directory containing a `kustomization.yml` as a kustomize root, renders
+  it, and does not descend further. Every `apps/<ns>/kustomization.yml` renders only
+  to Flux `Kustomization` CRs plus a `Namespace` — no pod specs — so pointing it at
+  the repo root saw 6 files and **zero workloads**, and fixing the `checks.exclude`
+  shape alone would only have moved the gate from 0-vs-0 to 19-vs-19, not to a real
+  one. This is the same "passes loudly while doing nothing" failure class as the
+  K8s-Cleaner `aggregatedSelection` bug above.
 
 ## Verify
 
