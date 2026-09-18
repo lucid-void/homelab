@@ -183,6 +183,7 @@ ensure_app_token "gotify-bootstrap" "Gotify token provisioning drift"  monitorin
 ensure_app_token "zitadel-bootstrap" "Zitadel OIDC provisioning drift"      auth        gotify-secret        GOTIFY_TOKEN
 ensure_app_token "etcd-snapshot"    "etcd snapshot backup notifications"    kube-system gotify-secret        GOTIFY_TOKEN
 ensure_app_token "homebox-backup"   "Homebox backup job notifications"      homebox     gotify-secret        GOTIFY_TOKEN
+ensure_app_token "changedetection-backup" "Changedetection.io backup job notifications" changedetection gotify-secret GOTIFY_TOKEN
 ensure_app_token "postgres-backup"  "Postgres backup job notifications"     postgres    gotify-secret        GOTIFY_TOKEN
 ensure_app_token "immich-backup"    "Immich backup job notifications"       immich      gotify-secret        GOTIFY_TOKEN
 ensure_app_token "paperless-backup" "Paperless backup job notifications"    paperless   gotify-secret        GOTIFY_TOKEN

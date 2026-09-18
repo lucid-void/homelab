@@ -1,0 +1,8 @@
+---
+# No pod-security label: this namespace inherits the cluster-default `baseline`.
+# The sockpuppetbrowser sidecar does NOT need a `privileged` exception -- see
+# design/decisions/changedetection.md.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: changedetection

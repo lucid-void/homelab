@@ -1,0 +1,17 @@
+---
+# nfs-client is safe here, unlike Plex and Obsidian: changedetection has no
+# SQLite. Its datastore is JSON plus brotli snapshot files, written via a temp
+# file in the same directory then os.replace() -- upstream does this explicitly
+# for NFS atomicity (changedetectionio/store/file_saving_datastore.py).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: changedetection-data
+  namespace: changedetection
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 5Gi
