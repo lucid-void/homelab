@@ -81,19 +81,10 @@ on cluster storage, never on the media share.
 ### Platform & networking
 | Topic | Decision |
 |---|---|
-| Compute platform | Talos Linux k8s cluster, FluxCD GitOps. 3 control planes `cp-1/2/3` (`.11`–`.13`, schedulable), API VIP `.10`, Gateway VIP `.50`. No dedicated workers. |
-| DNS | UDM SE at `.254` — local overrides for *.blackcats.cc, ad blocking, upstream to 1.1.1.1; external-dns writes Cloudflare A records → internal IPs. |
-| Internet exposure | Cloudflare DNS used only for valid TLS certs (DNS-01); all A records → internal IPs; no port forwarding on UDM SE; remote access requires Netbird VPN. No Cloudflare proxy. |
-| Netbird / ZeroTier | Netbird = primary remote-access VPN, runs as a Talos extension on every node (`wt0`, isolated from k8s networking — see AI_CONTEXT). ZeroTier = gaming with friends only, on a separate VM outside the cluster (plain compose). |
-| Cloudflare API tokens | One token per consumer (external-dns, cert-manager, Proxmox), Zone→DNS→Edit on blackcats.cc only; isolated for independent revocation. |
-| NFS / Postgres traffic | Cleartext on internal VLAN — accepted risk; private network, VPN-gated. |
 
 ### Storage, secrets, backups
 | Topic | Decision |
 |---|---|
-| Secrets | App secrets via Sealed Secrets (controller in `kube-system`); SOPS+age only for Talos machine secrets. Single age key for all SOPS secrets; recovery key in `tank/backups/keys/` + offline paper copy. |
-| Tofu state | Stored in PostgreSQL on the Synology (`tofu_state` database); if lost, run `tofu apply` fresh. |
-| UniFi backup | Not backed up — VLAN/firewall rules reconfigured manually after reset. |
 
 ### Auth & identity
 | Topic | Decision |

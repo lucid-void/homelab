@@ -70,8 +70,6 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | security-report | security | CronJob | — | — | Weekly (Mon 08:00); queries Trivy CRDs; posts Critical/High findings to Gotify |
 | kubent | security | CronJob | — | — | Weekly (Mon 08:00); deprecated API detection; run before any k8s upgrade |
 
-The `security` namespace has `pod-security.kubernetes.io/enforce: privileged` — required for Falco (privileged container + hostPath volumes).
-
 ---
 
 ## Applications
@@ -100,12 +98,6 @@ The `security` namespace has `pod-security.kubernetes.io/enforce: privileged` �
 | Open WebUI | ai | HelmRelease | `chat.blackcats.cc` | Zitadel OIDC | `open-webui-data` PVC (`nfs-client`, chroma vector store + uploads); CNPG Postgres (`openwebui`) for users/chats |
 | Degoog | degoog | HelmRelease | `degoog.blackcats.cc` | — | Self-hosted search engine aggregator; `ghcr.io/degoog-org/degoog:0.18.0`; `nfs-client` PVC for engines/plugins/themes data |
 
-**CouchDB** (`couchdb:3.5.2`, port 5984) is the sync backend for **Obsidian Self-hosted LiveSync**, and is deliberately a *central* server rather than a Syncthing-style peer mesh: peer sync only converges when two devices are awake simultaneously (a phone edit would sit unreplicated until a laptop opened), a peer mesh has no canonical copy for the nightly restic job to snapshot, and iOS has no usable Syncthing client. Single `app-template` controller `app` → Deployment/Service `couchdb`.
-
-**It is the one user-facing service not behind Zitadel.** The LiveSync plugin authenticates with HTTP Basic against a CouchDB admin, so there is no OIDC path; the credential lives in `couchdb-admin-secret` and exposure is VPN-gated like the media stack. Four settings are load-bearing and documented in full in `design/decisions/obsidian-livesync.md`: the CORS origins (`app://obsidian.md` desktop, `capacitor://localhost` mobile), `single_node = true` (creates the `_users`/`_replicator`/`_global_changes` system DBs, without which every request fails), `NODENAME` (CouchDB keys shard paths by erlang node name — unpinned, a rollout returns an apparently empty database), and authenticated `exec` health probes (`require_valid_user` gates `/_up`, so a plain `httpGet` 401s and restart-loops a healthy pod).
-
-**Joplin Server** (notes sync, `joplin/server:3.7.1`, port 22300) is the only service authenticating by **SAML** rather than OIDC — upstream has no OIDC support ([#14252](https://github.com/laurent22/joplin/issues/14252)) and offers SAML only. Single `app-template` controller `app` → Deployment/Service `joplin`. `STORAGE_DRIVER: "Type=Filesystem; Path=/mnt/joplin-blobs"` is set deliberately: the default `Type=Database` would push every note attachment into the shared CNPG cluster's 20Gi PVC. `SIGNUP_ENABLED=false`; `LOCAL_AUTH_ENABLED=true` is kept on so `admin@localhost` remains a break-glass account while the SAML sync target is still upstream-beta. See the SAML section below for the wiring and its gotchas.
-
 ---
 
 ## Media
@@ -130,31 +122,7 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | minecraft-valkey | — (ClusterIP `:6379`) | `valkey/valkey:9.1-alpine` | none |
 | minecraft-events | — (no Service) | `ghcr.io/lucid-void/backup-tools` | none |
 
-Plex uses `openebs-hostpath` for its config PVC — SQLite WAL locking errors occur over NFS. Config is on local disk on whichever node the PVC first bound to (cp-1).
-
 Sonarr and Radarr use CNPG Postgres (migrated from SQLite; migration Jobs in `kubernetes/apps/media/sonarr/app/migration-job.yml` and `radarr/`).
-
-**RomM** (game ROM manager, à la Sonarr/Radarr for consoles) scans a ROM library, fetches box art/metadata, and serves the library to Tinfoil/DBI on a modded Switch. Single `app-template` controller (`app` → Deployment/Service `romm`, port 8080). External CNPG Postgres (`ROMM_DB_DRIVER=postgresql`, password mirrored from `romm-role-secret`); embedded Valkey persists to an `emptyDir` at `/redis-data` (kept off NFS). Library on `media-nfs` subPath `Games` at `/romm/library` — organise ROMs as `Games/roms/<platform>/…` (e.g. `Games/roms/switch/*.nsp`). Unlike the linuxserver media apps, the `rommapp/romm` image runs as **root** and ignores `PUID/PGID` ([rommapp/romm#1302](https://github.com/rommapp/romm/issues/1302)) — it primarily reads the share. `ROMM_AUTH_SECRET_KEY` (session signing) comes from the `romm-secret` SealedSecret; `HASHEOUS_API_ENABLED=true` gives keyless metadata out of the box, IGDB creds (Twitch dev app) are an optional add-on. OIDC via Zitadel is enabled purely by the presence of `romm-oidc-secret` (Terraform-written, optional `envFrom`); the first user is created through RomM's own setup wizard.
-
-**Minecraft stack** — two servers, `matcha` and `vanilla`, both **Paper 26.2** on `itzg/minecraft-server:2026.7.2-java25`. The names distinguish content, not engine: `matcha` carries plugins, `vanilla` runs plugin-free. Each is an `app-template` HelmRelease with three containers in one pod: the server, an `itzg/mc-backup` sidecar, and a `filebrowser` sidecar.
-
-**The `-javaNN` image variant must be ≥ the Java the server jar was compiled against.** MC 26.2 needs Java 25 (class file version 69.0); pinning `-java21` (class file 65.0) crash-loops with `UnsupportedClassVersionError` before the server ever starts. Bump this alongside `VERSION`.
-
-*Storage:* world data is on `openebs-hostpath`, **not** NFS. Region files are random small I/O inside large files, and a chunk load that blocks the single-threaded tick loop shows up directly as TPS drop; NFS also puts the world behind the same spindles serving Plex/SAB. Node-pinning costs nothing here because all three CPs are VMs on one Proxmox host. The `mc-backup` sidecar takes RCON-quiesced tarballs (`save-off` → `save-all` → `save-on`) every 2h onto the RWX `mc-backups` NFS PVC, and the `minecraft-backup` CronJob (07:00) restics those to Filen. Continuous rsync of a live world is deliberately avoided — it produces torn region files that only fail at restore time.
-
-*Routing:* Minecraft is raw TCP and never touches the Gateway. **Velocity** (`minecraft-proxy`) holds `172.16.20.52:25565` — its own pool-b address, pinned with `lbipam.cilium.io/ips`; it must **not** share an IP with Plex, see `networking.md`. Its `[forced-hosts]` block maps the handshake hostname to a backend, exactly as mc-router's annotation-watching used to, so adding a server is a new HelmRelease plus two lines in `velocity-config.yml` plus a name on the proxy Service's `external-dns` hostname list. This is the only reason external-dns has `service` in its `sources`.
-
-Backends run `ONLINE_MODE=FALSE` and trust Velocity's **modern forwarding**, signed with the shared `velocity-secret`. Paper rejects any login lacking a valid signature, so the servers still cannot be joined directly — but the secret is therefore load-bearing, and the backend Services must stay ClusterIP-only.
-
-*Cross-server chat:* Velocity does **not** merge chat by itself. `quickchatv2` runs on both servers and relays chat, `/msg`, staffchat and join/leave through `minecraft-valkey` (in-memory, no persistence). Both servers need the plugin or the bridge is one-way.
-
-*Monitoring:* `monitoring/minecraft-monitoring` — an `mc-monitor` Deployment pings both servers over the Server List Ping protocol (so it works identically for Paper and vanilla, and survives version upgrades), plus a third ping against `minecraft-proxy` itself — Velocity publishes no Prometheus metrics, so that ping is the only proxy-health signal, and it distinguishes a proxy fault from a backend fault. 8 `VMRule` alerts → Alertmanager → Gotify, a Grafana dashboard (`uid: minecraft`), and two Gatus `tcp://` checks against the public hostnames. There is deliberately **no TPS metric** — that needs a server-side plugin and none is maintained for MC 26.2, so tick health is inferred from ping response time (answered on the main thread) and container CPU.
-
-*Player notifications:* the `minecraft-events` Deployment (`media`) streams the Velocity proxy's console with `kubectl logs --follow` and posts a Gotify message when a player joins, leaves, or switches server — which reaches Telegram through the usual `gotify-telegram` bridge. It watches the **proxy**, not the backends: every client session crosses Velocity exactly once, so one line per real join, whereas tailing both servers would double-count anyone using `/server` and would need a container inside the game pods, where a non-running sidecar strips pod readiness and drops players. Velocity prints a pair of lines per join — `[connected player] Name (/ip) has connected` (the session boundary) and `[server connection] Name -> matcha has connected` (which backend, and also fires on a `/server` switch) — and pairing them is what separates "joined" from "switched". Player names are matched against the Minecraft username charset before interpolation, so an unexpected log line can only fail to match, never corrupt the JSON body. The Gotify token (`minecraft-events-gotify-secret`, written by `gotify-bootstrap`) comes from an **optional mounted secret volume that the script re-reads on every event**, so the pod runs before bootstrap has completed and starts sending on its own once the Secret appears — no restart, and a rotation takes effect on the next event. This deviates from the house `envFrom` + Reloader pattern deliberately: that was tried first and silently sent nothing, because `reloader.stakater.com/auto` must be on the **Deployment's** `metadata.annotations` and was placed on the pod template, where Reloader never looks. Deliberately **not** built on the metrics that already exist — `minecraft_status_players_online_count` is a 60s poll with no player names, and an Alertmanager alert fires once and stays firing until the last player leaves, which is the wrong shape for an event.
-
-*Content:* the Paper/Fabric jar is never uploaded — `TYPE` + `VERSION` make the image fetch and update it. Plugins are declared as `MODRINTH_PROJECTS` / `SPIGET_RESOURCES` / `PLUGINS` env, so the plugin set lives in git and survives losing the PVC. Before adding a Modrinth slug, check its `loaders` include `paper` and its `game_versions` include the pinned `VERSION` — an unresolvable project fails startup, and plenty of well-known plugins (`spark`) publish mod-loader builds to Modrinth but not Paper ones. The filebrowser sidecar (`{server}-files.blackcats.cc`, local auth from `minecraft-secret`, not Zitadel) exists only for what those can't express: datapacks, world imports, in-browser config edits. Its readiness probe is deliberately disabled — any container's readiness gates Pod readiness, and a file-manager hiccup must not pull the Service endpoint and cut players off.
-
-**Manga stack** — Suwayomi-Server downloads manga via the Tachiyomi/Mihon extension ecosystem (hundreds of sources installed at runtime), Kavita reads it. (Tranga was tried first but removed — its 4-connector set couldn't reliably source licensed English titles like Witch Hat Atelier.) Suwayomi is a single HelmRelease with two controllers: `app` (`suwayomi-app:4567`, embedded H2 — no CNPG) and `flaresolverr` (`suwayomi-flaresolverr:8191`) for Cloudflare-gated sources. Config is all env (`DOWNLOAD_AS_CBZ=true`, `AUTH_MODE=none`, `FLARESOLVERR_*`). Runs as uid/gid `2202`/`2200`; data dir on `suwayomi-config`, with `media-nfs` subPath `Manga` nested-mounted at `…/Tachidesk/downloads` so CBZs land on `/volume2/Media/Manga/` for Kavita. Kavita's first admin is provisioned by the `kavita-bootstrap` Job (creds in `kavita-admin-secret`); subsequent users come from Zitadel OIDC.
 
 ---
 
@@ -173,7 +141,7 @@ Backends run `ONLINE_MODE=FALSE` and trust Velocity's **modern forwarding**, sig
 | Goldilocks | TBD | Standard OIDC redirect |
 | Gatus | TBD | Standard OIDC redirect |
 
-Joplin is **not** in this table — it uses SAML, not OIDC. See below.
+Joplin is **not** in this table — it uses SAML, not OIDC.
 
 ---
 
@@ -187,11 +155,5 @@ Joplin Server is the single SAML service in the cluster. Wiring:
 | IdP metadata | fetched from `https://zitadel.blackcats.cc/saml/v2/metadata` at pod start by the `saml-idp-metadata` initContainer → `/saml-idp/idp.xml` |
 | Zitadel SAML app | `zitadel_application_saml.joplin` in the zitadel-bootstrap Terraform |
 | Attribute rename action | `zitadel_action.joplin_saml_attributes` + `zitadel_trigger_actions` on `FLOW_TYPE_SAML_RESPONSE` / `TRIGGER_TYPE_PRE_SAML_RESPONSE_CREATION` |
-
-ACS URL is `https://joplin.blackcats.cc/api/saml` (fixed by Joplin, `routes/api/login.ts`); entityID is `https://joplin.blackcats.cc`. **The SP metadata exists in two places and must stay byte-identical** — the ConfigMap Joplin feeds to samlify, and the `metadata_xml` Terraform registers with Zitadel. A mismatch in entityID or ACS Location fails the assertion audience check.
-
-The IdP metadata is fetched fresh each boot rather than pinned in git because Zitadel's signing certificate rotates. The initContainer retries for 5 minutes so a cold start where Zitadel isn't serving yet doesn't wedge the pod.
-
-Required env beyond `SAML_ENABLED`: `API_BASE_URL` must equal `APP_BASE_URL` (SAML is unsupported on a split API domain), and `DELETE_EXPIRED_SESSIONS_SCHEDULE=""` disables the 6-hourly session purge, which assumes clients can silently re-login over the API — impossible when login is a manual browser flow.
 
 **Client support is narrower than OIDC apps:** desktop needs the separate **"Joplin Server (Beta, SAML)"** sync target (login happens in a browser via a `joplin://` callback, so only one Joplin instance may run); the **CLI does not support SAML at all**.
