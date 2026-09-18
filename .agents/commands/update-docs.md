@@ -1,6 +1,6 @@
 # update-docs
 
-Keep `design/` and `.claude/CLAUDE.md` in sync with the actual state of `kubernetes/`.
+Keep `design/` and `AGENTS.md` in sync with the actual state of `kubernetes/`.
 
 Run this after making changes to kubernetes manifests, or to audit documentation drift.
 
@@ -9,16 +9,17 @@ Run this after making changes to kubernetes manifests, or to audit documentation
 | Source of truth | Design files to keep in sync |
 |---|---|
 | `kubernetes/apps/` manifests | `design/docs/services.md`, `design/docs/gitops.md` |
-| `kubernetes/apps/kube-system/cilium/` | `design/docs/networking.md`, `design/AI_CONTEXT.md` |
-| `kubernetes/apps/gateway/` | `design/docs/networking.md`, `design/AI_CONTEXT.md` |
+| `kubernetes/apps/kube-system/cilium/` | `design/docs/networking.md`, `design/decisions/cilium-gateway.md` |
+| `kubernetes/apps/gateway/` | `design/docs/networking.md` |
 | `kubernetes/apps/cert-manager/`, `kubernetes/apps/network/` | `design/docs/networking.md` |
-| `kubernetes/apps/*/backup/` | `design/ARCHITECTURE.md`, `design/AI_CONTEXT.md` |
-| `kubernetes/apps/postgres/`, `kubernetes/apps/*/database/` | `design/docs/storage.md`, `design/AI_CONTEXT.md` |
+| `kubernetes/apps/*/backup/` | `design/decisions/backups.md` |
+| `kubernetes/apps/postgres/`, `kubernetes/apps/*/database/` | `design/docs/storage.md`, `design/decisions/cnpg.md` |
 | `kubernetes/apps/democratic-csi/`, `kubernetes/apps/openebs/` | `design/docs/storage.md` |
-| `kubernetes/talos/talconfig.yaml` | `design/ARCHITECTURE.md`, `design/AI_CONTEXT.md` |
-| `kubernetes/flux/` | `design/docs/gitops.md` |
-| Any new service namespace | `design/docs/services.md` |
-| Any new key decision or gotcha | `design/AI_CONTEXT.md` (Non-obvious Decisions), `.claude/CLAUDE.md` (key decisions table) |
+| `kubernetes/talos/talconfig.yaml` | `design/architecture.md` |
+| `kubernetes/flux/` | `design/docs/gitops.md`, `design/decisions/flux.md` |
+| A service listed in the `AGENTS.md` routing table | its `design/decisions/<topic>.md` row |
+| Any new service namespace | `design/docs/services.md` **and** a new routing row in `AGENTS.md` (see below) |
+| Any new key decision or gotcha | see "Where a new fact goes" below |
 
 ## Process
 
@@ -42,7 +43,7 @@ Read the relevant `design/` files and identify:
 - Services in manifests not listed in `design/docs/services.md` → **add**
 - Hostnames, auth methods, or storage that differ from what's documented → **update**
 - IP addresses, versions, or config values that have changed → **update**
-- New non-obvious decisions or gotchas discovered during work → **add to AI_CONTEXT.md**
+- New non-obvious decisions or gotchas discovered during work → route per "Where a new fact goes" below
 
 ### 3. Update design files
 
@@ -51,17 +52,43 @@ Edit only the files that have actual changes. For each changed file:
 - Keep the same structure and format
 - Update version numbers, IPs, service rows, and decision entries in-place
 
-### 4. Update .claude/CLAUDE.md if needed
+### 4. Update AGENTS.md if needed
 
-Update `.claude/CLAUDE.md` only if:
-- The design specs table needs a new entry
-- A new "what not to do" rule was identified
-- A key decision changed that Claude would get wrong without knowing
+Update `AGENTS.md` only if:
+- A new terminal `design/` file needs a routing-table row
+- A new hard rule applies repo-wide, in every namespace
+- A rule that used to be repo-wide got scoped to one service (demote it to a routing row)
+
+Never add a gotcha's body to `AGENTS.md` — see "Where a new fact goes" below.
 
 ### 5. Update design/TODO.md
 
 - Mark items as done if they've been implemented
 - Add new known gaps discovered during the pass
+
+## Where a new fact goes
+
+1. A gotcha about ONE service or subsystem → `design/decisions/<topic>.md`. Never `AGENTS.md`.
+2. A rule that applies repo-wide, in every namespace → a one-line entry in the
+   `AGENTS.md` hard-rules block. Nowhere else.
+3. A new terminal doc → one row in the `AGENTS.md` routing table. Never a second index.
+
+`AGENTS.md` has a hard budget of 2,500 tokens. Check before committing:
+
+```bash
+B=$(wc -c < AGENTS.md); echo "$B B ~$(( B * 10 / 37 )) tok"
+test "$(( B * 10 / 37 ))" -le 2500 || echo "OVER BUDGET — move content to design/decisions/"
+```
+
+Cut a routing row before cutting a hard rule. Never record a deployed version
+number: the manifest is the source of truth. Versions belong here only as a
+constraint, a known-bad minimum, or a recorded incident.
+
+A `design/decisions/*.md` file over 8,192 bytes should be split, and the
+`AGENTS.md` routing table updated to reach both halves — a row points at a
+file, it never carries the body.
+
+Adding a new service means adding its routing row in the same change, not later.
 
 ## Output
 
