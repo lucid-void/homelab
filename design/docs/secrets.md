@@ -97,6 +97,9 @@ sops -e /tmp/ss-key.yaml > /mnt/backups/keys/sealed-secrets-key.sops.yaml
 shred -u /tmp/ss-key.yaml
 ```
 
+Single age key covers all SOPS secrets (Talos + this backup); the recovery key also
+lives on the Synology at `tank/backups/keys/` plus an offline paper copy.
+
 ### Restoring the Key on Cluster Recreate
 
 Restore before FluxCD reconciles any SealedSecrets — the controller will use the key whether it was restored before or after controller startup.
@@ -162,10 +165,6 @@ env:
         key: password
 ```
 
-### Gitea Exception
-
-The Gitea chart only supports `extraEnvFrom` (no per-key `valueFrom`). A `gitea-db-bootstrap` Job reads `gitea-role-secret.password` and writes a new Secret `gitea-db-env` with key `GITEA__database__PASSWD`. HelmRelease mounts it via `extraEnvFrom`.
-
 ---
 
 ## Zitadel Bootstrap Secrets
@@ -199,37 +198,10 @@ data:
 
 Use the Helm-valuesFrom style when credentials need to populate a chart values list.
 
-### Drift reporting
-
-`zitadel-bootstrap` re-runs roughly hourly (`ttlSecondsAfterFinished: 3600` + 30m Kustomization interval), so a deleted OIDC app is re-registered within the hour. As with `gotify-bootstrap`, that repair is indistinguishable from a normal run, so it is announced rather than passing quietly — and the stakes are higher, because `main.tf` owns every `client_id`/`client_secret` in the cluster. A Zitadel database reset reissues credentials for **eight** applications and rewrites **seven** Secrets across six namespaces; apps with `reloader.stakater.com/auto` restart onto the new values, the rest keep authenticating with credentials that no longer exist.
-
-The Job is therefore two containers:
-
-| Container | Image | Does |
-|---|---|---|
-| `tofu` (init) | `ghcr.io/opentofu/opentofu` | `tofu init -lockfile=readonly`, `tofu plan -out=tfplan`, writes `tofu show -json tfplan` to a shared `emptyDir`, then applies that exact plan |
-| `report` | `ghcr.io/lucid-void/backup-tools` | classifies the plan and posts the result |
-
-Splitting them is not cosmetic: the plan says what was wrong *before* the repair, which is unrecoverable once apply has run, and the OpenTofu image has no `jq`, `kubectl` or `curl` to do the classifying with. Because it is an initContainer, a failed apply stops the pod and can never produce a misleading "no drift".
-
-Run classification mirrors `gotify-bootstrap`: `report.sh` hashes `main.tf` + `run.sh` + `.terraform.lock.hcl` and compares against `configHash` in the `auth/zitadel-bootstrap-state` ConfigMap. Changes on a **changed** hash are the edit landing; changes on a **steady** hash are drift → Gotify priority 8, using the `zitadel-bootstrap` app token in `auth/gotify-secret` (`optional: true`, so the first run before `gotify-bootstrap` has provisioned it still applies and merely logs that it could not notify).
-
-> **The JSON plan contains real client secrets** under `.resource_changes[].change.after`. It stays in the pod's `emptyDir`, and `report.sh` extracts only `.address` and `.change.actions` — never values, which would land in pod logs and the Gotify message body. Keep it that way when editing the jq filter.
-
-### Provider pinning
-
-`.terraform.lock.hcl` is committed alongside `main.tf` and shipped in the same `configMapGenerator`, and `run.sh` calls `tofu init -lockfile=readonly`. Without it, `~> 3.0` re-resolved against the registry on every run — 24 unverified fetches a day, any of which could pull a new provider minor into the cluster's identity provider unannounced.
-
-Two consequences worth knowing:
-
-- The lock file is a **dotfile**, so `cp /tf-config/*.tf` does not match it — `run.sh` copies it by name. A missing lock file makes `-lockfile=readonly` fail rather than silently re-resolve.
-- **A Renovate bump of the `required_providers` constraint must regenerate the lock file in the same PR.** Otherwise the lock no longer satisfies the constraint and `tofu init` fails. That failure is loud (Job fails → Kustomization NotReady → `flux-notifications`), which is the right trade against silently installing a major provider bump into Zitadel. Regenerate with a temp directory containing only the `required_providers` block:
-
-```bash
-mise exec -- tofu -chdir=<tmpdir> providers lock -platform=linux_amd64
-```
-
-`-platform=linux_amd64` is required — the lock records per-platform checksums and the Job runs nowhere else.
+A Zitadel database reset reissues credentials for **eight** applications and rewrites
+**seven** Secrets across six namespaces; apps with `reloader.stakater.com/auto` restart
+onto the new values, the rest keep authenticating with credentials that no longer
+exist.
 
 ---
 
@@ -243,9 +215,10 @@ Backup CronJobs (`immich-backup`, `paperless-backup`, etc.) need three secrets p
 | `restic-sealed` | `RESTIC_PASSWORD` | SealedSecret |
 | `gotify-secret` | `GOTIFY_TOKEN` | Written by `gotify-bootstrap` Job (not a SealedSecret) |
 
-`gotify-secret` is **not** a SealedSecret — `gotify-bootstrap` creates the Gotify app token via REST API and writes the plain Secret. This is intentional (idempotent re-provisioning after a Gotify DB reset). All backup jobs reference it with `optional: true` so they start even if the token hasn't been provisioned yet. The Job re-runs roughly hourly, so a deleted Secret is rewritten within the hour — and because that repair is indistinguishable from a normal run, a repair on an unchanged script is announced as drift (Gotify, priority 8) rather than passing quietly.
-
-**These Secrets are the source of truth for the token values.** Gotify 3 discloses a token only at creation or rotation — `GET /application` and `GET /client` blank the field — so the bootstrap Job cannot look a token back up from Gotify. It therefore reads the destination Secret first and reuses the stored token whenever the corresponding Gotify application still exists. A token is only minted when the app is missing (`POST /application`) or when the Secret is missing (`PUT /application/{id}/security` to rotate). Deleting one of these Secrets by hand silently rotates that token on the next bootstrap run.
+`gotify-secret` is **not** a SealedSecret — `gotify-bootstrap` creates the Gotify app
+token via REST API and writes the plain Secret, and it is the source of truth for the
+token value. All backup jobs reference it with `optional: true` so they start even if
+the token hasn't been provisioned yet.
 
 ---
 

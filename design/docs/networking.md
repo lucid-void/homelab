@@ -15,7 +15,7 @@
 | k8s API VIP | 172.16.20.10 | API server endpoint (floats via leader election) |
 | Gateway VIP | 172.16.20.50 | Cilium L2 announcement — `shared` Gateway |
 | Pool-B VIPs | 172.16.20.51–.52 | Cilium L2 announcement — direct LoadBalancer services (.51 Plex, .52 Velocity proxy) |
-| UDM SE | 172.16.20.254 | Gateway, DHCP, DNS resolver, ad blocking |
+| UDM SE | 172.16.20.254 | Gateway, DHCP, DNS resolver, ad blocking — local overrides for `*.blackcats.cc`, upstream resolver `1.1.1.1` |
 
 **Pod CIDR:** `10.244.0.0/16`
 **Service CIDR:** `10.96.0.0/12`
@@ -89,7 +89,7 @@ cilium-l2announce-media-plex-direct   → cp-2
 
 Both nodes then answer ARP for the same IP. Because `externalTrafficPolicy` is `Cluster`, whichever node receives a flow SNATs it locally, so the connection's conntrack state exists on that node alone. When a client's ARP entry flips to the other node mid-connection, its packets are re-SNATed there under a fresh source port, arrive at the backend pod as an unknown 4-tuple, and the pod's kernel replies `RST`.
 
-Symptoms, which took a long time to attribute: long-lived TCP dies a few seconds in while short HTTP bursts complete fine (they finish before a flip); clients on the same L2 segment as the nodes are unaffected because their ARP entry stays pinned, while clients routed in from another VLAN break constantly because the router re-resolves on its own schedule. The `RST` carries the *pod's* TTL, not the gateway's, which rules out middlebox injection and misleadingly points at the backend. Diagnosed 2026-08-01 against Minecraft; see the comments in `cilium-l2.yml`.
+Symptoms: long-lived TCP dies a few seconds in while short HTTP bursts complete fine (they finish before a flip); clients on the same L2 segment as the nodes are unaffected because their ARP entry stays pinned, while clients routed in from another VLAN break constantly because the router re-resolves on its own schedule. The `RST` carries the *pod's* TTL, not the gateway's, which rules out middlebox injection and misleadingly points at the backend.
 
 Widening the pool further is the correct way to add a third direct-LB Service. Cross-namespace sharing would need `lbipam.cilium.io/sharing-cross-namespace`; not used.
 
@@ -138,10 +138,7 @@ Manifests: `kubernetes/flux/repositories/git/gateway-api.yml`, `kubernetes/apps/
 | Cilium 1.20.0 (running) documents | v1.6.1 |
 | Installed here | **v1.6.1** — matched to what Cilium targets |
 
-The bundle used to sit at v1.5.1 and Renovate was constrained to `<1.6.0`, on the reasoning that v1.6.1 (#113) would put us two minors ahead of Cilium 1.19.6 (which documented v1.4.1) for zero gain. **Both halves of that went stale** and the pin moved to `<1.7.0` on 2026-08-12:
-
-- Cilium 1.20 tracks Gateway API v1.6.1, so v1.5.1 was *behind* the controller, not ahead of it.
-- The gain is no longer zero: Cilium 1.20 added `TCPRoute`/`UDPRoute` support, and **its controller watches the `gateway.networking.k8s.io/v1` GVK** (`HasTCPRouteSupport` checks the v1 kind against the compiled-in scheme). `TCPRoute` was promoted to `v1` in Gateway API **1.6.1**; the 1.5.1 bundle serves `v1alpha2` only, so on 1.5.1 a `TCPRoute` is unusable — Cilium advertises TCPRoute in `GatewayClass.status.supportedFeatures` regardless (the check is against its own scheme, not the installed CRD), so that field is **not** evidence the feature works. `kubectl get tcproutes.v1.gateway.networking.k8s.io` is the real test. This is what git-over-SSH on the shared Gateway needs.
+`TCPRoute` was promoted to `v1` in Gateway API **1.6.1** — the 1.5.1 bundle serves `v1alpha2` only, so on 1.5.1 a `TCPRoute` is unusable. `GatewayClass.status.supportedFeatures` lists TCPRoute regardless (the check runs against Cilium's own compiled-in scheme, not the installed CRD), so that field is **not** evidence the feature works; `kubectl get tcproutes.v1.gateway.networking.k8s.io` is the real test. This is what git-over-SSH on the shared Gateway needs.
 
 To check before revisiting:
 
@@ -218,23 +215,11 @@ Notes on the TCP listener:
 
 #### Gotcha: adding a Gateway API CRD version requires restarting cilium-operator
 
-Cilium discovers optional Gateway API CRDs **once, at operator startup**
-(`operator/pkg/gateway-api/cell.go` → `checkCRDs`), and the check is version-exact:
-
-```go
-for _, v := range crd.Spec.Versions {
-    if v.Name == gvk.Version { found = true; break }
-}
-```
-
-Kinds that fail it are left out of `InstalledOptionalKinds`, never registered into the
-client scheme, and their reconcilers never start. Bumping the bundle to 1.6.1 makes
-`TCPRoute` **v1** available, but a `cilium-operator` that was already running does not
-re-run discovery — so the first TCPRoute after the bump sits with an **empty `status`**
-forever while the Gateway itself reports every listener `Programmed`, and connections to
-the listener port are refused (the LoadBalancer exposes the port, nothing backs it).
-
-Hit on 2026-08-12 wiring up Gitea SSH. Fix:
+Cilium discovers optional Gateway API CRDs **once, at operator startup**, with a
+version-exact check. A `cilium-operator` that was already running when the bundle is
+bumped does not re-run discovery, so the first `TCPRoute` after the bump sits with an
+**empty `status`** forever while the Gateway itself reports every listener
+`Programmed`, and connections to the listener port are refused:
 
 ```bash
 kubectl -n kube-system rollout restart deploy/cilium-operator
@@ -242,18 +227,15 @@ kubectl -n kube-system rollout restart deploy/cilium-operator
 kubectl -n kube-system logs deploy/cilium-operator | grep -i 'TCPRoute CRD'
 ```
 
-Two misleading signals to ignore while diagnosing this:
+`GatewayClass.status.supportedFeatures` lists `TCPRoute` **regardless** of whether the
+reconciler is running, so it is not evidence the feature works — the real test is
+`kubectl get tcproutes.v1.gateway.networking.k8s.io` for the CRD and a populated
+`TCPRoute.status.parents` for the reconciler.
 
-- `GatewayClass.status.supportedFeatures` lists `TCPRoute` **regardless** — it did so for
-  the whole time the v1 CRD was absent and the reconciler was not running. It is not
-  evidence the feature works.
-- The absence of a `tcp_proxy` filter in the CEC is normal (see above), so it does not
-  distinguish "not reconciled" from "working".
-
-The real test is `kubectl get tcproutes.v1.gateway.networking.k8s.io` for the CRD, and a
-populated `TCPRoute.status.parents` for the reconciler.
-
-**ALPN:** Cilium is configured with `gatewayAPI.enableAlpn: true` (in `kubernetes/apps/kube-system/cilium/app/helm-values.yml`). Without it the Envoy HTTPS listener negotiates *no* ALPN protocol — tolerant clients (browsers, curl) silently fall back to HTTP/1.1, but strict clients fail the TLS handshake. This previously broke the Zitadel bootstrap (gRPC requires h2) and external OIDC clients such as Proxmox's `proxmox-openid` (token-endpoint call failed with "Failed to contact token endpoint: Request failed"). With ALPN enabled the listener advertises `h2` + `http/1.1`.
+**ALPN:** Cilium runs with `gatewayAPI.enableAlpn: true` (in
+`kubernetes/apps/kube-system/cilium/app/helm-values.yml`). Without it the Envoy HTTPS
+listener negotiates *no* ALPN protocol — tolerant clients fall back to HTTP/1.1, but
+strict clients (gRPC, some OIDC token-endpoint calls) fail the TLS handshake outright.
 
 Manifests: `kubernetes/apps/gateway/`
 
