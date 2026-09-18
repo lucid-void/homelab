@@ -1,0 +1,138 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: changedetection
+  namespace: changedetection
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  timeout: 15m
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        # Recreate, not RollingUpdate: the datastore is a set of plain JSON
+        # files with no locking, so two pods overlapping during a roll would
+        # both hold /datastore and the second writer's url-watches.json wins --
+        # silently losing every watch added by the first. Also avoids two pods
+        # contending for the RWO claim.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/dgtlmoon/changedetection.io
+              tag: "0.60.7"
+            env:
+              TZ: Europe/Brussels
+              PORT: "5000"
+              # Prefixes links in notification bodies. Without it, alerts arrive
+              # with unclickable relative paths.
+              BASE_URL: https://changedetection.blackcats.cc
+              # Chrome lives in the `browser` container of THIS pod, so it is
+              # reachable on localhost and needs no Service.
+              PLAYWRIGHT_DRIVER_URL: ws://localhost:3000
+              DISABLE_VERSION_CHECK: "true"
+              LLM_FEATURES_DISABLED: "true"
+              # Deliberately NOT setting USE_X_SETTINGS: that is for reverse
+              # proxies that rewrite Host or add X-Forwarded-Prefix. The shared
+              # Gateway passes the real Host and serves this at the domain root.
+            probes:
+              # `/` answers 200 with no password set and 302 to the login page
+              # once one is. Both are success -- kubelet httpGet treats 200-399
+              # as healthy -- so this probe survives enabling the password.
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 5000
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+            resources:
+              # ESTIMATES, not measurements -- a service with no history cannot
+              # be sized from VictoriaMetrics. Re-derive after ~30d with:
+              #   quantile_over_time(0.90, container_memory_working_set_bytes{
+              #     namespace="changedetection", metrics_path="/metrics/cadvisor",
+              #     container!=""}[30d])
+              # The metrics_path pin is mandatory: the kubelet exports
+              # container_* from two endpoints and an unpinned query doubles it.
+              requests:
+                memory: 256Mi
+                cpu: 50m
+              limits:
+                memory: 768Mi
+
+          browser:
+            image:
+              repository: dgtlmoon/sockpuppetbrowser
+              tag: "0.0.3"
+            env:
+              SCREEN_WIDTH: "1920"
+              SCREEN_HEIGHT: "1024"
+              SCREEN_DEPTH: "16"
+              # Each Chrome process costs roughly 300-400Mi. Raising this
+              # REQUIRES raising the memory limit below by about 400Mi per
+              # extra process, or the container is OOMKilled mid-fetch.
+              # Excess fetches queue rather than fail (DROP_EXCESS_CONNECTIONS
+              # defaults to False).
+              MAX_CONCURRENT_CHROME_PROCESSES: "2"
+            probes:
+              # Liveness ONLY -- deliberately no readiness probe. Any container's
+              # readiness gates the whole Pod's readiness, so a Chrome stall
+              # would pull the Service endpoint and take the web UI offline for
+              # a fault that only affects JavaScript fetching.
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /stats
+                    port: 3000
+                  initialDelaySeconds: 20
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness:
+                enabled: false
+              startup:
+                enabled: false
+            resources:
+              requests:
+                memory: 512Mi
+                cpu: 100m
+              limits:
+                memory: 1536Mi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 5000
+
+    persistence:
+      data:
+        existingClaim: changedetection-data
+        advancedMounts:
+          app:
+            app:
+              - path: /datastore

@@ -118,6 +118,17 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
+      # `/` answers 200 with no password set and 302 once one is, so this
+      # asserts < 400 rather than == 200 -- otherwise enabling the built-in
+      # password would silently turn this check red.
+      - name: Changedetection
+        group: apps
+        url: https://changedetection.blackcats.cc
+        interval: 1m
+        conditions:
+          - "[STATUS] < 400"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
       - name: Plex
         group: media
         url: https://plex.blackcats.cc/identity

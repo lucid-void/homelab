@@ -114,6 +114,10 @@ config:
             href: https://degoog.blackcats.cc
             description: Search engine aggregator
             icon: mdi-magnify
+        - Changedetection:
+            href: https://changedetection.blackcats.cc
+            description: Website change monitoring
+            icon: changedetection.png
     - Development:
         - Gitea:
             href: https://gitea.blackcats.cc
