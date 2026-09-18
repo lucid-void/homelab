@@ -56,6 +56,8 @@ in `optional: true` so jobs run before bootstrap completes.
   `Applying Policy: keep 30 daily snapshots` / `keep 1 snapshots:` blocks.
 - **Bump `TALOS_VERSION` in the `etcd-snapshot` script alongside every Talos upgrade** —
   it is pinned there and the job downloads that exact `talosctl` at runtime.
+- **`etcd-snapshot` also runs `restic check --read-data-subset=1/10`** — spot-checks
+  real data, not just metadata.
 - **Restore etcd with `talosctl bootstrap --recover-from <snap>` *instead of* plain
   `talosctl bootstrap`** — running both discards the snapshot. Procedure in RUNBOOK.
 - **Use the official rclone binary from `downloads.rclone.org` in any image that needs
@@ -110,10 +112,8 @@ in `optional: true` so jobs run before bootstrap completes.
 - **Pair that TTL with `ignore-check.kube-linter.io/job-ttl-seconds-after-finished` on
   top-level metadata** — kube-linter's `job-ttl-seconds-after-finished` check warns a
   jobTemplate-level TTL can conflict with the history limits. They are complementary
-  here: whichever fires first removes the Job, and
-  three runs of a daily job cannot accumulate inside 24h, so the TTL always wins and the
-  limits stay a cap. The check would matter for a job running more often than the TTL
-  window.
+  here: whichever fires first removes the Job, and three runs of a daily job cannot
+  accumulate inside 24h, so the TTL always wins and the limits stay a cap.
 - **A jobTemplate change affects only *new* Jobs** — an existing lingering Job must be
   deleted by hand.
 - **Prefer `backup-tools` plus a ConfigMap-mounted script over `apk add curl jq kubectl`

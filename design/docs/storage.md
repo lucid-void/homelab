@@ -116,7 +116,7 @@ Manifest: `kubernetes/apps/media/media-nfs/`
 An `openebs-hostpath` PVC is a **plain directory on the node's `EPHEMERAL` partition**, not a quota-backed volume. The `storage:` request in the PVC spec is advisory — a claim that says `20Gi` will happily grow past that, and will keep going until the *node* runs out of disk. Consequences worth remembering:
 
 - **`kubelet_volume_stats_*` for these PVCs report the node filesystem**, not the directory. A "volume 85% full" alert on a hostpath PVC means *the node* is 85% full — which may have nothing to do with the workload named in the alert.
-- **They cannot be expanded in place**, because there is nothing to expand; the only lever is growing the node disk (see RUNBOOK → *Grow the node disks*).
+- **They cannot be expanded in place**, because there is nothing to expand; the only lever is growing the node disk (see `design/runbook.md` → *Grow the node disks*).
 - Everything on the node competes for the same space: container images, etcd, logs, and every other hostpath PVC.
 
 Nodes are 100 GB (`EPHEMERAL` ≈ 105 GB after Talos claims the other partitions). Current consumers:

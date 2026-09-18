@@ -79,7 +79,7 @@ git commit -m "feat(k8s): refresh sealed-secrets public cert"
 git push
 ```
 
-All existing SealedSecrets in git will be re-sealed using the new key during recovery (see RUNBOOK.md).
+All existing SealedSecrets in git will be re-sealed using the new key during recovery (see `design/runbook.md`).
 
 ### Backing Up the Controller Key
 
