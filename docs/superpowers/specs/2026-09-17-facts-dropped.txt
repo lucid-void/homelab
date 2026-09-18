@@ -1,0 +1,832 @@
+# Dropped-fact adjudication — agent docs restructure (task 13)
+#
+# Generated 2026-09-18: 2026-09-17-facts-before.txt (baseline corpus at
+# commit 0a7f6ac) minus 2026-09-17-facts-after.txt (this branch's HEAD), LC_ALL=C.
+#
+# WHAT THIS FILE DOES NOT PROVE:
+#   .agents/scripts/extract-facts.sh emits a DEDUPED, REPO-WIDE fact set. A string still
+#   present ANYWHERE under design/ never registers as dropped, no matter which file lost
+#   it. During this plan that masked two genuine losses: "CNPG 1.31" (hidden by
+#   design/docs/storage.md) and "backup-tools v1.1.0" (hidden by design/decisions/
+#   immich.md, where the identical string is a different fact — a pgvector image tag).
+#   A short drop list is therefore WEAK evidence, never proof that nothing was lost.
+#   The extractor is also line-scoped — an inline code span wrapped across a newline is
+#   invisible to it — and its command-verb whitelist misses find/rm/cp/mv/chmod/mkdir.
+#   Task 13 ran two hand-written scans for exactly those blind spots; see
+#   .superpowers/sdd/2026-09-17-agent-docs-restructure/task-13-report.md.
+#
+# Every line below is adjudicated INTENTIONAL. Load-bearing strings were restored and so
+# do not appear. Restored this pass: the restic stale-lock trap (foreign-hostname locks,
+# plain `restic unlock` vs `--remove-all`, rc=11, the 2026-08-05 immich Exit 11) into
+# design/TODO.md.
+#
+# Tags: DELETED-PROPOSAL | TODO-TRIM | VERSION | RENAMED-PATH | EXTRACTOR-ARTIFACT | PROSE-PRUNE
+# Counts: {'deleted-proposal': 323, 'todo-trim': 126, 'prose-prune': 257, 'version': 54, 'renamed-path': 15, 'extractor-artifact': 31}
+# before: 2800   after: 2249   dropped: 806   load-bearing remaining: 0
+#
+--cache-ram	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+--cache-type-k	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+--cache-type-v	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+--embeddings	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+--flash-attn	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+--host	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+--kubelet-insecure-tls	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+--metrics	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+--model	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+--pod-recommendation-min-	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+--port	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+--read-data	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/TODO.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+--threads-batch	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+/config/	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/RUNBOOK.md,design/TODO.md,design/docs/networking.md,design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+/data/plugin-settings.json	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+/data/plugins/degoog-org-official-extensions-freshrss/index.js	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+/etc/nut/upsmon.conf	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+/media/minecraft	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+/opt/couchdb/etc/local.d/10-livesync.ini	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+/var/lib/etcd	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+/volume2/Media/Manga/	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+/volume2/backups/	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/AI_CONTEXT.md,design/ARCHITECTURE.md,design/CLAUDE.md,design/TODO.md,design/docs/storage.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+0.0.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+0.015	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+0.02	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+0.03	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+0.038	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+0.041	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+0.05	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md,monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+0.051	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+0.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+0.1.1-rc.2	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+0.14	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+0.179	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+0.2	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+0.28.3	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+0.29.0	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+0.3	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+0.8	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+1.19.6	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+1.2	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+1.29.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+1.30.0	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+1.43.3.10828	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+1.43.3.10896	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+1.45	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+1.56	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+1.6.0	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+1.7	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+10.244.5.55	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+12.5-hour-old	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+18.8	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+19.7	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+19.8	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+2.0	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+2.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+2.2	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+2.20.15	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+2.3	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+2.4	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+2.8.8	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+2.84	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+2.9.2	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+22.1	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+24.2	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+26.5	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+29.3	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+3.0	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.0.4	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.0.5	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.1.0	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.19.0-build	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.2	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.21	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.3	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.4	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md,monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+3.5	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.54	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+3.6	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.7.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+3.8	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+35.8	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+36.9	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+4.0	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+4.5-minute	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+45.8	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+5.4	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+5.6	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+57.8	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+6.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+62.3	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+64.6	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+65.12	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+68.2	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+68.3	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+71.5	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+72.5	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+8.0	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+86.0	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+91.7	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+AI_CONTEXT	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+DATABASE_URL	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+DSH_HOME	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+ENABLE_OAUTH_PERSISTENT_CONFIG	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+IQ1_S	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+IQ3_XXS	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+LITELLM_MASTER_KEY	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+LITELLM_SALT_KEY	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+OPENAI_API_BASE_URL	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+O_DIRECT	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+Q4_K_M	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+Q4_K_XL	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+Q5_K_M	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+Q6_K	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+Q8_K_XL	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+RAG_EMBEDDING_ENGINE	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+RAG_EMBEDDING_MODEL	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+RAG_OPENAI_API_BASE_URL	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+REPLACE_WITH_LITELLM_VIRTUAL_KEY	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+SAML_ENABLED	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+SIGNUP_ENABLED	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+` (`	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` (allauth 65.x path is `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` / `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` against `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` and compare `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` and no `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` block); otherwise `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` for the MTU checks, reading `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` for the filen backend, Gateway API `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` is a JS `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` pin, without it the kubelet's two endpoints double every `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` series. Set `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` under `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` }`	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` — **the `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` — NOT `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` — node-collector tries to `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` — note the `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` — that `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+` → `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`!llama_memory_can_shift`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`"Connection blocked: … resolves to a non-public address"`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`$DSH_HOME/settings.yaml`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`''`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`). Must also set `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`). `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`*-database`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/immich.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`, **no DNS names**, `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`, or compare against the live object with `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`, then remove it. Check with `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`, then remove the annotation. Verify with `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`, using a file holding only the `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`- id: … objects: […]`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`--cache-ram`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`--cache-reuse 256`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`--cache-type-k/v q8_0`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`--flash-attn`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`--kubelet-insecure-tls=false`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`--metrics`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`--pod-recommendation-min-*`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`--threads-batch 8`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`--v=4`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`-availability.rules`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`-histogram.rules`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`-lockfile=readonly`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/secrets.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`-march=native`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`-platform=linux_amd64`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/secrets.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`. Dashboard at `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`. Flux reporting `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`. Guard is `	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`. Hit going 2.8.8 → 2.9.2 on the three `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`..2026_08_29_20_20_47.1731907293/`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`.11 → .12 → .13`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`.254`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`.claude/CLAUDE.md:184`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`.claude/CLAUDE.md`	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+`.resolve()`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`/.cache/restic`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`/app/data/plugin-settings.json`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`/dev/sda4`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`/etc/nut/upsmon.conf`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`/logs/stream`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`/opt/couchdb/etc/local.d/10-livesync.ini`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`/ui`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`/upstream/{model}/`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`/v1/chat/completions`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`/v1/completions`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`/v1/embeddings`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`/v1`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`/var/lib/etcd`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`/volume2/Media/Manga/`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`/volume2/backups/`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`0.1.1-rc.2`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`0082_save_origin_device`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/romm.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`0083`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/romm.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`031af82`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`0644`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`0755`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`1.43.3.10828-…-ls315`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/gitops.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`1.43.3.10896-…-ls321`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/gitops.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`10-docker-default.ini`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`100Mi`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`127.0.0.1:3080`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`127.0.0.1:7445`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`15m`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`172.16.20.10`	PROSE-PRUNE: narrative/incident detail pruned from design/ARCHITECTURE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`172.16.20.11/.12/.13`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`172.16.20.11:6443`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`172.16.20.13`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`172.16.20.14`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`172.16.20.254`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/ups-power.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`172.16.20.2:3493`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`172.16.20.2`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`2026-08-01T00:52Z`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`2200`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`2202`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`25Mi`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`3.19.0-build`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`34952533`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`3m`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`401`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`503`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`50Mi`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`5m`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`65536`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`71680`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`7529ad4`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`796ee73`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`7a9cc83`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`7m`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`90147fc`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`97656250000Ki`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`9c8b106`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`: litellm`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`:2381`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`:43`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`:8080`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`; requires `	EXTRACTOR-ARTIFACT: fragment of an inline code span whose line wrapping or wording changed — a span boundary, not a fact
+`<1.6.0`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/networking.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`<=>`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/immich.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`> file 2>&1`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`@deepseek-ai/dsh`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`AI_CONTEXT.md`	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+`ALLOWED DISRUPTIONS 0`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`ARCHITECTURE.md`	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+`BackoffLimitExceeded`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`CPUThrottlingHigh`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`CiliumClusterwideNetworkPolicy`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`CommonName: "127.0.0.1"`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`ContainerCreating`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`CustomCertPath`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`DATABASE_URL`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`DESIRED 3`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`DESIRED 4`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`DRuggeri/nut_exporter`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`DeadlineExceeded`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`Deployment/paperless-app status: 'InProgress'`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`DiskPressure`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`ENABLE_OAUTH_PERSISTENT_CONFIG=false`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`ENABLE_OAUTH_PERSISTENT_CONFIG`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`FLARESOLVERR_*`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`Failed to contact API server`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`FileNotFoundError: [Errno 2]`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`FirstName`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`Games/roms/switch/*.nsp`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`HOME=/`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`InstalledOptionalKinds`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/networking.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`KubeClientErrors`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`KubeDeploymentReplicasMismatch`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`KubeDeploymentRolloutStuck`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`KubePodCrashLooping`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/monitoring-stabilization.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`KubePodNotReady`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`LITELLM_MASTER_KEY`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`LITELLM_SALT_KEY`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`LogErrors`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`MinecraftBackupVolumeAlmostFull`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/TODO.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`MinecraftWorldVolumeAlmostFull`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/TODO.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`NAMESPACE`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`NOTIFYCMD`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`NetworkPolicy`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`NoSchedule`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`OPENAI_API_BASE_URL`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`OPTFLAGS="-march=x86-64-v3"`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/immich.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`O_DIRECT`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`POST /api/greader.php/accounts/ClientLogin`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`PUID/PGID`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`Passwd`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`ProbeWarning`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`ProtonMail/gluon`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`ProvisioningSucceeded`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`Q4_K_M`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`Qwen3.6-35B-A3B-Q8_0.gguf`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`Qwen3.6-35B-A3B-UD-Q8_0.gguf`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`REPLACE_WITH_LITELLM_VIRTUAL_KEY`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`RUNBOOK.md`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`ReconcileErrors`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`RecordingRulesNoData`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`ResourceQuota`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`SAML_ENABLED`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`SHUTDOWNCMD`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`SIGNUP_ENABLED=false`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`ServiceDown`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`String(value)`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`SurName`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`TargetDown`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`Tolerations`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`True`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`UD-Q8_0`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`UD-Q8_K_XL.gguf`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`UPSBatteryReplace`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`UPSCommunicationLost`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`UPSLoadHigh`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`UPSLowBattery`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`UPSOnBattery`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`UPSRuntimeLow`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`Unauthorized!`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`UserID`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`UserModel.ssoLogin`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`UserName`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`WaitForFirstConsumer`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`["Admin"]`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`[]ResourceResult{ Resource *unstructured.Unstructured \`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`[chttpd] bind_address = any`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`[connected player] N (/ip) has connected`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`[connected player] Name (/ip) has connected`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`[on\|off\|auto]`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`[server connection] N -> matcha has connected`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`[warning]`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`_changes?feed=longpoll`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`_count`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`_node/_local/_config`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`_sum`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`activeDeadlineSeconds: 14400`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`ai-database`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`ai-monitoring`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`allauth 65.16`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`alpine:3.21`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`am-gotify-bridge`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`anomalyco/opencode`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`apache/couchdb-helm`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`api.v1.attributes.setCustomAttribute(key, nameFormat, value)`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`api: openai-completions`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`apiKeyEnv`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`apiserver_request:burnrate1h`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`apk add bash curl jq kubectl`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`apply request took too long`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`apps/<ns>/<app>/{ks.yml,app/}`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`apps/ai/`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`apps/auth/bootstrap-rbac/`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`apps/cnpg-system/`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`apps/kube-system/`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`apps/postgres/cluster/app/cluster.yml`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`apt install nut-client`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`backend_commit_duration`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`backup`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`baseURL`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`battery.runtime`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`bind-address=0.0.0.0`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`both`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`bpf.masquerade: true`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`c2cefad`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`cache_ram_mib`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`cache_reuse`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`cannotReconcile: failed to get password secret ... not found`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`cas.openebs.io/config`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`cert import`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`checkCRDs`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/networking.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`check_hostname`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`chttpd_auth_cache`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`cilium-l2.yml`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/networking.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`cloud-*`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`cnpg-system`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`configauditreports ... already exists`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`configmaps,secrets: get/watch/list`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`content`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`context deadline exceeded`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`controlPlane: false`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`couch_httpd_auth: Authentication failed for user <name>`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`cp-3`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`cpu.type = "host"`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/immich.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`curl -s .../cilium/<ver>/go.mod \| grep gateway-api`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`curl -v --http2 https://<host>/... 2>&1 | grep -i alpn`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`curl`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/secrets.md,design/llm-inference.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`database_does_not_exist … _users`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`decisions/protonmail-bridge.md`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`deepseek-ai/deepseek-harness`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`degoog-data`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`degoog-org-official-extensions-freshrss`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`democratic-csi-nfs-node`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`design/AI_CONTEXT.md`	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+`design/ARCHITECTURE.md:50`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`design/ARCHITECTURE.md`	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+`design/RUNBOOK.md`	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+`design/TODO.md`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md,design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`design/`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`design/decisions/immich.md`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`design/decisions/joplin.md`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`design/decisions/minecraft.md`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`design/decisions/plex.md`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`design/decisions/protonmail-bridge.md`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`design/decisions/proxmox-oidc.md`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`design/decisions/romm.md`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`design/llm-deployment.md`	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+`design/llm-inference.md`	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+`dmidecode -t memory`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`docker-entrypoint.sh:14`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`docker-entrypoint.sh:37-43`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`docker-entrypoint.sh:62`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`docker-entrypoint.sh`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`docs/networking.md`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/ARCHITECTURE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`docs/services.md`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/TODO.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`ea78cbd`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`etcd status`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`etcd_disk_wal_fsync_duration_seconds`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`etcd_server_leader_changes_seen_total`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`etcd_server_proposals_failed_total`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`etcd_server_slow_apply_total`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`exclude`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`external-dns.alpha.kubernetes.io/enabled: "true"`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`external-dns.alpha.kubernetes.io/hostname`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`falco`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`filebrowser/filebrowser:v2.63.23`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`find -exec +`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`find -exec … +`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`finding data that is still in use for 33 snapshots`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`finishedAt`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`flag provided but not defined: -promscrape.maxConcurrency`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`flux get kustomizations --watch`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`flux resume`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`flux-notifications`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/AI_CONTEXT.md,design/docs/secrets.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`freshrss/freshrss-notify-state`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`gatus`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`get_path_from_env`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`ghcr.io/mostlygeek/llama-swap:cpu`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`ghcr.io/opentofu/opentofu`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/secrets.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`ghcr.io/videocurio/…`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`gitea-backup`	PROSE-PRUNE: narrative/incident detail pruned from design/ARCHITECTURE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`gitea-db-env`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md,design/docs/secrets.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`gitea-role-secret.password`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/secrets.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`gitea-valkey-cluster`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`gitea/gitea-valkey-cluster`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`gitea/valkey-data-gitea-valkey-cluster-{0..5}`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`goldilocks-matcha/app`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`google-bad-token: true`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`greader.php`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`grep -c avx512 /proc/cpuinfo`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/immich.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`grep`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`group_wait`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`groups`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`h2`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/networking.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`heartbeat=30000`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`helm`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`helmrelease.yml`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`http/1.1`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/networking.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`http://10.244.5.55:80/i/oidc/`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`httpGet: /api/ping`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`httpHeaders: [{name: Host, value: joplin.blackcats.cc}]`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`https://huggingface.co/<repo>/resolve/main/<file>`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`https://joplin.blackcats.cc/api/saml`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`huggingface-cli download`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`human.displayName`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`human.email.email`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`if (user && !user.is_external) return null;`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`ignore-check.kube-linter.io/<check>: "reason"`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/gitops.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`ik_llama.cpp`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`image-text-to-text`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`immich-backup-29764980`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`immich-cache-verify`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`immich-db-extensions`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`infra/proxmox/nut/`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`insecureSkipVerify`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`internal/actions/object/user.go`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`internal/certs/tls.go`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`joplin/server:3.7.1`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`jq '.Reports | length' … || echo "0"`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`k8s-cp-*`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`key not allowed to access model`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kube-apiserver-burnrate.rules`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`kube-proxy`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/TODO.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kube-scheduler-cp-1`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kube-state-metrics`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kube-system/gotify-secret`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubeControllerManager`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubeEtcd.endpoints`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubeEtcd`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubeReserved`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubeScheduler`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubeconform`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubectl exec`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`kubectl get deploy -n ai`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubectl get svc -n <namespace>`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubectl logs -c notify`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubectl scale sts … --replicas=0`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubectl taint node llm-1 workload-`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubectl taint nodes`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubectl top`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`kubernetes.io/hostname: llm-1`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubernetes/apps/<namespace>/<app>/app/`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubernetes/apps/<namespace>/<app>/ks.yml`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubernetes/apps/<namespace>/kustomization.yml`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubernetes/apps/<namespace>/namespace.yml`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubernetes/apps/ai/llama-swap/app/config-configmap.yml`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubernetes/apps/ai/{litellm,open-webui}`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubernetes/apps/auth/bootstrap/app/tofu/main.tf`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubernetes/apps/gitea/gitea/app/helmrelease.yml`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`kubernetes/apps/immich/backup/app/pvc.yml`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`kubernetes/apps/kustomization.yml`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubernetes/apps/media/minecraft*/`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubernetes/apps/monitoring/ups-monitoring/`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubernetes/apps/postgres/backup/app/...`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubernetes/apps/postgres/cluster/app/cluster.yml:90`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubernetes/flux/.../apps.yaml`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubernetes/talos/talconfig.yaml:105`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubernetesSDCheckInterval`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`kubeseal --cert kubernetes/flux/pub-cert.pem`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kubeseal`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`kv_unified = true`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`latest.log`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/minecraft.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`leader election lost`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`leaderelection lost/stopped`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`leaseTransitions`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`level-name`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/minecraft.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`lint kubernetes/`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`listen-metrics-urls`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`litellm-role-secret`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`llama-swap-app`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`llamacpp:*`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`llamacpp:predicted_tokens_seconds`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`llamacpp:prompt_seconds_total`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`llamacpp:prompt_tokens_total`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`llamacpp:tokens_predicted_total`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`llamaswap_*`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`load_verify_locations(cafile=...)`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`local-vision`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`local.d/…`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`locks: 0`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`logToStdout`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/llm-deployment.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`logs --follow`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`machine.kubelet.extraMounts`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`machine.nodeTaints`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`macros:`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`madvise`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`make`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/immich.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`manifest-scan`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`matcha`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/TODO.md,design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`matrix`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`mattn/go-sqlite3`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`maxim`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`mc-monitor`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`mc-router`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/minecraft.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`media/matcha`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`media/minecraft-backup-29786820`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`media/plex-config`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`media/tranga-config`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`mem3_shards`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`memory.current`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`metricRelabelConfigs`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`metrics-server`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`minecraft-events`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/minecraft.md,design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`mise exec -- <tool>`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`mise exec`	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`mmproj-F16.gguf`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`model-fetch`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`model_list`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`monitoring.blackcats.cc/scrape: llama-swap`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`monitoring.blackcats.cc/scrape`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`monitoring/vm-stack-grafana`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`monitoring/vmsingle-vm-stack-victoria-metrics-k8s-stack`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`monuser`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`n_ctx_slot = 32768`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`n_slots = 4`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`n_threads = 6`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`namespaceSelector`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`networking.md`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`node-role: llm`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`nodeAffinity`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`nodeLabels`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`nodeSelector: {node-role: llm}`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`nodeTaints`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`node_memory_MemAvailable_bytes`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`notification.toolkit.fluxcd.io`	PROSE-PRUNE: narrative/incident detail pruned from design/RUNBOOK.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`nut-client`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`nut_exporter`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`observability`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`obsidian`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/TODO.md,design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`onboot: 1`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`open-webui-secret.yml`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`open_result error {not_found,no_db_file} for _dbs`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`opencode-ai/opencode`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`opencode`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`operator/pkg/gateway-api/cell.go`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/networking.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`os:admin`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`os:operator`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`owning-inventory: talos-bootstrap-manifests-inventory`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`paperless/checks.py::_email_certificate_validate`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`paperless_mail/mail.py`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`pgdata.broken`	PROSE-PRUNE: narrative/incident detail pruned from design/RUNBOOK.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`pgdata`	PROSE-PRUNE: narrative/incident detail pruned from design/RUNBOOK.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`plex-config-local`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`pods.metrics.k8s.io`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`postgres-cnpg-immich`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`progress deadline exceeded`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`project_immich_migration`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`prometheus-exporter`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`promscrape.maxConcurrency`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`prune --dry-run`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`pvc.yml`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`pve-guests`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`q8_0`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`qm shutdown --timeout 60`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`qm shutdown`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`qwen-fast`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`qwen-smart`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`qwen-vision`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`radarr/app/migration-job.yml`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`rclone:filen:backups/restic/`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`rclone:filen:backups/restic/gitea`	PROSE-PRUNE: narrative/incident detail pruned from design/ARCHITECTURE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`rclone:filen:backups/restic/homebox`	PROSE-PRUNE: narrative/incident detail pruned from design/ARCHITECTURE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`rclone:filen:backups/restic/immich`	PROSE-PRUNE: narrative/incident detail pruned from design/ARCHITECTURE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`rclone:filen:backups/restic/joplin`	PROSE-PRUNE: narrative/incident detail pruned from design/ARCHITECTURE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`rclone:filen:backups/restic/minecraft`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`rclone:filen:backups/restic/paperless`	PROSE-PRUNE: narrative/incident detail pruned from design/ARCHITECTURE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`rclone:filen:backups/restic/postgres`	PROSE-PRUNE: narrative/incident detail pruned from design/ARCHITECTURE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`reasoning_content`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md,llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`reclaimPolicy: Delete`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`redirect_uri`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`redis-cluster.enabled`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`reflector`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`repeat_interval: 24h`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`require_valid_user_except_for_up`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`resource-pack`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/minecraft.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`restic check --read-data`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`restic forget --keep-daily 30 --prune`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`restic forget --prune`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`restic repair packs`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`restic`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`rexi_server : cluster stable`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`routes/api/login.ts`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`scan-vulnerabilityreport-*`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`scan-vulnerabilityreport-5dc5f95f99`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`secretKeyRef: {name: myapp-role-secret, key: password}`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`secrets.md`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`settings/__init__.py`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`severity: info`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`shenxn/…`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`single_node = true`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`single_node`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`snapshot a7ddaf50 saved`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`soft`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/storage.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`some`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`sonarr:4.0.*`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`spark`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/minecraft.md,design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`spec.managed.roles`	PROSE-PRUNE: narrative/incident detail pruned from design/ARCHITECTURE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`src/paperless/settings/parsers.py`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`startedAt`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`startup`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`statefulset.yaml:145-155`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`storageClass: nfs-client`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`storageClassName: nfs-client`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`string`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`swap: true, exclusive: true`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`systemReserved`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`systemctl poweroff`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`talenv.sops.yaml`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`talhelper`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`talosctl get links -o yaml \| grep -iE 'id:\|mtu:'`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`talosctl shutdown`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`tcp://172.16.20.2:3493`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`tofu init`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/docs/secrets.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`uid: minecraft`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`unknown value for --flash-attn: '--cache-reuse'`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`unlock`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`up=0`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`upperBound`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`ups.delay.shutdown`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`ups.load`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`ups.realpower`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`ups.status`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`ups`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`upsc ups`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`upsmon -c fsd`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`upsmon`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`usbhid-ups`	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`utils/couchdb/provision.ts`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`v166-cpu-b6795`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`v251-cpu-b10680`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`v3.24.2`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`v<ver>-cpu-b<llama-build>`	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`valkey-data-gitea-valkey-cluster-{0,1,2}`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`vanilla`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/TODO.md,design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`vectors.so`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/immich.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`velocity.enabled: false`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/minecraft.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`vmagent-...-cd79fb77d`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`vmagent.spec.extraArgs.promscrape.maxConcurrency: "4"`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`vmagent`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`vmsingle`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`vpa-recommender`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`vv1.0.112`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`wal_fsync_duration`	DELETED-PROPOSAL: only in a deleted proposal (monitoring-stabilization.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`world`	PROSE-PRUNE: narrative/incident detail pruned from design/decisions/minecraft.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`zitadel-role-secret`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`zitadel-setup`	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+`{"q":2,"n":1,"w":1,"r":1}`	PROSE-PRUNE: narrative/incident detail pruned from design/TODO.md,design/decisions/obsidian-livesync.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`{release-name}-{name}`	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`|| echo "0"`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`~/.config/opencode/opencode.jsonc`	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+`~> 3.0`	PROSE-PRUNE: narrative/incident detail pruned from design/docs/secrets.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`…10828-…-ls315`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`…10896-…-ls321`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+`✅ no new violations`	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+cas.openebs.io/config	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+curl the	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+design/AI_CONTEXT.md	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+design/ARCHITECTURE.md	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+design/CLAUDE.md	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+design/RUNBOOK.md	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+design/llm-deployment.md	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+design/llm-inference.md	RENAMED-PATH: path or name of a file deleted or renamed by this plan
+docs.openwebui.com/features	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+docs.openwebui.com/features/authentication-access/auth/sso/	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+docs.rs-online.com/b339	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+docs.rs-online.com/b339/A700000009976135.pdf	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+ghcr.io/mostlygeek	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+ghcr.io/mostlygeek/llama-swap:cpu	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+ghcr.io/opentofu	PROSE-PRUNE: narrative/incident detail pruned from design/docs/secrets.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+ghcr.io/opentofu/opentofu	PROSE-PRUNE: narrative/incident detail pruned from design/docs/secrets.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+ghcr.io/videocurio/	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/AI_CONTEXT.md,design/RUNBOOK.md,design/decisions/protonmail-bridge.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+github.com/FareedKhan-dev/kimi-k3-in-c	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+github.com/filebrowser	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+github.com/filebrowser/filebrowser/security/advisories	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+github.com/ggml-org	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+github.com/ggml-org/llama.cpp/issues/19480	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+github.com/gtsteffaniak	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+github.com/gtsteffaniak/filebrowser	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+github.com/mostlygeek	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+github.com/mostlygeek/llama-swap	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+github.com/networkupstools	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+github.com/networkupstools/nut/issues/3010	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+github.com/pelican-dev	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+github.com/pelican-dev/panel/discussions/933	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+homelab.blackcats.cc/workload	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+infra/packer/	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md,design/RUNBOOK.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+infra/proxmox/nut/	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+joplin.blackcats.cc/api/saml	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+jq or	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+jq that	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+kubeconform was	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+kubectl access	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+kubectl taint	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+kubectl top	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+kubent row	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+kubernetes.io/hostname	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/TODO.md,design/docs/networking.md,design/llm-deployment.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+kubernetes.io/hostname:k8s-cp-3	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+kubernetes/apps/ai/llama-swap/app/config-configmap.yml	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+kubernetes/apps/gitea/gitea/app/helmrelease.yml	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+kubernetes/apps/immich/backup/app/pvc.yml	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+kubernetes/apps/kustomization.yml	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+kubernetes/apps/media/minecraft*/	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+kubernetes/apps/monitoring/ups-monitoring/	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+kubernetes/apps/postgres/backup/app/	PROSE-PRUNE: narrative/incident detail pruned from design/ARCHITECTURE.md,design/docs/secrets.md,design/llm-inference.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+kubernetes/flux/.../apps.yaml	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+llm.blackcats.cc/v1	DELETED-PROPOSAL: only in a deleted proposal (llm-deployment.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+manpages.debian.org/testing/llama.cpp-tools/llama-server.1.en.html	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+mise activate	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+mise costs	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+mise gives	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+mise shims	PROSE-PRUNE: narrative/incident detail pruned from design/CLAUDE.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+networkupstools.org/ddl/Eaton/Ellipse_PRO_650.html	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+northflank.com/blog	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+northflank.com/blog/what-is-kimi-k3-self-hosting	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+operator.victoriametrics.com/v1beta1	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+rclone backend	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+rclone filen	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+rclone needs	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+restic a	PROSE-PRUNE: narrative/incident detail pruned from design/RUNBOOK.md,design/TODO.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+restic cannot	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+restic did	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+restic flow	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+restic forget	PROSE-PRUNE: narrative/incident detail pruned from design/AI_CONTEXT.md,design/TODO.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+restic job	PROSE-PRUNE: narrative/incident detail pruned from design/docs/services.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+restic maintenance	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+restic mover	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+restic normally	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+restic parallelises	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+restic process	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+restic repair	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+restic repos	PROSE-PRUNE: narrative/incident detail pruned from AGENTS.md; the governing rule survives (load-bearing candidates hand-verified — see task-13-report.md)
+restic runs	TODO-TRIM: TODO entry closed/shipped, removed by the TODO trim; open work retained in design/TODO.md
+store.minisforum.com/products	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+store.minisforum.com/products/minisforum-ms-02-ultra-workstation	DELETED-PROPOSAL: only in a deleted proposal (llm-inference.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+v1.13.2	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+v1.36.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+v1.4.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+v1.5.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+v2.63.23	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+v2.9.1	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+v3.0.0	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+v3.26.0	VERSION: bare version number — the no-deployed-versions rule; durable constraints were kept
+www.eaton.com/content	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+www.eaton.com/content/dam/eaton/products/backup-power-ups-surge-it-power-distribution/backup-power-ups/eaton-ellipse-pro-ups/Eaton	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+www.eaton.com/gb	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+www.eaton.com/gb/en-gb/skuPage.ELP850IEC.html	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+www.synology.com/en-us	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
+www.synology.com/en-us/compatibility	DELETED-PROPOSAL: only in a deleted proposal (ups-power.md) — shipped state lives in decisions/llm.md + decisions/monitoring.md; ups-power was never built
