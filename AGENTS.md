@@ -1,154 +1,107 @@
-# Homelab — Claude Context
+# Homelab — agent context
 
-## What this repo is
+**Output shape:** follow `.agents/skills/i-have-adhd/SKILL.md` for every response in this repo.
 
-Infrastructure-as-Code repository for a personal homelab that doubles as a production
-environment. The primary compute platform is a **Talos Linux Kubernetes cluster**
-managed by **FluxCD**. Everything — VM templates, cluster bootstrap, and service
-deployment — is declarative and driven from git.
+Talos Linux Kubernetes cluster on the `blackcats.cc` domain, managed by FluxCD.
+Everything is declarative and driven from git: VM templates (Packer), VMs + Cloudflare
+DNS + Zitadel OIDC (OpenTofu, always applied by hand), node OS (talhelper, SOPS+age),
+cluster workloads (Flux, from `main`). A tiny compose remnant survives only for ZeroTier.
 
-A tiny Docker Swarm/compose remnant survives only for the handful of workloads that
-need host networking outside the cluster (ZeroTier gaming VPN). Netbird, the primary
-remote-access VPN, runs as a Talos extension on every node — not on a VM.
+## Hard rules
 
-## Design specs
+- **Never write a raw `Secret`** — seal it: `mise exec -- kubeseal --cert kubernetes/flux/pub-cert.pem --format yaml < /tmp/secret.yaml > <name>-sealed.yml`
+- **Never use `Ingress`** — use `HTTPRoute`/`GRPCRoute` with `parentRefs: [{name: shared, namespace: gateway}]`
+- **Never `kubectl apply` a config change** — it goes through git and Flux; `kubectl` is for diagnostics only
+- **Never set `spec.targetNamespace`** on a Kustomization whose resources span namespaces — it overrides every explicit namespace field
+- **Never use `nfsvers=4.1`** in a static PV — the Talos kernel supports NFSv4 only
+- **Never use a rolling image tag** (`latest`, `3`) — and linuxserver.io images need the FULL tag, their short `X.Y.Z` is mutable
+- **Never put Python at 0-indent** inside a YAML `|` block scalar — it breaks the kustomize parser
+- **Never `apk add` without `timeout 300`** in a Job or initContainer — an unbounded stall wedges the pod Running with empty logs forever
+- **Never install rclone from Alpine apk** where the filen backend is needed — it needs v1.69+, from `downloads.rclone.org`
+- **Never trust `optional: true` on an app-template `envFrom`** — chart 3.7.3 strips it silently
+- **Never assume a Helm values path took effect** — a wrong path is a silent no-op; render or check the live object
+- **Never size a workload from Goldilocks/VPA** — there is no metrics-server, so its numbers are fabricated floors
 
-All design specs live in **[design/](design/)** — committed alongside the code, kept in
-sync with the implemented state. Read only the file(s) relevant to your current task.
+## Tools
 
-| File | Covers |
-|---|---|
-| [design/CLAUDE.md](design/CLAUDE.md) | **Start here for k8s work** — conventions, adding services, sealed secrets, what not to do |
-| [design/AI_CONTEXT.md](design/AI_CONTEXT.md) | Canonical context: topology, network, ingress, auth, secrets, GitOps, service inventory, gotchas |
-| [design/ARCHITECTURE.md](design/ARCHITECTURE.md) | Design decisions and rationale |
-| [design/RUNBOOK.md](design/RUNBOOK.md) | Bootstrap, upgrades, recovery procedures |
-| [design/docs/networking.md](design/docs/networking.md) | IP plan, Cilium, L2 pools, Gateway API hierarchy, cert-manager, external-dns |
-| [design/docs/services.md](design/docs/services.md) | Full service inventory: namespace, hostname, auth, storage |
-| [design/docs/gitops.md](design/docs/gitops.md) | Flux structure, Kustomization tree, adding a service end-to-end |
-| [design/docs/secrets.md](design/docs/secrets.md) | Sealed Secrets, CNPG password + Reflector, Zitadel bootstrap secret formats |
-| [design/docs/storage.md](design/docs/storage.md) | Storage classes, static NFS PV, OpenEBS hostpath, PVC patterns |
-| [design/decisions/](design/decisions/) | **Per-service decision bodies** — the gotchas behind the pointer rows below. Read the one matching the service you're touching; never read the whole directory. |
-| [design/TODO.md](design/TODO.md) | Known gaps and planned work |
+All k8s tooling is managed by mise and is NOT on `PATH`:
+`mise exec -- kubectl|flux|kubeseal|talosctl|talhelper|helm|kubeconform`
 
-### Which design file to read
+After editing a manifest: `.agents/scripts/validate-manifests.sh <path>`
 
-| If your task involves... | Read |
-|---|---|
-| Anything Kubernetes (Talos, Cilium, CNPG, Flux, app deploys) | [design/CLAUDE.md](design/CLAUDE.md), then [design/AI_CONTEXT.md](design/AI_CONTEXT.md) and the relevant `design/docs/` file |
-| Adding or modifying a service | [design/docs/gitops.md](design/docs/gitops.md) + [design/docs/services.md](design/docs/services.md) |
-| Ingress, DNS records, Gateway API, certs | [design/docs/networking.md](design/docs/networking.md) |
-| Secrets, Sealed Secrets, CNPG passwords, OIDC bootstrap | [design/docs/secrets.md](design/docs/secrets.md) |
-| Storage classes, PVCs, NFS | [design/docs/storage.md](design/docs/storage.md) |
-| SSO / OIDC | [design/AI_CONTEXT.md](design/AI_CONTEXT.md) (auth model) |
-| Bootstrap, upgrades, recovery | [design/RUNBOOK.md](design/RUNBOOK.md) |
-| VM templates / OpenTofu provisioning | files under [infra/](infra/) |
+Repo task runner: `justfile`.
 
-## Keeping design in sync with implementation
-
-Design files (`design/`) describe the **intended and implemented** state — not just plans.
-Once implementation begins, reality takes precedence over the design.
-
-**When you make any change to IaC (Talos config, Flux manifests, Helm values, OpenTofu,
-Packer, image Dockerfiles, scripts):**
-- If the change differs from what the relevant design file describes, update the design
-  file to match what was actually built.
-- Update the matching key-decision entry below if a decision changed during
-  implementation (a service swapped, a tool replaced, an approach simplified). Don't
-  leave it describing the original plan.
-
-**Do not record deployed version numbers in this file.** Image tags and chart versions
-move on every Renovate PR, and a stale pin here is worse than no pin — it reads as
-authoritative and gets copied into manifests. The manifest is the source of truth; check
-it with `kubectl`/`grep` when the running version actually matters. Versions belong here
-only when they are *durable facts* rather than current state: a constraint (`rclone
-v1.69+` for the filen backend, Gateway API `<1.7.0`), a known-bad or minimum version
-(homebox `0.25.0`), or a recorded incident (`allauth 65.16` changed the token-auth
-inference). Those stay true after the next bump; "we run X.Y.Z" does not.
-
-## Synology share naming convention
-
-| Shared folder | Path | Purpose |
-|---|---|---|
-| Media | `/volume2/Media/` | Single NFS export, surfaced in-cluster as the `media-nfs` RWX PVC; contains `Series/`, `Movies/`, `Downloads/`, `Photos/`, `Manga/`, etc. |
-| Backups | `/volume2/backups/` | restic repos (offsite staging), DB dumps, recovery keys (incl. the Sealed Secrets key backup) |
-
-Application data shared by the media stack lives under the single `Media` share via the
-`media-nfs` PVC. Per-app config uses `nfs-client` dynamic PVCs. CNPG database data lives
-on cluster storage, never on the media share.
-
-## Key decisions (do not re-litigate without reason)
-
-### Platform & networking
-| Topic | Decision |
-|---|---|
-
-### Storage, secrets, backups
-| Topic | Decision |
-|---|---|
-
-### Auth & identity
-| Topic | Decision |
-|---|---|
-
-### Service-specific
-
-Pointers, not the decisions themselves. **Read the linked file before editing the named
-paths** — each holds gotchas that cost real debugging time and are invisible in the
-manifests. Do not re-litigate them without reason.
-
-| Service | Orientation | Read before touching |
-|---|---|---|
-| Immich | OIDC via Zitadel; embeddings on **VectorChord** in shared CNPG (`DB_VECTOR_EXTENSION` must stay **unset**); custom Postgres image; user migration needs `asset`+`album`+`person`. **pgvector must be built with an explicit `OPTFLAGS`** (Makefile defaults to `-march=native`, which bakes the GitHub runner's ISA into `vector.so`) — image tag **v1.1.1 is permanently broken**, it SIGILLs on our AVX-512-less Arrow Lake CPUs; Renovate is disabled on `imagecatalog.yml`. | `design/decisions/immich.md` — `kubernetes/apps/immich/`, `kubernetes/images/postgres-cnpg-immich/` |
-| Plex | `media` ns, `replicas: 1`. Web via HTTPRoute; direct/GDM via pool-b LB pinned to `172.16.20.51` (must not drift to `.52`). CPU-only transcoding. | `design/decisions/plex.md` — `kubernetes/apps/media/plex/` |
-| Proxmox OIDC | Proxmox is **bare metal, not a k8s workload**. Zitadel app provisioned by Terraform, secret lands in `auth` ns with no consumer. **Never front Proxmox behind the cluster Gateway** (circular dependency). | `design/decisions/proxmox-oidc.md` — `kubernetes/apps/auth/`, `infra/terraform/` |
-| RomM | Game/ROM manager in `media`. External CNPG + embedded Valkey on `emptyDir` (keep off NFS). Runs as root, ignores PUID/PGID. OIDC via optional `envFrom`. | `design/decisions/romm.md` — `kubernetes/apps/media/romm/` |
-| Minecraft | Two Paper servers (matcha, vanilla) + **Velocity** proxy on its own pool-b IP `172.16.20.52`. World data on `openebs-hostpath`, **never NFS**. Many traps: proxy IP sharing, memory sizing, quiesced backups, `server.properties` drift, plugin ports, Modrinth loaders. | `design/decisions/minecraft.md` — `kubernetes/apps/media/minecraft*/` |
-| Proton Mail Bridge | Makes E2E-encrypted Proton mail readable by Paperless as local IMAP. In the `paperless` ns, IMAP-only ClusterIP, `openebs-hostpath` (gluon = SQLite), not backed up. **Its self-signed cert has one SAN, `IP:127.0.0.1`** — hence the socat sidecar in the Paperless pod; login is interactive and cannot be a Job. Use `ghcr.io/videocurio/…`, **not** `shenxn/…` (publishes stale images despite live commits). | `design/decisions/protonmail-bridge.md` — `kubernetes/apps/paperless/protonmail-bridge/`, `kubernetes/apps/paperless/paperless/` |
-| Obsidian LiveSync | CouchDB in its own `obsidian` ns, sync backend for the Obsidian plugin. **Central server, not Syncthing P2P** (deliberate — see file). `openebs-hostpath`, **never NFS**. The one user-facing service **not** behind Zitadel (HTTP Basic; the plugin has no OIDC path). Five traps: a ConfigMap mounted under `/opt/couchdb` kills the entrypoint silently (exit 1, **empty logs**) via its recursive `chown -f` under `set -e` — config must be copied by an initContainer onto an emptyDir; plus `NODENAME`, `single_node`, authenticated `exec` probes, per-platform CORS origins. | `design/decisions/obsidian-livesync.md` — `kubernetes/apps/obsidian/` |
-| Joplin | Own `joplin` ns. External CNPG; blobs on a dedicated PVC (**not** `Type=Database`). **SSO is SAML, not OIDC** — SP metadata must stay byte-identical to Terraform, and probes need an explicit `Host` header. | `design/decisions/joplin.md` — `kubernetes/apps/joplin/` |
-
-<!-- Row bodies live in design/decisions/. Adding a service here means adding a POINTER,
-     not a body. If a row exceeds ~200 chars, move it out. See .claude/TODO.md. -->
-
-
-### Kubernetes stack
-| Topic | Decision |
-|---|---|
-
-## IP map (quick reference)
+## Network
 
 ```
-172.16.20.2    Synology RS1219+   — physical, NFS storage only (Btrfs /volume2)
-172.16.20.3    Proxmox host       — physical, hypervisor (LVM-thin; hosts the Talos VMs)
-               Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E) — verified from /proc/cpuinfo.
-               Minisforum **MS-02 Ultra**. NOT an MS-A2 — that model is AMD, and the
-               Proxmox hostname `pve-msa2` is where that misidentification came from.
-               The CPU identity underpins every number in design/llm-inference.md:
-               6 P-cores is why llama.cpp runs --threads 6, and no AVX-512 is why the
-               immich pgvector image must be built with an explicit OPTFLAGS.
-172.16.20.4    DGX Spark          — physical, GPU box, WOL (not a k8s node)
-172.16.20.10   API VIP            — kube-apiserver endpoint (floats via leader election)
-172.16.20.11   cp-1               — Talos control plane (schedulable, runs workloads)
-172.16.20.12   cp-2               — Talos control plane (schedulable, runs workloads)
-172.16.20.13   cp-3               — Talos control plane (schedulable, runs workloads)
-172.16.20.14   llm-1              — Talos worker, LLM inference only (tainted workload=llm)
-172.16.20.23   VPN VM             — ZeroTier (plain compose, outside cluster)
-172.16.20.50   Gateway VIP        — pool-a, shared Gateway ingress (Cilium L2)
-172.16.20.51   pool-b             — Plex direct/GDM LoadBalancer
-172.16.20.52   pool-b             — minecraft-proxy / Velocity LoadBalancer
-172.16.20.254  UDM SE             — gateway + DNS resolver + ad blocking
+172.16.20.2    Synology RS1219+     NFS only (/volume2)
+172.16.20.3    Proxmox host         hypervisor (LVM-thin), hosts the Talos VMs
+172.16.20.4    DGX Spark            GPU box, WOL, not a k8s node
+172.16.20.10   API VIP              kube-apiserver endpoint
+172.16.20.11/.12/.13  cp-1/2/3      Talos control plane, schedulable
+172.16.20.14   llm-1                Talos worker, tainted workload=llm
+172.16.20.23   ZeroTier VM          plain compose, outside the cluster
+172.16.20.50   Gateway VIP          pool-a, shared Gateway ingress (Cilium L2)
+172.16.20.51   pool-b               Plex direct/GDM LB — must not drift to .52
+172.16.20.52   pool-b               minecraft-proxy / Velocity LB
+172.16.20.254  UDM SE               gateway + DNS resolver + ad blocking
 ```
 
-Netbird (`wt0`, 100.80.x.x/16) runs as a Talos extension on every node, not on a VM.
-See [design/AI_CONTEXT.md](design/AI_CONTEXT.md) for the IP isolation guards in `talconfig.yaml`.
+Netbird (`wt0`, `100.80.x.x/16`) runs as a Talos extension on every node, not on a VM.
 
-## IaC stack
+Synology shares: `/volume2/Media/` — one NFS export, the `media-nfs` RWX PVC, holding
+`Series/`, `Movies/`, `Downloads/`, `Photos/`, `Manga/`. `/volume2/backups/` holds the
+restic repos (offsite staging), DB dumps, recovery keys. Per-app config uses `nfs-client`
+dynamic PVCs; CNPG data lives on cluster storage, never on the media share.
 
-- **Packer** — base VM templates (Debian, Talos) stored in Proxmox; see [infra/packer/](infra/packer/)
-- **OpenTofu** — VM provisioning + Cloudflare DNS + Zitadel OIDC bootstrap; state in Synology PostgreSQL (`tofu_state`); see [infra/terraform/](infra/terraform/). `tofu apply` is always manual.
-- **Talos + talhelper** — immutable node OS, config in `kubernetes/talos/` (SOPS-encrypted secrets)
-- **FluxCD** — GitOps reconciliation of everything under `kubernetes/apps/`
-- **Secrets** — Sealed Secrets for app secrets; SOPS + age for Talos/Terraform secrets (single age key)
-- **Task runner** — `justfile`
-- **k8s tooling** — `kubectl`, `flux`, `kubeseal`, `talosctl`, `talhelper`, `helm`, `kubeconform` are managed by **mise**; invoke via `mise exec -- <tool>` (they may not be on `PATH`)
-- **CI/CD** — GitHub Actions: image builds → GHCR (`backup-tools`, `postgres-cnpg-immich`) and two PR gates: `manifest-scan` (kubeconform + kube-linter) and `image-scan` (grype + osv-scanner CVE delta on every changed container image). Renovate opens dependency-bump PRs. CI never auto-applies to the cluster — Flux does that from `main`. See [design/docs/gitops.md](../design/docs/gitops.md) — note `image-scan` must diff whole-file image sets, not diff hunks, because Renovate usually changes only a `tag:` line.
+Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02 Ultra
+— NOT an MS-A2, despite the `pve-msa2` hostname. 6 P-cores is why llama.cpp runs
+`--threads 6`; no AVX-512 is why the immich pgvector image needs an explicit `OPTFLAGS`.
+
+## Which file to read
+
+| Your task touches...                                 | Read (only this)                      |
+|------------------------------------------------------|---------------------------------------|
+| adding or changing a service, Flux structure          | design/docs/gitops.md                 |
+| Flux Kustomizations, versions, bootstrap Jobs         | design/decisions/flux.md              |
+| HTTPRoute, DNS, certs, Gateway API                    | design/docs/networking.md             |
+| Cilium config, MTU, ALPN, TCPRoute                    | design/decisions/cilium-gateway.md    |
+| Postgres, CNPG, DB passwords, Reflector               | design/decisions/cnpg.md              |
+| PVCs, storage classes, NFS                            | design/docs/storage.md                |
+| Sealed Secrets, OIDC bootstrap secrets                | design/docs/secrets.md                |
+| a HelmRelease, app-template, Reloader                 | design/decisions/helm-charts.md       |
+| backup CronJobs, restic, etcd snapshots               | design/decisions/backups.md           |
+| VictoriaMetrics, Grafana, VMRule, alerts              | design/decisions/monitoring.md        |
+| Minecraft metrics, mc-monitor, world-size alerts      | design/decisions/minecraft-monitoring.md |
+| Gotify, notifications, the telegram bridge            | design/decisions/gotify.md            |
+| Trivy, Falco, kubent, kube-linter, k8s-cleaner        | design/decisions/security-tooling.md  |
+| any Job, CronJob, or initContainer script             | design/decisions/jobs-and-scripts.md  |
+| image tags, Renovate                                  | design/decisions/images.md            |
+| Zitadel, SSO, the Terraform bootstrap                 | design/decisions/zitadel.md           |
+| Gitea                                                 | design/decisions/gitea.md             |
+| FreshRSS or Paperless OIDC                            | design/decisions/oidc-apps.md         |
+| Immich                                                | design/decisions/immich.md            |
+| Plex                                                  | design/decisions/plex.md              |
+| sonarr/radarr/prowlarr/sabnzbd/seerr/suwayomi/kavita  | design/decisions/media-stack.md       |
+| Minecraft servers, Velocity proxy, world data         | design/decisions/minecraft.md         |
+| RomM                                                  | design/decisions/romm.md              |
+| Joplin                                                | design/decisions/joplin.md            |
+| Homebox                                               | design/decisions/homebox.md           |
+| Obsidian LiveSync                                     | design/decisions/obsidian-livesync.md |
+| Proton Mail Bridge                                    | design/decisions/protonmail-bridge.md |
+| changedetection.io, sockpuppetbrowser, its non-Zitadel login | design/decisions/changedetection.md |
+| Proxmox OIDC                                          | design/decisions/proxmox-oidc.md      |
+| the LLM stack                                         | design/decisions/llm.md               |
+| service inventory, hostnames, auth model              | design/docs/services.md               |
+| topology, nodes, IP plan, Netbird, Synology shares    | design/architecture.md                |
+| bootstrap, upgrades, recovery                         | design/runbook.md                     |
+| open work, known gaps                                 | design/TODO.md                        |
+
+## Keeping docs in sync
+
+When you change IaC, update the one file this table routes to — design files describe the
+**implemented** state, so reality wins over the plan. New gotchas go to
+`design/decisions/<topic>.md`, never into this file; only add a row here if the rule
+applies repo-wide. Never record a deployed version number: a stale pin reads as
+authoritative and gets copied into manifests. Versions belong in a decision file only as
+durable constraints (`rclone v1.69+`, Gateway API `<1.7.0`, homebox `0.25.0`).
