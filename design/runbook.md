@@ -997,9 +997,9 @@ talosctl bootstrap \
 `--recover-from` replaces the plain `talosctl bootstrap` in step 3 of the full wipe —
 running both re-initialises etcd and discards the snapshot.
 
-> **Untested.** No etcd snapshot has been restore-tested end-to-end (see TODO.md →
-> "Backup restore actually works"). Treat the steps above as the intended procedure,
-> not a verified one.
+> **Untested.** No etcd snapshot has been restore-tested end-to-end (TODO.md →
+> Planned, "No backup has ever been restore-tested end-to-end"). Treat the steps above
+> as the intended procedure, not a verified one.
 
 ### Restore an application backup from a given date
 
@@ -1037,11 +1037,12 @@ a single file to stdout — handy for piping a `.pgdump` straight into `pg_resto
 
 > **`HOME=/tmp` is required.** The image runs as uid 65534 with a non-writable `/`, and
 > restic aborts its cache setup with `unable to open cache: mkdir /.cache: permission
-> denied` otherwise. Note also that `backup-tools` has **no `python3` and no `jq`**, and
-> its `find` is busybox (no `-printf`, no `-readable`).
+> denied` otherwise. Note also that `backup-tools` has **no `python3`** (`jq` is present
+> from image v1.1.0 onward; older tags lack it), and its `find` is busybox (no
+> `-printf`, no `-readable`).
 
-> **Untested.** No application snapshot has been restore-tested end-to-end either (see
-> TODO.md → "Backup restore actually works").
+> **Untested.** No application snapshot has been restore-tested end-to-end either
+> (TODO.md → Planned, "No backup has ever been restore-tested end-to-end").
 
 > **Obsidian/CouchDB restores have two extra constraints.** The snapshot holds CouchDB
 > *shard files*, not markdown — restoring produces a database, and the vault only comes

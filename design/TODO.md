@@ -82,6 +82,17 @@ Open work only. A finished item is deleted, not struck through.
   so the service isn't down for maintenance that never touches the live PVC. A SIGKILL
   (OOM, node reboot) mid-run skips the trap entirely and would leave immich-server
   stuck at 0 replicas indefinitely — not yet observed, but undefended.
+- **No backup script clears a stale restic lock.** A job killed mid-run (OOM, node
+  reboot, `activeDeadlineSeconds`) leaves a lock that then blocks *every following
+  night* for that repo, not just its own run: restic only auto-expires a lock it can
+  prove is dead, which needs the lock's hostname to match the current host, and every
+  Job pod has a unique hostname. Plain `restic unlock` therefore does not clear it —
+  `--remove-all` does — and any restic command blocked on a held lock exits `rc=11` in
+  ~2s. Observed 2026-08-05 (`immich-backup`, `Exit 11`: the snapshot was written, only
+  `forget --prune` and `check` were skipped, so Gotify reported a failure against an
+  otherwise intact repo). Add a defensive `restic unlock --remove-all` at the start of
+  each backup script — safe *here* only because each repo has exactly one job and every
+  CronJob is `concurrencyPolicy: Forbid`; never copy that to a shared repo.
 - No backup has ever been restore-tested end-to-end. Pick one app (Immich highest
   value), restore into a clean PVC + fresh CNPG database, document the procedure in
   RUNBOOK. The etcd snapshot restore (`talosctl bootstrap --recover-from`) is the same
