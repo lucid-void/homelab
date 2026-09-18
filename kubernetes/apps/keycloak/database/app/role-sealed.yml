@@ -1,0 +1,20 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: keycloak-role-secret
+  namespace: postgres
+spec:
+  encryptedData:
+    password: AgBFqDF/KzA94Ou015oOj+g88xSIIfUVSPWWfeC0l45Qifjlz1jt5L5FV8AQ6KZd2nAIWTfQin+I66HGNFWt2aOltlVENxH/db0qa+ZlTXzGnBC+nO3CxMOBkID5k2UJqR35FWoHQ7FjDeVZXrJX5A0XAx/IkSUjGqKzLJdPI+GKmGdXDLlIwSPXx6nzUhGMvypXUL1F8MgxG1I1xLpyKurR7RquxHHm/FlFuCDEa5Lvz0zpmP2YouW0bIhNmzgIibSigc5q5VlFSXsdm3aJ7EFwZEhbYAPv5VE5WfUnbAw+p98e02rPBkX7VKr3+5FwCm9uZISeMEOuNx4CFqqqDwgV/h8K8w3FkV0DwIe9kpSvo2CAu+dCu/PiShPEz7+ASuPfSOh0h7QtSfFiL7KvpjR1n84fYUnad4/0t1o6rSWX8rSmxV7cpeG497v8AzV4VO0DdKO/sBxwdHviqDeFXlRX4AygOIxnetAmqoWvIcCXrSd7C9Baj7n2OLhLFWla8Pg6k8QgalvY4XDuhnYzbIhkndhAeGU+hHQ8nNg4H6fG+QK4Ou87pY2d22EkE/JvqQI9Btn5QHlPDmHpgKIWUSAi2/wyEmbaZD1XFGNwpaCyvU009QcSuAZ/qsPQyT19PT8suY1B5eKipNUDzG5ACuBRCc4qb5Xe/AGjKlJYNA8t91AZaOgtUDwmzJL+EXqWUMx/kistJmk7SRPpRODansPesudc7KAWYWj1Zca65hrg0w==
+    username: AgB6ycNhALs0bmAXHMBUK0j5XXoXEbbr50hPkffKSEeo+StkRMUTMDb4VEGaSGTpc+X5uSRVGvrtXlFE7Ruy9VoZLL2edocsZoTizQzPKQF8WoIh5soCluiA1EqpYEKc/NDJlPyCI1YhVaYWI/kL2d+T2h4dEj+OBZq8vCiZZQG9nriOEcDXyiWPU+0HuXzTzjsDI7zK5VHegz4J6dfGfAilXEHEVudmdtnpfJ0i5duW2l413IveuTHVEnXGfMwH6AEctlEH8EA0hkl+XlMO/y3QvB0Fw6hA5ChlHdNd9BBaL8BMrFS8K3XgcMdwzLd6GApWwbcm6lQtsZv4aLbgja0sxCfa+lJCiHdoI5EQu7mkrBPAieraF9k6OROugKhBWO/OQB6k27ihuv5DH302jcbGDFDyf4kaa1VxXy94MVQf8nyOnOwRQM382bfUvpHYoTZQ4KGCHWzskx/Jt8PDMbfwTgha8uXzW6Nk+sWGSgfNbwXM8wRgtj1/Fs4jNOtq8L8C++RbVyuo9fU8PhCyylmxF6uI2nAndOWYvsEGJOdl0u/4UzJBCqyO9xa67s6MypcXuBMmBB0BDwiAEfXaTI34kSIPAxb1jjk6NLykk6DkvqWbVdkGF9lFGs+nlHlEOYHGpNWEe2F+DJwsFvJvabp+h0CDZRRNyGOJUUV4adOh1xrwi9/3QikqtRbi5EqeUDoCaC0OdrlhSw==
+  template:
+    metadata:
+      annotations:
+        reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+        reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: keycloak
+        reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+        reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: keycloak
+      name: keycloak-role-secret
+      namespace: postgres
+    type: kubernetes.io/basic-auth

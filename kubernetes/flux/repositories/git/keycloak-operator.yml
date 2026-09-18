@@ -1,0 +1,21 @@
+---
+# https://www.keycloak.org/operator/installation
+#
+# This tag pins BOTH the operator and the Keycloak server image the operator
+# deploys — the Keycloak CR carries no image field, so the operator installs the
+# server version it ships with. A Renovate bump here is therefore a Keycloak
+# upgrade, not merely an operator bump: read the Keycloak upgrade notes for the
+# target version before merging, and expect a DB schema migration on rollout.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: keycloak-operator
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://github.com/keycloak/keycloak-k8s-resources
+  ref:
+    tag: 26.7.4
+  ignore: |
+    /*
+    !/kubernetes
