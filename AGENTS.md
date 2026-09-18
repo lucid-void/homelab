@@ -63,7 +63,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Your task touches...                                 | Read (only this)                      |
 |------------------------------------------------------|---------------------------------------|
 | adding or changing a service, Flux structure          | design/docs/gitops.md                 |
-| a wedged pod, empty logs — a Job, CronJob or initContainer script | design/decisions/jobs-and-scripts.md |
+| a pod stuck Running, zero log output, `backoffLimit` never fires | design/decisions/jobs-and-scripts.md |
 | Flux Kustomizations, Flux version pins, `force: true` re-runs | design/decisions/flux.md        |
 | HTTPRoute, DNS, certs, Gateway API                    | design/docs/networking.md             |
 | Cilium config, MTU, ALPN, TCPRoute                    | design/decisions/cilium-gateway.md    |

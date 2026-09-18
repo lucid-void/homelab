@@ -3,5 +3,15 @@
   "instructions": ["AGENTS.md"],
   "skills": {
     "paths": [".agents/skills"]
+  },
+  "command": {
+    "review-k8s": {
+      "description": "Review kubernetes manifests for repo-specific mistakes",
+      "template": "{file:.agents/commands/review-k8s.md}"
+    },
+    "update-docs": {
+      "description": "Sync design/ with the actual state of kubernetes/",
+      "template": "{file:.agents/commands/update-docs.md}"
+    }
   }
 }
