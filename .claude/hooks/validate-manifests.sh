@@ -1,31 +1,26 @@
 #!/usr/bin/env bash
-# Runs after Edit/Write tool calls. Validates any kubernetes YAML file that was just modified.
+# Claude Code PostToolUse wrapper: parse file_path from stdin JSON, delegate.
+# The real logic lives in .agents/scripts/validate-manifests.sh so any harness
+# (or a human) can run it without a hook.
 set -euo pipefail
 
-# Parse file_path from stdin JSON (Claude Code PostToolUse hook input)
-STDIN=$(cat)
-FILE_PATH=$(echo "$STDIN" | python3 -c "
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+FILE_PATH=$(python3 -c "
 import json, sys
 try:
-    d = json.load(sys.stdin)
-    print(d.get('tool_input', {}).get('file_path', ''))
+    print(json.load(sys.stdin).get('tool_input', {}).get('file_path', ''))
 except Exception:
     print('')
-" 2>/dev/null || echo "")
+" 2>/dev/null || true)
 
-# Only validate files inside kubernetes/
 [[ -z "$FILE_PATH" ]] && exit 0
-[[ "$FILE_PATH" != */kubernetes/*.yml ]] && [[ "$FILE_PATH" != */kubernetes/*.yaml ]] && exit 0
-[[ ! -f "$FILE_PATH" ]] && exit 0
+case "$FILE_PATH" in
+  */kubernetes/*.yml|*/kubernetes/*.yaml) ;;
+  *) exit 0 ;;
+esac
 
-# Run via mise exec so kubeconform is found regardless of PATH
-which mise &>/dev/null || exit 0
-
-echo "kubeconform: $FILE_PATH"
-
-mise exec -- kubeconform \
-  -strict \
-  -ignore-missing-schemas \
-  -schema-location default \
-  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-  "$FILE_PATH" 2>&1 && echo "OK" || true
+# Silent on success; only a failure is worth transcript space.
+"$REPO/.agents/scripts/validate-manifests.sh" "$FILE_PATH" || {
+  echo "kubeconform FAILED: $FILE_PATH"
+  exit 0   # report, never block the edit
+}
