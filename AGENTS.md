@@ -63,20 +63,21 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Your task touches...                                 | Read (only this)                      |
 |------------------------------------------------------|---------------------------------------|
 | adding or changing a service, Flux structure          | design/docs/gitops.md                 |
-| Flux Kustomizations, versions, bootstrap Jobs         | design/decisions/flux.md              |
+| a wedged pod, empty logs — a Job, CronJob or initContainer script | design/decisions/jobs-and-scripts.md |
+| Flux Kustomizations, Flux version pins, `force: true` re-runs | design/decisions/flux.md        |
 | HTTPRoute, DNS, certs, Gateway API                    | design/docs/networking.md             |
 | Cilium config, MTU, ALPN, TCPRoute                    | design/decisions/cilium-gateway.md    |
 | Postgres, CNPG, DB passwords, Reflector               | design/decisions/cnpg.md              |
 | PVCs, storage classes, NFS, Synology shares, `extraMounts` | design/docs/storage.md           |
 | Sealed Secrets, OIDC bootstrap secrets                | design/docs/secrets.md                |
-| a HelmRelease, app-template, Reloader                 | design/decisions/helm-charts.md       |
-| backup CronJobs, restic, etcd snapshots               | design/decisions/backups.md           |
-| VictoriaMetrics, Grafana, VMRule, alerts              | design/decisions/monitoring.md        |
+| HelmRelease values, app-template, Reloader            | design/decisions/helm-charts.md       |
+| restic, rclone offsite copies, etcd snapshots, backup schedules | design/decisions/backups.md |
+| VictoriaMetrics, Grafana, VMRule alert rules, Goldilocks | design/decisions/monitoring.md     |
 | Minecraft metrics, mc-monitor, world-size alerts      | design/decisions/minecraft-monitoring.md |
-| Gotify, notifications, the telegram bridge            | design/decisions/gotify.md            |
+| Gotify, its app tokens, the Telegram bridge           | design/decisions/gotify.md            |
 | Trivy, Falco, kubent, kube-linter, k8s-cleaner        | design/decisions/security-tooling.md  |
-| image tags, Renovate                                  | design/decisions/images.md            |
-| Zitadel, SSO, the Terraform bootstrap                 | design/decisions/zitadel.md           |
+| pinning an image tag, lscr tags, Renovate regexes     | design/decisions/images.md            |
+| Zitadel, SSO, its Terraform bootstrap                 | design/decisions/zitadel.md           |
 | Gitea                                                 | design/decisions/gitea.md             |
 | FreshRSS, or Paperless (OIDC and the app itself)       | design/decisions/oidc-apps.md         |
 | Immich                                                | design/decisions/immich.md            |
@@ -91,7 +92,6 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | changedetection.io, sockpuppetbrowser, its non-Zitadel login | design/decisions/changedetection.md |
 | Proxmox OIDC                                          | design/decisions/proxmox-oidc.md      |
 | the LLM stack                                         | design/decisions/llm.md               |
-| a Job/CronJob/initContainer script no row above covers | design/decisions/jobs-and-scripts.md  |
 | service inventory, hostnames, auth model              | design/docs/services.md               |
 | topology, nodes, IP plan, Netbird, `talconfig.yaml`    | design/architecture.md                |
 | bootstrap, upgrades, recovery, VM provisioning (Packer, OpenTofu) | design/runbook.md         |
