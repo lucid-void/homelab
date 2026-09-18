@@ -67,6 +67,11 @@ Open WebUI reads OIDC config from `openwebui-oidc-secret`; its Kustomization has
   rendering — no error, the key just never reaches the manifest), so Open WebUI
   genuinely requires `openwebui-oidc-secret` and sits in `CreateContainerConfigError`
   without it, same as Kavita.
+- **LiteLLM and Open WebUI use different env var names for the same DB credential** —
+  `DATABASE_USERNAME` for LiteLLM, `DATABASE_USER` for Open WebUI. Open WebUI also only
+  builds a Postgres URL when **all five** `DATABASE_*` vars are set — miss one and it
+  falls back to SQLite on the PVC silently, and it does not URL-encode the password
+  before interpolating it, so the generated role passwords are kept alphanumeric.
 - **`--mlock` is not used** — it would need `IPC_LOCK`, which PSA `baseline` forbids,
   forcing the whole namespace to `privileged` to solve a problem the dedicated,
   otherwise-idle node doesn't have.

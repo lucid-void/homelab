@@ -38,6 +38,23 @@ Open work only. A finished item is deleted, not struck through.
   the tell. Either deploy metrics-server (needs proper kubelet serving certs on Talos)
   or delete Goldilocks + VPA outright; the 91-day `container_*` history already in
   VictoriaMetrics answers the same sizing questions via PromQL.
+- **Control-plane leader-election flapping investigation was never closed.**
+  kube-controller-manager/kube-scheduler intermittently lost their lease and restarted
+  (~1 per 17–20 min at the worst). CPU contention and etcd disk I/O (the TSDB sharing
+  etcd's disk on the leader node) were both tested and ruled out — stopping the TSDB
+  write path entirely did not change the flap rate. Last finding: a crash log showed
+  `etcdserver: request timed out` with etcd logs otherwise silent (no slow-apply/fsync
+  warnings) and low disk/CPU/memory — the signature of raft not committing in time
+  (quorum/peer/CPU-scheduling), not local disk. `listen-metrics-urls: http://0.0.0.0:2381`
+  (etcd) and `bind-address: "0.0.0.0"` (controller-manager, scheduler) in
+  `talconfig.yaml` were added specifically to expose the metrics needed to confirm
+  this and are still live for that reason. Never checked:
+  `etcd_server_proposals_pending`, `etcd_network_peer_round_trip_time_seconds`,
+  `etcd_disk_backend_commit_duration_seconds`. **Unverified as of 2026-09-18:** current
+  `kube-controller-manager`/`kube-scheduler` pod restart counts are low (2 per node
+  over the last 20 days, vs. hundreds/week historically), which suggests the flap rate
+  has dropped substantially — but this was not root-caused via the metrics above and
+  must be re-checked against the live cluster before treating it as resolved.
 - Move Gitea's `valkey` cluster off NFS (`emptyDir` or `openebs-hostpath`) — the bundled
   chart persists AOF to `nfs-client` PVCs, the same fsync-locking trap RomM's embedded
   Valkey avoids by using `emptyDir`. Replica placement is also imperative runtime state
@@ -56,6 +73,15 @@ Open work only. A finished item is deleted, not struck through.
 - Migrate the per-app backup CronJobs to VolSync — seven imperative restic scripts
   wearing GitOps clothes; VolSync's `ReplicationSource`/`ReplicationDestination` makes
   restore declarative and rehearsable, which also closes the next item.
+- `immich-backup` still takes the deployment offline for the whole maintenance window,
+  not just the backup — the cache PVC fix landed (`immich-backup-cache`, mounted at
+  `/cache` via `RESTIC_CACHE_DIR`), which cut nightly downtime from ~136 min to
+  ~12–13 min, but `backup.sh` still scales `immich-server` to 0 at the start and only
+  scales back up via `trap cleanup EXIT`, after `restic backup` **and**
+  `forget --prune` **and** `check` all finish. Decouple the scale-up from prune/check
+  so the service isn't down for maintenance that never touches the live PVC. A SIGKILL
+  (OOM, node reboot) mid-run skips the trap entirely and would leave immich-server
+  stuck at 0 replicas indefinitely — not yet observed, but undefended.
 - No backup has ever been restore-tested end-to-end. Pick one app (Immich highest
   value), restore into a clean PVC + fresh CNPG database, document the procedure in
   RUNBOOK. The etcd snapshot restore (`talosctl bootstrap --recover-from`) is the same
