@@ -215,7 +215,7 @@ talosctl apply-config \
 ### Grow the node disks
 
 Needed when `EPHEMERAL` fills — usually from container images or `openebs-hostpath`
-PVCs, which have no quota (see `docs/storage.md`). Done once already: 60 GB → 100 GB.
+PVCs, which have no quota (see `docs/storage.md`).
 
 **The trap:** growing the Proxmox virtual disk is *not enough*. Talos expands the
 `EPHEMERAL` partition to fill the disk **only at boot**, and there is no online-grow
@@ -361,9 +361,7 @@ flux reconcile kustomization flux
 
 If objects *do* exist on the dead version, rewrite them first
 (`kubectl get <kind> -A -o yaml | kubectl apply -f -`) so they are re-persisted at
-the current storage version, then patch. This was needed once, going 2.8.8 → 2.9.2;
-the `notification.toolkit.fluxcd.io` CRDs were already storing only `v1beta3`/`v1`
-and needed nothing.
+the current storage version, then patch.
 
 Verify:
 
@@ -729,14 +727,13 @@ the new device: install the plugin → welcome notice →
 
 ### Defragment etcd (`etcdDatabaseHighFragmentationRatio`)
 
-etcd is copy-on-write with MVCC: every write creates a new revision, and
-auto-compaction reclaims old revisions *logically* but never shrinks the on-disk
-file — freed pages stay allocated to etcd as internal free space. Over time the DB
-file grows to ~2× its live data. All three members replicate the same writes via
-Raft, so they fragment in lockstep (the alert names one node, but all three are
-affected). This is **cosmetic** until the file approaches etcd's ~2 GiB quota
-(default; not overridden in `talconfig.yaml`) — at which point etcd goes read-only
-until defragged. Only `defrag` returns free pages to the OS.
+etcd is copy-on-write (MVCC): auto-compaction reclaims old revisions *logically*
+but never shrinks the on-disk file, so it grows to ~2× live data over time. All
+three members replicate the same writes via Raft, so they fragment in lockstep
+(the alert names one node, but all three are affected). This is **cosmetic** until
+the file approaches etcd's ~2 GiB quota (default; not overridden in
+`talconfig.yaml`) — at which point etcd goes read-only until defragged. Only
+`defrag` returns free pages to the OS.
 
 The `etcdDatabaseHighFragmentationRatio` alert is tuned to fire only when it
 matters: the upstream rule guards on in-use bytes > 100 MiB (which flaps at our
@@ -882,8 +879,7 @@ mise exec -- kubectl get cluster postgres -n postgres -w
 
 Step 1 is load-bearing and is the non-obvious part. `nfs-client` derives its share path
 from `<namespace>-<pvcname>` (`idTemplate` in the democratic-csi values) and the class is
-`Retain`, so the **recreated PVC re-adopts the exact same directory** — verified: the
-renamed `pgdata.broken` reappeared alongside the fresh `pgdata` in the new PVC. Skip the
+`Retain`, so the **recreated PVC re-adopts the exact same directory**. Skip the
 rename and `pg_basebackup` finds a populated PGDATA and you are back where you started.
 Same trap as the Gitea valkey rebuild; see `docs/storage.md`.
 
