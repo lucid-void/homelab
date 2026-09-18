@@ -311,26 +311,17 @@ CI runs on PRs touching `kubernetes/**`:
 Workflow: `.github/workflows/manifest-scan.yml`
 Required status check: `Manifest Scan Passed`
 
-#### kube-linter scope and config (two traps)
+#### kube-linter scope and config
 
 The scan targets are **discovered leaf directories**, not `kubernetes/` — see
 `.github/kube-linter-run.sh`. kube-linter treats any directory containing a
-`kustomization.yml` as a kustomize root: it renders that directory and **does not
-descend**. Every `kubernetes/apps/<ns>/kustomization.yml` renders to Flux
-`Kustomization` CRs plus a `Namespace` (no pod specs), so `kube-linter lint
-kubernetes/` walked past the entire app tree and only ever saw 6 files. Targeting
-leaf dirs also lets kustomize resolve each app's ServiceAccount/RBAC beside its
-workload, which removes `non-existent-service-account` false positives.
-
-`checks.exclude` in `.github/kube-linter-config.yaml` takes a **flat list of
-check-name strings** — there is no per-object form. Per-object suppression uses
-an `ignore-check.kube-linter.io/<check>: "reason"` annotation on the object's
-**top-level** metadata (never the pod template — that is a Job *spec* change, and
-Job specs are immutable).
-
-kube-linter cannot render `HelmRelease` CRs, so app-template workloads (sonarr,
-plex, immich, …) are **never** covered by this gate; it sees only the raw
-Deployments/Jobs/CronJobs.
+`kustomization.yml` as a kustomize root and does not descend, so pointing it at the
+repo root would only ever render `kubernetes/apps/<ns>/kustomization.yml` down to
+Flux `Kustomization` CRs plus a `Namespace` — no pod specs. Targeting leaf dirs also
+lets kustomize resolve each app's ServiceAccount/RBAC beside its workload, which
+removes `non-existent-service-account` false positives. kube-linter cannot render
+`HelmRelease` CRs, so app-template workloads are never covered by this gate; it sees
+only the raw Deployments/Jobs/CronJobs.
 
 ### Image pinning and mutable upstream tags
 
@@ -353,11 +344,8 @@ And the cluster does not move either: `imagePullPolicy` defaults to
 cached the first time. **Restarting the pod does not re-pull.** Only the tag
 string changing forces a new pull.
 
-Found 2026-08-28 across all six lscr images. Plex was 6 lscr builds and 2 Plex
-builds behind — running `1.43.3.10828-…-ls315`, pulled 2026-08-21, while
-`1.43.3` had moved to `1.43.3.10896-…-ls321`. Note `1.43.3`, `latest` and
-`1.43.3.10896-cb3ebc72d-ls321` all resolved to the same index digest, which is
-how you confirm the short tag is mutable:
+A short tag and `latest` resolving to the same index digest is how you confirm the
+short tag is mutable:
 
 ```bash
 TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:linuxserver/plex:pull&service=ghcr.io" | jq -r .token)

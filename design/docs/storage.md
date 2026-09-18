@@ -38,9 +38,7 @@ The StorageClass is also `reclaimPolicy: Retain`. Together these mean:
   data, silently.
 
 So "delete the PVC and let it recreate clean" is a **no-op** here — a standard recovery
-move on most clusters that does nothing on this one. This was hit while rebuilding
-Gitea's valkey cluster: the pods kept re-forming the old 3-node cluster from a
-`nodes.conf` that had supposedly been deleted, with node IDs from 69 days earlier.
+move on most clusters that does nothing on this one.
 
 To actually start clean, wipe the contents in place while nothing mounts them:
 
@@ -52,7 +50,7 @@ kubectl scale sts <name> -n <ns> --replicas=<n>
 ```
 
 Note the `Retain` policy also means every deleted PVC leaves a `Released` PV behind.
-These accumulate (21 of them as of 2026-08-01) and are never reclaimed automatically.
+These accumulate and are never reclaimed automatically.
 
 ### Usage
 
@@ -129,12 +127,11 @@ Nodes are 100 GB (`EPHEMERAL` ≈ 105 GB after Talos claims the other partitions
 | cp-2 | ~30 GB | ~1.4 GB → ~2.5 GB (matcha world, pregenerated) |
 | cp-3 | ~28 GB | ~1.4 GB → ~2.5 GB (vanilla world, pregenerated) |
 
-`obsidian/couchdb-data` bound to **cp-1** on first deploy (2026-08-29) and is pinned
-there permanently, sharing the node with Plex's config. It is negligible in size — an
-Obsidian vault is text plus one header per chunk, measuring **164 KB** on disk shortly
-after setup — so it does not change the capacity picture, but it is a fourth hostpath
-consumer and it means cp-1 now carries both a media-server config DB and the notes
-sync backend. Re-check node placement after any rebuild with:
+`obsidian/couchdb-data` is pinned to **cp-1**, sharing the node with Plex's config. It
+is negligible in size — an Obsidian vault is text plus one header per chunk — so it
+does not change the capacity picture, but it is a fourth hostpath consumer and it means
+cp-1 now carries both a media-server config DB and the notes sync backend. Re-check
+node placement after any rebuild with:
 
 ```bash
 kubectl get pv -o custom-columns=PVC:.spec.claimRef.name,\
@@ -163,7 +160,10 @@ kubectl get --raw "/api/v1/nodes/<node>/proxy/configz" | jq .kubeletconfig.image
 Two consumers, for two different reasons:
 
 - **Plex config** — SQLite WAL locking errors occur over NFS.
-- **Minecraft worlds** (`matcha-data`, `vanilla-data`) — Anvil region files are random small I/O inside large files. Every chunk load over NFS costs a network round-trip, and a load that blocks the single-threaded tick loop shows up as TPS drop and rubber-banding. The Synology is also HDD-backed and simultaneously serving the media stack, so seek contention with a Plex scan or a SAB download would land directly on gameplay. A third hazard: NFS mounts must be `hard` (a `soft` mount risks silent corruption), so a NAS stall blocks the JVM in uninterruptible I/O rather than degrading it.
+- **Minecraft worlds** (`matcha-data`, `vanilla-data`) — random small I/O that a blocked
+  tick loop turns into a TPS drop. The Synology is also HDD-backed and simultaneously
+  serving the media stack, so seek contention with a Plex scan or a SAB download would
+  land directly on gameplay.
 
 Node-pinning is the price, and it is cheap here: all three control planes are VMs on the same Proxmox host, so a node failure worth rescheduling around is either a VM failure (data intact on the host, just wait for the node) or a host failure (everything is down regardless). See `design/docs/services.md` → Media for how the world data is still backed up off-node.
 
