@@ -26,7 +26,7 @@ single-node loss.
 `workload=llm:NoSchedule` and labelled `workload=llm`. It exists because a large
 mmap'd model on an etcd member evicts etcd's page cache, and etcd is
 fsync-latency-sensitive, so the memory pressure causes leader-election churn — see
-`design/llm-inference.md`.
+`design/decisions/llm.md`.
 
 **The control-plane RAM figure above is the committed IaC, not what's provisioned.**
 `llm-1` is defined in `infra/terraform/kubernetes.tf` and
