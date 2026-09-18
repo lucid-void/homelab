@@ -28,6 +28,9 @@ separate Secret consumed through `extraEnvFrom`.
 
 ## Rules
 
+- **Leave `enableSuperuserAccess: true` on the shared cluster** — the backup CronJob
+  dumps every database as `postgres`, and the immich extension job needs superuser to
+  create its extensions; turning it off breaks both silently at the next run.
 - **Expect ~2–5 min of write interruption on any CNPG *minor* operator bump** — the
   bump changes the instance manager, and with in-place updates off the operator does a
   rolling update of the Postgres pods, replica first then primary. The primary restarts

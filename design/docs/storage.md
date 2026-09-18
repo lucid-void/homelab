@@ -216,5 +216,5 @@ A side benefit: CloudNativePG 1.31 removes in-tree Barman Cloud support, and thi
 | Synology path | Kubernetes use |
 |---|---|
 | `/volume2/kubernetes.nfs/` | democratic-csi parent share — one subdirectory per PVC |
-| `/volume2/Media/` | Static `media-nfs` PVC for all media services |
+| `/volume2/Media/` | Static `media-nfs` PVC for all media services — holds `Series/`, `Movies/`, `Downloads/`, `Photos/`, `Manga/` |
 | `/volume2/backups/keys/` | Sealed Secrets key backup, SOPS age key backup |
