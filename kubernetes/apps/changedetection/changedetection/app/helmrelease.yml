@@ -100,12 +100,16 @@ spec:
               # readiness gates the whole Pod's readiness, so a Chrome stall
               # would pull the Service endpoint and take the web UI offline for
               # a fault that only affects JavaScript fetching.
+              #
+              # tcpSocket, NOT httpGet: port 3000 is a bare `websockets` server
+              # with no HTTP routes at all -- every path answers 426 Upgrade
+              # Required, so any httpGet probe fails forever. The stats this
+              # image reports go to stdout, not to a /stats endpoint.
               liveness:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /stats
+                  tcpSocket:
                     port: 3000
                   initialDelaySeconds: 20
                   periodSeconds: 30

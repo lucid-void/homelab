@@ -17,8 +17,8 @@ The controller runs **two containers in one pod**:
 | `browser` | `dgtlmoon/sockpuppetbrowser` | 3000 | Chrome over CDP, for JavaScript pages |
 
 They share a pod, so the app reaches Chrome at `PLAYWRIGHT_DRIVER_URL=ws://localhost:3000`
-and the browser needs no Service of its own. The only HTTP route sockpuppetbrowser
-serves is `/stats`, which is the liveness target.
+and the browser needs no Service of its own. Port 3000 speaks **only** WebSocket — it
+serves no HTTP routes at all — so the browser liveness probe is a `tcpSocket`.
 
 Storage is the `changedetection-data` PVC on `nfs-client`, RWO, 5Gi, mounted at
 `/datastore` into the `app` container only (via `advancedMounts`). The image declares no
@@ -44,6 +44,17 @@ Gotify token comes from `changedetection/gotify-secret`, provisioned by the
   `--no-sandbox` and `--disable-dev-shm-usage` unconditionally, so it runs under the
   cluster-default PSA `baseline` with no namespace exception and no shared-memory volume.
   Do not add a `pod-security.kubernetes.io/enforce: privileged` label to this namespace.
+- **The `browser` liveness probe must be `tcpSocket`, never `httpGet`** — port 3000 is a
+  bare Python `websockets` server with no HTTP routing. Every path, `/stats` included,
+  answers `426 Upgrade Required`, so an `httpGet` probe can never pass and kills the
+  container every `periodSeconds × failureThreshold`. The per-connection stats this image
+  logs go to stdout, not to an endpoint. Symptom when this is wrong: the browser container
+  CrashLoopBackOffs while its own logs look completely healthy.
+- **A crashlooping `browser` container takes the whole web UI down** — the Pod is Ready
+  only when every container is, so the EndpointSlice goes `ready=false, serving=false` and
+  the shared Gateway answers `no healthy upstream` even though the `app` container is fine
+  and passing its own probes. Whenever changedetection 503s, check *both* container
+  statuses, not just `app`.
 - **Give the `browser` container a liveness probe but never a readiness probe** — any
   container's readiness gates the whole Pod's readiness, so a Chrome stall would pull the
   Service endpoint and take the web UI offline for a fault that only affects JavaScript
@@ -95,4 +106,7 @@ mise exec -- kubectl get ns changedetection -o jsonpath='{.metadata.labels}'
 mise exec -- kubectl get pvc changedetection-data -n changedetection -o jsonpath='{.spec.storageClassName}'
 mise exec -- kubectl get secret gotify-secret -n changedetection -o jsonpath='{.metadata.name}'
 mise exec -- kubectl get cronjob changedetection-backup -n changedetection -o jsonpath='{.status}'
+# browser liveness must be tcpSocket -- httpGet on any path 426s forever
+mise exec -- kubectl get deploy changedetection -n changedetection \
+  -o jsonpath='{.spec.template.spec.containers[?(@.name=="browser")].livenessProbe}'
 ```
