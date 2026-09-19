@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./keycloak.yml
   - ./httproute.yml
+  - ./smtp-sealed.yml
