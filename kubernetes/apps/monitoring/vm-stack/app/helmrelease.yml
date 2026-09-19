@@ -84,12 +84,17 @@ spec:
     alertmanager:
       enabled: true
       spec:
+        # Sized from VictoriaMetrics, 30d window (request p90, limit ~2x peak).
+        # Was 64Mi/128Mi: OOMKilled 2026-09-14 with a 7d peak of 125.1Mi against
+        # the 128Mi limit — pinned at 97% of the ceiling. Alertmanager is the
+        # single delivery path for every Gotify notification and runs one
+        # replica, so each OOM is a window where alerts are silently lost.
         resources:
           requests:
-            memory: 64Mi
+            memory: 112Mi
             cpu: 10m
           limits:
-            memory: 128Mi
+            memory: 256Mi
       config:
         global:
           resolve_timeout: 5m
@@ -374,6 +379,48 @@ spec:
         # scale — replaced by size-aware etcd-custom (fires at 1.5 GiB file).
         etcdDatabaseHighFragmentationRatio:
           enabled: false
+        KubeMemoryOvercommit:
+          spec:
+            # Upstream asks "if the largest node dies, do all pod requests still
+            # fit?" — it subtracts llm-1's 68.2Gi of capacity while leaving
+            # llama-swap's 60Gi request in the numerator. llama-swap can never
+            # use cp capacity: it is pinned by nodeSelector to llm-1, tolerates
+            # workload=llm:NoSchedule, and its model PVC is node-local RWO
+            # openebs-hostpath on llm-1. If llm-1 dies that pod stays Pending by
+            # design, so counting its request against the cp nodes is nonsense —
+            # the alert fired continuously 2026-09-01..09-13, went quiet only
+            # because the stack was scaled to 0, and returned on scale-up.
+            #
+            # Excluding llm-1 from BOTH sides asks the question that actually
+            # matters: can cp-1/2/3 absorb the loss of one cp node? Measured
+            # 2026-09-17: 40.2Gi of requests into 57.4Gi surviving allocatable,
+            # 17.3Gi spare. Verified against live data with a negative control —
+            # the same expression without the node filter still fires at 15.5Gi.
+            #
+            # Requests mirror the upstream recording rule
+            # namespace_memory:kube_pod_container_resource_requests:sum
+            # (including its phase=~"Pending|Running" filter, worth 0.7Gi of
+            # completed Job pods) because that rule aggregates away `node` and
+            # so cannot be filtered. Keep the two in sync if the chart changes.
+            # Revisit if llm-1 ever gains a peer that llama-swap could fail over
+            # to, or if any other workload is pinned to a single large node.
+            expr: >-
+              (((sum(max(kube_pod_container_resource_requests{resource="memory",job="kube-state-metrics",node!="llm-1"})
+              by(namespace,pod,container,cluster) * on(namespace,pod,cluster)
+              group_left() max(kube_pod_status_phase{phase=~"Pending|Running"} ==
+              1) by(namespace,pod,cluster)) by(cluster) -
+              sum(kube_node_status_allocatable{job="kube-state-metrics",resource="memory",node!="llm-1"})
+              by(cluster)) > 0) and
+              (count(max(kube_node_role{job="kube-state-metrics",role="control-plane"})
+              by(cluster,node)) by(cluster) < 3)) or
+              ((sum(max(kube_pod_container_resource_requests{resource="memory",job="kube-state-metrics",node!="llm-1"})
+              by(namespace,pod,container,cluster) * on(namespace,pod,cluster)
+              group_left() max(kube_pod_status_phase{phase=~"Pending|Running"} ==
+              1) by(namespace,pod,cluster)) by(cluster) -
+              ((sum(kube_node_status_allocatable{job="kube-state-metrics",resource="memory",node!="llm-1"})
+              by(cluster) -
+              max(kube_node_status_allocatable{job="kube-state-metrics",resource="memory",node!="llm-1"})
+              by(cluster)) > 0)) > 0)
 
     # Disable admission webhooks — operator validates CRs in-process without
     # webhooks; disabling avoids the chicken-and-egg where the webhook server
