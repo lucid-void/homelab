@@ -14,6 +14,14 @@ case "$FILE" in
 esac
 command -v mise >/dev/null 2>&1 || exit 0
 
+# Not every YAML file under kubernetes/ is a Kubernetes manifest — Helm values
+# files, kustomizeconfig.yml, helmfile.yml, talconfig.yaml, and SOPS-encrypted
+# Talos files all live there but carry no `kind:`. kubeconform correctly
+# rejects those with "missing 'kind' key"; reporting that as a manifest
+# defect is the bug, not the file. Skip anything with no top-level `kind:` in
+# any document (a multi-doc file only needs one document to carry it).
+grep -qE '^kind:[[:space:]]*[A-Za-z]' "$FILE" || exit 0
+
 # CRD schemas are fetched unauthenticated from raw.githubusercontent.com, once
 # per CRD kind per run. Cache them on disk so a session's repeated edits cost
 # one fetch, not one per write — which is also what keeps this usable while
