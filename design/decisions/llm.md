@@ -87,7 +87,7 @@ Open WebUI reads OIDC config from `openwebui-oidc-secret`; its Kustomization has
   SealedSecret reconcile near-simultaneously; if CNPG evaluates the role first it
   records `cannotReconcile: failed to get password secret … not found` and never
   retries. `flux reconcile` does not help since the `Cluster` object already matches
-  git; nudge it with an annotation instead (see `cnpg.md`).
+  git; nudge it with an annotation instead (see `design/decisions/cnpg.md`).
 - **There is no cloud fallback, by choice** — `router_settings.fallbacks` is commented
   out in the LiteLLM config and no cloud model is registered, so agentic requests take
   as long as they take rather than being routed away.

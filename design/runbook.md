@@ -444,8 +444,8 @@ The Job logs one line per token showing which path it took:
   admin client: reused (client 1)
 ```
 
-A run that repairs anything on an **unchanged** script ends with a `DRIFT
-DETECTED` block and posts a Gotify message at priority 8, because that means
+A run that repairs anything on an **unchanged** script ends with a
+`DRIFT DETECTED` block and posts a Gotify message at priority 8, because that means
 something removed state on its own and the affected workloads had been posting
 with a dead token until that moment. The same repairs on a run whose script hash
 changed (an entry was added below) are printed as *expected*, not drift — the
@@ -624,8 +624,8 @@ annotation on its controller restarts it when the cert changes — which it must
 > target (`/etc/ssl/protonmail/..2026_08_29_20_20_47.../cert.pem`) for the life of
 > the process. Updating the Secret writes a **new** timestamped directory, repoints
 > `..data`, and **deletes the old one** — so the running process is left pointing at
-> a path that no longer exists and every fetch dies with `FileNotFoundError:
-> [Errno 2]`, surfacing in the UI as a failed mail-account test. The
+> a path that no longer exists and every fetch dies with
+> `FileNotFoundError: [Errno 2]`, surfacing in the UI as a failed mail-account test. The
 > `reloader.stakater.com/auto: "true"` annotation on the **controller** in
 > `paperless/app/helmrelease.yml` exists for exactly this. Note `manage.py check`
 > and an ad-hoc `python -c` both **pass** while the server is broken — they are new
@@ -1060,8 +1060,9 @@ before a timestamp, which is easier than copying an ID. `restic dump <id> <path>
 a single file to stdout — handy for piping a `.pgdump` straight into `pg_restore`.
 
 > **`HOME=/tmp` is required.** The image runs as uid 65534 with a non-writable `/`, and
-> restic aborts its cache setup with `unable to open cache: mkdir /.cache: permission
-> denied` otherwise. Note also that `backup-tools` has **no `python3`** (`jq` is present
+> restic aborts its cache setup otherwise, with
+> `unable to open cache: mkdir /.cache: permission denied`.
+> Note also that `backup-tools` has **no `python3`** (`jq` is present
 > from image v1.1.0 onward; older tags lack it), and its `find` is busybox (no
 > `-printf`, no `-readable`).
 
