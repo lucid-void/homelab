@@ -1,0 +1,28 @@
+---
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakOIDCClient
+metadata:
+  name: immich
+  namespace: keycloak
+spec:
+  keycloakCRName: keycloak
+  realm: homelab
+  client:
+    # No `clientId` field exists on this CRD — see Task 5. The client id is
+    # taken from metadata.name, verified against the live cluster in Task 5
+    # step 6 before this fan-out was written.
+    displayName: Immich
+    enabled: true
+    loginFlows: [STANDARD]
+    redirectUris:
+      - https://immich.blackcats.cc/auth/login
+      - https://immich.blackcats.cc/user-settings
+      - https://immich.blackcats.cc/api/oauth/mobile-redirect
+    webOrigins:
+      - https://immich.blackcats.cc
+    roles: []
+    auth:
+      method: client-secret
+      secretRef:
+        name: immich-client-secret
+        key: secret

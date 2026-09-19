@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: paperless-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgC/ApPu52YferHryH9OpvcPoghYyx1jPT6RwWV9fCSq1cHycPXSANnA4ZbIVZrA4SdQs13ujWVVN+aMtPhem0QMWz6C+wL8IJPcL1J2bJL7P5b0QrvcBG17494qAAND0f7pZb1xTHog72QyrCea5/ZZwHsLu/2p12H3DP3DMiuYX8HD8EvQ/eqwZDyqNxZ4+zGrANHliMCytYQTn5Ao77V7+uEuRs80S1QgXE7VhkoPEU3Bi/yxA9jFjHK5tBS1+FJiWbC2hT5H1MIGnHQIp7tq3vM6fN1+XXz2IKrelleG35WnYudpgcAb+QEG5UFSVCThUEGUC9zDHZ78lffHXPHvllNANCjJJidpuCNoXoCJh6644/rT/JtRRynpLuLQP42OFwraNW8SgkC02OQqBXZd2Uo6/T1KHG30K2egrCiGhpiIGWDWmUAexromB/T0bHNKGT0eokqxtgsBUrWqJJXkANkrfZIdGc46rjXIJMRb7zdCQZQlvkgEsEvIK+sWIer+K1e4uwJD0GS3kkVYgKO14vLdkm3zvDkY/L06fi6b7FTrt6zXS+FA2jf/e6fOgBwQXjgEHp3dZRxq7pNzOfbO9UMvkaQPtFRsUIG3+MXDhT+MtbQdJmFpE6IkzFQDgcXQ1V0kfha4EfA9UwzSDpKTsHzXOlEzp/9l3cBhl5kj8ENQKxdO9ZJ9RaWgAxalkSz06Qhy5ipWYdwlqKD4q/KxXCrQEFBUOJPDUrmzydXLPEQCE7O3Myoeg46N0jXmRfAet6eyQr6csvK85cnM5rHy
+  template:
+    metadata:
+      name: paperless-client-secret
+      namespace: keycloak
+    type: Opaque

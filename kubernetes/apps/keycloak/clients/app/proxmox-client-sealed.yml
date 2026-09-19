@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: proxmox-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgA7IpEaRKfXxw3JSOBvXsDtEGXXgwG7JNvnyo2mttyiMwuqFjcQ3nh2eHKdN690YguLQlfWIFfFk5hWTRMzBmpjzyWSkw+36U7CbhBq/h2xDagHnxvCjrCnNrWxo5aPhCxkTRYzlaIoUfjfwagOZ6YEiW1ahTeXvK4uOf7v/ku4MKWDzqeay0IYu0aAKq6Z7qWIfLsjfuy4vtasVJ19V4yadPSK4G6xMoZNe5R0G8b3jeuWZvkLAibBI9kOb99vAy6bbTvP9mhGybRy1dt+JvLogupz1gRnKVQ22CZR5gXoHTSV72pY42LWiptp8SHOQD8qNCvncsnv4qIIkIuBY8BbhQOz+NsAcKAJuyMDG7tfxsWtPeZ3nIYDWleOm4GtWlh22oYnXIcAGQ0Ag1p2tz4CM0wHl/TezjXE1/ST8SYC46x/DBlkS3hbDB5xu7BGnUZBKriWOTDf8Azl7IKBCr8uffNgzXTeWkUz72TVKO5KS0T0Gtm+HkN9LD7k6ydAIh1zZJ1sCSWwjC87v1APiWwuv/S4v400EhOVBhd05j4INPWQLmmZX/mPKNsLoHuG8kIzYwVbYf6/6DEYBNdTTHpBA1pUq9RDxshg1od10n8P5ewqTH0AHjTs0G5+Ms+6gdtqdjWBFc9JDXw/yoc31LyWABahOHNZSZxZJpsVOsMztX+icbQyKr/iqf9NV3W8X4UECIDXhBEgtAwkhY7z85MVyVXpdWw8ChsHoS5Loi+Co4+x2GWpKkl2PFlcUOBhq4JEJPyo/wQ37aveRtOKvX7Q
+  template:
+    metadata:
+      name: proxmox-client-secret
+      namespace: keycloak
+    type: Opaque

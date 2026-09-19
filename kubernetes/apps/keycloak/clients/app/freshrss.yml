@@ -1,0 +1,26 @@
+---
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakOIDCClient
+metadata:
+  name: freshrss
+  namespace: keycloak
+spec:
+  keycloakCRName: keycloak
+  realm: homelab
+  client:
+    # No `clientId` field exists on this CRD — see Task 5. The client id is
+    # taken from metadata.name, verified against the live cluster in Task 5
+    # step 6 before this fan-out was written.
+    displayName: FreshRSS
+    enabled: true
+    loginFlows: [STANDARD]
+    redirectUris:
+      - https://rss.blackcats.cc/i/oidc/
+    webOrigins:
+      - https://rss.blackcats.cc
+    roles: []
+    auth:
+      method: client-secret
+      secretRef:
+        name: freshrss-client-secret
+        key: secret

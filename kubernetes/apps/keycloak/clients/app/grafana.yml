@@ -1,0 +1,32 @@
+---
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakOIDCClient
+metadata:
+  name: grafana
+  namespace: keycloak
+spec:
+  keycloakCRName: keycloak
+  realm: homelab
+  client:
+    # No `clientId` field exists on this CRD — see Task 5. The client id is
+    # taken from metadata.name, verified against the live cluster in Task 5
+    # step 6 before this fan-out was written.
+    displayName: Grafana
+    enabled: true
+    loginFlows: [STANDARD]
+    redirectUris:
+      - https://grafana.blackcats.cc/login/generic_oauth
+    webOrigins:
+      - https://grafana.blackcats.cc
+    # Grafana is the only one of the nine that maps an OIDC claim onto its own
+    # permission model via role_attribute_path, so it is the only client that
+    # gets roles here.
+    roles:
+      - admin
+      - editor
+      - viewer
+    auth:
+      method: client-secret
+      secretRef:
+        name: grafana-client-secret
+        key: secret

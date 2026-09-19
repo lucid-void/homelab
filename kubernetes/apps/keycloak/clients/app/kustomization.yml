@@ -2,5 +2,21 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  - ./freshrss-client-sealed.yml
+  - ./freshrss.yml
   - ./gitea-client-sealed.yml
   - ./gitea.yml
+  - ./grafana-client-sealed.yml
+  - ./grafana.yml
+  - ./immich-client-sealed.yml
+  - ./immich.yml
+  - ./kavita-client-sealed.yml
+  - ./kavita.yml
+  - ./openwebui-client-sealed.yml
+  - ./openwebui.yml
+  - ./paperless-client-sealed.yml
+  - ./paperless.yml
+  - ./proxmox-client-sealed.yml
+  - ./proxmox.yml
+  - ./romm-client-sealed.yml
+  - ./romm.yml
