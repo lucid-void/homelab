@@ -21,6 +21,7 @@
 - **`KeycloakOIDCClient` requires the server feature `client-admin-api:v2`**, enabled via `Keycloak.spec.features.enabled`. Keycloak classifies `CLIENT_ADMIN_API_V2` as **EXPERIMENTAL** — its lowest tier, below `PREVIEW`. Without it the operator refuses every client CR with *"Cannot create/update because the server does not have client-admin-api:v2 enabled"*. Accepted knowingly: clients already written are ordinary realm rows, so losing the feature degrades reconciliation, not logins.
 - **`KeycloakOIDCClient` is `v2alpha1`** and exposes only `appUrl`, `auth`, `description`, `displayName`, `enabled`, `loginFlows`, `redirectUris`, `roles`, `serviceAccountRoles`, `webOrigins`. No protocol mappers, no client attributes. Anything outside that list is a console click.
 - **`client.roles` is a list of bare strings.** Declare only roles the application actually reads.
+- **Generate every client secret with `openssl rand -hex 32`, never base64.** A base64 secret contains `+` and `/`, and in an `application/x-www-form-urlencoded` body an unescaped `+` decodes as a SPACE — a consumer that does not percent-encode then sends the wrong secret. This is not hypothetical: it broke the operator's own admin login here with `invalid_client_credentials` while the stored secret matched byte for byte. Several of these apps post their secret in exactly that form (Open WebUI and Paperless are pinned to `client_secret_post`). Hex carries 256 bits and encodes identically everywhere.
 - **Joplin is out of scope** and stays on Zitadel. Never remove `zitadel_application_saml.joplin`, `zitadel_action.joplin_saml_attributes` or `zitadel_trigger_actions.joplin_saml_attributes`.
 
 ## File Structure
@@ -431,7 +432,7 @@ One client end-to-end before writing eight more. Gitea is the pilot because it k
 - [ ] **Step 1: Generate and seal the client secret**
 
 ```bash
-CS=$(openssl rand -base64 32 | tr -d '\n')
+CS=$(openssl rand -hex 32)
 cat > kubernetes/apps/keycloak/clients/app/gitea-client-secret.yml <<EOF
 ---
 apiVersion: v1
@@ -607,7 +608,7 @@ Mechanical repeat of Task 5 now that the pattern is proven. Redirect URIs are ta
 
 ```bash
 for app in immich paperless freshrss kavita romm grafana openwebui proxmox; do
-  CS=$(openssl rand -base64 32 | tr -d '\n')
+  CS=$(openssl rand -hex 32)
   cat > kubernetes/apps/keycloak/clients/app/${app}-client-secret.yml <<EOF
 ---
 apiVersion: v1
