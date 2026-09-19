@@ -50,10 +50,15 @@ spec:
     # real inbox. host is 127.0.0.1 because the bridge certificate's only SAN
     # is IP:127.0.0.1 — the socat sidecar on the Keycloak pod relays to the
     # bridge Service. See design/decisions/protonmail-bridge.md.
+    # `from` must be an address the Proton account actually owns — Proton rejects
+    # anything else at DATA with `554 ... sender or recipient address is not valid`,
+    # even though the envelope MAIL FROM is accepted. keycloak@blackcats.cc only
+    # worked under mailrise, which validated nothing. Adding blackcats.cc as a
+    # Proton custom domain would allow a service address here.
     smtpServer:
       host: 127.0.0.1
       port: "1025"
-      from: keycloak@blackcats.cc
+      from: maxim.claeys@pm.me
       fromDisplayName: Keycloak
       ssl: "false"
       starttls: "true"
