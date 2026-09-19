@@ -5,3 +5,4 @@ resources:
   - ./keycloak.yml
   - ./httproute.yml
   - ./smtp-sealed.yml
+  - ./admin-sealed.yml
