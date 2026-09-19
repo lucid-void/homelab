@@ -764,7 +764,11 @@ These files are written and sealed but **deliberately not added to any `kustomiz
 
 **Interfaces:**
 - Consumes: the nine gitignored plaintext files `kubernetes/apps/keycloak/clients/app/<app>-client-secret.yml` written by Tasks 5 and 6. Read each value with:
-  `yq '.stringData.secret' kubernetes/apps/keycloak/clients/app/<app>-client-secret.yml`
+  `yq -r '.stringData.secret' kubernetes/apps/keycloak/clients/app/<app>-client-secret.yml`
+  **The `-r` is load-bearing.** Without it yq returns the value wrapped in quotes — 66
+  characters instead of 64 — and those quotes would be written into the application's own
+  secret, producing `invalid_client_credentials` at first login with a value that looks
+  correct in every diff. Verify each value you extract is exactly 64 hex characters.
 - Produces: nine SealedSecrets whose Secret names and keys are byte-identical to what the Zitadel bootstrap writes today, so no consumer changes.
 
 - [ ] **Step 1: Record the shapes being replaced**
@@ -772,7 +776,7 @@ These files are written and sealed but **deliberately not added to any `kustomiz
 Each plaintext template below reproduces the current Secret's keys exactly, with `zitadel.blackcats.cc` swapped for the Keycloak issuer and the opaque numeric client IDs swapped for our chosen ones. Write each as `<dir>/oidc-secret.yml` (gitignored), substituting the `<app CS>` placeholder with that app's value read from its Task 5/6 plaintext file:
 
 ```bash
-yq '.stringData.secret' kubernetes/apps/keycloak/clients/app/<app>-client-secret.yml
+yq -r '.stringData.secret' kubernetes/apps/keycloak/clients/app/<app>-client-secret.yml
 ```
 
 **Gitea** — `kubernetes/apps/gitea/gitea/app/oidc-secret.yml`. Note `name: Keycloak`: Gitea derives its callback path from this, and it must match the CR's `redirectUris`.
