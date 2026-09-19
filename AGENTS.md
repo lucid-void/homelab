@@ -72,7 +72,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Sealed Secrets, OIDC bootstrap secrets                | design/docs/secrets.md                |
 | HelmRelease values, app-template, Reloader            | design/decisions/helm-charts.md       |
 | restic, rclone offsite copies, etcd snapshots, backup schedules | design/decisions/backups.md |
-| VictoriaMetrics, Grafana, VMRule alert rules, Goldilocks | design/decisions/monitoring.md     |
+| VictoriaMetrics, Grafana, VMRule alert rules, Goldilocks, Gatus | design/decisions/monitoring.md |
 | Minecraft metrics, mc-monitor, world-size alerts      | design/decisions/minecraft-monitoring.md |
 | Gotify, its app tokens, the Telegram bridge           | design/decisions/gotify.md            |
 | Trivy, Falco, kubent, kube-linter, k8s-cleaner        | design/decisions/security-tooling.md  |

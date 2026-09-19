@@ -46,6 +46,23 @@ recommender-only mode — admission controller and updater both disabled.
   selecting on it silently matches the wrong Services or none.
 - **Validate rules with `promtool check rules` before pushing** — it also checks
   annotation templates, not just PromQL.
+- **Never combine `[BODY]` and `[CERTIFICATE_EXPIRATION]` on one gatus endpoint** — a
+  `[BODY]` condition makes gatus read the response to the end, so Go returns the
+  connection to the idle pool and a sub-90s `interval` keeps it alive indefinitely.
+  Every later check reports the certificate from the *first* handshake, so the moment
+  cert-manager renews `shared-tls` the endpoint goes red against a certificate no
+  server is serving any more, while the service itself is fine. Endpoints without a
+  `[BODY]` condition leave the body unread, get their connection closed, and
+  re-handshake each interval — which is why only the one body-checking endpoint
+  drifts. Confirm with
+  `kubectl debug -n monitoring pod/<gatus-pod> --image=alpine/openssl -- sh -c 'echo Q | openssl s_client -connect <host>:443 -servername <host> 2>/dev/null | openssl x509 -noout -dates'`:
+  a fresh handshake from gatus's own netns showing a different expiry than the
+  dashboard proves it is connection reuse, not the certificate.
+- **Keep `[CERTIFICATE_EXPIRATION]` thresholds well under the renewal window** —
+  `shared-tls` renews 720h before expiry, so a `> 720h` condition trips exactly when
+  cert-manager is *supposed* to act and leaves no margin. It survives today only
+  because non-`[BODY]` endpoints re-handshake instantly and pick the new certificate
+  up the same minute.
 - **Never size a request or limit from Goldilocks/VPA output** — there is no
   metrics-server in this cluster, so the recommender ingests nothing and emits only
   its configured floors; treat every recommendation as fabricated.
