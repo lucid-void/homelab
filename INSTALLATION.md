@@ -4,7 +4,7 @@ Bootstrap procedure for the Talos Kubernetes cluster from zero to live and recon
 
 For the stack overview and what the cluster runs, see [README.md](README.md).
 For ongoing operations, recovery procedures, and troubleshooting reference,
-see [design/RUNBOOK.md](design/RUNBOOK.md).
+see [design/runbook.md](design/runbook.md).
 
 ---
 
@@ -401,7 +401,7 @@ At this point every layer is running and GitOps-managed:
 
 For day-to-day operations (Talos upgrades, k8s upgrades, adding secrets, adding
 applications, recovery procedures, full troubleshooting reference) see
-[design/RUNBOOK.md](design/RUNBOOK.md).
+[design/runbook.md](design/runbook.md).
 
 ---
 
@@ -471,7 +471,7 @@ helmfile --file kubernetes/bootstrap/helmfile.yml apply \
 For day-to-day troubleshooting reference (Flux reconciliation failures,
 SealedSecret decryption errors, CNPG pod issues, stale VolumeAttachments,
 PVC stuck in Terminating, gotify-bootstrap immutable Job, etc.) see
-[design/RUNBOOK.md §Troubleshooting](design/RUNBOOK.md).
+[design/runbook.md §Troubleshooting](design/runbook.md).
 
 The sections below cover bootstrap-time failures specifically.
 

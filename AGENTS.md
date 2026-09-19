@@ -94,7 +94,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | the LLM stack                                         | design/decisions/llm.md               |
 | service inventory, hostnames, auth model              | design/docs/services.md               |
 | topology, nodes, IP plan, Netbird, `talconfig.yaml`    | design/architecture.md                |
-| bootstrap, upgrades, recovery, VM provisioning (Packer, OpenTofu) | design/runbook.md         |
+| bootstrap, upgrades, restore, recovery, VM provisioning (Packer, OpenTofu) | design/runbook.md — 46 KB, jump to the one `##` section, never read it whole |
 | open work, known gaps                                 | design/TODO.md                        |
 
 ## Keeping docs in sync

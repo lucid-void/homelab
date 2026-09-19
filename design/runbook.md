@@ -2,12 +2,36 @@
 
 Operational procedures for the `homelab-k8s` Kubernetes cluster.
 
+**This file is ~46 KB. Jump to the one `##`/`###` section you need — it is written to be
+read a section at a time, never front to back.**
+
+## Contents
+
+- [Prerequisites (one-time, workstation)](#prerequisites-one-time-workstation)
+- [Bootstrap — New Cluster from Zero](#bootstrap--new-cluster-from-zero) — Phases 1-12,
+  in order: Talos secrets, talconfig, node configs, Packer template, Tofu VMs, apply
+  configs, etcd bootstrap, kubeconfig, Cilium + Sealed Secrets, key backup, Flux
+- [Ongoing Operations](#ongoing-operations) — patch machine config, grow node disks,
+  upgrade Talos / Kubernetes / Flux, add a Secret, add an application, force
+  reconciliation, re-run `gotify-bootstrap`, Proxmox SSO, Proton Mail Bridge, Obsidian
+  LiveSync onboarding, defragment etcd
+- [Planned Maintenance Shutdown](#planned-maintenance-shutdown) — shut down, start back up
+- [Recovery Procedures](#recovery-procedures) — rebuild a CNPG replica, recreate one or
+  all control planes, **restore etcd from a snapshot**, **restore an application backup
+  from a given date**, rebuild the paperless search index, etcd force-new-cluster
+- [Troubleshooting](#troubleshooting) — node not joining, Flux reconciliation failures,
+  SealedSecret not decrypting, Cilium connectivity, CNPG pod stuck, stale
+  VolumeAttachment, PVC stuck Terminating, `gotify-bootstrap` immutable field error
+
 ## Prerequisites (one-time, workstation)
 
+Every tool below is pinned in `mise.toml` and is **not** on `PATH` — there is nothing to
+install and no `brew` on this workstation. Invoke each one through mise:
+
 ```bash
-brew install siderolabs/tap/talosctl talhelper
-brew install kubectl kubeseal fluxcd/tap/flux helm helmfile
-brew install sops age
+mise install                      # once, to materialise the pinned versions
+mise exec -- talosctl version
+mise exec -- kubectl|flux|kubeseal|talhelper|helm|kubeconform|sops|age
 ```
 
 ---
@@ -215,7 +239,7 @@ talosctl apply-config \
 ### Grow the node disks
 
 Needed when `EPHEMERAL` fills — usually from container images or `openebs-hostpath`
-PVCs, which have no quota (see `docs/storage.md`).
+PVCs, which have no quota (see `design/docs/storage.md`).
 
 **The trap:** growing the Proxmox virtual disk is *not enough*. Talos expands the
 `EPHEMERAL` partition to fill the disk **only at boot**, and there is no online-grow
@@ -385,7 +409,7 @@ git push
 
 ### Add a New Application
 
-See `docs/gitops.md` — Adding a New Application section.
+See `design/docs/gitops.md` — Adding a New Application section.
 
 ### Force Flux Reconciliation
 
@@ -881,7 +905,7 @@ Step 1 is load-bearing and is the non-obvious part. `nfs-client` derives its sha
 from `<namespace>-<pvcname>` (`idTemplate` in the democratic-csi values) and the class is
 `Retain`, so the **recreated PVC re-adopts the exact same directory**. Skip the
 rename and `pg_basebackup` finds a populated PGDATA and you are back where you started.
-Same trap as the Gitea valkey rebuild; see `docs/storage.md`.
+Same trap as the Gitea valkey rebuild; see `design/docs/storage.md`.
 
 The first join attempt may `Error` if the primary crashes mid-basebackup — the Job
 retries on its own. At ~500 MB the basebackup takes seconds, so it completes even
