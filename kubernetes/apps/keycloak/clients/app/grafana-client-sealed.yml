@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: grafana-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgCIZl0F0iQ3OnthqoVs+/3KjE4U7HVnwFmPc3skuZvJTllE0zyIFFcM3cJhh8gi+/muLT1iYhBR4xyJ8jDbCSJNvfUCt6a26w/sL61UObERGzoz6HV3LHcwirGfAwvi6jOHwAUyU+cXuf9fSiVKOfpiPOHyX2gOL1Rjcdfrc6ew6oSUWDiET7m4lyUEmC3KDrWej+3uL77wQ3eAgVVk6WaI4F0QuGHGA5fjj0R7O10AIlNezvbGpOPJCEwqq9e28nYRNBYrnAlyDRngDYPreVepgG6n8J9T2qEbAh5LiAv4lwipssVlpd/IZ9tyGqSuumUlywOxxMFS4uflzm1Q3E0y+dU3yr+wge8K/RifKqyolsKZuCbMjnhMANvh0qav7nfH49hJTBhhbBVRTJ4WFNSHKroJLzdeK1AFRMmuDF4baDmpllhi4EHKnDbhpvkNKNjR/Vcm9I1JSG7aRG+zNBok7Z59XUVNtPriXXmlrKXgWhJ1PYyZ5EvsEde/XBs3svwsXNNgbDofKldI7duu89ikdqUVgaeCOZO+MZv+U/FgXnsOiufGvETTErjPuTzcq/fM+0zMlTboxD4+kOXj+gt6d96Cfqw2ug+EnE+WYDM/hgrLqOVGLyhnDExvk3Tjai23G7WL4utiFfzZ4RhI88pVOH7SCUxiDcxgwChF/OxiO8hKeisxjSjbtlLkiL5TN1CJS9OuqfY9tfRRS8ECk/wmxJtG0/s4CFZOgpiykvVbIQUK6ZOISHhfz27zCDnaxVlu7S1VsN90yEpYkgfNCPEM
+  template:
+    metadata:
+      name: grafana-client-secret
+      namespace: keycloak
+    type: Opaque

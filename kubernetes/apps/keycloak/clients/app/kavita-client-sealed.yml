@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: kavita-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgAr4dcqwXHXkk5bNDWUXgfqfZOTuNKZur0qyL1sg9wLpvxA724e1CwcLnzPx6cb+/Ifk7vtAFQeruEZKdptImM2UZvmIrxvqsnf+hBZOo8ouwtKnmuktm71oE5qa7LK8KpFjp/izDP6PPBvk7xE3S+M4QoOnoZYq2J50DeYFbelI+WZYfUFZf7ElKkwzw/FbABbyi0rkAZXM0Te/UyU8psSZru/4ufbgovudNNwdLdvsfTKNTXF0+ZQhGcAVyHd2rNfcYwViXM+2BuKk2UD4//TNIKE3XiO44wHpspG7hugqxcQWZELAlImXw3ib0Zxyh/finppXaartRjs3i902TsK1vq6z5Wzu2Rt6j37danmyJBA2ZVqmZvBJHOB+SHRZj8ifuXyaSjUDIRtPa+3vazXOnRA+23g1wsjD5Y0SZkuKMTycaShHw7XwGtdtFYO5FXlb0xfrGR2pxOxYVmAUBzKPtrM3rE+yY8ZMhTnriDvl/Z9KTOyJrhM0j7jyErw0Ig4jxvN2mn4TOggV+pndeIy1/9GxQpmiGqYriCQ5qcysJ7YUOHwnj7nAlUMsQzhf+8L8Tmygs66ZHhslOFvGHmS3W8JjhlPvoFp5yMidWl7M3T9z4CbdS9uzsWDsSjprd+ce1SPhHdjAiuhtFSUtgNMaUoO7v1OMroxRRF3rJI/QT4KhVc2fucx6LMF9L0iv39tgIPIqlMqN2vP/S9Fz2VF/ihmopmOL5XM9aq1V47tMa4yAhEYdMK+Ke30g9meQnXCdQwcWP6rWm8BoCgcSs/l
+  template:
+    metadata:
+      name: kavita-client-secret
+      namespace: keycloak
+    type: Opaque

@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: immich-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgDPDUpo1d/keKH1ZiOFJICjDbX3eZQx0Q670pOZyoTUxA/tFS9MnNvbQXKorz7HbEobMYqGenX0tZGojrxBYo47TVJ/FJdzCRz9VLz9/bKDVkqUDYhnxXIf8q886bw5cS7fogffuUEOt1Ys+Rpa2mzulPY+zOyoNW64bBncZqJ1JYp6kWE69+fyNX2PQA2FGWWp+0bzODITsZCgQUw+vyLvP4MfkS8yJHENJeZGHGP/quYopTBcZh7Y72NKyS6qBavbHTo7M1otPA5KmU0EEMA6W26UjHb/e/ZyhroV5N8LC843vfNDuM9R2FDY965GEdAC6jsrMBeUJmm+ZwC5fZJiajuP6bYER+GsBufXomDibJL2Lsotz02Hw7LXUR16q50XTHo2O8f1Vp4y3DBr06YkLBHPwp4zRL0nD8LJehckA8Un4zg2tWvGXJc9o041nHWb1al9veZ2okd+gVRGbWb0phxLHsv/6EQ6aq54dhvqqAvnJVxXGl9gfGdj+EqCadyNV5LgHXd30F9nLPybTuoRYzyHSB1Uix1MnwH52ftbJqKw8TjMehJpQvIquRZsuwqGVcZo3hv6aBm4jqw2sZpNEYKo90mdR/GTiYPJX66jgCF7oYFDyN23UtODQAzF41nIyMvM4C91YTeQWlFfYoujNd17qUFmCZcF8BCwNQIgfuUbxazcIGqG/WY5JH3zOOF22EfOI5mJI9kcOXkUvMh2ivBdIoujRR8ChRe5GgKDQ2PUNMj9G7ZbFEZ2dclSycqoY4IMq5jYivyBh+p+GRuO
+  template:
+    metadata:
+      name: immich-client-secret
+      namespace: keycloak
+    type: Opaque

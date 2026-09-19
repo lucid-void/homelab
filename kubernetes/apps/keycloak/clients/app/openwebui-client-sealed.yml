@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: openwebui-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgCY9DEZhMyqTfQ5t/f83uhPdL4j8oPGir1a98Rxew2uMcg9ZA9Ck/SnSAW/0jArE9Ame/G/16UyRVWcuv8gz0+jgsWNmgJ38LbfSkqX11qLjRTfLWeyL9crZZXRm8IAxa8XmGpavdp7Ci4Bw7korZe2zD499otdUvXRxrg/+7Q1yudVW8m6xQcEypzHFDUrMb5ZwIcgTvCpGCR4ioa3rPJTiQSANV9PGcepmlolJ0SifLsRwzQJI5Y/8OAE3cwFs0tjNZXH3bbEW+WAAj1Mtqi3+p9soTeAOg5oBAlC89Q6U16bR1mLYCmJRR+JVM670OanS67gDUSVVrulsN9J9edh3dMs0b63DKpXyKNdgh7v3ggumY+oTOW7y2ku+i9zpWXPUJ6GI9i52jPmpMKzQfRJnwx5gB15gRV4YJtZbiteinGDkkN28cAdCq1xoHfDJlqLD5N9/xu1mqYIGTvhzw4KQVZalgdKmp6XIRJXXHS2C5oBHZYbtqiWtT/uD0KdXVoS3R9Y8z4HxVbFNcvNLF3q1GdD9047G6Rs+ILAhbQ7gtaDbXk5bAXjzlqEcKfFGKzOpmhpN6vBMlJoJGGPQvbjevreXa3uHxFJp2H1MOAIsL/NKxoItDyP6PiWb1MNSwlkXwW/QPktOmw3xP+C0+Wt5eoffrWuXY4Jh4d5RrIJlZTeYJqeC2JLvLHT3hGMxWKOwFk0Ib+4Am55LHMCWXaYVxuhXkXi01sPAigDROV7mwtRk+7+F9p8U2Fu2MI3cB6tyrc3z5WoqtEomSe+gGDo
+  template:
+    metadata:
+      name: openwebui-client-secret
+      namespace: keycloak
+    type: Opaque

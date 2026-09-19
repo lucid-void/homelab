@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: romm-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgAhqf058RIUt1vrA+BsH8xMOWrjnbx2rIkHC4CGise5McDLWozK2uPKkqPVb5wGW9PHIqRVB6bbIwd7bJNAt/GW0Z5YxxooGtGhLkidiN7fpz/dh1Sxspz5Q9S+zwpM2Jm+aSW1BAFS99WPrMel8GFGtDENASgC3Pg3DqZmqk6qI9FLu+Pt4Qlz+8OpY9URLkHW+qVfSlSrI9Q/YGyLcJCOAWxEWzUXwteTSUaUuymZcNBUp19vNudXkP+k8jFBSGlp0P+wUcwrY7QJHkMcqTJmBy+PawbN3HdVoo2osFJw+mT1+UN+ftpRO/4P/poAa8a07R+/q7GFJhzTpj35sCigu/5nMRCkGaBvO4CIMkXNIP8VR0VdeU3nalyKJSyx5N3zVPl4qyvahwTzl5cx03qKhenaO4DvWK7BCmNElPFau7ybo+m7wcvtU5dqWuVPaJiFKIfZct8fRgJlSl+FMKhL1U0ZHzAbiRtvTEDr7m1eGzPdnw0PA9rDGPm3D+/LkDjT4Na25Wg00QwRE2UbcTDBKSahaYgAOHPjSHOrQ9ljaPANVGEeLRopJtdkeGUrSfYGxRQRj8fLJs3oEzseM+jUpQ8w7ATO5mZynaQTgysSOUMaFUhyrUmQS4eK+p0vOSW6gI6Y46zbPUFjsaOkoVOsWT3wGX0Ruu7IaPYYD/LAnVwVpu/JJOXlmXwWBMUl9y0JDFCHRF4ByRxWfv2JYiCGppzRV7ZmA8RDnuZgG4wkInInBqOVY8x7TafSwd7a5W+mkNjYvXNmegmucICWZMwV
+  template:
+    metadata:
+      name: romm-client-secret
+      namespace: keycloak
+    type: Opaque

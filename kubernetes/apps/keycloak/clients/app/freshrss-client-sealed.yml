@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: freshrss-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgBqabon6aorRpdbjvB0wWkDcxI0Dd8dYTuw4KhqovXkp2iwtwKg/hFFQXniTLcdRk30F7dxxVJiXMCD7+wp6XlW2U8uwNp4tq+Gp8Jn6ArdUW1ET0aGcNSNvj10Tbs+pU3/hXv+gV1CbeYEvcreXhf6UpWWULtlkv+Snrh9nINlY/iVhPfdiaG003zsTSBInu6mbB1inFVUJrWRvKAnPQ1Ob+DVzHLbtwBTOb1pb7rtdLLeMEJenqTfoAGDNVXsZMUX1xk9eocw+M3ulxzmGzuQhRUmc9JDEvh6JOuugBOVOw7onn/ZxNvwJnVBY2QO6W+XLgCOKcN4JqaPa3Demj7ynHCZG/yeXwm2I1cK3URI0GrIz9VAkapo9LlrH6KvI/dbXJK/Y4cmxv5+QP5/sWbwejXT2+lLI5H04BJIS/VNtcgsWf7X9C3NaumWamCb/rrtZfKOEA8HK1OW8ZxYfx4lKjQpBjnGsusqq3n3S880JZzYpcUxma6uM5h0+5qxS5bBWLaiIxoD07MJcFqxCKMAyVmD08xLlVwzxVGsaY6oobGzYV+uBQDd0Ut35QGsJSeYftUahNrBCJTYnb8l63X5zeUqMILxbDDew+PTxdv1CcB5pLF5uvyOaaTl36FDIqZqc2Cb3fodXMEvkTlDYApynrbmMuSQF2z1s0pa8xBZ6qE1Ky2vy84/qxyCxuDnDsjIFR04aKHbucK09oW8YWI2ZUuHhIGcWolzKJMaLd5rB6Jwm+szk1S64uSnlqeIeuvDsxKlrAn51Uj7O1UuJpuI
+  template:
+    metadata:
+      name: freshrss-client-secret
+      namespace: keycloak
+    type: Opaque
