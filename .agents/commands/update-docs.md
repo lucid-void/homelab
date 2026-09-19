@@ -69,8 +69,14 @@ Never add a gotcha's body to `AGENTS.md` — see "Where a new fact goes" below.
 ## Where a new fact goes
 
 1. A gotcha about ONE service or subsystem → `design/decisions/<topic>.md`. Never `AGENTS.md`.
-2. A rule that applies repo-wide, in every namespace → a one-line entry in the
-   `AGENTS.md` hard-rules block. Nowhere else.
+2. A rule that applies repo-wide, in every namespace → **two** places, always both:
+   a one-line entry in the `AGENTS.md` hard-rules block, AND its reason, its
+   distinguishing symptom and the incident that produced it in the
+   `design/decisions/<topic>.md` file that the symptom's routing row points at.
+   `AGENTS.md` carries the rule; the decision file carries the why. A rule shipped
+   without a reason has nowhere for a reader to check it, so it gets mis-applied or
+   half-applied — which is exactly how the `apk`-as-non-root rule reached `main` naming
+   only one of the two settings it needs.
 3. A new terminal doc → one row in the `AGENTS.md` routing table. Never a second index.
 
 `AGENTS.md` has a hard budget of 2,500 tokens. Check before committing:

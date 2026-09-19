@@ -17,7 +17,7 @@ cluster workloads (Flux, from `main`). A tiny compose remnant survives only for 
 - **Never use a rolling image tag** (`latest`, `3`) — and linuxserver.io images need the FULL tag, their short `X.Y.Z` is mutable
 - **Never put Python at 0-indent** inside a YAML `|` block scalar — it breaks the kustomize parser
 - **Never `apk add` without `timeout 300`** in a Job or initContainer — an unbounded stall wedges the pod Running with empty logs forever
-- **Never run an `apk add` Job as non-root** — set `runAsUser: 0`; `runAsNonRoot: true` fails it silently at exit 99, with empty logs
+- **Never run an `apk add` Job as non-root** — set `runAsUser: 0` AND `runAsNonRoot: false`; `runAsUser: 0` alone is rejected by the kubelet, and non-root fails at exit 99 with empty logs
 - **Never install rclone from Alpine apk** where the filen backend is needed — it needs v1.69+, from `downloads.rclone.org`
 - **Never trust `optional: true` on an app-template `envFrom`** — chart 3.7.3 strips it silently
 - **Never assume a Helm values path took effect** — a wrong path is a silent no-op; render or check the live object
@@ -63,7 +63,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Your task touches...                                 | Read (only this)                      |
 |------------------------------------------------------|---------------------------------------|
 | adding or changing a service, Flux structure          | design/docs/gitops.md                 |
-| a pod stuck Running, zero log output, `backoffLimit` never fires | design/decisions/jobs-and-scripts.md |
+| a pod stuck Running or at `Status: Error`, zero logs, `backoffLimit` never fires, exit 99 | design/decisions/jobs-and-scripts.md |
 | Flux Kustomizations, Flux version pins, `force: true` re-runs | design/decisions/flux.md        |
 | HTTPRoute, DNS, certs, Gateway API                    | design/docs/networking.md             |
 | Cilium config, MTU, ALPN, TCPRoute                    | design/decisions/cilium-gateway.md    |
