@@ -11,7 +11,7 @@ mechanism only. Cross-namespace RBAC role `zitadel-bootstrap-auth` lives in
 `bootstrap-rbac`. Redirect URI is the Proxmox web UI base URL with no path
 (`https://pve.blackcats.cc:8006` + `:443`); `auth_method_type = BASIC` (the
 `proxmox-openid` Rust crate uses `client_secret_basic`). Credentials are entered into a
-Proxmox OIDC realm manually via `pveum` (see RUNBOOK).
+Proxmox OIDC realm manually via `pveum` (see design/runbook.md).
 
 ## Rules
 

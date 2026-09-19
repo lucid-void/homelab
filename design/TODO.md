@@ -6,8 +6,9 @@ Open work only. A finished item is deleted, not struck through.
 
 - Local `talosconfig` (`~/.talos/config`) is empty — `talosctl` is unusable from the
   workstation. Backups are unaffected (`etcd-snapshot` carries its own
-  `talosconfig-secret`), but RUNBOOK's recovery procedures all assume a working local
-  client. Regenerate from `talhelper genconfig` output / the SOPS-encrypted secrets
+  `talosconfig-secret`), but design/runbook.md's recovery procedures all assume a
+  working local client. Regenerate from `talhelper genconfig` output / the
+  SOPS-encrypted secrets
   and verify `talosctl -n 172.16.20.11 version`.
 - ~190Gi of orphaned `Released` PVs on the Synology (`gitea` valkey ×12, `vm-stack-grafana`
   ×5, `plex-config`, `tranga-config`, `freshrss-notify-state`, `postgres-2`) —
@@ -95,8 +96,8 @@ Open work only. A finished item is deleted, not struck through.
   CronJob is `concurrencyPolicy: Forbid`; never copy that to a shared repo.
 - No backup has ever been restore-tested end-to-end. Pick one app (Immich highest
   value), restore into a clean PVC + fresh CNPG database, document the procedure in
-  RUNBOOK. The etcd snapshot restore (`talosctl bootstrap --recover-from`) is the same
-  story — never exercised.
+  design/runbook.md. The etcd snapshot restore (`talosctl bootstrap --recover-from`) is
+  the same story — never exercised.
 - No confirmed alert path for a stuck `cert-manager` `Certificate` (`Ready: False`) or
   for a backup failing while Gotify itself is down (`gotify-secret` is wired
   `optional: true` so jobs run before bootstrap). Confirm existing coverage or add a
@@ -179,8 +180,8 @@ Open work only. A finished item is deleted, not struck through.
   risk; private network, VPN-gated (see `AGENTS.md` key decisions).
 - 64 single-replica Deployments, 2 PDBs, and `postgres-primary` allows 0 disruptions —
   a Talos rolling upgrade blocks on it and takes most services down as it proceeds.
-  Reasonable homelab trade-off; RUNBOOK's upgrade section should state it explicitly
-  rather than let it be discovered mid-upgrade.
+  Reasonable homelab trade-off; design/runbook.md's upgrade section should state it
+  explicitly rather than let it be discovered mid-upgrade.
 - `openebs-hostpath` PVC `storage:` requests are fiction — there is no quota, so the
   real ceiling is node free space shared with containerd/etcd/logs. Accepted because
   the alerts that actually matter (`NodeFilesystemAlmostFull`, the Minecraft

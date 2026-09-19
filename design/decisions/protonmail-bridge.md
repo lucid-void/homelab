@@ -47,8 +47,8 @@ directory, not a `subPath` (a `subPath` mount never refreshes). Valid 20 years �
 to a one-time step — but regenerated (re-export, re-seal) if the vault is rebuilt.
 
 **Login is interactive** (account password + 2FA) **and cannot be a Job** — a
-one-time manual procedure (RUNBOOK → "Bootstrap Proton Mail Bridge"), re-run only if
-the vault is lost.
+one-time manual procedure (design/runbook.md → "Bootstrap Proton Mail Bridge"),
+re-run only if the vault is lost.
 
 Ports: the bridge binds only `127.0.0.1` (1143 IMAP / 1025 SMTP); the entrypoint runs
 socat to republish those on the pod IP as `:143`/`:25`. The Service publishes IMAP

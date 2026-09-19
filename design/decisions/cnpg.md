@@ -64,8 +64,8 @@ separate Secret consumed through `extraEnvFrom`.
   runs `pg_basebackup` from a `<cluster>-<n>-join` Job and only creates that Job when
   the PVC is **absent** (emptying PGDATA alone just makes the instance manager die on
   `stat .../pgdata`), while the rename is required because `nfs-client` re-adopts the
-  same `<ns>-<pvc>` directory on recreate. Full procedure: RUNBOOK → "Rebuild a CNPG
-  replica that cannot rejoin".
+  same `<ns>-<pvc>` directory on recreate. Full procedure: design/runbook.md → "Rebuild
+  a CNPG replica that cannot rejoin".
 
 ## Verify
 
