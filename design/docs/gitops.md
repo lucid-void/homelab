@@ -265,7 +265,7 @@ resources:
 
 ### 6. Create Sealed Secrets (if needed)
 
-See `docs/secrets.md`.
+See `design/docs/secrets.md`.
 
 ### 7. Create HTTPRoute
 

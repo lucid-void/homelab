@@ -5,8 +5,8 @@
 ## Current state
 
 Offsite target is restic over an rclone crypt remote to Filen cloud. One restic repo per
-job at `rclone:filen:backups/restic/{name}`, 30-day retention. Every job is a `CronJob`
-in the app's own namespace running `ghcr.io/lucid-void/backup-tools`.
+job at `rclone:filen:backups/restic/{name}`. Every job is a `CronJob` in the app's own
+namespace running `ghcr.io/lucid-void/backup-tools`.
 
 | Time | Job | Quiescing |
 |---|---|---|
@@ -20,21 +20,22 @@ in the app's own namespace running `ghcr.io/lucid-void/backup-tools`.
 | 06:00 | joplin-backup | scale to 0 |
 | 07:00 | minecraft-backup | quiesced |
 
-Scale-down jobs bring the deployment to 0 replicas via `trap cleanup EXIT`. homebox and
-gitea back up SQLite/repos; immich, paperless and joplin dump Postgres plus PVCs into a
-single snapshot. Apps with their own quiesced job are excluded from `postgres-backup`'s
+Scale-down jobs go to 0 replicas via `trap cleanup EXIT`. homebox and gitea back up
+SQLite/repos; immich, paperless and joplin dump Postgres plus PVCs into a single
+snapshot. Apps with their own quiesced job are excluded from `postgres-backup`'s
 `databases.yml` list.
 
 Retention is `--group-by '' --keep-daily 30 --keep-monthly 12`.
 
-**Postgres has no PITR.** There is no `ScheduledBackup`/`Backup`/`barmanObjectStore`, no
-WAL archiving. `postgres-backup`'s logical dump is the only database backup.
+**Postgres has no PITR** — no `ScheduledBackup`/`Backup`/`barmanObjectStore`, no WAL
+archiving. `postgres-backup`'s logical dump is the only database backup.
 
-**There are no VM/PBS backups.** The recovery path is `tofu apply` + talhelper + Flux
-reconciliation, with data restored from Filen.
+**There are no VM/PBS backups.** Recovery is `tofu apply` + talhelper + Flux
+reconciliation, with data restored from Filen. **Restore procedures are in
+`design/runbook.md`, not here** — per-app restic and etcd both.
 
 `etcd-snapshot` takes `talosctl etcd snapshot` from the first reachable control plane
-(`.11` → `.12` → `.13`), downloading `talosctl` at runtime. It needs three SealedSecrets:
+(`.11` → `.12` → `.13`), downloading `talosctl` at runtime. Needs three SealedSecrets:
 `restic-secret`, `rclone-secret`, `talosconfig-secret`. It is a **secondary** path —
 rebuilding from git is primary, so the snapshot only covers in-cluster state git never
 held. Never restore-tested.
@@ -43,23 +44,24 @@ held. Never restore-tested.
 it), kubectl, restic, rclone and postgresql17-client — but **not** python3, and its
 `find` is busybox (no `-printf`, no `-readable`).
 
-Gotify notifications are priority 5 on success, 8 on failure. The token comes from the
-`gotify-secret` Secret managed by the `gotify-bootstrap` Job (not a SealedSecret), wired
-in `optional: true` so jobs run before bootstrap completes.
+Gotify notifications are priority 5 on success, 8 on failure. The token is in
+`gotify-secret`, managed by the `gotify-bootstrap` Job (not a SealedSecret), wired
+`optional: true` so jobs run before bootstrap completes.
 
 ## Rules
 
 - **Keep `--group-by ''` on every `forget`** — restic defaults to `--group-by host,paths`
   and every Job pod has a unique hostname, so each nightly snapshot forms a *group of
   one* that `--keep-daily 30` trivially keeps: retention deletes nothing and `--prune`
-  becomes a permanent no-op. The tell in the logs is N consecutive
+  becomes a permanent no-op. The log tell: N consecutive
   `Applying Policy: keep 30 daily snapshots` / `keep 1 snapshots:` blocks.
 - **Bump `TALOS_VERSION` in the `etcd-snapshot` script alongside every Talos upgrade** —
   it is pinned there and the job downloads that exact `talosctl` at runtime.
 - **`etcd-snapshot` also runs `restic check --read-data-subset=1/10`** — spot-checks
   real data, not just metadata.
 - **Restore etcd with `talosctl bootstrap --recover-from <snap>` *instead of* plain
-  `talosctl bootstrap`** — running both discards the snapshot. Procedure in RUNBOOK.
+  `talosctl bootstrap`** — running both discards the snapshot. Procedure in
+  `design/runbook.md`.
 - **Use the official rclone binary from `downloads.rclone.org` in any image that needs
   the `filen` backend** — it arrived in rclone v1.69 and Alpine's `apk add rclone`
   installs something older that lacks it.
@@ -76,12 +78,13 @@ in `optional: true` so jobs run before bootstrap completes.
   against read-only PVC mounts, so any file the app leaves unreadable fails the whole
   run: restic exits **3** ("snapshot saved, but at least one source file could not be
   read") and `set -e` aborts *after* the snapshot is written but *before*
-  `forget --prune` and `check`. The Gotify body then reads confusingly like a success
-  (`snapshot … saved`) with a one-line
+  `forget --prune` and `check`. The Gotify body then reads like a success
+  (`snapshot … saved`) above a one-line
   `Warning: at least one source file could not be read` above it. Paperless's
   Tantivy search index writes `meta.json`/`.managed.json` mode `0600` as uid 1000, hence
   `--exclude=/data/index`; the index is derived data, rebuilt with
-  `document_index reindex` (RUNBOOK). Do not instead loosen the backup's uid — that
+  `document_index reindex` (`design/runbook.md`). Do not instead loosen the backup's
+  uid — that
   couples it to the app image.
 - **Diagnose an unreadable-file failure from a pod running as the backup's uid with the
   same read-only mounts** — a `find` inside the app pod lies twice: it runs as root, and
@@ -90,10 +93,10 @@ in `optional: true` so jobs run before bootstrap completes.
 - **Always post to the in-cluster Service `http://gotify.monitoring.svc.cluster.local/message`,
   never `https://gotify.blackcats.cc`** — the public hostname needs DNS plus egress out
   to the Gateway and back, exactly what breaks in the commonest failure mode (a node
-  reboot killing egress). Applies to every job-style Gotify caller: the 7
-  app backups, `etcd-snapshot`, `kubent` and `security-report`. Legitimate remaining uses
-  of the public hostname are the HTTPRoute itself, the Gatus check (which deliberately
-  probes the public path), the homepage link and mailrise's apprise URL.
+  reboot killing egress). Applies to every job-style Gotify caller: the 8 app backups,
+  `etcd-snapshot`, `kubent` and `security-report`. Legitimate public-hostname uses: the
+  HTTPRoute, the Gatus check (deliberately probing the public path), the homepage link
+  and mailrise's apprise URL.
 - **Keep the log capture and the tail in the failure body** — scripts capture everything
   with `exec > >(tee "$LOG") 2>&1` and the handler awk-JSON-escapes `tail -10 "$LOG"`
   into the Gotify message, which is what makes a failure triageable without kubectl.
