@@ -7,6 +7,19 @@ metadata:
 spec:
   instances: 1
 
+  # KeycloakOIDCClient CRs cannot reconcile without this: the operator calls a
+  # client admin API the server does not expose by default, and fails with
+  # "Cannot create/update because the server does not have client-admin-api:v2
+  # enabled". Keycloak classifies CLIENT_ADMIN_API_V2 as EXPERIMENTAL — its
+  # lowest support tier, below PREVIEW — so it may change or disappear in a
+  # future release with no deprecation cycle, and in this repo a Renovate bump
+  # of keycloak-k8s-resources IS a Keycloak upgrade. Accepted deliberately:
+  # clients already written live in the realm database as ordinary rows, so
+  # losing the feature would break reconciliation of new changes, not logins.
+  features:
+    enabled:
+      - client-admin-api:v2
+
   db:
     vendor: postgres
     host: postgres-rw.postgres.svc.cluster.local
