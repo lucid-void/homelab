@@ -56,3 +56,38 @@ spec:
     # defaults to sslmode=prefer and negotiates TLS it does not verify.
     - name: db-url-properties
       value: "?sslmode=disable"
+
+  # The Proton Mail Bridge certificate is CN=127.0.0.1 with a single
+  # IP:127.0.0.1 SAN. Keycloak must both trust it and reach the bridge at an
+  # address the certificate matches — hence the truststore here and the socat
+  # sidecar below. Mirrored from paperless/protonmail-bridge-cert by Reflector.
+  truststores:
+    protonmail-bridge:
+      secret:
+        name: protonmail-bridge-cert
+
+  unsupported:
+    podTemplate:
+      spec:
+        containers:
+          # Index 0 is the operator's own keycloak container; listing a second
+          # entry appends a sidecar. It relays 127.0.0.1:1025 to the bridge as
+          # plain TCP — it terminates no TLS, so STARTTLS still negotiates end
+          # to end against the certificate Keycloak now trusts.
+          - name: smtp-relay
+            image: alpine/socat:1.8.0.3
+            args:
+              - TCP-LISTEN:1025,fork,reuseaddr,bind=127.0.0.1
+              - TCP:protonmail-bridge.paperless.svc.cluster.local:25
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                memory: 64Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              runAsNonRoot: true
+              runAsUser: 65534
+              capabilities:
+                drop: ["ALL"]
