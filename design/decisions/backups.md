@@ -79,13 +79,12 @@ Gotify notifications are priority 5 on success, 8 on failure. The token is in
   run: restic exits **3** ("snapshot saved, but at least one source file could not be
   read") and `set -e` aborts *after* the snapshot is written but *before*
   `forget --prune` and `check`. The Gotify body then reads like a success
-  (`snapshot … saved`) above a one-line
+  (`snapshot … saved`) with a one-line
   `Warning: at least one source file could not be read` above it. Paperless's
   Tantivy search index writes `meta.json`/`.managed.json` mode `0600` as uid 1000, hence
   `--exclude=/data/index`; the index is derived data, rebuilt with
   `document_index reindex` (`design/runbook.md`). Do not instead loosen the backup's
-  uid — that
-  couples it to the app image.
+  uid — that couples it to the app image.
 - **Diagnose an unreadable-file failure from a pod running as the backup's uid with the
   same read-only mounts** — a `find` inside the app pod lies twice: it runs as root, and
   paperless bind-mounts the PVCs at `/data` and `/media`, not at the

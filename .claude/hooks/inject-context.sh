@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# Claude Code PreToolUse hook (Write|Edit): before a manifest edit under
-# kubernetes/, inject the design doc(s) that govern that path into the model's
-# context, ahead of the edit.
+# Claude Code PreToolUse hook (Write|Edit): on a manifest edit under
+# kubernetes/, inject the design doc(s) that govern that path as
+# additionalContext. Testing showed this lands alongside the tool result, not
+# before the model decides to call Write — so it can't prevent a first edit
+# made without the doc; it's a corrective, landing in time for the next turn
+# (and every edit after the first to that path in the session).
 #
-# Vendor-specific belt-and-braces on top of the AGENTS.md routing table,
-# which stays the portable mechanism for every other harness.
+# The portable mechanism that actually gates the first edit is the AGENTS.md
+# routing table, which every harness reads before deciding what to write;
+# this hook is Claude Code's belt-and-braces backstop on top of it.
 #
 # DELIVERY CONTRACT — verified against the installed Claude Code binary
 # (~/.local/share/claude/versions/2.1.238). For PreToolUse the binary's own
@@ -65,7 +69,7 @@ if [[ -n "$SESSION_ID" ]]; then
   if mkdir -p "$STATE_DIR" 2>/dev/null; then
     chmod 700 "$STATE_DIR" 2>/dev/null
     STATE_FILE="$STATE_DIR/$SESSION_ID"
-    : >> "$STATE_FILE" 2>/dev/null || STATE_FILE=""
+    { : >> "$STATE_FILE"; } 2>/dev/null || STATE_FILE=""
   fi
 fi
 

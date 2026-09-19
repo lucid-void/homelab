@@ -40,7 +40,18 @@ RC=$?
 # a fabricated error on a perfectly good manifest, so a run whose only
 # failures are download failures is a SKIP. A run that also carries a genuine
 # violation still fails, with the full output.
-RESIDUAL=$(printf '%s\n' "$OUT" | grep -v 'failed downloading schema' | tr -d '[:space:]')
+#
+# A truncated -cache entry (interrupted run, full disk, mid-download network
+# cut) fails the same way: kubeconform's own JSON decode of the schema
+# surfaces as "failed validation: <go json error>" — e.g. "invalid character
+# 'o' in literal null (expecting 'u')", "unexpected EOF", plain "EOF". A real
+# jsonschema violation never reads that way — it's always "... is invalid:
+# problem validating schema ... jsonschema validation failed with ... got X,
+# want Y" — so anchoring on the "failed validation:" prefix can't mask one.
+RESIDUAL=$(printf '%s\n' "$OUT" \
+  | grep -v 'failed downloading schema' \
+  | grep -Ev 'failed validation: (invalid character|unexpected EOF|EOF$)' \
+  | tr -d '[:space:]')
 [[ -z "$RESIDUAL" ]] && exit 0
 
 printf '%s\n' "$OUT" >&2

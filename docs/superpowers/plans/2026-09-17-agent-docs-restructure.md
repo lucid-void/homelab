@@ -786,7 +786,7 @@ wc -l /tmp/hard-rules-seed.md
 - [ ] **Step 5: Verify no dangling references anywhere**
 
 ```bash
-grep -rn 'design/CLAUDE.md\|\.claude/TODO.md\|AI_CONTEXT\|ARCHITECTURE.md\|RUNBOOK.md\|llm-deployment' \
+grep -rn 'design/CLAUDE.md\|\.claude/TODO.md\|AI_CONTEXT\|ARCHITECTURE.md\|\bRUNBOOK\b\|llm-deployment' \
   AGENTS.md design/ .claude/ .agents/ docs/superpowers/plans/ || echo "clean"
 ```
 
@@ -1550,7 +1550,7 @@ find design -name '*.md' -size +8k -printf '%s\t%p\n' | sort -rn \
   && echo "(files above 8k listed; runbook.md and architecture.md may legitimately exceed)"
 
 echo "== 8. no dangling doc references =="
-grep -rn 'AI_CONTEXT\|design/ARCHITECTURE.md\|design/RUNBOOK.md\|design/CLAUDE.md\|llm-deployment\|llm-inference\|ups-power\|monitoring-stabilization' \
+grep -rn 'AI_CONTEXT\|design/ARCHITECTURE.md\|\bRUNBOOK\b\|design/CLAUDE.md\|llm-deployment\|llm-inference\|ups-power\|monitoring-stabilization' \
   AGENTS.md design/ .agents/ 2>/dev/null && echo "FAIL — stale reference" || echo PASS
 ```
 
