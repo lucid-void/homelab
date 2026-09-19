@@ -8,7 +8,11 @@ spec:
   keycloakCRName: keycloak
   realm: homelab
   client:
-    clientId: gitea
+    # There is no `clientId` field on this CRD. It is not defined anywhere in
+    # the v2alpha1 schema, and the CRD sets no x-kubernetes-preserve-unknown-fields,
+    # so the apiserver silently prunes any clientId written here — the manifest
+    # would look like it named the client while doing nothing. The client id
+    # comes from metadata.name, which is why this CR is named after the app.
     displayName: Gitea
     enabled: true
     loginFlows: [STANDARD]
