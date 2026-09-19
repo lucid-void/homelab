@@ -95,10 +95,13 @@ spec:
       app:
         controller: app
         ports:
-          # IMAP only. The container also listens on :25, but nothing here
-          # sends mail through Proton, so it is left unpublished.
           imap:
             port: 143
+          # Keycloak sends realm mail (password reset, verify address) through
+          # the bridge. The container already listens on :25 — its entrypoint
+          # socat republishes the loopback-bound SMTP listener on the pod IP.
+          smtp:
+            port: 25
 
     persistence:
       config:
