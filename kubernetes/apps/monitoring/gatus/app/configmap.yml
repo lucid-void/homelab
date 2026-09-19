@@ -77,6 +77,12 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
+      # No [CERTIFICATE_EXPIRATION] here on purpose: this is the only endpoint
+      # with a [BODY] condition, so gatus drains the response and keeps the
+      # connection pooled, then reports the cert from the FIRST handshake
+      # forever. After a shared-tls renewal it reads the old expiry and goes
+      # red while immich is healthy. The wildcard is covered by every other
+      # endpoint below, so dropping it here loses no coverage.
       - name: Immich
         group: apps
         url: https://immich.blackcats.cc/api/server/ping
@@ -84,7 +90,6 @@ data:
         conditions:
           - "[STATUS] == 200"
           - "[BODY].res == pong"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
 
       - name: Paperless
         group: apps
