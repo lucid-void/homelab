@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gitea-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgBsin3Ih21gKKWcayhAov7rkY9Xb0+p7qbaqu8sqrzmpZYV9K6lhPRCw84ibuIqLyXGu99J5zcOleZJs65rvO2/H0zAPk79kCmKJonl7Y+/9YQZrqr7bk6RiMEHw5onvDyhQbX/bwx4nW1rXl47KqwN/HaBMHGRsaLrbEnBw7H3BTSCOkLqeKtNnQYVIIg9tsoP6xdzW4+ebEbIYnw3sMTvLDddLa/r8Wk4WZyIOThRJ9qdQs3v0RI+ivlS1wjbS/EeELIHPC6ZKLcKJIwXj6J6B0y5OUJZuFI2HOMU2L5Ix2tFUlw7t0hlA6XS5IoIA2MPwHlXMOG8kkJF9hj5JREjhZjiz1diMuC3wETZo6pUpwfrgP2bxZ9meNkJJMPFwWlBx4BOcsoTh5mpAFAEYsTtPJsMr8SxtEmQlXRDqpoHH80ganpAlhu+QC98IpRas9eT66f4CQFVm8kqKYrGcSvH2EIh5C4aK7LORh9xyOsrofGISZ/AH5Ic91vEdQ4DGmij3UsQNHzFNIFpV0KIWkCmgsNWFp9/Ek/R11csMkXMpc8a3F3KSCLrkSEQ2WNYtK/+5YlR+4MC9+vf9sJIjtpSeEjAFQ+64DPQiw5aScXLOrJXUZnaP5Yf+atbYsEbKhbUyxmqRAqfyEOn/PF9Pj3otaIzvazy5tpek/nx0fhMR1UH40clazMYsgy76wcGFJwZCAEkq6U3jig+IM/cqgyKuIKEAbh2K906LRkep8IDLatWgMO+srujiZIqFQ==
+  template:
+    metadata:
+      name: gitea-client-secret
+      namespace: keycloak
+    type: Opaque

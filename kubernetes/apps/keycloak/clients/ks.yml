@@ -1,0 +1,24 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app keycloak-clients
+  namespace: flux-system
+spec:
+  targetNamespace: keycloak
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: keycloak-realm
+    - name: sealed-secrets
+  path: ./kubernetes/apps/keycloak/clients/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  # wait: false — KeycloakOIDCClient is v2alpha1 and reports no health status
+  # Flux can gate on; waiting would stall the Kustomization indefinitely.
+  wait: false
+  interval: 30m
+  timeout: 10m

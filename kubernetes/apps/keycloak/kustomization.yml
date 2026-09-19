@@ -7,3 +7,4 @@ resources:
   - ./operator/ks.yml
   - ./keycloak/ks.yml
   - ./realm/ks.yml
+  - ./clients/ks.yml
