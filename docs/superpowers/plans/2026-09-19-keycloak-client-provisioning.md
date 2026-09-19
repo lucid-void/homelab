@@ -18,6 +18,7 @@
 - **All k8s tooling is behind mise:** `mise exec -- kubectl|flux|kubeseal|talosctl|helm|kubeconform`.
 - **After editing any manifest, run** `.agents/scripts/validate-manifests.sh <path>`. A schema violation that reaches `main` wedges the whole Flux Kustomization.
 - **Realm name:** `homelab`. **Issuer:** `https://sso.blackcats.cc/realms/homelab`. **Discovery:** `https://sso.blackcats.cc/realms/homelab/.well-known/openid-configuration`. Endpoints are `<issuer>/protocol/openid-connect/{auth,token,userinfo}`.
+- **`KeycloakOIDCClient` requires the server feature `client-admin-api:v2`**, enabled via `Keycloak.spec.features.enabled`. Keycloak classifies `CLIENT_ADMIN_API_V2` as **EXPERIMENTAL** — its lowest tier, below `PREVIEW`. Without it the operator refuses every client CR with *"Cannot create/update because the server does not have client-admin-api:v2 enabled"*. Accepted knowingly: clients already written are ordinary realm rows, so losing the feature degrades reconciliation, not logins.
 - **`KeycloakOIDCClient` is `v2alpha1`** and exposes only `appUrl`, `auth`, `description`, `displayName`, `enabled`, `loginFlows`, `redirectUris`, `roles`, `serviceAccountRoles`, `webOrigins`. No protocol mappers, no client attributes. Anything outside that list is a console click.
 - **`client.roles` is a list of bare strings.** Declare only roles the application actually reads.
 - **Joplin is out of scope** and stays on Zitadel. Never remove `zitadel_application_saml.joplin`, `zitadel_action.joplin_saml_attributes` or `zitadel_trigger_actions.joplin_saml_attributes`.
@@ -1312,7 +1313,9 @@ The repo convention: design files describe the **implemented** state, and a gotc
 
 Fold in the gotcha list from `docs/superpowers/specs/2026-09-18-keycloak-deployment-design.md` (which was blocked on a `design/` restructure at the time), and add what this migration established:
 
+- **Client management depends on an EXPERIMENTAL Keycloak feature.** `KeycloakOIDCClient` cannot reconcile unless `client-admin-api:v2` is enabled in `Keycloak.spec.features.enabled`, and Keycloak types `CLIENT_ADMIN_API_V2` as EXPERIMENTAL — below PREVIEW, changeable or removable with no deprecation cycle. Because a Renovate bump of `keycloak-k8s-resources` is a Keycloak upgrade here, treat every such bump as able to break client reconciliation. Logins would survive: clients live in the realm database as ordinary rows.
 - `KeycloakOIDCClient` is `v2alpha1` and exposes no protocol mappers and no client attributes; anything outside its ten fields is a console click.
+- **There is no `clientId` field.** The CRD defines none and sets no `x-kubernetes-preserve-unknown-fields`, so the apiserver silently prunes one if written — it looks like it names the client and does nothing. `metadata.name` is the client id.
 - `client.roles` takes bare strings only — no descriptions, no composites.
 - Groups, group membership and group→role mappings are **deliberately manual**. No CRD expresses them; OpenTofu was considered and rejected. Record the actual group layout here, because git holds no other record of it.
 - Client secrets are owned by git (`keycloak/<app>-client-secret`, sealed), not issued by Keycloak. A realm rebuild therefore does not reissue credentials — the opposite of the Zitadel arrangement.

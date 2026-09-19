@@ -53,6 +53,25 @@ the realm has users.
 
 ### Consequences to accept
 
+- **Client management depends on an EXPERIMENTAL Keycloak feature.** Discovered by
+  applying the first client, not by reading the CRD: the operator refuses every
+  `KeycloakOIDCClient` with *"Cannot create/update because the server does not have
+  client-admin-api:v2 enabled"*. The server's own feature registry types
+  `CLIENT_ADMIN_API_V2` as `EXPERIMENTAL` — Keycloak's lowest tier, below `PREVIEW` —
+  and it must be turned on explicitly in `Keycloak.spec.features.enabled`.
+
+  This was put to the operator against the alternative of switching to the rejected
+  OpenTofu approach, which uses the stable admin REST API, and enabling it was chosen
+  deliberately. The mitigating fact: clients, once written, are ordinary rows in the
+  realm database. If the feature changes or disappears — and in this repo a Renovate
+  bump of `keycloak-k8s-resources` *is* a Keycloak upgrade — logins keep working and
+  only reconciliation of further changes breaks.
+
+- **There is no `clientId` field.** The CRD defines none anywhere and sets no
+  `x-kubernetes-preserve-unknown-fields`, so the apiserver silently prunes one if
+  written: the manifest reads as though it names the client while doing nothing.
+  `metadata.name` is what becomes the client id.
+
 - **No protocol mappers and no client attributes.** `KeycloakOIDCClient.client` exposes
   `appUrl`, `auth`, `description`, `displayName`, `enabled`, `loginFlows`,
   `redirectUris`, `roles`, `serviceAccountRoles` and `webOrigins` — and nothing else.
