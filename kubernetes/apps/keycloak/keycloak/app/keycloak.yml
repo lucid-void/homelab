@@ -69,19 +69,21 @@ spec:
   unsupported:
     podTemplate:
       spec:
-        containers:
-          # The operator generates the `keycloak` container itself. This
-          # name-only entry claims it without changing it, so the list is
-          # correct whether the operator merges this by container name (it
-          # matches and contributes nothing) or by position (it holds slot 0
-          # and smtp-relay lands in slot 1). Without it, a single-element list
-          # under positional merge would REPLACE the server container.
-          - name: keycloak
+        # A NATIVE sidecar (initContainer + restartPolicy: Always), not an
+        # ordinary container. The operator applies this podTemplate to the
+        # realm-import Job as well as to the StatefulSet, and an ordinary
+        # socat container never exits — it left the import Job wedged at 1/2
+        # with the server container already Completed. The kubelet terminates
+        # native sidecars once a Job's main containers finish, and in the
+        # StatefulSet this additionally guarantees the relay is up before
+        # Keycloak starts.
+        initContainers:
           # Relays 127.0.0.1:1025 to the bridge as plain TCP — it terminates no
           # TLS, so STARTTLS still negotiates end to end against the
-          # certificate Keycloak now trusts via spec.truststores.
+          # certificate Keycloak trusts via spec.truststores.
           - name: smtp-relay
             image: alpine/socat:1.8.0.3
+            restartPolicy: Always
             args:
               - TCP-LISTEN:1025,fork,reuseaddr,bind=127.0.0.1
               - TCP:protonmail-bridge.paperless.svc.cluster.local:25
