@@ -116,10 +116,8 @@ Expected: exit 0.
 The bridge certificate is `CN=127.0.0.1` with exactly one SAN, `IP:127.0.0.1`, valid to 2046, generated inside the bridge's encrypted vault and not reissuable. Any client verifying the hostname `protonmail-bridge.paperless.svc.cluster.local` fails. Paperless solved this with a loopback socat relay; Keycloak needs the same.
 
 **Files:**
-- Create: `kubernetes/apps/keycloak/keycloak/app/bridge-cert-mirror.yml`
-- Modify: `kubernetes/apps/paperless/protonmail-bridge/app/app-sealed.yml` is **not** touched; instead annotate the cert Secret's source
 - Modify: `kubernetes/apps/keycloak/keycloak/app/keycloak.yml`
-- Modify: `kubernetes/apps/keycloak/keycloak/app/kustomization.yml`
+- No new manifest. The bridge cert Secret is created by the bridge's bootstrap, not by git, so it reaches the `keycloak` namespace by annotating the live source Secret for Reflector (step 2) — there is nothing to commit for it.
 
 **Interfaces:**
 - Consumes: `protonmail-bridge.paperless.svc.cluster.local:25` from Task 1.
@@ -1006,7 +1004,7 @@ mise exec -- flux resume kustomization zitadel-bootstrap
 mise exec -- flux reconcile kustomization zitadel-bootstrap --with-source
 ```
 
-The revert restores the Terraform resources; the next bootstrap run rewrites all nine `*-oidc-secret` Secrets with the Zitadel values. Then repeat step 10's rollout restart so the applications pick them up. The Keycloak client CRs are additive and can be left in place.
+The revert restores the Terraform resource blocks and removes the `removed` blocks. Because those removals only dropped the resources from state and left the real Zitadel clients and Secrets intact, the next bootstrap run re-imports nothing but re-adopts them — it rewrites all nine `*-oidc-secret` Secrets with the Zitadel values. If a client was somehow destroyed, the apply recreates it with a NEW client secret, and the rewritten Secret carries that new value, so the applications still converge; only the Zitadel-side client IDs change. Then repeat step 10's rollout restart so the applications pick them up. The Keycloak client CRs are additive and can be left in place.
 
 The one thing a revert does **not** undo is Task 4's realm rebuild — which is why that task happens while the realm is empty, and why it is a separate commit from this one.
 
@@ -1068,7 +1066,9 @@ Leave `OAUTH_TOKEN_ENDPOINT_AUTH_METHOD: client_secret_post` as it is — Keyclo
 
 - [ ] **Step 3: Remove the nine applications from the Zitadel bootstrap**
 
-In `kubernetes/apps/auth/bootstrap/app/tofu/main.tf`, delete these eighteen resource blocks:
+**Do not simply delete the resource blocks.** Terraform state holds all eighteen; a resource removed from config is DESTROYED on the next apply. That would delete the nine Zitadel clients — destroying the rollback path this task depends on — and delete the nine `*-oidc-secret` Secrets that SealedSecrets now owns. OpenTofu 1.12.6 is in use (`ghcr.io/opentofu/opentofu:1.12.6` in `job.yml`), so use `removed` blocks, which drop a resource from state while leaving the real object alone.
+
+Replace each of these eighteen resource blocks:
 
 ```
 zitadel_application_oidc.immich       kubernetes_secret_v1.immich_oidc_config
@@ -1082,6 +1082,28 @@ zitadel_application_oidc.proxmox      kubernetes_secret_v1.proxmox_oidc_secret
 zitadel_application_oidc.openwebui    kubernetes_secret_v1.openwebui_oidc_secret
 ```
 
+...with an equivalent `removed` block. Eighteen in total, one per deleted resource:
+
+```hcl
+removed {
+  from = zitadel_application_oidc.immich
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = kubernetes_secret_v1.immich_oidc_config
+  lifecycle {
+    destroy = false
+  }
+}
+```
+
+...and the same pair for `freshrss`/`freshrss_oidc_secret`, `paperless`/`paperless_oidc_secret`, `gitea`/`gitea_oidc_secret`, `grafana`/`grafana_oidc_secret`, `kavita`/`kavita_oidc_secret`, `romm`/`romm_oidc_secret`, `proxmox`/`proxmox_oidc_secret`, `openwebui`/`openwebui_oidc_secret`. Note the Immich secret resource is named `immich_oidc_config`, not `immich_oidc_secret`.
+
+The `removed` blocks stay in `main.tf` until Zitadel is retired; deleting them once state no longer holds those addresses is a no-op cleanup, not part of this task.
+
 Keep `zitadel_project.homelab`, `data.zitadel_orgs.default`, `locals`, `variable.zitadel_pat`, the `terraform`/`provider` blocks, and all three Joplin resources.
 
 Confirm nothing was missed:
@@ -1092,7 +1114,13 @@ grep -cE '^resource "kubernetes_secret_v1"' kubernetes/apps/auth/bootstrap/app/t
 grep -cE '^resource "zitadel_application_saml"' kubernetes/apps/auth/bootstrap/app/tofu/main.tf
 ```
 
-Expected: `0`, `0`, `1`.
+Expected: `0`, `0`, `1`. And confirm the removals are declared:
+
+```bash
+grep -c '^removed {' kubernetes/apps/auth/bootstrap/app/tofu/main.tf
+```
+
+Expected: `18`.
 
 - [ ] **Step 4: Drop the now-dead cross-namespace RBAC**
 
@@ -1180,7 +1208,9 @@ mise exec -- flux reconcile kustomization zitadel-bootstrap --with-source
 mise exec -- kubectl logs -n auth job/zitadel-bootstrap -c tofu --tail=40
 ```
 
-Expected: the apply reports only Joplin resources. **If it reports changes to any of the nine `kubernetes_secret_v1` resources, step 3 was incomplete** — suspend it again and fix before anyone logs in.
+Expected: the apply reports eighteen resources **forgotten** (removed from state, not destroyed) and no changes beyond Joplin.
+
+**If the log shows any `zitadel_application_oidc` or `kubernetes_secret_v1` being _destroyed_ rather than forgotten, the `removed` blocks did not take effect.** Suspend the Kustomization again immediately — the Zitadel clients are the rollback path, and losing them strands the migration with no way back. Restore them from `main.tf` history and re-apply before anyone logs in.
 
 ---
 
