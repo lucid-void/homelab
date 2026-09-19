@@ -5,9 +5,10 @@
 # once users and clients exist, a change here may need the realm deleted (or the
 # setting changed by hand in the admin console) before it takes effect.
 #
-# Clients are deliberately absent. Nothing is wired to Keycloak yet — Zitadel
-# still serves every app — and the client mechanism (KeycloakOIDCClient CRs vs
-# OpenTofu) is chosen at first-app migration, not here.
+# Clients are NOT defined here. They are KeycloakOIDCClient CRs under
+# kubernetes/apps/keycloak/clients/, which reconcile; this import does not.
+# Groups, group membership and group->role mappings are created by hand in the
+# admin console — no CRD expresses them and OpenTofu was rejected for clients.
 apiVersion: k8s.keycloak.org/v2beta1
 kind: KeycloakRealmImport
 metadata:
@@ -15,6 +16,15 @@ metadata:
   namespace: keycloak
 spec:
   keycloakCRName: keycloak
+  placeholders:
+    SMTP_USERNAME:
+      secret:
+        name: keycloak-smtp
+        key: username
+    SMTP_PASSWORD:
+      secret:
+        name: keycloak-smtp
+        key: password
   realm:
     realm: homelab
     displayName: Homelab
@@ -35,14 +45,18 @@ spec:
 
     passwordPolicy: "length(12)"
 
-    # Reuses the mailrise SMTP relay in the auth namespace that Zitadel already
-    # sends through — it forwards to Gotify. Cross-namespace ClusterIP, cleartext
-    # on the internal VLAN, no auth, same as Zitadel's notification config.
+    # Mail goes through the Proton Mail Bridge, not mailrise/Gotify: other
+    # people use this realm and need self-service password reset to reach a
+    # real inbox. host is 127.0.0.1 because the bridge certificate's only SAN
+    # is IP:127.0.0.1 — the socat sidecar on the Keycloak pod relays to the
+    # bridge Service. See design/decisions/protonmail-bridge.md.
     smtpServer:
-      host: mailrise.auth.svc.cluster.local
-      port: "8025"
+      host: 127.0.0.1
+      port: "1025"
       from: keycloak@blackcats.cc
       fromDisplayName: Keycloak
       ssl: "false"
-      starttls: "false"
-      auth: "false"
+      starttls: "true"
+      auth: "true"
+      user: ${SMTP_USERNAME}
+      password: ${SMTP_PASSWORD}
