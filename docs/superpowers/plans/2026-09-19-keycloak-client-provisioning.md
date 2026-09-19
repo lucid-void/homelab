@@ -425,7 +425,7 @@ One client end-to-end before writing eight more. Gitea is the pilot because it k
 - Modify: `kubernetes/apps/keycloak/kustomization.yml`
 
 **Interfaces:**
-- Produces: Flux Kustomization `keycloak-clients`; the convention every later client follows — CR named `<app>`, `clientId: <app>`, secret `keycloak/<app>-client-secret` key `secret`.
+- Produces: Flux Kustomization `keycloak-clients`; the convention every later client follows — CR named `<app>` (the CRD has no `clientId` field, so `metadata.name` is what becomes the client id), secret `keycloak/<app>-client-secret` key `secret`.
 
 - [ ] **Step 1: Generate and seal the client secret**
 
@@ -464,7 +464,12 @@ spec:
   keycloakCRName: keycloak
   realm: homelab
   client:
-    clientId: gitea
+    # NOTE: there is no `clientId` field. The v2alpha1 CRD does not define one
+    # anywhere, and it sets no x-kubernetes-preserve-unknown-fields, so the
+    # apiserver silently PRUNES any clientId you write here — the manifest
+    # would read as though it set the client's identity while doing nothing.
+    # The client id comes from metadata.name, which is why the CR is named
+    # after the app. Step 6 verifies this rather than assuming it.
     displayName: Gitea
     enabled: true
     loginFlows: [STANDARD]
@@ -559,6 +564,13 @@ mise exec -- kubectl exec -n keycloak keycloak-0 -c keycloak -- \
 
 Expected: one entry, `clientId: gitea`, `enabled: true`.
 
+**This is a hard gate, not a formality.** There is no `clientId` field on the CRD, so this
+value is whatever the operator derives — the convention assumes `metadata.name`. Every
+application's OIDC configuration in Task 7 hardcodes this string. If the query returns no
+match, or returns a client whose id is a UUID or anything other than `gitea`, STOP: Task 6
+and Task 7 both need rework, and the eight-client fan-out must not proceed until the real
+naming rule is known.
+
 ```bash
 mise exec -- kubectl exec -n keycloak keycloak-0 -c keycloak -- \
   /bin/sh -c 'ID=$(/opt/keycloak/bin/kcadm.sh get clients -r homelab -q clientId=gitea --fields id --format csv --noquotes); /opt/keycloak/bin/kcadm.sh get clients/$ID/roles -r homelab --fields name'
@@ -616,7 +628,7 @@ done
 
 A complete example follows the table. Every field that varies between the eight is in the table, so the example plus one table row fully determines each file — do not go looking for another task to copy from.
 
-| File | `clientId` | `displayName` | `redirectUris` | `webOrigins` | `roles` |
+| File | `metadata.name` (becomes the client id) | `displayName` | `redirectUris` | `webOrigins` | `roles` |
 |---|---|---|---|---|---|
 | `immich.yml` | `immich` | Immich | `https://immich.blackcats.cc/auth/login`, `https://immich.blackcats.cc/user-settings`, `https://immich.blackcats.cc/api/oauth/mobile-redirect` | `https://immich.blackcats.cc` | `[]` |
 | `paperless.yml` | `paperless` | Paperless-ngx | `https://paperless.blackcats.cc/accounts/oidc/keycloak/login/callback/` | `https://paperless.blackcats.cc` | `[]` |
@@ -642,7 +654,9 @@ spec:
   keycloakCRName: keycloak
   realm: homelab
   client:
-    clientId: immich
+    # No `clientId` field exists on this CRD — see Task 5. The client id is
+    # taken from metadata.name, verified against the live cluster in Task 5
+    # step 6 before this fan-out was written.
     displayName: Immich
     enabled: true
     loginFlows: [STANDARD]
