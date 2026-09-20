@@ -54,30 +54,13 @@ Open work only. A finished item is deleted, not struck through.
   reopens all nine clients to any realm user. The layout is written down in
   `design/decisions/keycloak.md`, which is a record, not a restore path. Decide whether
   to accept that or drive it from OpenTofu's Keycloak provider.
-- **A new `KeycloakOIDCClient` is ungated by default.** Declaring roles in git does not
-  gate anything; without its own `browser-<svc>` flow and a client binding, a new client
-  is open to every realm user. Fold that into the add-a-service checklist.
-- **Reconcile the remaining docs to the new Gatus/Homepage registration step.**
-  Eight services had reached the cluster without ever being added to either surface —
-  Jellyfin, Keycloak, Open WebUI, LiteLLM, RomM, Joplin, Obsidian LiveSync and kromgo —
-  because nothing in the add-a-service path says to. All eight are wired in now
-  (2026-09-20), and `design/docs/gitops.md` now carries both as steps 8 and 9 of
-  "Adding a New Application" — the gap that let them drift. Still open:
-  - The ungated-`KeycloakOIDCClient` item above belongs on that same checklist; it is
-    not there yet.
-  - `design/decisions/monitoring.md` documents gatus's two endpoint *gotchas* but not
-    its coverage, so a missing endpoint is invisible. Record the three non-obvious
-    probe choices made here: Keycloak is checked at
-    `/realms/homelab/.well-known/openid-configuration` because its real `/health` is on
-    management port 9000 and the Gateway does not route it; LiteLLM at
-    `/health/liveliness` proves only the proxy process, never llama-swap behind it;
-    Obsidian LiveSync asserts `401`, not `200`, because a `200` would mean CouchDB's
-    `require_valid_user` had come off.
-  - `design/docs/services.md`'s Homepage row says "ConfigMap-only config" and lists no
-    groups; a new `AI` group now exists (Open WebUI, LiteLLM).
-  Also decide whether the four services still on neither surface belong there:
-  `llama-swap` and `minecraft-valkey` are ClusterIP-only by design, but `pve` and
-  `synology` are real hosts with no Gatus check at all.
+- **`pve` and `synology` are on neither Gatus nor Homepage.** The add-a-service path now
+  covers both surfaces (`design/docs/gitops.md` steps 9 and 10, plus step 8 for gating a
+  new OIDC client), and the eight services that had drifted onto the cluster unregistered
+  — Jellyfin, Keycloak, Open WebUI, LiteLLM, RomM, Joplin, Obsidian LiveSync, kromgo —
+  are all wired in (2026-09-20). What is left is the decision: `llama-swap` and
+  `minecraft-valkey` are deliberately absent (ClusterIP-only), but `pve` and `synology`
+  are real hosts with no Gatus check at all.
 - **Jellyfin is deployed but not configured.** The manifests are in git; everything that
   makes it usable is not, and none of it is expressible in one:
   - Keycloak groups `/jellyfin/user` and `/jellyfin/admin`, the `browser-jellyfin` flow
@@ -158,17 +141,6 @@ Open work only. A finished item is deleted, not struck through.
   so the service isn't down for maintenance that never touches the live PVC. A SIGKILL
   (OOM, node reboot) mid-run skips the trap entirely and would leave immich-server
   stuck at 0 replicas indefinitely — not yet observed, but undefended.
-- **No backup script clears a stale restic lock.** A job killed mid-run (OOM, node
-  reboot, `activeDeadlineSeconds`) leaves a lock that then blocks *every following
-  night* for that repo, not just its own run: restic only auto-expires a lock it can
-  prove is dead, which needs the lock's hostname to match the current host, and every
-  Job pod has a unique hostname. Plain `restic unlock` therefore does not clear it —
-  `--remove-all` does — and any restic command blocked on a held lock exits `rc=11` in
-  ~2s. Observed 2026-08-05 (`immich-backup`, `Exit 11`: the snapshot was written, only
-  `forget --prune` and `check` were skipped, so Gotify reported a failure against an
-  otherwise intact repo). Add a defensive `restic unlock --remove-all` at the start of
-  each backup script — safe *here* only because each repo has exactly one job and every
-  CronJob is `concurrencyPolicy: Forbid`; never copy that to a shared repo.
 - No backup has ever been restore-tested end-to-end. Pick one app (Immich highest
   value), restore into a clean PVC + fresh CNPG database, document the procedure in
   design/runbook.md. The etcd snapshot restore (`talosctl bootstrap --recover-from`) is
@@ -225,27 +197,39 @@ Open work only. A finished item is deleted, not struck through.
   secondary resolver for `*.blackcats.cc`.
 - No documented Synology-loss recovery path (rebuild, re-export shares, re-mount PVs,
   restore from Filen).
-- No Zitadel break-glass / account-recovery runbook. Joplin is the only app with a
-  local-auth fallback (`LOCAL_AUTH_ENABLED=true`); every other app is fully gated on
-  Zitadel SSO with no documented path if the admin is locked out.
+- No Keycloak break-glass / account-recovery runbook. Jellyfin's local admin is the
+  only local-auth fallback that is meant to stay (its SSO plugin is a fork sitting on
+  the auth path); Joplin's `LOCAL_AUTH_ENABLED=true` disappears with Joplin. Every
+  other app is fully gated on Keycloak SSO with no documented path if the realm admin
+  is locked out.
 - SOPS age key protection is undocumented — no record of where the single key lives,
   whether it has a passphrase, or whether an off-Synology copy exists. It decrypts
   Talos secrets and the Sealed Secrets controller key backup.
 - Sealed Secrets key rotation procedure is undocumented (rotation itself is
   intentionally disabled). Write the "if forced by compromise" procedure without
   performing it.
-- Matrix (Dendrite) deployment — homeserver on an `nfs-client` PVC, Zitadel OIDC/SSO
-  wiring. Not yet built.
-- Keycloak per-application roles — the operator, database, realm and httproute are
-  deployed to `main` (`51e8ac9`, 20 files), but it currently has **zero clients
-  registered**; Zitadel still serves all ten applications. Keycloak's client-level
-  roles are the reason it exists — the same user can be `admin` in Gitea and `viewer`
-  in FreshRSS, which Zitadel has no equivalent for short of a trigger-action plus
-  custom-claim workaround. Remaining work is the staged per-application migration, not
-  the deploy: pilot with one app first (Gitea) — re-register its OIDC client, update
-  the callback URI/secret, update the app to read the role claim from the ID token,
-  validate — then migrate the rest one at a time. End state is full replacement of
-  Zitadel for these apps, staged rather than a cutover.
+- Matrix (Dendrite) deployment — homeserver on an `nfs-client` PVC, Keycloak OIDC/SSO
+  wiring (client plus its own `browser-matrix` flow gate). Not yet built.
+- Karakeep deployment — bookmark/read-later archive: stores a full snapshot of each saved
+  page and full-text searches it, closing the gap FreshRSS leaves (it delivers articles
+  but keeps nothing). Not yet built. Needs a CNPG database, a Meilisearch sidecar for the
+  search index, an `nfs-client` PVC for page snapshots and assets, a Keycloak OIDC client
+  plus its `browser-karakeep` flow gate, and a restic backup CronJob. Auto-tagging runs
+  against the existing LiteLLM endpoint (`llm.blackcats.cc`) over its OpenAI-compatible
+  API rather than a hosted provider.
+- Tdarr deployment — library-wide transcode automation over `media-nfs`, to bound the
+  uncapped `/volume2/Media` growth recorded above. Not yet built. Splits into a server
+  (config PVC on `nfs-client`, web UI, HTTPRoute) and one or more worker nodes that do
+  the encoding; workers need `media-nfs` mounted **read-write**, unlike Plex and
+  Jellyfin which mount it `readOnly`. Two constraints decide whether it is worth it:
+  - **CPU-only.** The DGX Spark is not a k8s node and no Talos node has a GPU, so every
+    encode competes with the cluster for the same six P-cores. Workers want a hard CPU
+    limit and an off-hours schedule, and must not run while Plex or Jellyfin is
+    transcoding.
+  - **It replaces originals, and the media library has no backup.** Every restic repo
+    covers app config and databases; `/volume2/Media` is in none of them, so a bad
+    transcode policy is unrecoverable. Keep Tdarr's health-check and original-retention
+    settings on until a policy has been proven against a throwaway copy.
 - nftables host firewall on the Talos nodes (default-deny inbound, SSH/node_exporter/
   Promtail allowlist, per-host overrides) — not yet implemented on k8s nodes.
 

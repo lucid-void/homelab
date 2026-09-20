@@ -293,7 +293,44 @@ spec:
           port: 8080
 ```
 
-### 8. Register a Gatus check
+### 8. Register the OIDC client — and gate it
+
+Only for a service behind SSO. Two halves, and **only the first is expressible in git**:
+
+```yaml
+# kubernetes/apps/keycloak/clients/app/myapp.yml
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakOIDCClient
+metadata:
+  name: myapp          # this IS the client id — the CRD has no clientId field
+  namespace: keycloak
+spec:
+  keycloakCRName: keycloak
+  realm: homelab
+  client:
+    displayName: MyApp
+    enabled: true
+    loginFlows: [STANDARD]
+    redirectUris: [https://myapp.blackcats.cc/oidc/callback]
+    webOrigins: [https://myapp.blackcats.cc]
+    roles: [admin, user]
+    auth:
+      method: client-secret
+      secretRef: {name: myapp-client-secret, key: secret}
+```
+
+Then wire it into `kubernetes/apps/keycloak/clients/app/kustomization.yml`.
+
+**A new client is open to every realm user until you gate it by hand.** Declaring
+`roles:` above grants nothing and denies nothing — it only makes the roles assignable.
+Entitlement is enforced by a per-client `browser-myapp` authentication flow plus a
+`authenticationFlowBindingOverrides` binding on the client, and **no CRD expresses
+either**, nor group membership, nor group→role mapping. Create them in the Keycloak
+console and record the layout in `design/decisions/keycloak.md`; skipping this ships a
+service that any realm account can log into. The same gap means a realm rebuild loses
+every entitlement — see `design/TODO.md`.
+
+### 9. Register a Gatus check
 
 Every externally-reachable service gets one. Nothing else notices a service that is
 merely *down* — Flux only reports what it cannot *reconcile*, so a healthy HelmRelease
@@ -334,7 +371,7 @@ Gatus is its own Flux Kustomization, so it reconciles independently of the app.
 the pod picks up an edit because `reloader.stakater.com/auto: "true"` is set on the
 controller, which restarts it. No hash suffix is involved.
 
-### 9. Add a Homepage tile
+### 10. Add a Homepage tile
 
 Only if the service has a web UI a human would open. Edit
 `kubernetes/apps/homepage/homepage/app/helm-values.yml` under `config.services`:
@@ -361,7 +398,7 @@ Unlike Gatus, this file is consumed by a `configMapGenerator` and referenced thr
 name. An edit therefore produces a **new** ConfigMap and a Helm upgrade — Reloader is
 not in the path here.
 
-### 10. Push and watch
+### 11. Push and watch
 
 ```bash
 git add kubernetes/apps/myapp/ && git commit -m "feat(myapp): initial deploy"

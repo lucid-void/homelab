@@ -53,6 +53,14 @@ data:
       restic init
     fi
 
+    # Clear a stale lock left by a job killed mid-run (OOM, node reboot, deadline).
+    # restic only auto-expires a lock it can prove is dead, which needs the lock's
+    # hostname to match this host — every Job pod is a new hostname, so a dead lock
+    # never self-heals and blocks every following night at rc=11. Plain `unlock` will
+    # not clear it; --remove-all will. Safe only because this repo has exactly one job
+    # and the CronJob is concurrencyPolicy: Forbid — see design/decisions/backups.md.
+    restic unlock --remove-all
+
     # restic is content-addressable, so re-uploading the same tarballs each night
     # costs almost nothing — only the newest archives are actually transferred.
     echo "[backup] Running restic backup..."
