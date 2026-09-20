@@ -57,6 +57,47 @@ Open work only. A finished item is deleted, not struck through.
 - **A new `KeycloakOIDCClient` is ungated by default.** Declaring roles in git does not
   gate anything; without its own `browser-<svc>` flow and a client binding, a new client
   is open to every realm user. Fold that into the add-a-service checklist.
+- **Reconcile the remaining docs to the new Gatus/Homepage registration step.**
+  Eight services had reached the cluster without ever being added to either surface —
+  Jellyfin, Keycloak, Open WebUI, LiteLLM, RomM, Joplin, Obsidian LiveSync and kromgo —
+  because nothing in the add-a-service path says to. All eight are wired in now
+  (2026-09-20), and `design/docs/gitops.md` now carries both as steps 8 and 9 of
+  "Adding a New Application" — the gap that let them drift. Still open:
+  - The ungated-`KeycloakOIDCClient` item above belongs on that same checklist; it is
+    not there yet.
+  - `design/decisions/monitoring.md` documents gatus's two endpoint *gotchas* but not
+    its coverage, so a missing endpoint is invisible. Record the three non-obvious
+    probe choices made here: Keycloak is checked at
+    `/realms/homelab/.well-known/openid-configuration` because its real `/health` is on
+    management port 9000 and the Gateway does not route it; LiteLLM at
+    `/health/liveliness` proves only the proxy process, never llama-swap behind it;
+    Obsidian LiveSync asserts `401`, not `200`, because a `200` would mean CouchDB's
+    `require_valid_user` had come off.
+  - `design/docs/services.md`'s Homepage row says "ConfigMap-only config" and lists no
+    groups; a new `AI` group now exists (Open WebUI, LiteLLM).
+  Also decide whether the four services still on neither surface belong there:
+  `llama-swap` and `minecraft-valkey` are ClusterIP-only by design, but `pve` and
+  `synology` are real hosts with no Gatus check at all.
+- **Jellyfin is deployed but not configured.** The manifests are in git; everything that
+  makes it usable is not, and none of it is expressible in one:
+  - Keycloak groups `/jellyfin/user` and `/jellyfin/admin`, the `browser-jellyfin` flow
+    override, and a **flat roles protocol mapper** — the SSO plugin's `RoleClaim` reads a
+    flat array and cannot walk `resource_access.jellyfin.roles`. Until the flow override
+    exists, the client is ungated (the item above, in the concrete).
+  - Plugins and the Abyss theme, per `design/decisions/jellyfin-ui.md`. Install File
+    Transformation first: dependents install, report healthy and render nothing without
+    it, which reads as a broken plugin rather than a missing dependency.
+  - The local Jellyfin admin is the break-glass path for a forked SSO plugin on the auth
+    path. It must keep a real password.
+- **Neither media server's config PVC is backed up.** `plex-config-local` (cp-1) and
+  `jellyfin-config-local` (cp-2) are `openebs-hostpath` volumes with no backup CronJob,
+  so each node's disk is a single point of loss for that server's library. Jellyfin on a
+  separate node bounds the blast radius to one library instead of both — it is not a
+  backup. Decide whether a restic job for the two config dirs is worth it, or accept that
+  a lost node means a re-scan.
+- **Seerr is pointed at Plex and cannot serve both.** It talks to one media server at a
+  time, so Jellyfin users cannot request through it and Jellyfin Enhanced's Seerr
+  integration has no account to act as. Decide which server owns requests.
 - **`client-admin-api:v2` is EXPERIMENTAL.** Keycloak types it below PREVIEW, so any
   `keycloak-k8s-resources` bump can remove it and break `KeycloakOIDCClient`
   reconciliation. Watch for it going PREVIEW/stable, or be ready to fall back to

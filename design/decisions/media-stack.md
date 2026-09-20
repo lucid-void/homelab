@@ -1,6 +1,6 @@
 # Media and manga stacks
 
-**Read before editing:** `kubernetes/apps/media/` (excluding `plex/`, `romm/`, `minecraft*/`, which keep their own decision files)
+**Read before editing:** `kubernetes/apps/media/` (excluding `plex/`, `jellyfin/`, `romm/`, `minecraft*/`, which keep their own decision files)
 
 ## Current state
 
