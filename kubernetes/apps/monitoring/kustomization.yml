@@ -13,3 +13,4 @@ resources:
   - ./proxmox-monitoring/ks.yml
   - ./minecraft-monitoring/ks.yml
   - ./ai-monitoring/ks.yml
+  - ./kromgo/ks.yml
