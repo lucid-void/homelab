@@ -70,8 +70,71 @@ attributes. Anything outside its handful of fields is a console click. `client.r
 takes bare strings only — no descriptions, no composites.
 
 **Groups, group membership and group→role mappings are deliberately manual.** No CRD
-expresses them. Record the actual layout here when one exists, because git holds no
-other record of it.
+expresses them, nor does one express the flow overrides below. This section is the only
+record — git has none.
+
+## Per-service entitlement
+
+A realm user can otherwise log in to every client. Access is gated per service by a
+**base role** that grants login, plus optional roles that grant privilege. Every group
+for a client carries the base role, admin groups included — `KeycloakOIDCClient.roles`
+takes bare strings, so composite roles are not expressible and the group carries both.
+
+| Client | Base role (the gate) | Additional |
+|---|---|---|
+| gitea, immich, paperless, freshrss, kavita, romm, openwebui, proxmox | `user` | `admin` |
+| grafana | `viewer` | `editor`, `admin` |
+
+Groups mirror it: `/<service>/user`, `/<service>/admin` (and `/grafana/editor`). The
+parent group holds no roles — children inherit from parents, not siblings.
+
+**Keycloak has no "only users with a role may use this client" setting.** Enforcement is
+a per-client browser-flow override, `browser-<service>`, ending in a CONDITIONAL
+sub-flow of *Condition - user role* (`<client>.<base role>`, **negate on**) followed by
+*Deny access*.
+
+**The flow cannot be a plain copy of `browser` with the gate appended.** Keycloak
+ignores every ALTERNATIVE execution that shares a level with a REQUIRED one — the gate
+counts as REQUIRED, so appending it silently disables `auth-cookie`,
+`identity-provider-redirector` and `forms`, and **nobody can authenticate at all**. The
+server says so in the log and the user only sees "Invalid username or password":
+
+```
+REQUIRED and ALTERNATIVE elements at same level! Those alternative
+executions will be ignored: [auth-cookie, identity-provider-redirector, ...]
+```
+
+So each flow nests the realm browser flow's executions inside a REQUIRED
+`<service>-authenticate` sub-flow, leaving the gate as its only sibling:
+
+```
+browser-<svc>
+├── <svc>-authenticate            REQUIRED
+│   ├── auth-cookie                   ALTERNATIVE
+│   ├── identity-provider-redirector  ALTERNATIVE
+│   ├── <svc>-organization            ALTERNATIVE  → conditional org sub-flow
+│   └── <svc>-forms                   ALTERNATIVE  → username-password + conditional 2FA
+└── <svc>-gate                    CONDITIONAL
+    ├── conditional-user-role         REQUIRED   (condUserRole=<svc>.<base>, negate=true)
+    └── deny-access-authenticator     REQUIRED
+```
+
+**The gate belongs at the top level, not inside `forms`.** A user holding an SSO cookie
+from another client never reaches `forms`, so a gate placed there is bypassed by exactly
+the case it exists to stop. Verified: with a live session and the role removed, the
+gated client still answers *Access denied*.
+
+Setting an execution's requirement **resets its priority**, so build the whole flow
+first, set every requirement, and only then fix the order with
+`raise-priority`/`lower-priority`. Ordering within a CONDITIONAL sub-flow is cosmetic —
+Keycloak evaluates its conditions before its actions regardless of position.
+
+`kcadm.sh` cannot be used for any of this from inside the pod: the image has no
+`curl`, `awk`, `jq` or `python3`, and `kcadm get --fields` silently omits nested objects
+such as `authenticationFlowBindingOverrides`, which reads as "the change did not apply".
+Drive the admin REST API over `https://sso.blackcats.cc` instead, and re-read with a
+full GET. Clearing a flow override needs a full client PUT with the field set to
+`{"browser": "", "direct_grant": ""}` — sending `{}` is treated as no change.
 
 **Client secrets are owned by git**, sealed, named `keycloak/<app>-client-secret`, and
 handed to Keycloak through `client.auth.secretRef`. A realm rebuild therefore does not
