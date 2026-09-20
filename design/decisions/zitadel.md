@@ -4,14 +4,19 @@
 
 ## Current state
 
-Zitadel at `zitadel.blackcats.cc` is the single user store — manages all credentials and
-2FA; a Go binary backed by Postgres. Apps with native OIDC connect directly to it;
-client/secret are provisioned per-app by the Terraform bootstrap job.
+**Zitadel serves exactly one application: Joplin, over SAML.** Every OIDC app moved to
+Keycloak (`design/decisions/keycloak.md`); Zitadel is retained only until Joplin is
+deleted, at which point the HelmRelease, database, managed role, bootstrap Job,
+Terraform, DNS record and the `auth` namespace all go with it.
 
-**RBAC.** The `zitadel-bootstrap` kustomization sets `targetNamespace: auth`, which
-overrides ALL namespace fields, even explicit ones. Cross-namespace Roles/RoleBindings
-for other app namespaces live in `kubernetes/apps/auth/bootstrap-rbac/` — a separate
-kustomization with no `targetNamespace`, which `zitadel-bootstrap` depends on.
+It remains a separate user store with its own credentials and 2FA — a Go binary backed
+by Postgres at `zitadel.blackcats.cc`. Nothing federates between it and Keycloak.
+
+**RBAC is gone.** `kubernetes/apps/auth/bootstrap-rbac/` was deleted once Terraform
+forgot the eighteen OIDC resources: the Job no longer writes Secrets into any other
+namespace, so it needs no cross-namespace Roles. `design/docs/gitops.md` cites that
+directory as the worked example of why a cross-namespace Kustomization must not set
+`targetNamespace` — the principle stands, the directory does not.
 
 **Bootstrap job.** Follows the `gotify-bootstrap` shape: hourly self-heal
 (`ttlSecondsAfterFinished: 3600` + 30m Kustomization interval — the TTL deletes the
@@ -24,10 +29,12 @@ OpenTofu image has no jq/kubectl/curl) hashes `main.tf`+`run.sh`+`.terraform.loc
 compares against `configHash` in `auth/zitadel-bootstrap-state`, and posts to Gotify
 priority 8 when an **unchanged** config still had resources to change. Being an
 initContainer means a failed apply stops the pod instead of reporting a false "no
-drift". `main.tf` owns every `client_id`/`client_secret` in the cluster, so a Zitadel DB
-reset silently reissues credentials for every app and rewrites every OIDC secret — apps
-without `reloader.stakater.com/auto` keep using the old ones. The JSON plan contains the
-real client secrets under `.resource_changes[].change.after`; `report.sh` extracts only
+drift". `main.tf` now owns only Joplin's SAML application, its attribute-rename action
+and trigger, and the `homelab` project — it issues no client secrets and writes no
+Secrets. The eighteen OIDC resources were dropped from state with
+`removed { lifecycle { destroy = false } }` rather than deleted, so the Zitadel-side
+objects still exist and are simply unmanaged. The JSON plan can still contain secrets
+under `.resource_changes[].change.after`; `report.sh` extracts only
 `.address` and `.change.actions`, never values. Token is `auth/gotify-secret` via
 `envFrom … optional: true`.
 
@@ -38,12 +45,14 @@ constraint must regenerate the lock in the same PR:
 `mise exec -- tofu -chdir=<tmpdir> providers lock -platform=linux_amd64`, run against a
 file holding only the `required_providers` block.
 
-**Secret formats.** Env-var style (FreshRSS, Paperless, Immich): Terraform writes flat
-key=value data in the Secret, consumed via `envFrom: secretRef` or mounted directly.
-Helm-valuesFrom style (Gitea): Terraform writes `data["values.yaml"]` containing a YAML
-fragment, consumed via `valuesFrom: [{kind: Secret, name: ..., valuesKey: values.yaml}]`
-in the HelmRelease. Use the Helm-valuesFrom style when the credentials need to populate
-a chart values list (e.g. `gitea.oauth`).
+**Secret formats.** The two shapes Zitadel established outlived it — the Keycloak
+migration kept both, sealed instead of Terraform-written. Env-var style (FreshRSS,
+Paperless, Immich): flat key=value data in the Secret, consumed via
+`envFrom: secretRef` or mounted directly. Helm-valuesFrom style (Gitea):
+`data["values.yaml"]` holding a YAML fragment, consumed via
+`valuesFrom: [{kind: Secret, name: ..., valuesKey: values.yaml}]` in the HelmRelease.
+Use the Helm-valuesFrom style only when the credentials must populate a chart values
+list (e.g. `gitea.oauth`).
 
 ## Rules
 
@@ -54,10 +63,10 @@ a chart values list (e.g. `gitea.oauth`).
   `.change.actions`** — the plan JSON carries real client secrets under
   `.resource_changes[].change.after`, and pulling more would land them in pod logs and
   the Gotify body.
-- **After a Zitadel DB reset, check every app's OIDC secret was actually rotated in its
-  namespace, not just re-issued in Zitadel** — apps missing
-  `reloader.stakater.com/auto` keep using the stale client secret until manually
-  restarted.
+- **Do not re-add OIDC resources to `main.tf`** — new clients belong in Keycloak, as
+  `KeycloakOIDCClient` CRs. The eighteen `removed` blocks are load-bearing history: they
+  are what stopped the cutover from destroying the live Zitadel clients, and deleting
+  them is only safe once the Zitadel-side objects are genuinely unwanted.
 - **Use the Helm-valuesFrom Secret style only when the chart needs the credentials
   inside a values list** — for everything else, the flat env-var style is simpler and is
   what every other app uses.

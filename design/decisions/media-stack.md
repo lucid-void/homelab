@@ -37,15 +37,15 @@ success).
 **Kavita OIDC.** Kavita reads OIDC creds only from `/config/appsettings.json` under key
 `OpenIdConnectSettings` (`Authority`+`ClientId`+`Secret`, all three required for
 `Enabled`) — it does not bind env vars and manages this file itself. Callback URI:
-`https://kavita.blackcats.cc/signin-oidc` (ASP.NET middleware const). Wiring: Terraform
-registers the Zitadel app and writes flat `kavita-oidc-secret`
-(`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`) in `media`; an `alpine`+`jq` initContainer
+`https://kavita.blackcats.cc/signin-oidc` (ASP.NET middleware const). Wiring: a
+`KeycloakOIDCClient` CR registers the client and the sealed flat `kavita-oidc-secret`
+(`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`) lands in `media`; an `alpine`+`jq` initContainer
 (`oidc-config`) idempotently merges `{Authority,ClientId,Secret}` into
 appsettings.json on each boot (`Authority` static). app-template initContainer env is
 the raw k8s array schema and only allows `value`/`fieldRef`/`resourceFieldRef` (no
 `secretKeyRef`), and `secretRef.optional` is stripped, so the secret is injected via
-non-optional `envFrom` — the pod waits in `CreateContainerConfigError` until
-`zitadel-bootstrap` writes it, then self-heals. `reloader.stakater.com/auto` restarts
+non-optional `envFrom` — the pod waits in `CreateContainerConfigError` until the
+SealedSecrets controller unseals it, then self-heals. `reloader.stakater.com/auto` restarts
 Kavita on credential rotation.
 
 OIDC account provisioning is a DB setting, not appsettings.json/env —

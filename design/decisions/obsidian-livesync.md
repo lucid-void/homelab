@@ -28,7 +28,7 @@ stock `default.d` drop-ins alongside ours; sharing the image tag keeps the two i
 across a version bump. `COUCHDB_ERLANG_COOKIE` is pinned in the SealedSecret rather than
 left to the image's random default, so it stays stable across pod recreates.
 
-The one user-facing service not behind Zitadel — the LiveSync plugin authenticates with
+The one user-facing service not behind SSO — the LiveSync plugin authenticates with
 HTTP Basic against a CouchDB admin (`couchdb-admin-secret` SealedSecret); there is no
 OIDC path. Exposure is VPN-gated like the media stack.
 

@@ -1,6 +1,6 @@
 # Proton Mail Bridge
 
-**Read before editing:** `kubernetes/apps/paperless/protonmail-bridge/`, `kubernetes/apps/paperless/paperless/`
+**Read before editing:** `kubernetes/apps/paperless/protonmail-bridge/`, `kubernetes/apps/paperless/paperless/`, `kubernetes/apps/keycloak/keycloak/`
 
 ## Current state
 
@@ -31,14 +31,26 @@ accepts plaintext (`AUTH=PLAIN … STARTTLS`), but plaintext is not used here �
 with the pinned certificate already works, and plaintext would put the password and
 every message on the pod network in clear for no benefit.
 
-Paperless builds its TLS context with `ssl.create_default_context()` and
-non-configurable `check_hostname = True`, so trusting the certificate
-(`PAPERLESS_EMAIL_CERTIFICATE_LOCATION`) is only half the job — the dialled address
-must be literally `127.0.0.1`, which the `protonmail-bridge` Service name is not. A
-`bridge` **socat sidecar** in the Paperless pod listens on `127.0.0.1:1143` and
-forwards to the bridge Service as a plain TCP relay (terminates no TLS; STARTTLS still
-negotiates end-to-end). The mail account is host `127.0.0.1`, port `1143`, security
-STARTTLS.
+**The single `IP:127.0.0.1` SAN forces every in-cluster consumer onto a loopback
+relay.** Trusting the certificate is only half the job: the dialled address must be
+literally `127.0.0.1`, which no Service name is. So each consumer runs its own socat
+sidecar that listens on loopback and forwards to the bridge Service as a plain TCP
+relay — terminating no TLS, so STARTTLS still negotiates end-to-end.
+
+| Consumer | Sidecar listens on | Forwards to | How it is declared |
+|---|---|---|---|
+| Paperless (IMAP) | `127.0.0.1:1143` | `protonmail-bridge:143` | `bridge` container in the pod spec |
+| Keycloak (SMTP) | `127.0.0.1:1025` | `protonmail-bridge:25` | `Keycloak.spec.unsupported.podTemplate` |
+
+Paperless's half of this is forced by `ssl.create_default_context()` with
+non-configurable `check_hostname = True` (`PAPERLESS_EMAIL_CERTIFICATE_LOCATION`
+handles only trust). Its mail account is host `127.0.0.1`, port `1143`, STARTTLS.
+
+Keycloak's sidecar **must be a native sidecar** (`initContainers` with
+`restartPolicy: Always`). The operator applies `unsupported.podTemplate` to the
+realm-import Job as well, where an ordinary socat container never exits and wedges the
+Job at 1/2 forever. Keycloak's realm points at `127.0.0.1:1025`, `starttls: true`, and
+trusts the certificate through `Keycloak.spec.truststores`.
 
 The certificate is exported once during bootstrap (`cert export` in the bridge CLI)
 and committed as the `app-sealed.yml` SealedSecret, mounted `optional: true` via
@@ -51,8 +63,14 @@ one-time manual procedure (design/runbook.md → "Bootstrap Proton Mail Bridge")
 re-run only if the vault is lost.
 
 Ports: the bridge binds only `127.0.0.1` (1143 IMAP / 1025 SMTP); the entrypoint runs
-socat to republish those on the pod IP as `:143`/`:25`. The Service publishes IMAP
-only — nothing here sends mail through Proton, so `:25` stays unpublished.
+socat to republish those on the pod IP as `:143`/`:25`. The Service publishes both —
+`:143` for Paperless, `:25` for Keycloak's realm mail.
+
+**Proton only sends from an address it owns.** It rejects anything else at DATA, not
+at MAIL FROM, with `554 5.0.0 Error: The sender or recipient address is not valid` —
+so an SMTP connection test passes while every real mail silently fails. Adding
+`blackcats.cc` as a Proton custom domain would allow a service `from:` address;
+without it the account's own address is the only valid sender.
 
 ## Rules
 

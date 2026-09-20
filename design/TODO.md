@@ -27,6 +27,21 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Planned
 
+- **Retire Zitadel once Joplin is deleted.** Every OIDC app is on Keycloak; Zitadel
+  serves only Joplin's SAML application. Removing it means the HelmRelease, the
+  `zitadel` database and managed role, the bootstrap Job and its Terraform (including
+  the `homelab` project and the eighteen `removed` blocks), the `auth.blackcats.cc` DNS
+  record, Mailrise, and the `auth` namespace. `auth/proxmox-oidc-secret` moves or goes
+  with it. Keep the Zitadel-side OIDC clients until then — they are unmanaged, not
+  deleted, and are the rollback path.
+- **Keycloak groups and role assignments exist only in the console.** No CRD expresses
+  group membership or group→role mapping, so git holds no record of who has which role.
+  Decide whether to accept that (and document the layout in
+  `design/decisions/keycloak.md`) or move client roles to something reproducible.
+- **`client-admin-api:v2` is EXPERIMENTAL.** Keycloak types it below PREVIEW, so any
+  `keycloak-k8s-resources` bump can remove it and break `KeycloakOIDCClient`
+  reconciliation. Watch for it going PREVIEW/stable, or be ready to fall back to
+  console-managed clients. Logins survive either way.
 - **kube-proxy is an orphaned bootstrap DaemonSet.** `cluster.proxy.disabled: true` is
   set in `talconfig.yaml` so Talos won't recreate it, but the running DaemonSet predates
   that setting, isn't in git, and Talos won't garbage-collect a bootstrap manifest it no

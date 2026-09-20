@@ -33,12 +33,19 @@ queue" block) — any `memory`/`channel` values in the HelmRelease are silently 
 `nodes: 6, replicas: 1`; the chart default `nodes: 3 / replicas: 0` is 3 primaries with
 no failover.
 
-**OIDC.** Callback URI: `https://gitea.blackcats.cc/user/oauth2/Zitadel/callback` — the
+**OIDC.** Callback URI: `https://gitea.blackcats.cc/user/oauth2/Keycloak/callback` — the
 provider name segment is case-sensitive and must match `gitea.oauth[].name` exactly.
-Terraform writes `gitea-oidc-secret` with a `values.yaml` key containing the full
+The sealed `gitea-oidc-secret` carries a `values.yaml` key containing the full
 `gitea.oauth` list (`key`, `secret`, `autoDiscoverUrl`). The HelmRelease uses two
-`valuesFrom` entries: the static sealed secret (admin password) and the
-Terraform-written OIDC secret. `DISABLE_REGISTRATION: false` +
+`valuesFrom` entries: the static sealed secret (admin password) and the OIDC secret.
+
+**Gitea stores auth sources in its database and only ever adds or updates by name**, so
+renaming the provider in `gitea.oauth[].name` creates a *second* source rather than
+renaming the first — the login page then shows both buttons. Deleting the old source
+unlinks every account that was linked through it, so delete it only after a successful
+login through the new one. Flux's helm-controller also does **not** watch `valuesFrom`
+Secrets: after changing one, `flux reconcile helmrelease gitea -n gitea --force`, or the
+pod restarts with the old values. `DISABLE_REGISTRATION: false` +
 `ALLOW_ONLY_EXTERNAL_REGISTRATION: true` allows OIDC self-register. Admin account uses
 `passwordMode: initialOnlyNoReset` (`initialSetup` is invalid from chart v10 onward;
 valid values are `keepUpdated`, `initialOnlyNoReset`, `initialOnlyRequireReset`).

@@ -81,8 +81,8 @@ spec:
             description: >
               chat.blackcats.cc is down. If this began right after a fresh
               install, check for CreateContainerConfigError — the pod requires
-              openwebui-oidc-secret, which the zitadel-bootstrap Terraform Job
-              writes, and it cannot start before that Secret exists.
+              openwebui-oidc-secret, which the SealedSecrets controller unseals,
+              and it cannot start before that Secret exists.
 
     # -----------------------------------------------------------------------
     # Capacity — llm-1 is deliberately run close to full, so these matter

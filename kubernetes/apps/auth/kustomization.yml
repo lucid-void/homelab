@@ -5,6 +5,5 @@ resources:
   - ./namespace.yml
   - ./database/ks.yml
   - ./zitadel/ks.yml
-  - ./bootstrap-rbac/ks.yml
   - ./bootstrap/ks.yml
   - ./mailrise/ks.yml

@@ -26,13 +26,13 @@ spec:
       app:
         replicas: 1
         annotations:
-          # Restart Kavita when the Terraform-written OIDC secret is (re)created, so the
+          # Restart Kavita when the sealed OIDC secret is (re)created, so the
           # initContainer re-merges the credentials into appsettings.json.
           reloader.stakater.com/auto: "true"
         initContainers:
           # Kavita reads OIDC ONLY from /config/appsettings.json (key OpenIdConnectSettings);
-          # it does not bind env vars. Idempotently merge the Zitadel client creds into the file.
-          # Skips cleanly when the secret is absent (first boot before zitadel-bootstrap runs).
+          # it does not bind env vars. Idempotently merge the Keycloak client creds into the file.
+          # Skips cleanly when the secret is absent (first boot before sealed-secrets unseals it).
           oidc-config:
             image:
               repository: alpine
@@ -63,9 +63,9 @@ spec:
                 fi
             env:
               OIDC_AUTHORITY: https://sso.blackcats.cc/realms/homelab
-            # OIDC_CLIENT_ID / OIDC_CLIENT_SECRET come from the Terraform-written secret.
+            # OIDC_CLIENT_ID / OIDC_CLIENT_SECRET come from kavita-oidc-sealed.yml.
             # Non-optional (app-template strips secretRef.optional): on a fresh cluster the pod
-            # waits in CreateContainerConfigError until zitadel-bootstrap writes the secret, then
+            # waits in CreateContainerConfigError until the controller unseals the secret, then
             # starts automatically. Reloader (annotation above) restarts it on credential rotation.
             envFrom:
               - secretRef:

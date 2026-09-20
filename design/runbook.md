@@ -469,24 +469,24 @@ kubectl rollout restart deployment/falco-falcosidekick -n security
 
 Backup CronJobs need nothing: they read the Secret at job start.
 
-### Configure Proxmox SSO via Zitadel OIDC
+### Configure Proxmox SSO via Keycloak OIDC
 
-The `zitadel-bootstrap` Job registers a `Proxmox VE` OIDC app and writes the
-credentials to the `proxmox-oidc-secret` Secret in the `auth` namespace (Proxmox is
-bare metal, outside the cluster, so nothing in-cluster consumes it). Read them out:
+The `proxmox` `KeycloakOIDCClient` CR registers the client; the sealed
+`proxmox-oidc-secret` in the `auth` namespace carries the credentials (Proxmox is bare
+metal, outside the cluster, so nothing in-cluster consumes it). Read them out:
 
 ```bash
-kubectl get secret proxmox-oidc-secret -n auth \
+mise exec -- kubectl get secret proxmox-oidc-secret -n auth \
   -o jsonpath='{.data.OIDC_CLIENT_ID}'     | base64 -d; echo
-kubectl get secret proxmox-oidc-secret -n auth \
+mise exec -- kubectl get secret proxmox-oidc-secret -n auth \
   -o jsonpath='{.data.OIDC_CLIENT_SECRET}' | base64 -d; echo
 ```
 
 On the Proxmox host, create the OpenID Connect realm (or use Datacenter → Realms → Add):
 
 ```bash
-pveum realm add zitadel --type openid \
-  --issuer-url https://zitadel.blackcats.cc \
+pveum realm add keycloak --type openid \
+  --issuer-url https://sso.blackcats.cc/realms/homelab \
   --client-id <OIDC_CLIENT_ID> \
   --client-key <OIDC_CLIENT_SECRET> \
   --username-claim email \
@@ -494,11 +494,15 @@ pveum realm add zitadel --type openid \
   --default 0
 ```
 
-Then add a Proxmox ACL/user mapping for the autocreated `<user>@zitadel` accounts.
+Then add a Proxmox ACL/user mapping for the autocreated `<user>@keycloak` accounts.
 
-**Redirect URI:** Proxmox sends the web UI base URL (no path) as the OIDC redirect.
-The Zitadel app registers both `https://pve.blackcats.cc:8006` and
-`https://pve.blackcats.cc`, so login works on the default port or on 443.
+**A pre-existing `zitadel` realm does not migrate.** Proxmox keys autocreated accounts
+on `<user>@<realm>`, so accounts under the old realm keep their ACLs and the new ones
+start with none. Re-grant, then `pveum realm delete zitadel`.
+
+**Redirect URI:** Proxmox sends the web UI base URL (no path) as the OIDC redirect. The
+client registers both `https://pve.blackcats.cc:8006` and `https://pve.blackcats.cc`,
+so login works on the default port or on 443.
 
 **Serving Proxmox on 443 (optional):** Proxmox's `pveproxy` only listens on 8006 and
 the port is not configurable through supported means. To reach it at `https://pve.blackcats.cc`
@@ -515,7 +519,7 @@ circular dependency, since the Gateway runs on the VMs this host hypervises.
 ### Bootstrap Proton Mail Bridge (one-time, and after a vault loss)
 
 Login needs an account password and a 2FA code typed by a human, so unlike the
-Zitadel/Gotify/Kavita bootstraps **there is no Job for this**. Re-run it only if
+Gotify/Kavita bootstraps **there is no Job for this**. Re-run it only if
 the `protonmail-bridge-config` volume is lost.
 
 Requires a **paid** Proton plan — bridge refuses to log in on free accounts.

@@ -16,11 +16,17 @@ mounted at `/romm/library`, organised as `Games/roms/<platform>/…`.
 `romm-secret` SealedSecret. `HASHEOUS_API_ENABLED=true` gives keyless metadata; IGDB
 (Twitch dev app) is optional.
 
-OIDC via Zitadel: Web app / `client_secret_basic`, redirect `…/api/oauth/openid`,
-"User Info inside ID Token" enabled. All `OIDC_*` vars (including `OIDC_ENABLED`) are
-written into `media/romm-oidc-secret` by `zitadel-bootstrap` Terraform and consumed via
-**optional** `envFrom` — absent means OIDC off (local admin via the first-run wizard),
-present means OIDC on (Reloader restarts on rotation). No bootstrap Job needed.
+OIDC via Keycloak: `client_secret_basic`, redirect `…/api/oauth/openid`. All `OIDC_*`
+vars (including `OIDC_ENABLED`) live in the sealed `media/romm-oidc-secret` and are
+consumed via **optional** `envFrom` — absent means OIDC off (local admin via the
+first-run wizard), present means OIDC on (Reloader restarts on rotation). No bootstrap
+Job needed.
+
+**RomM matches OIDC logins on the `email` claim and stores no subject**, which makes it
+the one app that survived the Zitadel→Keycloak cutover without re-linking. The same
+design means roles cannot come from the IdP: `users.role` and `permission_group_id` are
+local columns with no OIDC mapping, so an account's privileges are managed in RomM and
+nowhere else.
 
 ## Rules
 
@@ -28,9 +34,10 @@ present means OIDC on (Reloader restarts on rotation). No bootstrap Job needed.
   ([rommapp/romm#1302](https://github.com/rommapp/romm/issues/1302)); forcing non-root
   breaks its s6 init.
 - **Pin `OIDC_ALLOW_REGISTRATION=true` explicitly in the HelmRelease `env`** (v5+) —
-  this gates whether an OIDC login may create an account, and Terraform does *not*
-  write this key, so it never shadows `romm-oidc-secret`. It must stay `true` because
-  Zitadel is the only user store: an account only exists after its first sign-in.
+  this gates whether an OIDC login may create an account, and it is set in the
+  HelmRelease `env` rather than the secret, so it never shadows `romm-oidc-secret`. It
+  must stay `true` because Keycloak is the only user store: an account only exists after
+  its first sign-in.
 - **Never assume a squashed-migration DB can be upgraded across the boundary** — v5
   squashed migrations 0002–0008 into `0001_initial_models`, so a DB whose
   `alembic_version` sits in that squashed range can no longer be upgraded from there.

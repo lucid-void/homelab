@@ -25,8 +25,10 @@ Vision is not deployed. The model is itself multimodal, so adding it later is on
 `local-embed`. Client configs (e.g. opencode) must declare `context: 32768`, not the
 128K target — the server truncates silently past what it was actually started with.
 
-Open WebUI reads OIDC config from `openwebui-oidc-secret`; its Kustomization has
-`dependsOn: zitadel-bootstrap`.
+Open WebUI reads OIDC config from the sealed `openwebui-oidc-secret`; its Kustomization
+has `dependsOn: keycloak-clients`. **`OAUTH_MERGE_ACCOUNTS_BY_EMAIL` defaults to
+`false`**, so on an IdP change Open WebUI orphans the existing account and silently
+creates a new empty one rather than failing.
 
 ## Rules
 
