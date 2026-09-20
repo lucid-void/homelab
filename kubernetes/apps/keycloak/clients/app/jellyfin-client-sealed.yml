@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: jellyfin-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgCtAZcCiI6gOywyJU7bv1wo016Bw2qwAf4SrSNalcD29AYOzVzpnKCe9r6BIbmniHa5/bB7xjemNe8T4kR9uK5KCJPELN27zO9MCDFbfqdG+GYJxTEOxUbIASHLd2XxRQDqzEv71QIJl/UdXHjsIKA9GJK5N5NReCkxb7MvV9ik3KKsgjefdvv1x/QjFx3btuf2hfCdM58ymLpL/DgajfbfVXawm/t6W7rrDUKxNPmeFdaU0zC6rAq+ciE9neZt2wyW2fvZkcgegpBmKv+jo0ZTAumquqkZ5fop37TtxVXnr4ks3eAf5RTW+P3vNv5SJeRUtBVn9R/IC3uXOx9o1Rs2SbsWkQlGc4jRm/KzImiDwDhTEQ5o1bjNaJatqvc/PYH6S77f6KQQD/ER3ypR5/aYtDFY1kTWidbc7N8L/B0sGJyjEhF5nMobvPibYvb0BL2Wm+LNxqywI/EqBDQe/3mN3O5y9b90u6n90Lu4hG34LToUmkT4I4ADaqYdLV8VSEKhKmug+BZYzWqmXaB0i8WPID66MSyYSDD6/uXIVx1sJJdeCDp3bUycusFia0fb/TMABW8/Ov+T20TZ2f7dCyPEkmpczmdADfIsNeP1J/+cQHk7Qj3DwGpQRU/rLHmc5scap9HBab6dyhqJpXnCBNFOXLWmiKA4VTC9ebrqdvBVbqJrx6NYaI6oExF12qXzol4ghIPXgy5PlrSxqNGIuEGl1WnkWBUnpo9BCX6UwHFZJ9jklLVgLPA+OSkIGd8KE3rwsOQ0WunNMu7wHVNp4RpD
+  template:
+    metadata:
+      name: jellyfin-client-secret
+      namespace: keycloak
+    type: Opaque

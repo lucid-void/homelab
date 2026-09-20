@@ -83,6 +83,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | FreshRSS, or Paperless (OIDC and the app itself)       | design/decisions/oidc-apps.md         |
 | Immich                                                | design/decisions/immich.md            |
 | Plex                                                  | design/decisions/plex.md              |
+| Jellyfin, its plugin stack, theme, the SSO fork       | design/decisions/jellyfin.md          |
 | sonarr/radarr/prowlarr/sabnzbd/seerr/suwayomi/kavita  | design/decisions/media-stack.md       |
 | Minecraft servers, Velocity proxy, world data         | design/decisions/minecraft.md         |
 | RomM                                                  | design/decisions/romm.md              |

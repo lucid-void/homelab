@@ -1,0 +1,38 @@
+---
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakOIDCClient
+metadata:
+  # There is no `clientId` field on this CRD — the apiserver prunes one in silence.
+  # metadata.name IS the client id.
+  name: jellyfin
+  namespace: keycloak
+spec:
+  keycloakCRName: keycloak
+  realm: homelab
+  client:
+    displayName: Jellyfin
+    enabled: true
+    loginFlows: [STANDARD]
+    redirectUris:
+      # Path shape is fixed by jellyfin-plugin-sso: /sso/OID/redirect/<provider name>.
+      # The trailing segment must match the provider name configured in the plugin
+      # ("keycloak"), not the realm and not the client id.
+      - https://jellyfin.blackcats.cc/sso/OID/redirect/keycloak
+      # The official Android/mobile client completes the flow on a custom scheme.
+      - org.jellyfin.mobile://login-callback
+    webOrigins:
+      - https://jellyfin.blackcats.cc
+    # `user` is the entitlement gate: the browser-jellyfin flow override denies login
+    # to anyone without it. The admin group must ALSO carry `user` — the CRD takes
+    # bare strings, so composite roles are not expressible here.
+    #
+    # Note these roles only gate LOGIN at Keycloak. Jellyfin's own admin bit comes
+    # from the SSO plugin's AdminRoles list, read out of a flat roles claim that a
+    # hand-made protocol mapper has to emit — the CRD models no mappers.
+    # See design/decisions/jellyfin.md.
+    roles: [user, admin]
+    auth:
+      method: client-secret
+      secretRef:
+        name: jellyfin-client-secret
+        key: secret

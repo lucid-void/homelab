@@ -1,0 +1,114 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: jellyfin
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        pod:
+          # Pinned to cp-2 because plex-config-local is on cp-1. The whole point of
+          # this deployment is surviving the loss of the node Plex's library sits on,
+          # and openebs-hostpath would otherwise happily put both on the same disk.
+          nodeSelector:
+            kubernetes.io/hostname: cp-2
+        containers:
+          app:
+            image:
+              repository: lscr.io/linuxserver/jellyfin
+              # Full immutable lscr tag. The short `12.1` form is mutable — lscr
+              # re-points it at every rebuild, which is how Plex silently drifted for
+              # a week in 2026-08 (see design/decisions/plex.md). This tag shape
+              # (X.Yubu####-lsNN) needed its own Renovate versioning regex.
+              tag: "12.1ubu2604-ls50"
+            env:
+              TZ: Europe/Brussels
+              PUID: "2202"
+              PGID: "2200"
+              # Jellyfin's equivalent of Plex's ADVERTISE_IP: the absolute base URL it
+              # hands to clients and writes into OIDC callbacks. Without it, clients
+              # reached through the Gateway get served internal cluster URLs.
+              JELLYFIN_PublishedServerUrl: https://jellyfin.blackcats.cc
+            probes:
+              # /health returns non-200 for as long as startup migrations are running,
+              # and a 12.x first boot converts the whole library database. A liveness
+              # probe alone would kill the pod mid-migration and crash-loop it against a
+              # half-converted DB, so the startup probe holds liveness off entirely
+              # (kubelet does not run liveness until startup succeeds) and buys 15
+              # minutes. Raise failureThreshold, not periodSeconds, if a migration
+              # ever needs longer.
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8096
+                  initialDelaySeconds: 15
+                  periodSeconds: 15
+                  timeoutSeconds: 10
+                  failureThreshold: 60
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: 8096
+                  periodSeconds: 30
+                  timeoutSeconds: 10
+                  failureThreshold: 5
+              readiness: *probes
+            resources:
+              requests:
+                memory: 1Gi
+                cpu: 200m
+              limits:
+                # No GPU device plugin exists in this cluster, so every transcode is
+                # software on the Arrow Lake P-cores. Deliberately no CPU limit:
+                # throttling a transcode produces buffering, not a clean failure.
+                memory: 6Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 8096
+
+    persistence:
+      config:
+        existingClaim: jellyfin-config-local
+        globalMounts:
+          - path: /config
+      # Transcode scratch. Kept off the config PVC on purpose — a long 4K transcode
+      # writes tens of GB of segments, and filling a 50Gi hostpath volume corrupts
+      # the SQLite library that shares it.
+      transcodes:
+        type: emptyDir
+        globalMounts:
+          - path: /config/transcodes
+      media:
+        existingClaim: media-nfs
+        globalMounts:
+          - path: /Media
+            readOnly: true

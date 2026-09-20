@@ -10,6 +10,8 @@ resources:
   - ./grafana.yml
   - ./immich-client-sealed.yml
   - ./immich.yml
+  - ./jellyfin-client-sealed.yml
+  - ./jellyfin.yml
   - ./kavita-client-sealed.yml
   - ./kavita.yml
   - ./openwebui-client-sealed.yml
