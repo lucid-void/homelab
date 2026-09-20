@@ -122,7 +122,7 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | matcha (Minecraft) | `matcha.example.com` (TCP 25565 via Velocity) · `matcha-files.example.com` · `matcha-map.example.com` | `itzg/minecraft-server:2026.7.2-java25` (Paper 26.2) | `matcha-data` PVC (`openebs-hostpath`) + `mc-backups` (`nfs-client`, RWX) |
 | vanilla (Minecraft) | `vanilla.example.com` (TCP 25565 via Velocity) · `vanilla-files.example.com` · `vanilla-map.example.com` | `itzg/minecraft-server:2026.7.2-java25` (Paper 26.2) | `vanilla-data` PVC (`openebs-hostpath`) + `mc-backups` (`nfs-client`, RWX) |
 | minecraft-proxy | — (LoadBalancer `172.16.20.52:25565`) | `itzg/mc-proxy:java25` (Velocity 3.5.1) | none |
-| minecraft-valkey | — (ClusterIP `:6379`) | `valkey/valkey:9.1-alpine` | none |
+| minecraft-valkey | — (ClusterIP `:6379`) | `valkey/valkey` | none |
 | minecraft-events | — (no Service) | `ghcr.io/lucid-void/backup-tools` | none |
 
 Sonarr and Radarr use CNPG Postgres, migrated from SQLite with pgloader. The one-shot
