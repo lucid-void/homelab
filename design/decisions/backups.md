@@ -55,6 +55,18 @@ Gotify notifications are priority 5 on success, 8 on failure. The token is in
   one* that `--keep-daily 30` trivially keeps: retention deletes nothing and `--prune`
   becomes a permanent no-op. The log tell: N consecutive
   `Applying Policy: keep 30 daily snapshots` / `keep 1 snapshots:` blocks.
+- **Every script runs `restic unlock --remove-all` right after the repo-init block** —
+  a job killed mid-run (OOM, node reboot, `activeDeadlineSeconds`) leaves a lock that
+  blocks *every following night* for that repo, not just its own run. restic only
+  auto-expires a lock it can prove is dead, which requires the lock's hostname to match
+  the current host, and every Job pod has a unique hostname — so plain `restic unlock`
+  does not clear it and `--remove-all` is the only thing that does. Any restic command
+  blocked on a held lock exits **11** in ~2s. Observed 2026-08-05 on `immich-backup`
+  (`Exit 11`: the snapshot was written, only `forget --prune` and `check` were skipped,
+  so Gotify reported a failure against an otherwise intact repo). `--remove-all` is safe
+  **here only** because each repo has exactly one job and every CronJob is
+  `concurrencyPolicy: Forbid` — never copy it to a repo with concurrent writers, where
+  it would delete a live writer's lock.
 - **Bump `TALOS_VERSION` in the `etcd-snapshot` script alongside every Talos upgrade** —
   it is pinned there and the job downloads that exact `talosctl` at runtime.
 - **`etcd-snapshot` also runs `restic check --read-data-subset=1/10`** — spot-checks

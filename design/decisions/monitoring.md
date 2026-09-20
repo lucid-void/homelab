@@ -94,6 +94,19 @@ scope and nothing else.
   cert-manager is *supposed* to act and leaves no margin. It survives today only
   because non-`[BODY]` endpoints re-handshake instantly and pick the new certificate
   up the same minute.
+- **A gatus endpoint asserts what "up" means for that service, and three here do not
+  assert `200` on `/`** — the probe path is a judgement, so record it rather than
+  rederive it:
+  - **Keycloak** is checked at `/realms/homelab/.well-known/openid-configuration`
+    because its real `/health` is on management port 9000 and the Gateway does not
+    route it. The discovery document is also what every OIDC app fetches, so a `200`
+    means SSO works, not merely that the pod answers.
+  - **LiteLLM** is checked at `/health/liveliness` (`/health` needs the master key).
+    That proves only the proxy process — it never reaches llama-swap, so a dead model
+    backend still shows green. The `ai-monitoring` VMRules cover that side.
+  - **Obsidian LiveSync and FreshRSS assert `401`, not `200`.** For LiveSync a `200`
+    would mean CouchDB's `require_valid_user` had come off, i.e. the probe going green
+    *is* the incident.
 - **Never size a request or limit from Goldilocks/VPA output** — there is no
   metrics-server in this cluster, so the recommender ingests nothing and emits only
   its configured floors; treat every recommendation as fabricated.
