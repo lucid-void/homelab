@@ -187,6 +187,19 @@ not at MAIL FROM, with `554 5.0.0 Error: The sender or recipient address is not 
 — so an SMTP connection test can pass while every real mail silently fails. Adding
 `blackcats.cc` as a Proton custom domain would allow a service address here.
 
+Keycloak trusts the bridge certificate through a truststore backed by
+`keycloak/protonmail-bridge-cert`, which Reflector mirrors from
+`paperless/protonmail-bridge-cert`. **The four Reflector annotations live in that
+SealedSecret's `spec.template.metadata.annotations`, never applied by hand.** The
+source Secret is owned by a SealedSecret, so every re-unseal re-templates it from that
+block: an annotation added with `kubectl annotate` survives only until the
+sealed-secrets controller next restarts. When it goes, Reflector logs *"Source ... no
+longer permits the auto reflection"*, deletes the mirror, and the next `keycloak-0`
+hangs at `Init:0/1` on `MountVolume.SetUp failed ... secret "protonmail-bridge-cert"
+not found` — forever, with no logs and no crash loop, because a missing volume never
+starts a container. The running pod does not notice; the breakage only surfaces at the
+next restart, which can be days later.
+
 ## Rules
 
 - **Never generate a client secret with `openssl rand -base64`** — use
