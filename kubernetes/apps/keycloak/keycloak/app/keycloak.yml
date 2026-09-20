@@ -95,7 +95,7 @@ spec:
           # TLS, so STARTTLS still negotiates end to end against the
           # certificate Keycloak trusts via spec.truststores.
           - name: smtp-relay
-            image: alpine/socat:1.8.0.3
+            image: alpine/socat:1.8.1.3
             restartPolicy: Always
             args:
               - TCP-LISTEN:1025,fork,reuseaddr,bind=127.0.0.1
