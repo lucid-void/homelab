@@ -34,10 +34,19 @@ Open work only. A finished item is deleted, not struck through.
   record, Mailrise, and the `auth` namespace. `auth/proxmox-oidc-secret` moves or goes
   with it. Keep the Zitadel-side OIDC clients until then — they are unmanaged, not
   deleted, and are the rollback path.
-- **Keycloak groups and role assignments exist only in the console.** No CRD expresses
-  group membership or group→role mapping, so git holds no record of who has which role.
-  Decide whether to accept that (and document the layout in
-  `design/decisions/keycloak.md`) or move client roles to something reproducible.
+- **Keycloak groups and the nine browser-flow gates exist only in the server.** No CRD
+  expresses group membership, group→role mapping, or `authenticationFlowBindingOverrides`,
+  so none of it is reproducible from git — a realm rebuild loses every entitlement and
+  reopens all nine clients to any realm user. The layout is written down in
+  `design/decisions/keycloak.md`, which is a record, not a restore path. Decide whether
+  to accept that or drive it from OpenTofu's Keycloak provider.
+- **A new `KeycloakOIDCClient` is ungated by default.** Declaring roles in git does not
+  gate anything; without its own `browser-<svc>` flow and a client binding, a new client
+  is open to every realm user. Fold that into the add-a-service checklist.
+- **Proxmox still authenticates against the old `zitadel` pveum realm.** It is the one
+  migrated app whose host-side config was never switched — see design/runbook.md,
+  "Configure Proxmox SSO via Keycloak OIDC". Autocreated accounts are keyed
+  `<user>@<realm>`, so ACLs do not carry over and the old realm should be deleted after.
 - **`client-admin-api:v2` is EXPERIMENTAL.** Keycloak types it below PREVIEW, so any
   `keycloak-k8s-resources` bump can remove it and break `KeycloakOIDCClient`
   reconciliation. Watch for it going PREVIEW/stable, or be ready to fall back to
