@@ -14,7 +14,7 @@ spec:
     - name: litellm
     - name: shared-gateway
     - name: sealed-secrets
-    - name: zitadel-bootstrap
+    - name: keycloak-clients
   path: ./kubernetes/apps/ai/open-webui/app
   prune: true
   sourceRef:

@@ -6,3 +6,4 @@ resources:
   - ./httproute.yml
   - ./vmrules.yml
   - ./dashboard-controlplane.yml
+  - ./oidc-sealed.yml
