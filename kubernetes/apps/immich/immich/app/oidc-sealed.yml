@@ -6,16 +6,11 @@ metadata:
   namespace: immich
 spec:
   encryptedData:
-    immich.json: AgCvmQh6Z5VIjgXENnMUQrdeFOnb/8ouUyJYsu+D+cRcRz0sq3IIGKGFNp5xbSiVv6vyZAODvSq2dlHAywXbFCh2CyrbSzhkZtqmzhi9Xfhg9kH9GW95ezdI0ahdEMDOFNPdR7C8zUr2Yz1objmzIgllQBhgFjZheSYU1UPZWUWgVuba3AXRqCJ5pegC+1rHxPj66o8g2SqqBMcVirG1AVCmAV9ymxKVw/hSPxKmoAZQGORpbiE/9EA+Py3iOBSezI30Izx/ehwOh8Agp7Kd6NO4OOQn751JpV4uwkE/Nahd2YjRi0HRAjvSzW+MdVYa1jqt2VxRs6or8KvpV3RiJhTbpmK60H8tjDObkPxE/pgj0pDM+PiCsi9dxHfZfrLe7w1vIPhNec6s0czrGUUm0V93o4QwCtipeQN+WPboQG08HUOu/ztG2esKFtXoB3QtwldMcUqF8Y6D+ItuFMKBducIHzKXk4lfTEo5WoKvO+RLEjSYRUSf83cUhyEJnuMQspU6AGZXhJTf+GGbKFpfrzsnEdJtDpLiffIoM257f5kI1rGZNBrUmBRKuH+JTY1QsYMdbL++pSUfvgvgNQOh35Q3jDglkzqjOc9gH2daLWvbOC4rMSJyB2dT0uIembCkZ8vKD2qCQH92PuvXsvumLh+cpMyxtobedyMVwWmrHcOz0X9aJB0e2jsYauEqGCbdzQI4x005t3aEdoSWPM1wyY7ArwjUxuHQL8YKV9Za+FqqAB7NmRbeaCrN3tNZhvboUz49eQsLbl74gt3gtIX85+2l5UpVdkJeMozfTO2Z/RSAWBILLmSNnJT8wquUHBmixUtEG7+2JiWW73eNNh+Ke5+X6r6hq/+wHiXFH8Yix+9v6GLWQVp3Ig+YF/fiE8lgNk61ti3QC7IgSUJLf7YQ2l5rv+duKLbRt3U1HBDoJPooL7bIYDjItPTTdoSEJtRFTOjTCESgzedRd6sG2MeO62IjbTgxg8+UwwNtTqASZUD85qZXwSEkKkikrxSOAl0X9hiJgPaYZst2d5jsDh4yJjQkEN8A9HwA7wFKXSGQA2b9S7LvsgBmsXs84XRVi7KOxycdN+sT6ssBIQydGd57XjIaIrA548BtoCWmqq7RyHKhGWCG4AtTMAl86jgi29riYgndsbm/D31tbWr7RSHx6zGJGhRxN55AVX5H9goNv4jIkXvpCos8wIlyB3hQXU7EsmXXOzDc1GRpWffbTNRoheT1T9aOwBq9zcWaSN+BR1ii05iyeb/haIINsXk7rmad6stMR3toxXkuMIdesl3mFD2LBX+4pU7Uba5NXVDYNmLXudXMqI/gJTVUGth96FiaPiCfNKIlwiVfYh95vslEQ73HTGpoGBnR2HlsunzG6P4=
+    immich.json: AgAOtmV6HG2zE2JoJvDhajOwKMaSgqtftDofaRfMlikcWVpfdm5frlpCUbJhuNBCIaLvMSi86T0ii+vrwtOPtMkXx/lt3Qui4pFkcatWg9VnNgguo7xtOC58DBrt2KDRoIVqNyXCKNtDxtKMA8MmHvPeSl/8Mhzl/Q/5t4hvqe2eFxHU3IzWbMMIE605wiiZ8+spGfSBQqwj2LTQtRMWZQUGPSFVKXvdWKQt3YAzku+3tuZXJ1viQesxmNZmQzX0rjN0YQlEMGLkreHiqON4Y6+753i4c+UDAEFV7+c69H89v595mqfJVu4tvDfQm5jXeO54dwFxNsmRgww12e+53IiCHaolSDx8biY76lHWWMaTkS5yXubehY1hgKJd9uzGNJr0Jirm1amLvGVsmhMXXI7qzl3sTL7b2NfS5r/ctdMHktxgmSvzg2jE6FwhZqzLeyIqC9CFwFhy/1ET+1PFuKO+gkl6CIfryCbEAT1Urj/Rt2VpQ/W7wPdHQW1zzK7umyXLe/fmpV6xAFwJSdN4mMNNoAQFH1J6B3mgVv1jcd/o9sEILykl1uzD78spZWfcXQDb7b8r8MB/w7C0YWDTBE5k8V3UFBedHIAl6ABZxKWcqx8+FJImGOTYpTjfxeMXAsYj0szvVCkzYYkCAtGqfdqlIwuroIAT626twwB766kovbseiO6SyfjUT0XdZ/2Zlkv2cy9cOCdRD3NNnou53YbH3Pz+A5qSrx0hMVt1x3ehmYbA6Tu5+Rb2CnrishwX4HW9b/G+cDbyDHiBvxbsZmLlejaMH3I2uZVzKfjdP6T7vX+feHpS6+MF7Fnp6+0RlIKf/9UjswEm/PRChDMIuHAOB7LAXMVTyqehIuEvwxOZphTDjaP17Esa5Vzu0Rs4gc5uEmzD6dNcd3EV60DS1SYzzZDjwbRE+pZhwngADtXOInio1yCCFCbWae7mJCz71rLkHhMTZt4hA7AUPAczKUiQ8nvxnpOBMQpCSxcJnxvNhG/F+bos8lFi9430Ll1R9aoZZamuIzoJsYQrMmVjOLKzn7N3Pxlp6P+rwvoIoyMzMKAC/uNcbBTwp0wMUr/wXj/XXeiidH3zvseS05o2OU+DMT+0UGmbbzDXx3rnWkOcLTeg9vXJaAp2ov/ar43D0y1Ve8SVpp7QnXsxSDkDXywtdwbQL/hSvLBLEKyl5UWGdziLTwCKAGT/tCGevzJXqAOq/NvaWhscPrXTycwpbpEWHLwBHTzQ1//S96bP3Sie86A5B6tEoj/1skhdYYNy7IxI6U2J79HaJTp7AImI2hO0I0P9ir8fujbbyTjCAoNYfU58h5DsFD/OA1nMTl+OdAD+XjUtgSZ47ZBM/qYt/o/YtAr1+n0tXb1rr8mCI889
   template:
     metadata:
+      annotations:
+        sealedsecrets.bitnami.com/managed: "true"
       name: immich-oidc-config
       namespace: immich
-      annotations:
-        # The Secret this replaces was created by the Zitadel bootstrap Terraform
-        # as a plain Secret, and `removed { destroy = false }` leaves it in place.
-        # The sealed-secrets controller will not overwrite a Secret it does not
-        # own unless it carries this annotation, so without it the app would keep
-        # its old Zitadel credentials while pointed at the Keycloak issuer.
-        sealedsecrets.bitnami.com/managed: "true"
     type: Opaque
