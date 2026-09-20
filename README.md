@@ -19,7 +19,7 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 | Secrets | Sealed Secrets in-cluster; SOPS + age for Talos secrets |
 | GitOps | FluxCD |
 | TLS | cert-manager + Let's Encrypt DNS-01 (Cloudflare) |
-| Identity | Zitadel (single OIDC provider) |
+| Identity | Keycloak (the OIDC provider); Zitadel retained for Joplin's SAML only |
 | Runtime security | Falco + Trivy Operator + kubent (weekly) |
 | Backups | Per-app CronJobs → restic → rclone → Filen (offsite) |
 | DNS | UDM SE (local override for `*.blackcats.cc`) + external-dns to Cloudflare |
@@ -34,26 +34,28 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 ## User Services
 
 ### Photos / ML
-- **Immich** — mobile sync + ML, `immich.blackcats.cc`, Zitadel OIDC
+- **Immich** — mobile sync + ML, `immich.blackcats.cc`, Keycloak OIDC
 
 ### Documents
-- **Paperless-ngx** — document management, `paperless.blackcats.cc`, Zitadel OIDC
+- **Paperless-ngx** — document management, `paperless.blackcats.cc`, Keycloak OIDC
 
 ### Media
 - **Plex** — `plex.blackcats.cc`, config on `openebs-hostpath`
+- **Jellyfin** — `jellyfin.blackcats.cc`, Keycloak OIDC, config on `openebs-hostpath` (cp-2, deliberately not Plex's node)
 - **Sonarr, Radarr, Prowlarr, SABnzbd, Seerr** — `bjw-s/app-template`, `media-nfs` RWX PVC
 - **Minecraft** — `matcha` (plugins) & `vanilla` (plugin-free) via Velocity proxy, `172.16.20.52:25565`, `openebs-hostpath` worlds
 - **Suwayomi** — manga downloader, `suwayomi.blackcats.cc`
 - **Kavita** — ebook reader, `kavita.blackcats.cc`
 
 ### Reading
-- **FreshRSS** — `rss.blackcats.cc`, Zitadel OIDC
+- **FreshRSS** — `rss.blackcats.cc`, Keycloak OIDC
 
 ### Code / Git
-- **Gitea** — `gitea.blackcats.cc`, mirrored from GitHub, Zitadel OIDC + SSH
+- **Gitea** — `gitea.blackcats.cc`, mirrored from GitHub, Keycloak OIDC + SSH
 
 ### Identity
-- **Zitadel** — `auth.blackcats.cc`, single OIDC provider for all services
+- **Keycloak** — `sso.blackcats.cc`, the OIDC provider for every service on SSO
+- **Zitadel** — `auth.blackcats.cc`, **Joplin's SAML IdP only**; retired when Joplin is deleted
 
 ### Dashboard
 - **Homepage** — `home.blackcats.cc`, no auth
@@ -72,7 +74,7 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 ### AI / LLM
 - **llama-swap** — Qwen3.6-35B-A3B Q8_0 on dedicated tainted `llm-1`, ClusterIP `llama-swap:8080`
 - **LiteLLM** — `llm.blackcats.cc`, router with virtual keys (`local-smart`, `local-fast`)
-- **Open WebUI** — `chat.blackcats.cc`, Zitadel OIDC
+- **Open WebUI** — `chat.blackcats.cc`, Keycloak OIDC
 
 ### VPN
 - **Netbird** — primary VPN, runs as Talos extension on every node (`wt0` interface)
@@ -92,7 +94,7 @@ Homelab/
 │   └── images/              # custom container images (built in CI, pushed to GHCR)
 ├── infra/
 │   ├── packer/              # Debian + Talos VM templates
-│   └── terraform/           # VM + DNS + Zitadel OIDC provisioning (OpenTofu)
+│   └── terraform/           # VM + DNS provisioning, Joplin's SAML app (OpenTofu)
 ├── .github/workflows/       # CI: image builds, manifest + security scans
 ├── design/                  # design specs, runbook, decisions (operator-only)
 ├── INSTALLATION.md          # cluster bootstrap procedure (Phase 1 → live cluster)

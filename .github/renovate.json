@@ -158,7 +158,7 @@
       "groupSlug": "linuxserver"
     },
     {
-      "description": "Jellyfin plugin builds are compiled against an exact server version — the SSO plugin and Intro Skipper both refuse to load on a mismatch, and SSO failing to load locks every Keycloak user out of Jellyfin. That makes an unattended jellyfin bump an auth outage, so it is labeled for manual review at every update type, exactly like keycloak-k8s-resources. Confirm SSO Authentication, File Transformation, Home Screen Sections, Media Bar and Intro Skipper all ship a build for the target version BEFORE merging \u2014 the UI plugins fail silently (install, report healthy, render nothing), so a green dashboard is not evidence. See design/decisions/jellyfin.md.",
+      "description": "Jellyfin plugin builds are compiled against an exact server version — the SSO plugin and Intro Skipper both refuse to load on a mismatch, and SSO failing to load locks every Keycloak user out of Jellyfin. That makes an unattended jellyfin bump an auth outage, so it is labeled for manual review at every update type, exactly like keycloak-k8s-resources. Confirm SSO Authentication, File Transformation, Home Screen Sections, Media Bar and Intro Skipper all ship a build for the target version BEFORE merging \u2014 the UI plugins fail silently (install, report healthy, render nothing), so a green dashboard is not evidence. See design/decisions/jellyfin-ui.md.",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["lscr.io/linuxserver/jellyfin"],
       "labels": ["major-update"]
