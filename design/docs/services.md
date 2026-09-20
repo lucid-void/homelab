@@ -124,7 +124,10 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | minecraft-valkey | — (ClusterIP `:6379`) | `valkey/valkey:9.1-alpine` | none |
 | minecraft-events | — (no Service) | `ghcr.io/lucid-void/backup-tools` | none |
 
-Sonarr and Radarr use CNPG Postgres (migrated from SQLite; migration Jobs in `kubernetes/apps/media/sonarr/app/migration-job.yml` and `radarr/`).
+Sonarr and Radarr use CNPG Postgres, migrated from SQLite with pgloader. The one-shot
+migration Jobs were deleted once the migration was done — they ran
+`WITH data only, truncate`, so re-running one would truncate the live database and
+reload it from a stale `sonarr.db`. Neither was ever listed in its `kustomization.yml`.
 
 ---
 

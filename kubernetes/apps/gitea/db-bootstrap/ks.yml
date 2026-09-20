@@ -14,6 +14,10 @@ spec:
     - name: reflector
   path: ./kubernetes/apps/gitea/db-bootstrap/app
   prune: true
+  # gitea-db-bootstrap is a Job and a Job's pod template is immutable, so editing
+  # it while the old Job is still present fails the dry-run with "field is
+  # immutable". See design/decisions/flux.md.
+  force: true
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
