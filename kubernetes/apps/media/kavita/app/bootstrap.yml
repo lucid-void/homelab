@@ -59,7 +59,7 @@ spec:
               # --- OIDC account provisioning -------------------------------------
               # Kavita keeps these toggles in its DB (not appsettings.json), so they
               # can't be set via env — configure them through the admin API. Skips
-              # cleanly if kavita-oidc-secret isn't present yet (pre zitadel-bootstrap).
+              # cleanly if kavita-oidc-secret isn't present yet (pre sealed-secrets).
               if [ -z "${OIDC_CLIENT_SECRET:-}" ]; then
                 echo "kavita-oidc-secret absent; skipping OIDC provisioning config."
               else

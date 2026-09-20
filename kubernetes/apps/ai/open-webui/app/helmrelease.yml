@@ -28,9 +28,9 @@ spec:
         replicas: 1
         annotations:
           # Controller metadata, not pod.annotations. Restarts the app when the
-          # Terraform-written OIDC secret appears or rotates — without it, the
-          # pod that started before zitadel-bootstrap ran keeps running with no
-          # OIDC config and the login button never appears.
+          # sealed OIDC secret appears or rotates — without it, a pod that
+          # started before the Secret existed keeps running with no OIDC config
+          # and the login button never appears.
           reloader.stakater.com/auto: "true"
         containers:
           app:
@@ -38,7 +38,7 @@ spec:
               repository: ghcr.io/open-webui/open-webui
               tag: "v0.11.3"
             envFrom:
-              # Written by the zitadel-bootstrap Terraform Job with the keys
+              # openwebui-oidc-sealed.yml in this directory, with the keys
               # OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET.
               #
               # This is NOT optional, and it cannot be made optional here:
@@ -51,9 +51,9 @@ spec:
               #
               # So: until this Secret exists the pod sits in
               # CreateContainerConfigError, exactly like Kavita. That is
-              # acceptable because ks.yml has `dependsOn: zitadel-bootstrap`, so
-              # Flux does not apply this release until the Job has run. Reloader
-              # restarts the app on later credential rotation.
+              # acceptable because ks.yml has `dependsOn: sealed-secrets`, so
+              # Flux does not apply this release until the controller that
+              # unseals it is up. Reloader restarts the app on later rotation.
               - secretRef:
                   name: openwebui-oidc-secret
             env:

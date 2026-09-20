@@ -141,13 +141,14 @@ in the cluster use this image.
 
 ## Auth
 
-Zitadel is the single identity provider for all services. It runs in the `auth`
-namespace backed by CNPG Postgres.
+Keycloak is the identity provider for all services. It runs in the `keycloak`
+namespace backed by CNPG Postgres, deployed by the official Keycloak Operator.
 
-- Native OIDC apps connect directly to Zitadel — no forward-auth proxy
-- Zitadel bootstrap Job provisions OIDC clients via Terraform + Zitadel API on first
-  deploy
-- Joplin is the one exception, authenticating via SAML rather than OIDC
+- Native OIDC apps connect directly to Keycloak — no forward-auth proxy
+- OIDC clients are `KeycloakOIDCClient` CRs, each with a sealed client secret that git
+  owns rather than one the IdP issues
+- Zitadel remains in the `auth` namespace for Joplin alone, which authenticates via
+  SAML rather than OIDC. It is retired when Joplin is deleted
 
 ---
 

@@ -167,9 +167,12 @@ env:
 
 ---
 
-## Zitadel Bootstrap Secrets
+## OIDC Client Secrets
 
-When Zitadel provisions OIDC clients for apps, it writes Secrets into each app namespace. Two formats are used:
+Every app's OIDC credentials are **sealed in git**, not issued by the IdP. Each
+`KeycloakOIDCClient` CR points at a `keycloak/<app>-client-secret` via
+`client.auth.secretRef`, and the matching app-side Secret carries the same value in
+whatever shape the app wants. Two formats are used:
 
 **Env-var style** (FreshRSS, Paperless, Immich) — flat key=value consumed as `envFrom: secretRef`:
 
@@ -198,10 +201,21 @@ data:
 
 Use the Helm-valuesFrom style when credentials need to populate a chart values list.
 
-A Zitadel database reset reissues credentials for **eight** applications and rewrites
-**seven** Secrets across six namespaces; apps with `reloader.stakater.com/auto` restart
-onto the new values, the rest keep authenticating with credentials that no longer
-exist.
+Because git owns the value on both sides, rebuilding the realm does **not** rotate
+anything — the opposite of the old Zitadel arrangement, where a database reset silently
+reissued every app's credentials and apps without `reloader.stakater.com/auto` kept
+authenticating with secrets that no longer existed.
+
+**Generate these with `openssl rand -hex 32`, never `openssl rand -base64`.** Base64
+emits `+`, which decodes as a SPACE in a form-encoded client-credentials body: Keycloak
+answers `401 invalid_client_credentials` while the stored secret matches byte-for-byte.
+
+**A SealedSecret will not overwrite a Secret it does not own.** Any Secret that already
+exists — created by hand, or by a previous Terraform run — must first be annotated
+`sealedsecrets.bitnami.com/managed: "true"`, and the SealedSecret's
+`spec.template.metadata.annotations` must carry the same annotation so it survives
+re-encryption. Without it the controller skips the write in silence and the app keeps
+its old credentials.
 
 ---
 

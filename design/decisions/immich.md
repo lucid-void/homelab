@@ -4,7 +4,7 @@
 
 ## Current state
 
-OIDC via Zitadel uses the Web app type (not Native — Native rejects `https://` redirect
+OIDC via Keycloak. Historically this was a Zitadel Web app (not Native — Native rejects `https://` redirect
 URIs), with `/api/oauth/mobile-redirect` as the redirect URI, proxying to
 `app.immich:///oauth-callback`.
 

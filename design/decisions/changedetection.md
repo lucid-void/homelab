@@ -29,7 +29,7 @@ App env: `BASE_URL`, `PORT`, `PLAYWRIGHT_DRIVER_URL`, `TZ`, `DISABLE_VERSION_CHE
 `MAX_CONCURRENT_CHROME_PROCESSES`.
 
 Authentication is changedetection's own password, set once in the UI and stored in the
-datastore. There is no OIDC and no Zitadel app.
+datastore. There is no OIDC and no SSO client.
 
 Backups are the `changedetection-backup` CronJob at 01:30 — scale to 0, restic to
 `rclone:filen:backups/restic/changedetection`, scale back up via an `EXIT` trap. Its
@@ -81,9 +81,9 @@ Gotify token comes from `changedetection/gotify-secret`, provisioned by the
   at the domain root, so enabling it produces wrong generated URLs.
 - **Keep `BASE_URL` pointing at the public hostname** — it prefixes links inside
   notification bodies, so without it alerts arrive with unclickable relative paths.
-- **This service is VPN-gated, not behind Zitadel** — upstream has no OIDC support, so the
+- **This service is VPN-gated, not behind SSO** — upstream has no OIDC support, so the
   only authentication is the built-in password set in the UI, the same position as
-  Obsidian LiveSync. Do not add it to the Zitadel bootstrap Terraform expecting a login
+  Obsidian LiveSync. Do not add a `KeycloakOIDCClient` for it expecting a login
   flow to appear.
 - **The backup scales the Deployment to 0 first** — not for SQLite reasons, but because the
   datastore is a multi-file set (a JSON index plus per-watch brotli snapshots and

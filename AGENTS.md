@@ -77,7 +77,8 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Gotify, its app tokens, the Telegram bridge           | design/decisions/gotify.md            |
 | Trivy, Falco, kubent, kube-linter, k8s-cleaner        | design/decisions/security-tooling.md  |
 | pinning an image tag, lscr tags, Renovate regexes     | design/decisions/images.md            |
-| Zitadel, SSO, its Terraform bootstrap                 | design/decisions/zitadel.md           |
+| Keycloak, SSO, OIDC clients, realm, client roles      | design/decisions/keycloak.md          |
+| Zitadel — Joplin's SAML IdP only, its Terraform bootstrap | design/decisions/zitadel.md       |
 | Gitea                                                 | design/decisions/gitea.md             |
 | FreshRSS, or Paperless (OIDC and the app itself)       | design/decisions/oidc-apps.md         |
 | Immich                                                | design/decisions/immich.md            |

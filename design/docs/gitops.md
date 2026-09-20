@@ -68,11 +68,14 @@ gateway-api
               └── cnpg
                     └── postgres-cluster
                           └── immich-database ──→ immich
+                          └── keycloak-database → keycloak ─→ keycloak-realm
+                                                                └── keycloak-clients
+                                                                      └── immich
+                                                                      └── paperless
+                                                                      └── gitea
+                                                                      └── freshrss
                           └── auth-database ───→ zitadel ──→ zitadel-bootstrap
-                                                                └── immich
-                                                                └── paperless
-                                                                └── gitea
-                                                                └── freshrss
+                                                                └── joplin
               └── democratic-csi
               └── openebs
               └── reflector
@@ -99,7 +102,7 @@ Flux Kustomization names are globally unique within `flux-system`. Naming scheme
 
 ### targetNamespace
 
-Most Kustomizations set `spec.targetNamespace`. **Critical:** `targetNamespace` overrides the namespace on ALL resources in the path, including those with explicit `metadata.namespace`. Only use `targetNamespace` when every resource in the path belongs to that one namespace. Cross-namespace RBAC needs its own Kustomization without `targetNamespace` (see `kubernetes/apps/auth/bootstrap-rbac/`).
+Most Kustomizations set `spec.targetNamespace`. **Critical:** `targetNamespace` overrides the namespace on ALL resources in the path, including those with explicit `metadata.namespace`. Only use `targetNamespace` when every resource in the path belongs to that one namespace. Cross-namespace RBAC needs its own Kustomization without `targetNamespace`. The worked example was `kubernetes/apps/auth/bootstrap-rbac/`, deleted with the Keycloak migration — `zitadel-bootstrap` set `targetNamespace: auth`, so the Roles it needed in `gitea`, `immich`, `media` and the rest could not live in the same path.
 
 ### Variable Substitution
 
