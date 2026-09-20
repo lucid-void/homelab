@@ -18,7 +18,11 @@ spec:
       - https://paperless.blackcats.cc/accounts/oidc/keycloak/login/callback/
     webOrigins:
       - https://paperless.blackcats.cc
-    roles: []
+    # `user` is the entitlement gate: the per-client browser-flow override denies
+    # login to anyone without it (Condition - user role, negated, + Deny access).
+    # Every group for this client must therefore grant `user`, including the admin
+    # group — the CRD takes bare strings, so composite roles are not expressible.
+    roles: [user, admin]
     auth:
       method: client-secret
       secretRef:
