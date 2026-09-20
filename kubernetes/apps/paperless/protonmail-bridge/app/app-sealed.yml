@@ -11,3 +11,14 @@ spec:
     metadata:
       name: protonmail-bridge-cert
       namespace: paperless
+      # Keycloak trusts this cert to reach the bridge over STARTTLS, so the
+      # Secret is mirrored into `keycloak` by Reflector. These annotations MUST
+      # live here, not be applied by hand: every re-unseal re-templates the
+      # managed Secret from this block, and a hand-applied annotation is wiped
+      # the next time the sealed-secrets controller restarts — which drops the
+      # mirror and wedges keycloak-0 at Init:0/1 on a missing truststore volume.
+      annotations:
+        reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+        reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: keycloak
+        reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+        reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: keycloak
