@@ -12,4 +12,11 @@ spec:
     metadata:
       name: grafana-oidc-secret
       namespace: monitoring
+      annotations:
+        # The Secret this replaces was created by the Zitadel bootstrap Terraform
+        # as a plain Secret, and `removed { destroy = false }` leaves it in place.
+        # The sealed-secrets controller will not overwrite a Secret it does not
+        # own unless it carries this annotation, so without it the app would keep
+        # its old Zitadel credentials while pointed at the Keycloak issuer.
+        sealedsecrets.bitnami.com/managed: "true"
     type: Opaque
