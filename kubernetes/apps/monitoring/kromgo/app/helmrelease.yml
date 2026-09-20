@@ -1,0 +1,87 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kromgo
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: kromgo
+      version: "0.16.1"
+      sourceRef:
+        kind: HelmRepository
+        name: home-operations
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    # kromgo is stateless -- it holds nothing between requests and re-queries
+    # VictoriaMetrics per call. One replica is enough; the badge CronJob is the
+    # only consumer that matters and it runs every 15m.
+    replicaCount: 1
+
+    config:
+      # VMSingle speaks the Prometheus query API on 8428 (NOT Prometheus' 9090).
+      prometheus: http://vmsingle-vm-stack-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8428
+
+      # The "/" gallery renders every badge with copy-paste Markdown -- useful
+      # when adding a badge, since it shows the rendered value before the
+      # CronJob ever touches the gist.
+      gallery:
+        enabled: true
+
+      # Badges are pushed to a gist every 15m, so a 5m cache costs nothing and
+      # absorbs repeated gallery hits.
+      cache:
+        enabled: true
+        maxAge: 300
+
+      badges:
+        # Every query below was verified against live VictoriaMetrics before
+        # being committed -- a badge whose query returns no series renders as
+        # an error, silently, only visible on the README.
+        - id: nodes
+          title: Nodes
+          query: count(kube_node_info)
+          valueExpr: string(int(result))
+          # 4 nodes is the full cluster (cp-1/2/3 + llm-1). Fewer means one is
+          # gone, which the badge should show without needing a second colour.
+          colorExpr: 'result >= 4.0 ? "brightgreen" : "orange"'
+
+        - id: pods
+          title: Pods
+          query: sum(kube_pod_status_phase{phase="Running"})
+          valueExpr: string(int(result))
+          colorExpr: '"blue"'
+
+        - id: uptime
+          title: Uptime
+          # Cluster uptime = the least-recently-booted node. A rolling Talos
+          # upgrade resets this, which is the intended reading.
+          query: time() - min(node_boot_time_seconds)
+          valueExpr: humanizeDurationDays(result)
+          colorExpr: 'result >= 604800.0 ? "brightgreen" : "blue"'
+
+    service:
+      # kromgo's own /metrics lands on 8081, off the badge port. Nothing
+      # scrapes it yet -- the chart's ServiceMonitor needs prometheus-operator
+      # CRDs this cluster does not install, so leave it unscraped rather than
+      # ship a resource the VM operator would never convert.
+      metricsEnabled: true
+
+    # Sized for a stateless Go binary that answers three cached queries every
+    # 15m. Not from Goldilocks -- there is no metrics-server, so its numbers
+    # would be fabricated.
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi

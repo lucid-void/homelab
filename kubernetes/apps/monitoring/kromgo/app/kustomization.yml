@@ -1,0 +1,9 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./helmrelease.yml
+  - ./route.yml
+  - ./gist-sealed.yml
+  - ./badge-push-script-configmap.yml
+  - ./badge-push-cronjob.yml

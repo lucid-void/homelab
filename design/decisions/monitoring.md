@@ -31,8 +31,39 @@ recommender-only mode — admission controller and updater both disabled.
 `kube-system,flux-system,kube-public,kube-node-lease,default,goldilocks`. Dashboard at
 `goldilocks.blackcats.cc` → `goldilocks-dashboard:80`.
 
+### kromgo — README badges
+
+`kromgo` (official OCI chart `oci://ghcr.io/home-operations/charts/kromgo`, repo
+`home-operations`) turns PromQL into shields.io badge JSON. It queries VMSingle at
+`vmsingle-vm-stack-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8428` —
+the Prometheus *query* API, port 8428, not Prometheus' 9090 — and serves
+`/badges/{id}?format=shields` plus a gallery at `/` on `kromgo.blackcats.cc`.
+
+Three badges: `nodes` (`count(kube_node_info)`), `pods`
+(`sum(kube_pod_status_phase{phase="Running"})`) and `uptime`
+(`time() - min(node_boot_time_seconds)`, rendered by `humanizeDurationDays`).
+
+The README badges are **pushed, not pulled**. GitHub renders README images through its
+camo proxy, which fetches from the public internet; `kromgo.blackcats.cc` resolves to a
+LAN address, so a direct shields.io endpoint would render broken for everyone. Instead
+the `kromgo-badge-push` CronJob runs every 15m, curls the three shields payloads and
+`PATCH`es them as `nodes.json` / `pods.json` / `uptime.json` into a public gist, which
+the README points shields.io at. The connection is outbound-only, so the
+no-WAN-exposure property the README advertises stays true. Credentials live in the
+`kromgo-gist` sealed Secret (`GITHUB_TOKEN`, `GIST_ID`); the PAT carries the `gist`
+scope and nothing else.
+
 ## Rules
 
+- **Verify a kromgo query returns series before committing the badge** — kromgo answers
+  `200` with an error payload when a query matches nothing, so a typo'd metric renders
+  as a broken badge on a public README and nothing alerts. Query VMSingle directly
+  first (see Verify below). The push CronJob guards the same failure at runtime by
+  testing for `.schemaVersion` rather than the HTTP status.
+- **Collect every badge before pushing to the gist, never one at a time** — a
+  mid-loop failure would leave the gist holding badges taken at three different times,
+  which reads as real cluster state rather than as a broken job. `set -euo pipefail`
+  plus `curl -fsS` aborts before the single `PATCH`, leaving the last good set intact.
 - **Pin `metrics_path="/metrics/cadvisor"` on every `container_*` selector** — the
   kubelet exports `container_memory_working_set_bytes`, `container_cpu_usage_seconds_total`
   and the rest from two scrape endpoints (`/metrics/cadvisor` and `/metrics/resource`),
@@ -81,5 +112,14 @@ recommender-only mode — admission controller and updater both disabled.
 
 ```bash
 mise exec -- kubectl get vmservicescrape -A
+
+# kromgo badge queries, against VMSingle directly
+mise exec -- kubectl -n monitoring port-forward svc/vmsingle-vm-stack-victoria-metrics-k8s-stack 18428:8428 &
+curl -s --get --data-urlencode 'query=count(kube_node_info)' "http://127.0.0.1:18428/api/v1/query" | jq .data.result
+
+# the rendered badges, and a manual push
+mise exec -- kubectl -n monitoring port-forward svc/kromgo 18080:8080 &
+curl -s "http://127.0.0.1:18080/badges/uptime?format=shields"
+mise exec -- kubectl -n monitoring create job --from=cronjob/kromgo-badge-push kromgo-badge-push-manual
 promtool check rules kubernetes/apps/monitoring/vm-stack/app/vmrules.yml
 ```

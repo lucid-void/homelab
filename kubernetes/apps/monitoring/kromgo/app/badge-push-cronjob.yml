@@ -1,0 +1,56 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kromgo-badge-push
+  namespace: monitoring
+  annotations:
+    # `apk add` writes to /etc/apk, /lib/apk and /var/cache
+    ignore-check.kube-linter.io/no-read-only-root-fs: "alpine bootstrap installs packages at startup"
+    # `apk add` at startup needs root; runAsNonRoot:true makes it fail silently
+    # with empty logs
+    ignore-check.kube-linter.io/run-as-non-root: "alpine bootstrap installs packages at startup"
+spec:
+  # GitHub's camo proxy caches README images for minutes anyway, so a tighter
+  # schedule would buy nothing but gist API calls.
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 0
+      # At a 15m cadence the history limits evict a failed Job within ~45m,
+      # but the TTL guarantees it regardless of how often the schedule fires.
+      ttlSecondsAfterFinished: 3600
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: false
+          volumes:
+            - name: script
+              configMap:
+                name: kromgo-badge-push-script
+                defaultMode: 0755
+          containers:
+            - name: push
+              image: alpine:3.24
+              command: ["/bin/sh", "-c"]
+              args:
+                # `timeout` bounds the install and the `&&` makes a failure exit
+                # non-zero instead of hanging silently; see gotify-bootstrap.
+                - timeout 300 apk add --no-cache bash curl jq && exec /bin/bash /scripts/push.sh
+              envFrom:
+                - secretRef:
+                    name: kromgo-gist
+              volumeMounts:
+                - name: script
+                  mountPath: /scripts
+              resources:
+                requests:
+                  memory: 32Mi
+                  cpu: 25m
+                limits:
+                  memory: 128Mi

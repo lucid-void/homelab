@@ -1,69 +1,92 @@
 # Homelab
 
-Personal homelab managed as a single Infrastructure-as-Code repository. The primary
-compute platform is a Talos Kubernetes cluster; a small Docker Swarm side runs the
-handful of workloads that still need host networking or GPU passthrough.
+[![Nodes](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Flucid-void%2F594c7b29869058bfb7fdb33980b38e15%2Fraw%2Fnodes.json&style=flat-square)](https://kromgo.blackcats.cc) [![Pods](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Flucid-void%2F594c7b29869058bfb7fdb33980b38e15%2Fraw%2Fpods.json&style=flat-square)](https://kromgo.blackcats.cc) [![Uptime](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Flucid-void%2F594c7b29869058bfb7fdb33980b38e15%2Fraw%2Fuptime.json&style=flat-square)](https://kromgo.blackcats.cc)
 
-Everything is declarative — VM provisioning, OS configuration, cluster bootstrap, and
-service deployment are all driven from git.
+Personal homelab managed as a single Infrastructure-as-Code repository. Primary compute: Talos Kubernetes cluster managed by FluxCD. All services declarative — VM provisioning, OS configuration, cluster bootstrap, and service deployment driven from git.
 
 ---
 
-## What runs here
-
-Self-hosted services for daily use, all behind a single OIDC provider:
-
-| Area | Services |
-|---|---|
-| Photos | Immich (mobile sync + ML) |
-| Documents | Paperless-ngx |
-| Media | Plex, Sonarr, Radarr, Prowlarr, SABnzbd, Seerr |
-| Reading | FreshRSS |
-| Code / Git | Gitea (self-hosted, mirrored from GitHub) |
-| Inventory | Homebox |
-| Identity | Zitadel (single OIDC provider for everything above) |
-| Dashboard | Homepage |
-| Observability | Gatus, Goldilocks, Gotify, Falco, Trivy Operator, kubent |
-| De-Google | freshrss, immich, gitea, paperless (the `degoog` stack) |
-
-Netbird (primary VPN) runs as a Talos extension on every cluster node. ZeroTier (gaming)
-is the only workload left outside the cluster, on a small VM via plain Docker Compose.
-
----
-
-## Stack
+## Core Stack
 
 | Layer | Tool |
 |---|---|
-| OS | Talos Linux (immutable) |
-| CNI | Cilium — eBPF, WireGuard pod-to-pod encryption, Hubble |
-| Ingress | Cilium **Gateway API** (`HTTPRoute` / `GRPCRoute` — no `Ingress` objects) |
+| OS | Talos Linux (immutable, API-only) |
+| CNI | Cilium — eBPF, WireGuard pod-to-pod encryption, Hubble, Gateway API |
+| Ingress | Cilium Gateway API (`HTTPRoute`/`GRPCRoute`; no `Ingress` objects) |
 | CSI | democratic-csi → Synology NFS (RWX, default) + static NFS PVs |
-| Local storage | OpenEBS hostpath for SQLite-hostile workloads |
+| Local storage | OpenEBS hostpath (SQLite-hostile workloads) |
 | Databases | CloudNativePG — one shared cluster, per-app databases |
-| Secrets | Sealed Secrets in-cluster; SOPS + age for Talos cluster secrets |
+| Secrets | Sealed Secrets in-cluster; SOPS + age for Talos secrets |
 | GitOps | FluxCD |
 | TLS | cert-manager + Let's Encrypt DNS-01 (Cloudflare) |
-| Identity | Zitadel (OIDC) |
+| Identity | Zitadel (single OIDC provider) |
 | Runtime security | Falco + Trivy Operator + kubent (weekly) |
 | Backups | Per-app CronJobs → restic → rclone → Filen (offsite) |
 | DNS | UDM SE (local override for `*.blackcats.cc`) + external-dns to Cloudflare |
-| Remote access | Netbird (primary VPN), ZeroTier (gaming) |
+| Remote access | Netbird (primary VPN on every node); ZeroTier (gaming, outside cluster) |
 | VM provisioning | Packer (Debian + Talos templates) + OpenTofu |
 | CI / CD | GitHub Actions (image builds → GHCR, manifest + security scans) + Renovate |
 
-No port forwarding on the WAN. All external hostnames resolve to internal IPs;
-access requires LAN, Netbird, or ZeroTier.
+**No port forwarding on WAN.** All external hostnames resolve to internal IPs; access requires LAN, Netbird, or ZeroTier.
 
 ---
 
-## Repository layout
+## User Services
+
+### Photos / ML
+- **Immich** — mobile sync + ML, `immich.blackcats.cc`, Zitadel OIDC
+
+### Documents
+- **Paperless-ngx** — document management, `paperless.blackcats.cc`, Zitadel OIDC
+
+### Media
+- **Plex** — `plex.blackcats.cc`, config on `openebs-hostpath`
+- **Sonarr, Radarr, Prowlarr, SABnzbd, Seerr** — `bjw-s/app-template`, `media-nfs` RWX PVC
+- **Minecraft** — `matcha` (plugins) & `vanilla` (plugin-free) via Velocity proxy, `172.16.20.52:25565`, `openebs-hostpath` worlds
+- **Suwayomi** — manga downloader, `suwayomi.blackcats.cc`
+- **Kavita** — ebook reader, `kavita.blackcats.cc`
+
+### Reading
+- **FreshRSS** — `rss.blackcats.cc`, Zitadel OIDC
+
+### Code / Git
+- **Gitea** — `gitea.blackcats.cc`, mirrored from GitHub, Zitadel OIDC + SSH
+
+### Identity
+- **Zitadel** — `auth.blackcats.cc`, single OIDC provider for all services
+
+### Dashboard
+- **Homepage** — `home.blackcats.cc`, no auth
+
+### Observability
+- **Gatus** — `gatus.blackcats.cc`, health checks + cert expiry
+- **kromgo** — `kromgo.blackcats.cc`, PromQL → shields.io badges (pushed to a gist for the badges above)
+- **Goldilocks** — `goldilocks.blackcats.cc`, VPA dashboard
+- **Gotify** — `gotify.blackcats.cc`, notification hub
+- **Falco** — runtime security, `security` namespace (privileged PSA)
+- **Trivy Operator** — CVE + config audit scanning
+
+### De-Google
+- **freshrss, immich, gitea, paperless** — the `degoog` stack
+
+### AI / LLM
+- **llama-swap** — Qwen3.6-35B-A3B Q8_0 on dedicated tainted `llm-1`, ClusterIP `llama-swap:8080`
+- **LiteLLM** — `llm.blackcats.cc`, router with virtual keys (`local-smart`, `local-fast`)
+- **Open WebUI** — `chat.blackcats.cc`, Zitadel OIDC
+
+### VPN
+- **Netbird** — primary VPN, runs as Talos extension on every node (`wt0` interface)
+- **ZeroTier** — gaming only, separate VM outside cluster
+
+---
+
+## Repository Layout
 
 ```
 Homelab/
-├── kubernetes/              # the cluster — manifests, bootstrap, Talos config
-│   ├── apps/                # one directory per namespace; one Flux Kustomization per app
-│   ├── bootstrap/           # one-time pre-Flux bootstrap (helmfile) + Flux entry
+├── kubernetes/              # cluster — manifests, bootstrap, Talos config
+│   ├── apps/                # one dir per namespace; one Flux Kustomization per app
+│   ├── bootstrap/           # pre-Flux bootstrap (helmfile) + Flux entry
 │   ├── flux/                # Flux root: vars, repositories, root Kustomization
 │   ├── talos/               # talconfig.yaml + SOPS-encrypted cluster secrets
 │   └── images/              # custom container images (built in CI, pushed to GHCR)
@@ -79,7 +102,7 @@ Homelab/
 
 ---
 
-## Where to find things
+## Where to Find Things
 
 - **Bootstrap a fresh cluster** → [INSTALLATION.md](INSTALLATION.md)
 - **Architecture, decisions, runbook** → [design/](design/)

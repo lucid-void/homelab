@@ -21,6 +21,7 @@ resources:
   # - ./ingress-nginx.yml
   # - ./k8s-gateway.yml
   - ./gitea-charts.yml
+  - ./home-operations.yml
   - ./jameswynn.yml
   - ./zitadel.yml
   - ./aquasecurity.yml
