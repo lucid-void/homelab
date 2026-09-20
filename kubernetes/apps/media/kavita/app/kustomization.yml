@@ -7,3 +7,4 @@ resources:
   - ./route.yml
   - ./admin-sealed.yml
   - ./bootstrap.yml
+  - ./oidc-sealed.yml

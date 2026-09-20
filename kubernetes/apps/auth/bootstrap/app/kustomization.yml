@@ -5,6 +5,7 @@ resources:
   - ./rbac.yml
   - ./job.yml
   - ./token-sealed.yml
+  - ./proxmox-oidc-sealed.yml
 # The tofu config and both scripts are generated rather than inlined so that
 # editing them is what triggers a re-run: the generated name carries a content
 # hash, so a change alters the Job's pod spec, and `force: true` on the Flux

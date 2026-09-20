@@ -14,7 +14,7 @@ spec:
     - name: gitea-db-bootstrap
     - name: shared-gateway
     - name: sealed-secrets
-    - name: zitadel-bootstrap
+    - name: keycloak-clients
   path: ./kubernetes/apps/gitea/gitea/app
   prune: true
   sourceRef:

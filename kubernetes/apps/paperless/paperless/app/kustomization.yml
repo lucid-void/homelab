@@ -6,3 +6,4 @@ resources:
   - ./helmrelease.yml
   - ./route.yml
   - ./app-sealed.yml
+  - ./oidc-sealed.yml

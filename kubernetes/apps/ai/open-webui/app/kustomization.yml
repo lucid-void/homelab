@@ -6,3 +6,4 @@ resources:
   - ./open-webui-sealed.yml
   - ./helmrelease.yml
   - ./route.yml
+  - ./oidc-sealed.yml

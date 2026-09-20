@@ -81,7 +81,7 @@ spec:
                     name: freshrss-role-secret
                     key: password
               OIDC_ENABLED: "1"
-              OIDC_PROVIDER_METADATA_URL: "https://zitadel.blackcats.cc/.well-known/openid-configuration"
+              OIDC_PROVIDER_METADATA_URL: "https://sso.blackcats.cc/realms/homelab/.well-known/openid-configuration"
               OIDC_SCOPES: "openid email profile"
               OIDC_USERNAME_CLAIM: "preferred_username"
               OIDC_REMOTE_USER_CLAIM: "preferred_username"

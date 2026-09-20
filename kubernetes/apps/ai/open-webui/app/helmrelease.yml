@@ -100,9 +100,9 @@ spec:
                   secretKeyRef:
                     name: open-webui-secret
                     key: WEBUI_SECRET_KEY
-              OPENID_PROVIDER_URL: https://zitadel.blackcats.cc/.well-known/openid-configuration
+              OPENID_PROVIDER_URL: https://sso.blackcats.cc/realms/homelab/.well-known/openid-configuration
               OPENID_REDIRECT_URI: https://chat.blackcats.cc/oauth/oidc/callback
-              OAUTH_PROVIDER_NAME: Zitadel
+              OAUTH_PROVIDER_NAME: Keycloak
               OAUTH_SCOPES: openid email profile
               # Pinned to match the Zitadel app's OIDC_AUTH_METHOD_TYPE_POST.
               # Left unset, the client infers this from the discovery document —

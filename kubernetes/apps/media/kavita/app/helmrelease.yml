@@ -62,7 +62,7 @@ spec:
                   echo "kavita-oidc-secret not present yet; skipping OIDC config"
                 fi
             env:
-              OIDC_AUTHORITY: https://zitadel.blackcats.cc
+              OIDC_AUTHORITY: https://sso.blackcats.cc/realms/homelab
             # OIDC_CLIENT_ID / OIDC_CLIENT_SECRET come from the Terraform-written secret.
             # Non-optional (app-template strips secretRef.optional): on a fresh cluster the pod
             # waits in CreateContainerConfigError until zitadel-bootstrap writes the secret, then

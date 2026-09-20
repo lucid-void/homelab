@@ -7,3 +7,4 @@ resources:
   - ./route.yml
   - ./tcproute.yml
   - ./values-sealed.yml
+  - ./oidc-sealed.yml

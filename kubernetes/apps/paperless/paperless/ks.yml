@@ -13,7 +13,7 @@ spec:
     - name: paperless-database
     - name: shared-gateway
     - name: sealed-secrets
-    - name: zitadel-bootstrap
+    - name: keycloak-clients
   path: ./kubernetes/apps/paperless/paperless/app
   prune: true
   sourceRef:
