@@ -150,6 +150,20 @@
       "groupSlug": "linuxserver"
     },
     {
+      "description": "linuxserver.io Jellyfin. A FOURTH lscr tag shape: `12.1ubu2604-ls50` — a two-part upstream version welded to the Ubuntu base with no separator, so none of the three regexes above parse it and Renovate would report 'no update available' forever while the short tag drifted underneath us (the Plex failure, again). The ubuntu segment is matched but deliberately NOT captured: it tracks the base image, not Jellyfin, and capturing it would read a jump to ubu2610 as an upstream release.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["lscr.io/linuxserver/jellyfin"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)ubu\\d+-ls(?<revision>\\d+)$",
+      "groupName": "linuxserver",
+      "groupSlug": "linuxserver"
+    },
+    {
+      "description": "Jellyfin plugin builds are compiled against an exact server version — the SSO plugin and Intro Skipper both refuse to load on a mismatch, and SSO failing to load locks every Keycloak user out of Jellyfin. That makes an unattended jellyfin bump an auth outage, so it is labeled for manual review at every update type, exactly like keycloak-k8s-resources. Confirm SSO Authentication, File Transformation, Home Screen Sections, Media Bar and Intro Skipper all ship a build for the target version BEFORE merging \u2014 the UI plugins fail silently (install, report healthy, render nothing), so a green dashboard is not evidence. See design/decisions/jellyfin.md.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["lscr.io/linuxserver/jellyfin"],
+      "labels": ["major-update"]
+    },
+    {
       "description": "Pin GitHub Actions to patch level (digest pinning skipped per project policy)",
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["major"],

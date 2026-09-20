@@ -1,0 +1,21 @@
+# Node-local, exactly like plex-config-local — Jellyfin's library is SQLite and
+# gets hammered during a scan, which is the workload NFS handles worst.
+#
+# The binding is one-way: openebs-hostpath is WaitForFirstConsumer, so this PV is
+# created on whichever node the pod first lands on and stays there forever. The
+# nodeSelector in the HelmRelease is what decides that, and it names cp-2 because
+# plex-config-local already lives on cp-1. Two media servers on one node's disk is
+# not a backup. Moving this later means a full library re-scan, not a reschedule.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-config-local
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      storage: 50Gi

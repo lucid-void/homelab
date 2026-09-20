@@ -12,6 +12,7 @@ resources:
   - ./sabnzbd/ks.yml
   - ./seerr/ks.yml
   - ./plex/ks.yml
+  - ./jellyfin/ks.yml
   - ./suwayomi/ks.yml
   - ./kavita/ks.yml
   - ./romm/database/ks.yml
