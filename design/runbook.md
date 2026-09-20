@@ -489,16 +489,30 @@ pveum realm add keycloak --type openid \
   --issuer-url https://sso.blackcats.cc/realms/homelab \
   --client-id <OIDC_CLIENT_ID> \
   --client-key <OIDC_CLIENT_SECRET> \
-  --username-claim email \
+  --username-claim username \
   --autocreate 1 \
   --default 0
 ```
 
-Then add a Proxmox ACL/user mapping for the autocreated `<user>@keycloak` accounts.
+`--username-claim username` maps `preferred_username`, so accounts are `void@keycloak`.
+`email` would name them `maxim.claeys@pm.me@keycloak` and break on an address change.
+
+`--default 0` is deliberate: it keeps `pam`/`pve` as the default realm in the login
+dropdown, so a Keycloak outage cannot lock you out of the hypervisor. That matters more
+here than for any in-cluster app — the Gateway that serves `sso.blackcats.cc` runs on
+VMs this host hypervises.
+
+Then grant the autocreated account: Datacenter → Permissions → Add → User Permission,
+path `/`, user `<user>@keycloak`, role `Administrator`, Propagate on. The account is
+created on first login with no permissions at all.
 
 **A pre-existing `zitadel` realm does not migrate.** Proxmox keys autocreated accounts
 on `<user>@<realm>`, so accounts under the old realm keep their ACLs and the new ones
 start with none. Re-grant, then `pveum realm delete zitadel`.
+
+**Login is gated in Keycloak, not in Proxmox.** The account needs the `proxmox.user`
+client role — via `/proxmox/user` or `/proxmox/admin` — or the `browser-proxmox` flow
+denies it before Proxmox ever sees the user. See `design/decisions/keycloak.md`.
 
 **Redirect URI:** Proxmox sends the web UI base URL (no path) as the OIDC redirect. The
 client registers both `https://pve.blackcats.cc:8006` and `https://pve.blackcats.cc`,

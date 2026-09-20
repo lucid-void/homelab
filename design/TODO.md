@@ -43,10 +43,6 @@ Open work only. A finished item is deleted, not struck through.
 - **A new `KeycloakOIDCClient` is ungated by default.** Declaring roles in git does not
   gate anything; without its own `browser-<svc>` flow and a client binding, a new client
   is open to every realm user. Fold that into the add-a-service checklist.
-- **Proxmox still authenticates against the old `zitadel` pveum realm.** It is the one
-  migrated app whose host-side config was never switched — see design/runbook.md,
-  "Configure Proxmox SSO via Keycloak OIDC". Autocreated accounts are keyed
-  `<user>@<realm>`, so ACLs do not carry over and the old realm should be deleted after.
 - **`client-admin-api:v2` is EXPERIMENTAL.** Keycloak types it below PREVIEW, so any
   `keycloak-k8s-resources` bump can remove it and break `KeycloakOIDCClient`
   reconciliation. Watch for it going PREVIEW/stable, or be ready to fall back to
