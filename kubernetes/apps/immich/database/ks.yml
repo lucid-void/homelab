@@ -14,6 +14,11 @@ spec:
     - name: sealed-secrets
   path: ./kubernetes/apps/immich/database/app
   prune: true
+  # extensions-job is a Job and a Job's pod template is immutable, so editing it
+  # while the old Job is still present fails the dry-run with "field is immutable".
+  # Safe to delete+recreate: creating the extensions is idempotent.
+  # See design/decisions/flux.md.
+  force: true
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
