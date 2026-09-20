@@ -43,6 +43,18 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
+      # Keycloak's own /health lives on the management port 9000, which the
+      # Gateway does not route — so probe the realm's discovery document instead.
+      # It is the exact endpoint every OIDC app fetches, so a 200 here means SSO
+      # actually works, not merely that the pod answers.
+      - name: Keycloak
+        group: infrastructure
+        url: https://sso.blackcats.cc/realms/homelab/.well-known/openid-configuration
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
       - name: Zitadel
         group: infrastructure
         url: https://zitadel.blackcats.cc/debug/ready
@@ -73,6 +85,17 @@ data:
         group: infrastructure
         url: https://goldilocks.blackcats.cc
         interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      # kromgo renders the public README's badges. Nothing else notices when it
+      # dies -- the badges just go stale -- so this is the only signal. 5m: it is
+      # cosmetic, not load-bearing.
+      - name: Kromgo
+        group: infrastructure
+        url: https://kromgo.blackcats.cc
+        interval: 5m
         conditions:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
@@ -134,9 +157,62 @@ data:
           - "[STATUS] < 400"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
+      - name: Joplin
+        group: apps
+        url: https://joplin.blackcats.cc/api/ping
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      # CouchDB is Obsidian LiveSync's backend, not a UI -- `/` is the server
+      # welcome document and answers 401 because config-configmap.yml sets
+      # require_valid_user = true under both [chttpd] and [chttpd_auth]. A 401
+      # therefore proves CouchDB is up and enforcing auth; a 200 would mean the
+      # database had been thrown open.
+      - name: Obsidian LiveSync
+        group: apps
+        url: https://obsidian.blackcats.cc
+        interval: 1m
+        conditions:
+          - "[STATUS] == 401"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: Open WebUI
+        group: apps
+        url: https://chat.blackcats.cc/health
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      # /health needs the master key; /health/liveliness is the unauthenticated
+      # one. It only proves the LiteLLM process is up -- it does NOT reach
+      # llama-swap, so a dead model backend still shows green here. The
+      # ai-monitoring VMRules cover that side.
+      - name: LiteLLM
+        group: apps
+        url: https://llm.blackcats.cc/health/liveliness
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
       - name: Plex
         group: media
         url: https://plex.blackcats.cc/identity
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      # Jellyfin's /health returns non-200 while startup migrations run, which is
+      # exactly the window its startup probe is built to tolerate. The 2-failure
+      # default threshold plus a 1m interval means a long migration can page --
+      # that is intentional: a 12.x library conversion is worth knowing about.
+      - name: Jellyfin
+        group: media
+        url: https://jellyfin.blackcats.cc/health
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -193,6 +269,14 @@ data:
       - name: Kavita
         group: media
         url: https://kavita.blackcats.cc/api/health
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      - name: RomM
+        group: media
+        url: https://romm.blackcats.cc/api/heartbeat
         interval: 1m
         conditions:
           - "[STATUS] == 200"

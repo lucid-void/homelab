@@ -13,6 +13,9 @@ config:
       Media:
         columns: 3
         style: row
+      AI:
+        columns: 2
+        style: row
       Games:
         columns: 4
         style: row
@@ -37,6 +40,10 @@ config:
             href: https://plex.blackcats.cc
             description: Media server
             icon: plex.png
+        - Jellyfin:
+            href: https://jellyfin.blackcats.cc
+            description: Media server (SSO)
+            icon: jellyfin.png
         - Seerr:
             href: https://seerr.blackcats.cc
             description: Request media
@@ -69,6 +76,19 @@ config:
             href: https://immich.blackcats.cc
             description: Photos
             icon: immich.png
+    - AI:
+        - Open WebUI:
+            href: https://chat.blackcats.cc
+            description: Local LLM chat
+            icon: open-webui.png
+        # LiteLLM's own UI is at /ui and needs the master key, not SSO. Linked
+        # because it is where virtual keys, budgets and spend live -- the models
+        # themselves are served by llama-swap, which is ClusterIP-only and has
+        # no tile.
+        - LiteLLM:
+            href: https://llm.blackcats.cc/ui
+            description: LLM gateway — keys & spend
+            icon: litellm.png
     - Games:
         # The Minecraft servers themselves are raw TCP on 172.16.20.52:25565 via
         # the Velocity proxy, so they have no web UI — connect in-game to
@@ -128,9 +148,15 @@ config:
             href: https://pve.blackcats.cc:8006
             description: Hypervisor
             icon: proxmox.png
+        - Keycloak:
+            href: https://sso.blackcats.cc
+            description: Identity & access
+            icon: keycloak.png
+        # Kept only as Joplin's SAML IdP -- every OIDC app is on Keycloak above.
+        # This tile goes when Joplin does.
         - Zitadel:
             href: https://zitadel.blackcats.cc
-            description: Identity & access
+            description: SAML IdP (Joplin only)
             icon: sh-zitadel
         - Gotify:
             href: https://gotify.blackcats.cc

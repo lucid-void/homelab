@@ -293,7 +293,75 @@ spec:
           port: 8080
 ```
 
-### 8. Push and watch
+### 8. Register a Gatus check
+
+Every externally-reachable service gets one. Nothing else notices a service that is
+merely *down* — Flux only reports what it cannot *reconcile*, so a healthy HelmRelease
+serving 503s is silent without this.
+
+Edit `kubernetes/apps/monitoring/gatus/app/configmap.yml` and add an endpoint to the
+matching `group` (`infrastructure`, `apps`, or `media`):
+
+```yaml
+      - name: MyApp
+        group: apps
+        url: https://myapp.blackcats.cc/health
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+```
+
+Rules, each of which has already caused a false red or a silent blind spot:
+
+- **Probe a real health path, not `/`.** Many apps serve a 200 login page while the
+  backend is dead. Curl the candidate first and write the condition from what it
+  actually returns — `/` is right only when nothing better exists.
+- **Never combine a `[BODY]` condition with `[CERTIFICATE_EXPIRATION]`** on the same
+  endpoint. See `design/decisions/monitoring.md` — it pins the certificate from the
+  first handshake and goes red at every renewal.
+- **Assert the status the service actually returns**, not the one you expect. FreshRSS
+  and Obsidian LiveSync both assert `401`: for them a `200` would mean auth had come
+  off, so the "wrong-looking" code is the healthy one. Use `[STATUS] < 400` where a
+  200/302 split depends on configuration.
+- **Non-HTTP services use `tcp://`** and drop the certificate condition — see the
+  Minecraft and `Gitea SSH` endpoints.
+- **A ClusterIP-only service gets no check here** (there is no route to probe);
+  cover it with a VMRule instead.
+
+Gatus is its own Flux Kustomization, so it reconciles independently of the app.
+`configmap.yml` is a plain resource, not a generated one, so its name never changes —
+the pod picks up an edit because `reloader.stakater.com/auto: "true"` is set on the
+controller, which restarts it. No hash suffix is involved.
+
+### 9. Add a Homepage tile
+
+Only if the service has a web UI a human would open. Edit
+`kubernetes/apps/homepage/homepage/app/helm-values.yml` under `config.services`:
+
+```yaml
+    - Documents:
+        - MyApp:
+            href: https://myapp.blackcats.cc
+            description: What it is for
+            icon: myapp.png
+```
+
+- Groups are `Media`, `AI`, `Games`, `Documents`, `Development`, `Infrastructure`.
+  Adding a **new** group also needs a `config.settings.layout` entry, or it renders
+  with default columns.
+- `icon:` resolves against the homepage dashboard-icons set. When there is no icon for
+  the app, fall back to a `mdi-` Material Design name (`mdi-magnify`) or an `sh-`
+  selfh.st name (`sh-zitadel`).
+- Point `href` at the page that is actually useful — LiteLLM's tile links `/ui`, not
+  `/`, because `/` serves the Swagger API reference, not the admin UI.
+
+Unlike Gatus, this file is consumed by a `configMapGenerator` and referenced through
+`valuesFrom`, with `kustomizeconfig.yml` rewriting the reference to the hash-suffixed
+name. An edit therefore produces a **new** ConfigMap and a Helm upgrade — Reloader is
+not in the path here.
+
+### 10. Push and watch
 
 ```bash
 git add kubernetes/apps/myapp/ && git commit -m "feat(myapp): initial deploy"
@@ -365,7 +433,7 @@ kubectl -n media get pod -l app.kubernetes.io/name=plex \
 ```
 
 The fix is to pin the **full** lscr tag, which is immutable, and teach Renovate
-to order those tags. `.github/renovate.json` carries three `regex:` versioning
+to order those tags. `.github/renovate.json` carries four `regex:` versioning
 rules because the shapes differ:
 
 | Images | Shape | Example |
@@ -373,8 +441,13 @@ rules because the shapes differ:
 | plex | 4-part + upstream git hash + `ls` | `1.43.3.10896-cb3ebc72d-ls321` |
 | sonarr, radarr, prowlarr, kavita | 4-part + `ls` (kavita has a leading `v`) | `4.0.19.2979-ls322`, `v0.9.0.2-ls121` |
 | sabnzbd | 3-part + `ls` | `5.1.2-ls270` |
+| jellyfin | 2-part + Ubuntu base + `ls`, no separator | `12.1ubu2604-ls50` |
 
-All three share `groupName: linuxserver` so the churn arrives as one PR — lscr
+The jellyfin rule matches the `ubu####` segment but does not capture it — it tracks the
+Ubuntu base, not Jellyfin, so capturing it would read a jump to `ubu2610` as an upstream
+release.
+
+All four share `groupName: linuxserver` so the churn arrives as one PR — lscr
 rebuilds often enough that six separate PR streams would exhaust
 `prConcurrentLimit: 6` and crowd out everything else.
 
