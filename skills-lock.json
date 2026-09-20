@@ -24,6 +24,12 @@
       "sourceType": "github",
       "skillPath": "skills/_template/SKILL.md",
       "computedHash": "33cae91da4019488cfc64500c1986a373c68a84e15711d129ae7cb79f6864bfc"
+    },
+    "i-have-adhd": {
+      "source": "homelab/.agents/skills",
+      "sourceType": "local",
+      "skillPath": ".agents/skills/i-have-adhd/SKILL.md",
+      "computedHash": "54e3e645066a47f0dc87b2c37cbd8a7c50a971183f30e969507729441a24d64c"
     }
   }
 }
