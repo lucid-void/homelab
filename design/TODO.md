@@ -27,13 +27,27 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Planned
 
-- **Retire Zitadel once Joplin is deleted.** Every OIDC app is on Keycloak; Zitadel
-  serves only Joplin's SAML application. Removing it means the HelmRelease, the
-  `zitadel` database and managed role, the bootstrap Job and its Terraform (including
-  the `homelab` project and the eighteen `removed` blocks), the `auth.blackcats.cc` DNS
-  record, Mailrise, and the `auth` namespace. `auth/proxmox-oidc-secret` moves or goes
-  with it. Keep the Zitadel-side OIDC clients until then — they are unmanaged, not
-  deleted, and are the rollback path.
+- **Delete Joplin.** Decided; it is the only reason Zitadel still exists. Removing it
+  means `kubernetes/apps/joplin/` entire (HelmRelease, `joplin-blobs` PVC, the SAML SP
+  ConfigMap, the `saml-idp-metadata` initContainer, HTTPRoute), the `joplin` database
+  and managed role, `joplin-backup` and its restic repo, the `joplin.blackcats.cc` DNS
+  record, and the `joplin` namespace. **Export the notes first** — the blobs PVC and the
+  Postgres dump are the only copies, and the backup is deleted with it.
+  `design/decisions/joplin.md` goes too.
+- **Then retire Zitadel.** Every OIDC app is already on Keycloak; after Joplin it serves
+  nothing. Removing it means the HelmRelease, the `zitadel` database and managed role,
+  the bootstrap Job and its Terraform (the `homelab` project, the three Joplin SAML
+  resources, and the eighteen `removed` blocks), the `tfstate-default-zitadel-bootstrap`
+  Secret, the `auth.blackcats.cc` DNS record, Mailrise, and the `auth` namespace.
+  `auth/proxmox-oidc-secret` must move first — Proxmox reads it and is not going
+  anywhere. Keep the Zitadel-side OIDC clients until Keycloak has run a while: they are
+  unmanaged, not deleted, and are the only rollback path.
+- **Rotate the GitHub PAT in `~/.claude/settings.local.json`** (workstation, not the
+  cluster). It was never committed — `git log -S` finds it in no commit and a global
+  gitignore covers the file — but it was read aloud into an agent transcript on
+  2026-09-20 and must be treated as disclosed. Regenerate at
+  https://github.com/settings/tokens. Unrelated to Flux's `github-deploy-key`, which is
+  a separate sealed credential and was not exposed.
 - **Keycloak groups and the nine browser-flow gates exist only in the server.** No CRD
   expresses group membership, group→role mapping, or `authenticationFlowBindingOverrides`,
   so none of it is reproducible from git — a realm rebuild loses every entitlement and
