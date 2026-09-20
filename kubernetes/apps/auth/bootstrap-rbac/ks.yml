@@ -1,0 +1,22 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: zitadel-bootstrap-rbac
+  namespace: flux-system
+spec:
+  # No targetNamespace — roles must be applied to their own namespaces (freshrss, paperless)
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: zitadel-bootstrap-rbac
+  dependsOn:
+    - name: freshrss-database
+    - name: paperless-database
+  path: ./kubernetes/apps/auth/bootstrap-rbac/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  timeout: 5m

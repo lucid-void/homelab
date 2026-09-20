@@ -12,6 +12,7 @@ spec:
   dependsOn:
     - name: zitadel
     - name: sealed-secrets
+    - name: zitadel-bootstrap-rbac
   path: ./kubernetes/apps/auth/bootstrap/app
   prune: true
   force: true
