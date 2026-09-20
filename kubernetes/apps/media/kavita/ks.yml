@@ -14,6 +14,10 @@ spec:
     - name: shared-gateway
   path: ./kubernetes/apps/media/kavita/app
   prune: true
+  # kavita-bootstrap is a Job and a Job's pod template is immutable, so any edit to
+  # the inline script fails the dry-run with "field is immutable" while the old Job
+  # is still inside its ttlSecondsAfterFinished window. See design/decisions/flux.md.
+  force: true
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
