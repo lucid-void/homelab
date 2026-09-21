@@ -9,12 +9,11 @@ same `media-nfs` share, keeps its own library database, and is reachable at
 `jellyfin.blackcats.cc` whether or not Plex, plex.tv or the node holding Plex's config
 is up.
 
-That last clause is the design constraint. `plex-config-local` is an
-`openebs-hostpath` PVC on **cp-1** and has no backup CronJob, so losing that node's disk
-loses the Plex library outright. Jellyfin's config PVC is therefore pinned to **cp-2**
-with a `nodeSelector`. `openebs-hostpath` is `WaitForFirstConsumer`: the PV is created
-wherever the pod first lands and never moves. Changing that selector after first boot
-does not migrate the library, it abandons it and forces a full re-scan.
+That last clause is the design constraint. `plex-config-local` is an `openebs-hostpath`
+PVC on **cp-1** with no backup CronJob, so losing that node's disk loses the Plex library
+outright. Jellyfin's config PVC is therefore pinned to **cp-2**. `openebs-hostpath` is
+`WaitForFirstConsumer`: the PV lands where the pod first runs and never moves, so
+changing that selector later abandons the library rather than migrating it.
 
 ## Current state
 
@@ -23,12 +22,13 @@ does not migrate the library, it abandons it and forces a full re-scan.
 at `/Media`. Web access is HTTPRoute-only — **no `pool-b` LoadBalancer**, so
 `172.16.20.51` (Plex direct/GDM) and `.52` (Velocity) are untouched.
 
-Transcoding is CPU-only. No GPU device plugin exists in this cluster, and the Talos VMs
-get no iGPU passthrough from the Proxmox host.
+Transcoding is CPU-only: no GPU device plugin exists, and the Talos VMs get no iGPU
+passthrough from the Proxmox host.
 
-`JELLYFIN_PublishedServerUrl` is Jellyfin's analogue of Plex's `ADVERTISE_IP`: it is the
-absolute base URL handed to clients and written into OIDC callbacks. Without it clients
-arriving through the Gateway are served internal cluster URLs.
+`JELLYFIN_PublishedServerUrl` is Jellyfin's analogue of Plex's `ADVERTISE_IP`: the
+absolute base URL handed to clients. Without it, clients arriving through the Gateway are
+served internal cluster URLs. It does **not** fix the SSO plugin's redirect URI — see
+below.
 
 ## Rules
 
@@ -39,28 +39,24 @@ arriving through the Gateway are served internal cluster URLs.
   deployment exists to survive. Check with
   `kubectl get pod -n media -l app.kubernetes.io/name=plex -o wide` before changing the
   selector.
-- **Never drop the startup probe.** `/health` returns non-200 for the whole of a
-  startup migration, and a 12.x first boot converts the entire library database. With
-  liveness alone the kubelet kills the pod mid-conversion and crash-loops it against a
-  half-migrated DB. The startup probe holds liveness off (the kubelet does not run
-  liveness until startup succeeds) and buys 15 minutes. If a migration ever needs
+- **Never drop the startup probe.** `/health` returns non-200 for the whole of a startup
+  migration, and a 12.x first boot converts the entire library database. With liveness
+  alone the kubelet kills the pod mid-conversion and crash-loops it against a half-migrated
+  DB. The startup probe holds liveness off and buys 15 minutes. If a migration needs
   longer, raise `failureThreshold`, not `periodSeconds`.
-- **Never set a CPU limit.** Every transcode is software on the Arrow Lake P-cores;
-  throttling one produces buffering that looks like a network fault, not a clean failure.
+- **Never set a CPU limit.** Transcodes are software on the Arrow Lake P-cores;
+  throttling one produces buffering that looks like a network fault, not a failure.
 - **Pin the full lscr tag, never the short `12.1`.** Same mutable-short-tag trap as Plex
   (`design/decisions/plex.md`). The tag shape here — `X.Yubu####-lsNN` — is a fourth
   variant none of the existing Renovate regexes parse, so it has its own rule; the
   `ubu####` segment is matched but not captured, since it tracks the Ubuntu base rather
   than Jellyfin.
 - **Never install a theme or script from an unpinned CDN reference.** `@main`/`@latest`
-  on jsDelivr means a third party can change what every viewer's browser loads, with no
-  version for Renovate to track and no signal when it moves. Paste CSS inline, or pin a
-  tag or commit. This is why KefinTweaks was rejected and why the Abyss import is not
-  used as documented upstream.
-- **Do not install KefinTweaks** — it was evaluated and rejected. Its own release notes
-  put Jellyfin 12 support behind the legacy Desktop UI, so adopting it means downgrading
-  the UI for everyone, and it ships as an unpinned `@latest` CDN script rather than a
-  plugin. Full reasoning below; revisit only when the legacy-UI caveat is gone.
+  on jsDelivr lets a third party change what every viewer's browser loads, with nothing
+  for Renovate to track. Paste CSS inline, or pin a tag or commit.
+- **Do not install KefinTweaks** — evaluated and rejected: its v12 support requires the
+  legacy Desktop UI for everyone, and it ships as an unpinned `@latest` CDN script, not
+  a plugin. Reasoning in `jellyfin-ui.md`.
 - **Never merge a Jellyfin image bump unattended.** Plugin builds are compiled against an
   exact server version and refuse to load on a mismatch — and the plugin that refuses to
   load is the one holding SSO, so a bad bump is a lockout, not a cosmetic regression.
@@ -68,13 +64,17 @@ arriving through the Gateway are served internal cluster URLs.
   File Transformation, Home Screen Sections, Media Bar and Intro Skipper all ship a build
   for the target version *before* merging — SSO first, since it is the one whose failure
   is a lockout.
+- **Never treat a pod restart as a no-op.** Jellyfin's *Update Plugins* task runs on a
+  startup trigger, so every restart is also an unattended plugin upgrade — including the
+  plugin holding SSO, which has moved this way once already. Auto-update is on by choice;
+  the cost is that `curl`ing the SSO redirect is part of finishing a restart, not an
+  optional check. The command is in `jellyfin-ui.md`.
 
 ## Client-side stack
 
-Plugins and the theme are **runtime state on the config PVC** — git owns none of it, and
-a PVC rebuild means redoing it by hand. Both are recorded in
-`design/decisions/jellyfin-ui.md`, together with the install order, the version pins that
-matter on 12.x, and what was rejected.
+Plugins and the theme are **runtime state on the config PVC** — git owns none of it and a
+PVC rebuild means redoing it by hand. `design/decisions/jellyfin-ui.md` holds the install
+order, the pins that matter on 12.x, and what was rejected.
 
 ## Keycloak wiring
 
@@ -88,32 +88,59 @@ roles. Redirect URIs:
 - `org.jellyfin.mobile://login-callback` — the official mobile client completes on a
   custom scheme.
 
-**Three things the CRD cannot express and git therefore does not hold** (the same gap
-documented in `design/decisions/keycloak.md`):
+**Three things live only in the Keycloak console.** The CRD expresses none of them, so
+git does not hold them and a realm rebuild loses them (the same gap documented in
+`design/decisions/keycloak.md`). All three are in place:
 
 1. Groups `/jellyfin/user` and `/jellyfin/admin`, both carrying the `user` role.
-2. **A protocol mapper emitting a FLAT roles claim.** The plugin's `RoleClaim` takes a
-   claim *name* and reads a flat array; it cannot walk the nested
-   `resource_access.jellyfin.roles` that Grafana reaches with JMESPath. Add a client-roles
-   mapper on the `jellyfin` client with a flat token claim name, *Multivalued* on, and
-   *Add to ID token* / *Add to access token* / *Add to userinfo* all on. Set the plugin's
-   `RoleClaim` to that name, `Roles` to `[user]`, `AdminRoles` to `[admin]`.
-3. The `browser-jellyfin` flow override — nested `jellyfin-authenticate` sub-flow plus a
-   CONDITIONAL gate on negated `jellyfin.user`. Build it exactly as
-   `design/decisions/keycloak.md` describes; appending the gate to a plain copy of
-   `browser` locks out **everyone**.
+2. **A flat roles claim**, `jellyfin_roles` — a *User Client Role* mapper on the
+   `jellyfin` client, *Multivalued* on, ID token / access token / userinfo all on.
+   `RoleClaim` reads a flat array and cannot walk the nested
+   `resource_access.jellyfin.roles` that Grafana reaches with JMESPath. Two silent
+   failures: *Multivalued* off emits a bare string the array read misses, and the
+   mapper's *Name* is not the claim — *Token Claim Name* is, and only that must match
+   `RoleClaim`.
+3. The `browser-jellyfin` flow override, **bound to the client**: nested
+   `jellyfin-authenticate` sub-flow plus a CONDITIONAL `jellyfin-gate` on negated
+   `jellyfin.user`. Mirror an existing `browser-<svc>` flow rather than building from
+   scratch; appending the gate to a plain copy of `browser` locks out **everyone**.
 
-Keycloak's roles gate login only. Jellyfin's own admin bit comes from `AdminRoles` above.
+Keycloak's roles gate login only. Jellyfin's own admin bit comes from the plugin's
+`AdminRoles`, ignored entirely unless *Enable Authorization* is on — with it off every
+SSO user is created as a plain user and the mapper is never consulted.
+
+## The SSO plugin fails closed, twice
+
+Both defaults are right in general and wrong here. Each surfaces only once the previous
+is cleared, and each reads as a login error, not a configuration error.
+
+- **`AllowPrivateNetworkAddresses` must be ON.** `sso.blackcats.cc` resolves to the
+  Gateway VIP `172.16.20.50`, so the plugin refuses to read the discovery document
+  (*"the outbound host resolves only to blocked addresses"*) without ever contacting
+  Keycloak. The guard stops a hostile IdP URL probing internal hosts — moot when the
+  IdP **is** the internal host. Saving it logs an audit warning naming the check.
+- **`SchemeOverride` must be `https`.** The Gateway terminates TLS, so the pod sees
+  plain HTTP and builds an `http://` redirect URI; Keycloak matches exactly and rejects
+  the pushed authorization request (*`invalid_request` — Failed to push authorization
+  parameters*). `JELLYFIN_PublishedServerUrl` does not cover it — the plugin builds the
+  URI from the incoming request.
+
+**The provider form does not edit in place** — click the provider in the OID list to
+load it, then save from the bottom of that section. Editing without loading it first
+writes nothing, which reads as "the setting will not save".
+
+**Never configure this plugin over the REST API.** Every other plugin here can be driven
+by `GET`ting `/Plugins/<guid>/Configuration`, mutating it and `POST`ing it back. This one
+returns `OidSecret` as **`null`** — it masks the secret on read — so that round trip
+writes `null` over the encrypted client secret and takes SSO down for everyone. The UI is
+the only safe way in. Details and the rest of the API notes are in `jellyfin-ui.md`.
 
 ## Seerr
 
-Seerr talks to **one** media server at a time — Plex *or* Jellyfin, not both. It is
-currently pointed at Plex and was deliberately left that way; switching it is a separate
-decision, not a consequence of this deployment.
-
-Jellyfin Enhanced ships a Seerr integration that puts requesting inside the Jellyfin UI.
-It is worth wiring only after deciding which server Seerr is backed by — with Seerr on
-Plex, Jellyfin users are not Seerr users and the integration has no account to act as.
+Seerr talks to **one** media server at a time — Plex *or* Jellyfin. It points at Plex and
+was deliberately left there; switching it is a separate decision. Jellyfin Enhanced's
+Seerr integration is therefore not worth wiring yet: with Seerr on Plex, Jellyfin users
+are not Seerr users and it has no account to act as.
 
 ## Verify
 
@@ -123,4 +150,8 @@ mise exec -- kubectl get pod -n media -l app.kubernetes.io/name=plex -o wide   #
 mise exec -- kubectl get keycloakoidcclient jellyfin -n keycloak \
   -o custom-columns='NAME:.metadata.name,ERRORS:.status.conditions[?(@.type=="HasErrors")].status'
 curl -sf https://jellyfin.blackcats.cc/health && echo
+
+# SSO still works: expect 302 to a Keycloak URL carrying request_uri=urn:ietf:...
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
+  https://jellyfin.blackcats.cc/sso/OID/start/keycloak
 ```

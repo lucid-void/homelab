@@ -202,6 +202,36 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
+      # Jellyfin's /health stays 200 through a completely broken login, so it says
+      # nothing about SSO -- and SSO is the part that fails silently here: a
+      # third-party fork mediates every login, and Jellyfin's Update Plugins task
+      # carries a startup trigger, so every pod restart upgrades that plugin
+      # unattended. Probing the login path covers the whole chain instead: reaching a
+      # 302 means the plugin read Keycloak's discovery document and successfully
+      # pushed the authorization request, which it can only do with a valid client
+      # secret.
+      #
+      # Two caveats. `ignore-redirect` is required -- without it Gatus follows the
+      # redirect to Keycloak and reports Keycloak's status, so the check would pass
+      # while Jellyfin's end is broken. And Gatus cannot assert on response headers,
+      # so this catches "SSO is broken", not "the 302 carried a usable PAR
+      # request_uri".
+      #
+      # 5m, not the 1m used elsewhere, because this probe is NOT read-only: each run
+      # pushes an authorization request that Keycloak stores until it expires.
+      #
+      # No [CERTIFICATE_EXPIRATION] condition on purpose. This is the same host and
+      # the same shared-tls certificate the Jellyfin endpoint above already checks
+      # every minute, so asserting it again would alert twice for one condition.
+      - name: Jellyfin SSO
+        group: media
+        url: https://jellyfin.blackcats.cc/sso/OID/start/keycloak
+        interval: 5m
+        client:
+          ignore-redirect: true
+        conditions:
+          - "[STATUS] == 302"
+
       - name: Sonarr
         group: media
         url: https://sonarr.blackcats.cc/ping
