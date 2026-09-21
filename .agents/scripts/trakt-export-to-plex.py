@@ -56,6 +56,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import sys
@@ -370,19 +371,42 @@ class PlexError(Exception):
     pass
 
 
-def plex_get(base_url: str, token: str, path: str, params: Optional[dict] = None) -> dict:
+# Exceptions raised by a single Plex HTTP call that should be treated as a
+# per-item failure (counted and skipped) rather than aborting the whole run.
+# http.client.HTTPException (e.g. IncompleteRead, raised out of resp.read())
+# is NOT an OSError, so it has to be listed explicitly alongside the usual
+# urllib/socket errors — every per-item call site below uses this same tuple.
+PLEX_REQUEST_ERRORS = (
+    urlerror.URLError,
+    urlerror.HTTPError,
+    TimeoutError,
+    OSError,
+    http.client.HTTPException,
+)
+
+
+def _build_plex_request(
+    base_url: str, token: str, path: str, params: Optional[dict] = None
+) -> urlrequest.Request:
+    """Build the urllib Request for a Plex call, with auth/headers applied.
+    Shared by every request path so token/header construction is defined
+    exactly once."""
     query = dict(params or {})
     url = base_url.rstrip("/") + path
     if query:
         url += "?" + urlparse.urlencode(query)
-    req = urlrequest.Request(
+    return urlrequest.Request(
         url,
         headers={"X-Plex-Token": token, "Accept": "application/json"},
     )
+
+
+def plex_get(base_url: str, token: str, path: str, params: Optional[dict] = None) -> dict:
+    req = _build_plex_request(base_url, token, path, params)
     try:
         with urlrequest.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
             body = resp.read()
-    except (urlerror.URLError, urlerror.HTTPError, TimeoutError, OSError) as exc:
+    except PLEX_REQUEST_ERRORS as exc:
         raise PlexError(f"GET {path} failed: {exc}") from exc
     if not body:
         return {}
@@ -390,6 +414,22 @@ def plex_get(base_url: str, token: str, path: str, params: Optional[dict] = None
         return json.loads(body)
     except json.JSONDecodeError as exc:
         raise PlexError(f"GET {path} returned unparseable JSON: {exc}") from exc
+
+
+def plex_write(base_url: str, token: str, path: str, params: Optional[dict] = None) -> None:
+    """Perform a write-only Plex request: checks only the HTTP status and
+    never parses the response body. Some write endpoints (e.g. /:/scrobble)
+    answer HTTP 200 with an XML or empty body — routing those through
+    plex_get's JSON decode would turn a successful write into a reported
+    failure, so writes use this instead. Any 2xx status counts as success."""
+    req = _build_plex_request(base_url, token, path, params)
+    try:
+        with urlrequest.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+            status = resp.status
+    except PLEX_REQUEST_ERRORS as exc:
+        raise PlexError(f"request {path} failed: {exc}") from exc
+    if not (200 <= status < 300):
+        raise PlexError(f"request {path} returned HTTP {status}")
 
 
 def parse_guid(guid: str) -> Optional[Tuple[str, str]]:
@@ -490,8 +530,10 @@ def build_plex_index(base_url: str, token: str) -> PlexIndex:
 
 def scrobble(base_url: str, token: str, rating_key: str) -> None:
     """Mark one Plex item watched. This is the ONLY write this script makes
-    — it never unmarks or deletes anything."""
-    plex_get(
+    — it never unmarks or deletes anything. Uses plex_write, not plex_get:
+    the scrobble endpoint can return a non-JSON body on a successful write,
+    and this call only needs to know whether the write succeeded."""
+    plex_write(
         base_url,
         token,
         "/:/scrobble",
@@ -593,6 +635,11 @@ def print_summary(
         f"({len(result.matched_movie_keys)} movies, {len(result.matched_episode_keys)} episodes)"
     )
     print(f"Unmatched: {unique_unmatched} unique items")
+    print(
+        "  (matched counts unique Plex items, unmatched counts unique Trakt "
+        "entries — these need not sum to the unique-items-after-dedup total "
+        "above, e.g. when two distinct Trakt episodes map to one Plex guid)"
+    )
     print()
 
     id_type_counts = Counter(result.matched_id_types.values())
