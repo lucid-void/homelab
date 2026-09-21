@@ -36,8 +36,8 @@ OIDC path. Exposure is VPN-gated like the media stack.
 retention `--group-by '' --keep-daily 30 --keep-monthly 12`. Quiesced: scales `couchdb`
 to 0 via `trap cleanup EXIT` before snapshotting, because a snapshot mid-write can
 capture a torn `.couch` header. Deliberately **no `podAffinity`**, unlike
-`joplin-backup`/`homebox-backup` — `couchdb-data` is `openebs-hostpath`, so its PV
-already carries nodeAffinity from first bind; adding podAffinity on the app pod would
+`homebox-backup` — `couchdb-data` is `openebs-hostpath`, so its PV already carries
+nodeAffinity from first bind; adding podAffinity on the app pod would
 make the job unschedulable whenever couchdb is already at 0 replicas, exactly the state
 a previously failed run leaves behind.
 

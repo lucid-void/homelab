@@ -17,11 +17,10 @@ namespace running `ghcr.io/lucid-void/backup-tools`.
 | 03:30 | postgres-backup | none — reads the CNPG read replica |
 | 04:00 | paperless-backup | scale to 0 |
 | 05:00 | gitea-backup | scale to 0 |
-| 06:00 | joplin-backup | scale to 0 |
 | 07:00 | minecraft-backup | quiesced |
 
 Scale-down jobs go to 0 replicas via `trap cleanup EXIT`. homebox and gitea back up
-SQLite/repos; immich, paperless and joplin dump Postgres plus PVCs into a single
+SQLite/repos; immich and paperless dump Postgres plus PVCs into a single
 snapshot. Apps with their own quiesced job are excluded from `postgres-backup`'s
 `databases.yml` list.
 
@@ -78,7 +77,7 @@ Gotify notifications are priority 5 on success, 8 on failure. The token is in
   the `filen` backend** — it arrived in rclone v1.69 and Alpine's `apk add rclone`
   installs something older that lacks it.
 - **A backup job whose data PVC is RWO *and* `nfs-client` needs `podAffinity` onto the
-  app's node** (joplin, homebox) — scale-down happens inside the script, so the job
+  app's node** (homebox) — scale-down happens inside the script, so the job
   mounts the PVC while the app pod still holds it, and an `nfs-client` PV can bind
   anywhere. immich is exempt only because `immich-library` is RWX.
 - **A hostpath-backed (`openebs-hostpath`) job must NOT have `podAffinity`** (obsidian) —

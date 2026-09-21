@@ -19,8 +19,8 @@ spec:
     kind: GitRepository
     name: home-kubernetes
   # wait: true — Flux waits for the Job to succeed before marking this ks healthy.
-  # joplin ks depends on this: its SAML application lives in the Terraform, and
-  # the app serves SP metadata that must match what Zitadel has registered.
+  # Nothing depends on it any more (Joplin, its last consumer, was deleted), but
+  # a silently failing bootstrap Job should still show up as an unhealthy ks.
   wait: true
   interval: 30m
   timeout: 30m

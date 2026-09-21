@@ -188,7 +188,6 @@ ensure_app_token "postgres-backup"  "Postgres backup job notifications"     post
 ensure_app_token "immich-backup"    "Immich backup job notifications"       immich      gotify-secret        GOTIFY_TOKEN
 ensure_app_token "paperless-backup" "Paperless backup job notifications"    paperless   gotify-secret        GOTIFY_TOKEN
 ensure_app_token "gitea-backup"     "Gitea backup job notifications"        gitea       gotify-secret        GOTIFY_TOKEN
-ensure_app_token "joplin-backup"    "Joplin backup job notifications"       joplin      gotify-secret        GOTIFY_TOKEN
 ensure_app_token "obsidian-backup"  "Obsidian CouchDB backup notifications" obsidian    gotify-secret        GOTIFY_TOKEN
 ensure_app_token "minecraft-backup" "Minecraft backup job notifications"    media       gotify-secret        GOTIFY_TOKEN
 ensure_app_token "minecraft-events" "Minecraft player join/leave events"    media       minecraft-events-gotify-secret GOTIFY_TOKEN

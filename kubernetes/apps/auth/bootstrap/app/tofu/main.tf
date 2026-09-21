@@ -179,18 +179,16 @@ removed {
   }
 }
 
-# Joplin Server speaks SAML, not OIDC (upstream issue #14252 — OIDC is still an
-# open feature request). The SP metadata below must stay byte-identical to
-# kubernetes/apps/joplin/joplin/app/saml-sp-configmap.yml: Joplin serves that
-# same document to samlify, and a mismatch in entityID or ACS Location makes
-# Zitadel's assertion fail the audience check.
+# DEAD — Joplin was deleted on 2026-09-21 and `kubernetes/apps/joplin/` is gone,
+# so this SAML application, the action below and its trigger now serve nothing.
+# They are kept only so the whole Terraform is destroyed in one step when Zitadel
+# is retired (`design/TODO.md`); removing them alone would need a hand-run
+# `tofu apply` against an instance that is about to disappear anyway.
 #
-# No client secret exists for a SAML SP, so unlike every OIDC app here there is
-# nothing to write back into a Kubernetes Secret — Joplin only needs the public
-# IdP metadata, which it fetches from Zitadel at pod start.
-#
-# Joplin stays on Zitadel — it is being retired soon and is deliberately out of
-# scope for the Keycloak cutover.
+# Joplin spoke SAML, not OIDC (upstream issue #14252). The SP metadata below had
+# to stay byte-identical to the SP metadata ConfigMap Joplin served to samlify,
+# or Zitadel's assertion failed the audience check. No client secret exists for a
+# SAML SP, so nothing was ever written back into a Kubernetes Secret.
 resource "zitadel_application_saml" "joplin" {
   project_id = zitadel_project.homelab.id
   org_id     = local.org_id

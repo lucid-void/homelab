@@ -79,11 +79,6 @@ spec:
         inherit: true
         passwordSecret:
           name: romm-role-secret
-      - name: joplin
-        login: true
-        inherit: true
-        passwordSecret:
-          name: joplin-role-secret
       - name: litellm
         login: true
         inherit: true

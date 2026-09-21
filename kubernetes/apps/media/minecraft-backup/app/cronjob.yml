@@ -14,7 +14,7 @@ metadata:
     # restic and rclone need a writable HOME for their cache
     ignore-check.kube-linter.io/no-read-only-root-fs: "restic/rclone cache"
 spec:
-  # 07:00 — after the existing fleet (homebox 02:00 … joplin 06:00) so the Filen
+  # 07:00 — after the existing fleet (homebox 02:00 … gitea 05:00) so the Filen
   # uploads don't overlap.
   schedule: "0 7 * * *"
   concurrencyPolicy: Forbid
@@ -34,8 +34,8 @@ spec:
       template:
         spec:
           restartPolicy: Never
-          # No podAffinity needed: mc-backups is RWX, unlike joplin/homebox whose
-          # jobs have to land on the app's node to share an RWO volume.
+          # No podAffinity needed: mc-backups is RWX, unlike homebox whose job
+          # has to land on the app's node to share an RWO volume.
           securityContext:
             runAsNonRoot: true
             runAsUser: 65534

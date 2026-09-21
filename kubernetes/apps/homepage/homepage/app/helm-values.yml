@@ -126,10 +126,6 @@ config:
             href: https://homebox.example.com
             description: Home inventory
             icon: homebox.png
-        - Joplin:
-            href: https://joplin.example.com
-            description: Notes sync
-            icon: joplin.png
         - Degoog:
             href: https://degoog.example.com
             description: Search engine aggregator
@@ -152,12 +148,6 @@ config:
             href: https://sso.example.com
             description: Identity & access
             icon: keycloak.png
-        # Kept only as Joplin's SAML IdP -- every OIDC app is on Keycloak above.
-        # This tile goes when Joplin does.
-        - Zitadel:
-            href: https://zitadel.example.com
-            description: SAML IdP (Joplin only)
-            icon: sh-zitadel
         - Gotify:
             href: https://gotify.example.com
             description: Notifications

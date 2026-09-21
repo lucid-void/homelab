@@ -79,7 +79,6 @@ case "$P" in
   kubernetes/apps/gitea/*)               emit design/decisions/gitea.md ;;&
   kubernetes/apps/immich/*)              emit design/decisions/immich.md ;;&
   kubernetes/images/postgres-cnpg-immich/*) emit design/decisions/immich.md ;;&
-  kubernetes/apps/joplin/*)              emit design/decisions/joplin.md ;;&
   kubernetes/apps/homebox/*)             emit design/decisions/homebox.md ;;&
   kubernetes/apps/obsidian/*)            emit design/decisions/obsidian-livesync.md ;;&
   kubernetes/apps/changedetection/*)     emit design/decisions/changedetection.md ;;&
