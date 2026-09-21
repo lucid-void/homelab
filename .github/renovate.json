@@ -158,6 +158,13 @@
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["major"],
       "enabled": false
+    },
+    {
+      "description": "CrossWatch is pre-1.0 (v0.12.3, eight releases in the preceding month) under heavy churn. automerge is already off globally, but this pins the intent explicitly and additionally requires a manual dependency-dashboard approval before Renovate opens the PR at all, rather than just gating the merge — read the release notes before approving. See design/decisions/watch-sync.md.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/cenodude/crosswatch"],
+      "automerge": false,
+      "dependencyDashboardApproval": true
     }
   ]
 }
