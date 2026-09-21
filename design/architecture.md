@@ -147,8 +147,6 @@ namespace backed by CNPG Postgres, deployed by the official Keycloak Operator.
 - Native OIDC apps connect directly to Keycloak — no forward-auth proxy
 - OIDC clients are `KeycloakOIDCClient` CRs, each with a sealed client secret that git
   owns rather than one the IdP issues
-- Zitadel still runs in the `auth` namespace but serves no application: its only
-  consumer, Joplin over SAML, was deleted on 2026-09-21. Removal is pending
 
 ---
 

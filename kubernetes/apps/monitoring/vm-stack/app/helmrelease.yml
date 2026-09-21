@@ -152,7 +152,7 @@ spec:
             isDefault: true
 
     # ---------------------------------------------------------------------------
-    # Grafana — dashboards (Zitadel OIDC, credentials from grafana-oidc-secret)
+    # Grafana — dashboards (Keycloak OIDC, credentials from grafana-oidc-secret)
     # ---------------------------------------------------------------------------
     grafana:
       enabled: true

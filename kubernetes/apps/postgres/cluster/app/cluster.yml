@@ -42,13 +42,6 @@ spec:
         inherit: true
         passwordSecret:
           name: immich-role-secret
-      - name: zitadel
-        login: true
-        inherit: true
-        createrole: true
-        createdb: true
-        passwordSecret:
-          name: zitadel-role-secret
       - name: freshrss
         login: true
         inherit: true

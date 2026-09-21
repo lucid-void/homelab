@@ -17,7 +17,7 @@ spec:
   # Job's pod spec — and a Job spec is immutable. Without force, that apply fails
   # with `field is immutable` and the Kustomization sits NotReady until someone
   # deletes the Job by hand. With it, Flux recreates the Job, which is exactly the
-  # "re-run on change" behaviour. Same pattern as auth/bootstrap (zitadel).
+  # "re-run on change" behaviour.
   force: true
   sourceRef:
     kind: GitRepository

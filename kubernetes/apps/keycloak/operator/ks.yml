@@ -9,8 +9,8 @@ spec:
   # `namespace: keycloak` and runs a NamespaceTransformer with
   # `setRoleBindingSubjects: allServiceAccounts`, so the ServiceAccount subjects in
   # its RoleBindings and ClusterRoleBinding are rewritten correctly on its own.
-  # Setting targetNamespace here would fight that transformer and is the reason
-  # this operator lives in `keycloak` rather than next to Zitadel in `auth`.
+  # Setting targetNamespace here would fight that transformer, which is why this
+  # path carries its own namespace rather than being retargeted.
   #
   # Also no commonMetadata: this path installs upstream CRDs, and relabelling
   # them buys nothing while making a future upstream diff noisier.

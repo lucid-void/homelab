@@ -36,7 +36,6 @@ For each file found, check the following rules. Report violations as `FAIL: <fil
 - [ ] `dependsOn` includes `sealed-secrets` for any app that uses SealedSecrets
 - [ ] `dependsOn` includes `shared-gateway` for any app that has an HTTPRoute
 - [ ] `dependsOn` includes `postgres-cluster` for any app that has a CNPG database Kustomization
-- [ ] `dependsOn` includes `zitadel-bootstrap` for any app that needs OIDC credentials written by Terraform
 
 ### Storage
 - [ ] Static NFS `PersistentVolume` objects use `nfsvers=4` in `mountOptions`, never `nfsvers=4.1`

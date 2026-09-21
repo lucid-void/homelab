@@ -30,8 +30,7 @@ spec:
     displayName: Homelab
     enabled: true
 
-    # Self-registration off: accounts are created by an admin, matching how the
-    # Zitadel org is run today.
+    # Self-registration off: accounts are created by an admin.
     registrationAllowed: false
     resetPasswordAllowed: true
     rememberMe: true

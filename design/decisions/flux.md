@@ -61,8 +61,8 @@ forwarded to Telegram).
   `ttlSecondsAfterFinished` window, or still Running) fails the dry-run with
   `spec.template: Invalid value` / "field is immutable" and takes the Kustomization
   NotReady. `force: true` makes Flux delete+recreate it; the manual escape is
-  `kubectl delete job <name> -n <ns>`. `zitadel-bootstrap` and `gotify-bootstrap` both
-  set it. This applies to every bootstrap Job, not just those two.
+  `kubectl delete job <name> -n <ns>`. `gotify-bootstrap` sets it. This applies to
+  every bootstrap Job, not just that one.
 - **Deliver a bootstrap Job's script through `configMapGenerator`** — the hash-suffixed
   ConfigMap name changes when the script changes, which changes the Job's pod spec,
   which makes `force: true` re-run the Job. That is what turns "edit the script" into

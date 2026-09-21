@@ -83,10 +83,9 @@ case "$P" in
   kubernetes/apps/obsidian/*)            emit design/decisions/obsidian-livesync.md ;;&
   kubernetes/apps/changedetection/*)     emit design/decisions/changedetection.md ;;&
 
-  # --- auth: two decision files govern the same namespace, deliberately ---
-  kubernetes/apps/auth/*)
-    emit design/decisions/zitadel.md
-    emit design/decisions/proxmox-oidc.md ;;&
+  # --- keycloak: the OIDC clients path also governs Proxmox, which is bare metal ---
+  kubernetes/apps/keycloak/*)            emit design/decisions/keycloak.md ;;&
+  kubernetes/apps/keycloak/clients/*)    emit design/decisions/proxmox-oidc.md ;;&
 
   # --- OIDC apps / paperless (protonmail-bridge also reads paperless/paperless) ---
   kubernetes/apps/freshrss/*)            emit design/decisions/oidc-apps.md ;;&

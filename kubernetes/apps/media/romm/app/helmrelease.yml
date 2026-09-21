@@ -31,8 +31,8 @@ spec:
       app:
         replicas: 1
         annotations:
-          # Restart when the Terraform-written OIDC secret is (re)created so RomM
-          # picks up the Zitadel credentials. Absent secret => OIDC simply off.
+          # Restart when the sealed OIDC secret is (re)created so RomM picks up
+          # the Keycloak credentials. Absent secret => OIDC simply off.
           reloader.stakater.com/auto: "true"
         containers:
           app:

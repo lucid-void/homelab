@@ -37,7 +37,7 @@ separate Secret consumed through `extraEnvFrom`.
   in place (phase `Primary instance is being restarted without a switchover`) rather
   than switching over.
 - **Do not panic when Paperless CrashLoopBackOffs through an operator bump** — it exits
-  1 and then self-recovers. Immich, gitea, freshrss, zitadel, sonarr/radarr and romm
+  1 and then self-recovers. Immich, gitea, freshrss, sonarr/radarr and romm
   reconnect without restarting.
 - **Confirm `kubectl get cluster postgres -n postgres` reports
   `Cluster in healthy state` with 2 ready before declaring an upgrade done** — the

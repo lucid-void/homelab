@@ -74,7 +74,6 @@ gateway-api
                                                                       └── paperless
                                                                       └── gitea
                                                                       └── freshrss
-                          └── auth-database ───→ zitadel ──→ zitadel-bootstrap
               └── democratic-csi
               └── openebs
               └── reflector
@@ -93,11 +92,11 @@ Flux Kustomization names are globally unique within `flux-system`. Naming scheme
 
 | Pattern | Examples |
 |---|---|
-| `<app>` | `cilium`, `immich`, `zitadel`, `gotify` |
+| `<app>` | `cilium`, `immich`, `keycloak`, `gotify` |
 | `<app>-config` | `cilium-config`, `cert-manager-config` |
-| `<app>-database` | `immich-database`, `auth-database`, `gitea-database` |
+| `<app>-database` | `immich-database`, `keycloak-database`, `gitea-database` |
 | `<app>-backup` | `immich-backup`, `postgres-backup` |
-| `<app>-bootstrap` | `zitadel-bootstrap`, `gotify-bootstrap`, `gitea-db-bootstrap` |
+| `<app>-bootstrap` | `gotify-bootstrap`, `gitea-db-bootstrap` |
 
 ### targetNamespace
 
@@ -388,7 +387,7 @@ Only if the service has a web UI a human would open. Edit
   with default columns.
 - `icon:` resolves against the homepage dashboard-icons set. When there is no icon for
   the app, fall back to a `mdi-` Material Design name (`mdi-magnify`) or an `sh-`
-  selfh.st name (`sh-zitadel`).
+  selfh.st name.
 - Point `href` at the page that is actually useful — LiteLLM's tile links `/ui`, not
   `/`, because `/` serves the Swagger API reference, not the admin UI.
 
