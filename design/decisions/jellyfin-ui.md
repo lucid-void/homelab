@@ -47,8 +47,15 @@ installed here — see the rejection note below.
 | **Webhook** | → Gotify, matching the cluster's alerting path | Official catalogue. |
 
 Optional additions from the official catalogue: **Playback Reporting** (watch statistics)
-and **Trakt** (scrobbling). TMDb and TheTVDB metadata providers ship built in — do not
-install them. Open Subtitles is worth adding only if subtitle fetching is wanted.
+and **Trakt** (scrobbling) — installed, but **deliberately left unauthorized**. Watch
+history already reaches Trakt via the CrossWatch chain
+(`design/decisions/watch-sync.md`: Jellyfin → Plex → Trakt). Authorizing this plugin
+would open a second, direct route for the same play, closing the loop
+Jellyfin→Trakt→Plex→Jellyfin and inflating Trakt's rewatch counts with duplicate
+scrobbles. Without this note, "installed but not configured" reads identically to an
+oversight six months from now — it isn't one; do not authorize it. TMDb and TheTVDB
+metadata providers ship built in — do not install them. Open Subtitles is worth adding
+only if subtitle fetching is wanted.
 
 ### KefinTweaks — considered and rejected
 
