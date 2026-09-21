@@ -54,8 +54,11 @@ spec:
                 enabled: true
                 custom: true
                 spec:
-                  httpGet:
-                    path: /
+                  # tcpSocket, not httpGet: crosswatch will sit behind its own OIDC
+                  # gate, so no unauthenticated HTTP path is guaranteed to stay
+                  # 200/302 — an httpGet probe would CrashLoop the Deployment the
+                  # moment / starts answering 401/403.
+                  tcpSocket:
                     port: 8787
                   initialDelaySeconds: 30
                   periodSeconds: 30

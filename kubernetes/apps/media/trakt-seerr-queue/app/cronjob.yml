@@ -13,7 +13,11 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      activeDeadlineSeconds: 300
+      # 900, not 300: a first drain of a full 100-item watchlist is roughly 200
+      # API round trips and can run past five minutes. Safe either way — nothing
+      # is orphaned and the next run resumes — but 300 would fail that first run
+      # for no real reason.
+      activeDeadlineSeconds: 900
       backoffLimit: 0
       ttlSecondsAfterFinished: 3600
       template:
@@ -37,8 +41,10 @@ spec:
               image: python:3.13-alpine
               command: ["python3", "/scripts/queue.py"]
               envFrom:
-                # No `optional: true` — chart 3.7.3 strips it, and a missing
-                # secret here would fail with a bare KeyError.
+                # Required: this is a plain manifest, not app-template, so
+                # `optional: true` would apply normally — it's simply omitted
+                # because the secret must exist. A missing key surfaces as a
+                # bare KeyError from queue.py at startup.
                 - secretRef:
                     name: trakt-queue-secrets
               volumeMounts:

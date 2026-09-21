@@ -125,7 +125,15 @@ data:
             if err.code == 409:
                 log("  already requested in seerr")
                 return True
-            log("  seerr rejected: HTTP %d" % err.code)
+            detail = ""
+            try:
+                detail = err.read().decode("utf-8", "replace")[:200]
+            except Exception:
+                pass
+            # 400 usually means Seerr already has the item fully available. Left on the
+            # watchlist on purpose — removing on a bare 400 would also drop items whose
+            # request failed for unrelated reasons.
+            log("  seerr rejected: HTTP %d %s" % (err.code, detail))
             return False
 
     def trakt_remove(kind, trakt_id, tokens):
