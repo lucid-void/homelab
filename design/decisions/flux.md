@@ -63,6 +63,17 @@ forwarded to Telegram).
   NotReady. `force: true` makes Flux delete+recreate it; the manual escape is
   `kubectl delete job <name> -n <ns>`. `gotify-bootstrap` sets it. This applies to
   every bootstrap Job, not just that one.
+- **Expect `helm uninstall` to report an error when an app is removed with its
+  namespace** — Flux prunes the Namespace and the HelmRelease in the same apply, the
+  namespace goes `Terminating`, and any chart `post-delete` hook then fails to create
+  its Job: `forbidden: unable to create new content in namespace <ns> because it is
+  being terminated`. Helm logs `uninstallation completed with 1 error(s)` and the next
+  reconcile logs `uninstalled Helm release for deleted resource` — the release is gone
+  either way. Deleting Zitadel on 2026-09-21 hit this with the chart's
+  `zitadel-cleanup` hook, whose only job was deleting Secrets in the namespace that was
+  already being deleted. Before dismissing it, check what the hook actually does: one
+  that reaches *outside* the namespace (an external database, an object store) really
+  would be skipped, and that work then falls to you.
 - **Deliver a bootstrap Job's script through `configMapGenerator`** — the hash-suffixed
   ConfigMap name changes when the script changes, which changes the Job's pod spec,
   which makes `force: true` re-run the Job. That is what turns "edit the script" into
