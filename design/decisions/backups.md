@@ -11,6 +11,7 @@ namespace running `ghcr.io/lucid-void/backup-tools`.
 | Time | Job | Quiescing |
 |---|---|---|
 | 01:00 | `etcd-snapshot` (in `kube-system`) | n/a |
+| 01:30 | changedetection-backup | scale to 0 |
 | 02:00 | homebox-backup | scale to 0 |
 | 02:30 | obsidian-backup | scale to 0 |
 | 03:00 | immich-backup | scale to 0 |
@@ -103,10 +104,10 @@ Gotify notifications are priority 5 on success, 8 on failure. The token is in
 - **Always post to the in-cluster Service `http://gotify.monitoring.svc.cluster.local/message`,
   never `https://gotify.blackcats.cc`** — the public hostname needs DNS plus egress out
   to the Gateway and back, exactly what breaks in the commonest failure mode (a node
-  reboot killing egress). Applies to every job-style Gotify caller: the 8 app backups,
+  reboot killing egress). Applies to every job-style Gotify caller: every app backup,
   `etcd-snapshot`, `kubent` and `security-report`. Legitimate public-hostname uses: the
-  HTTPRoute, the Gatus check (deliberately probing the public path), the homepage link
-  and mailrise's apprise URL.
+  HTTPRoute, the Gatus check (deliberately probing the public path) and the homepage
+  link.
 - **Keep the log capture and the tail in the failure body** — scripts capture everything
   with `exec > >(tee "$LOG") 2>&1` and the handler awk-JSON-escapes `tail -10 "$LOG"`
   into the Gotify message, which is what makes a failure triageable without kubectl.

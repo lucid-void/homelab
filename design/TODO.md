@@ -26,9 +26,9 @@ Open work only. A finished item is deleted, not struck through.
   to accept that or drive it from OpenTofu's Keycloak provider.
 - **`pve` and `synology` are on neither Gatus nor Homepage.** The add-a-service path now
   covers both surfaces (`design/docs/gitops.md` steps 9 and 10, plus step 8 for gating a
-  new OIDC client), and the eight services that had drifted onto the cluster unregistered
-  — Jellyfin, Keycloak, Open WebUI, LiteLLM, RomM, Obsidian LiveSync, kromgo — are all
-  wired in (2026-09-20). What is left is the decision: `llama-swap` and
+  new OIDC client), and the seven services that had drifted onto the cluster
+  unregistered — Jellyfin, Keycloak, Open WebUI, LiteLLM, RomM, Obsidian LiveSync,
+  kromgo — are all wired in (2026-09-20). What is left is the decision: `llama-swap` and
   `minecraft-valkey` are deliberately absent (ClusterIP-only), but `pve` and `synology`
   are real hosts with no Gatus check at all.
 - **Jellyfin's usable state lives outside git.** SSO is finished (2026-09-21): groups,

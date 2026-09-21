@@ -44,7 +44,7 @@ spec:
 
     passwordPolicy: "length(12)"
 
-    # Mail goes through the Proton Mail Bridge, not mailrise/Gotify: other
+    # Mail goes through the Proton Mail Bridge, not Gotify: other
     # people use this realm and need self-service password reset to reach a
     # real inbox. host is 127.0.0.1 because the bridge certificate's only SAN
     # is IP:127.0.0.1 — the socat sidecar on the Keycloak pod relays to the
@@ -52,8 +52,8 @@ spec:
     # `from` must be an address the Proton account actually owns — Proton rejects
     # anything else at DATA with `554 ... sender or recipient address is not valid`,
     # even though the envelope MAIL FROM is accepted. keycloak@blackcats.cc only
-    # worked under mailrise, which validated nothing. Adding blackcats.cc as a
-    # Proton custom domain would allow a service address here.
+    # worked under the old mailrise relay, which validated nothing. Adding
+    # blackcats.cc as a Proton custom domain would allow a service address here.
     smtpServer:
       host: 127.0.0.1
       port: "1025"
