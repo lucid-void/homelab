@@ -42,9 +42,6 @@ Every service is reachable only on the internal network or via Netbird VPN.
 |---|---|---|---|---|---|
 | Keycloak | keycloak | Keycloak CR (operator) | `sso.blackcats.cc` | Self (OIDC provider) | **The identity provider.** Official Keycloak Operator from a tag-pinned GitRepository; realm `homelab` from a `KeycloakRealmImport`; CNPG Postgres. Service is `keycloak-service`. Realm mail via a socat sidecar to the Proton Bridge |
 | Keycloak clients | keycloak | KeycloakOIDCClient CRs | — | — | One CR per app under `kubernetes/apps/keycloak/clients/`, each with a sealed `<app>-client-secret` that git owns. Requires the EXPERIMENTAL `client-admin-api:v2` server feature |
-| Zitadel | auth | HelmRelease | `auth.blackcats.cc` | Self (OIDC provider) | **Serves no application** — every OIDC app moved to Keycloak and Joplin, its last (SAML) consumer, was deleted 2026-09-21. Pending removal. Go binary backed by CNPG Postgres; gRPC-Web via Cilium GRPCRoute + h2c |
-| Mailrise | auth | Deployment | — | — | SMTP→Apprise relay for Zitadel email notifications |
-| Zitadel bootstrap | auth | Job | — | — | Terraform + Zitadel API. Owns **only** the now-unused Joplin SAML application, its attribute-rename action and the `homelab` project — the eighteen OIDC resources were dropped from state with `removed { lifecycle { destroy = false } }`. Writes no Secrets into app namespaces any more. Goes with Zitadel |
 
 ---
 

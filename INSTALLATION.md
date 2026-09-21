@@ -342,7 +342,7 @@ flux get kustomizations --watch
 ## Phase 12 — Infrastructure reconciles
 
 FluxCD applies resources in `dependsOn` order. Operators, StorageClasses, the
-Gateway, cert-manager, CNPG, Zitadel, and the applications all deploy automatically.
+Gateway, cert-manager, CNPG, Keycloak, and the applications all deploy automatically.
 
 Wait for Sealed Secrets to be ready before secret-dependent apps reconcile:
 
@@ -396,7 +396,7 @@ At this point every layer is running and GitOps-managed:
 - **Sealed Secrets** decrypting all `SealedSecret` resources
 - **CNPG** managing the shared Postgres cluster
 - **cert-manager** issuing `*.blackcats.cc` via Let's Encrypt DNS-01
-- **Zitadel** as the single OIDC provider
+- **Keycloak** as the single OIDC provider
 - **FluxCD** reconciling every resource in `kubernetes/` on every git push
 
 For day-to-day operations (Talos upgrades, k8s upgrades, adding secrets, adding

@@ -4,7 +4,7 @@
 
 Talos Linux Kubernetes cluster on the `blackcats.cc` domain, managed by FluxCD.
 Everything is declarative and driven from git: VM templates (Packer), VMs + Cloudflare
-DNS + Zitadel OIDC (OpenTofu, always applied by hand), node OS (talhelper, SOPS+age),
+DNS (OpenTofu, always applied by hand), node OS (talhelper, SOPS+age),
 cluster workloads (Flux, from `main`). A tiny compose remnant survives only for ZeroTier.
 
 ## Hard rules
@@ -78,7 +78,6 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Trivy, Falco, kubent, kube-linter, k8s-cleaner        | design/decisions/security-tooling.md  |
 | pinning an image tag, lscr tags, Renovate regexes     | design/decisions/images.md            |
 | Keycloak, SSO, OIDC clients, realm, client roles      | design/decisions/keycloak.md          |
-| Zitadel — serves nothing, pending removal; its Terraform bootstrap | design/decisions/zitadel.md |
 | Gitea                                                 | design/decisions/gitea.md             |
 | FreshRSS, or Paperless (OIDC and the app itself)       | design/decisions/oidc-apps.md         |
 | Immich                                                | design/decisions/immich.md            |
@@ -91,7 +90,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Homebox                                               | design/decisions/homebox.md           |
 | Obsidian LiveSync                                     | design/decisions/obsidian-livesync.md |
 | Proton Mail Bridge                                    | design/decisions/protonmail-bridge.md |
-| changedetection.io, sockpuppetbrowser, its non-Zitadel login | design/decisions/changedetection.md |
+| changedetection.io, sockpuppetbrowser, its non-SSO login | design/decisions/changedetection.md |
 | Proxmox OIDC                                          | design/decisions/proxmox-oidc.md      |
 | the LLM stack                                         | design/decisions/llm.md               |
 | service inventory, hostnames, auth model              | design/docs/services.md               |

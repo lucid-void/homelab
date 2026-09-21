@@ -43,9 +43,6 @@ spec:
     # Layer 2 — direct HelmRelease errors, one entry per namespace that has one.
     - kind: HelmRelease
       name: "*"
-      namespace: auth
-    - kind: HelmRelease
-      name: "*"
       namespace: cert-manager
     - kind: HelmRelease
       name: "*"

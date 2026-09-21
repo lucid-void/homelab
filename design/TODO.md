@@ -12,15 +12,6 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Planned
 
-- **Retire Zitadel.** Every OIDC app is on Keycloak and Joplin — its last consumer — was
-  deleted on 2026-09-21, so it now serves nothing. Removing it means the HelmRelease,
-  the `zitadel` database and managed role, the bootstrap Job and its Terraform (the
-  `homelab` project, the three Joplin SAML resources, and the eighteen `removed`
-  blocks), the `tfstate-default-zitadel-bootstrap`
-  Secret, the `auth.blackcats.cc` DNS record, Mailrise, and the `auth` namespace.
-  `auth/proxmox-oidc-secret` must move first — Proxmox reads it and is not going
-  anywhere. Keep the Zitadel-side OIDC clients until Keycloak has run a while: they are
-  unmanaged, not deleted, and are the only rollback path.
 - **Rotate the GitHub PAT in `~/.claude/settings.local.json`** (workstation, not the
   cluster). It was never committed — `git log -S` finds it in no commit and a global
   gitignore covers the file — but it was read aloud into an agent transcript on
@@ -130,8 +121,7 @@ Open work only. A finished item is deleted, not struck through.
   so effectively all pods can reach all other pods. Hubble UI is now deployed
   (`hubble-relay`, `hubble-ui` in `kube-system`), which was the prerequisite for
   deriving default-deny rules from observed traffic rather than guesswork — start with
-  `postgres` (cleartext intra-cluster Postgres + any pod RCE = full DB access) and
-  `auth` (Zitadel).
+  `postgres` (cleartext intra-cluster Postgres + any pod RCE = full DB access).
 - Cilium runs VXLAN tunnel + legacy (iptables) host routing on a single flat L2 segment
   — `routingMode: native` + `autoDirectNodeRoutes: true` + BPF masquerade/host-routing
   fit a flat single-subnet topology better and `kubeProxyReplacement` is already on. Do
@@ -158,11 +148,11 @@ Open work only. A finished item is deleted, not struck through.
 - Single offsite backup target (Filen), not immutable — a cluster compromise or a
   runaway delete script can wipe recent snapshots before 30-day retention ages them
   out. Enable restic append-only mode on a separate account, or add a second offsite
-  target for the highest-value snapshots (Zitadel, SOPS age key, Sealed Secrets key,
+  target for the highest-value snapshots (Keycloak, SOPS age key, Sealed Secrets key,
   Immich/Paperless).
 - No disaster-recovery runbook for rebuilding application data from Filen into a
-  freshly-rebuilt cluster: CNPG re-seed from restic, PVC content restore, Zitadel
-  bootstrap re-run, OIDC re-linking verification.
+  freshly-rebuilt cluster: CNPG re-seed from restic, PVC content restore, Keycloak
+  realm re-import, OIDC re-linking verification.
 - VictoriaLogs (`vlogs`) is disabled in the vm-stack HelmRelease — container logs are
   ephemeral on each node (`/var/log/pods/`) with no forensic trail beyond the real-time
   Gotify push for Falco events.

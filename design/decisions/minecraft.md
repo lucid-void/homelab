@@ -27,7 +27,7 @@ chat/`/msg`/staffchat/join-leave through `minecraft-valkey` (`emptyDir`, `--save
 `appendonly no`), required on **both** servers.
 
 `filebrowser` (`{server}-files.blackcats.cc`) is for datapacks/world imports/config
-edits, local auth from `minecraft-secret` — not Zitadel. Each server exposes
+edits, local auth from `minecraft-secret` — not SSO. Each server exposes
 three Services: `{name}-app` 25565, `{name}-files` 8081, `{name}-map` 8080 (squaremap
 binds `0.0.0.0:8080` from inside the JVM, so filebrowser moved to 8081).
 

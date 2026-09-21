@@ -64,8 +64,8 @@ spec:
       memory: 1536Mi
 
   additionalOptions:
-    # Postgres traffic is cleartext on the internal VLAN by convention (the same
-    # choice Zitadel makes with SSL.Mode=disable). Without this the JDBC driver
+    # Postgres traffic is cleartext on the internal VLAN by convention. Without
+    # this the JDBC driver
     # defaults to sslmode=prefer and negotiates TLS it does not verify.
     - name: db-url-properties
       value: "?sslmode=disable"

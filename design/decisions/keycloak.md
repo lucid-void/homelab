@@ -5,9 +5,8 @@
 ## Current state
 
 Keycloak at `sso.blackcats.cc` is the identity provider for every application on SSO.
-It replaced Zitadel in a single cutover. Zitadel now serves nothing — its last
-consumer, Joplin's SAML application, was deleted on 2026-09-21 — and is itself
-pending removal (`design/decisions/zitadel.md`).
+It replaced Zitadel in a single cutover on 2026-09-20; Zitadel itself was deleted on
+2026-09-21, once Joplin — its last consumer, over SAML — was gone.
 
 Deployed by the **official Keycloak Operator**, installed from
 `github.com/keycloak/keycloak-k8s-resources` at a pinned tag, filtered to
@@ -28,8 +27,7 @@ must therefore **not** set `targetNamespace`.
 
 **Database** is a `keycloak` `Database` CR on the shared CNPG cluster, owned by a
 `keycloak` managed role whose password is a SealedSecret in `postgres` mirrored into
-`keycloak` by Reflector — identical in shape to Zitadel's, and in the
-`postgres-backup-databases` list. Keycloak crash-loops with
+`keycloak` by Reflector, and in the `postgres-backup-databases` list. Keycloak crash-loops with
 `FATAL: password authentication failed` if the managed role loses its race with the
 `Database` CR; see `design/decisions/cnpg.md`.
 

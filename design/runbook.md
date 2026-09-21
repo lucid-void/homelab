@@ -472,15 +472,20 @@ Backup CronJobs need nothing: they read the Secret at job start.
 ### Configure Proxmox SSO via Keycloak OIDC
 
 The `proxmox` `KeycloakOIDCClient` CR registers the client; the sealed
-`proxmox-oidc-secret` in the `auth` namespace carries the credentials (Proxmox is bare
-metal, outside the cluster, so nothing in-cluster consumes it). Read them out:
+`proxmox-client-secret` in the `keycloak` namespace carries its secret, the same one
+every other client uses (Proxmox is bare metal, outside the cluster, so nothing
+in-cluster consumes it). The client id is `proxmox` — the CRD takes it from
+`metadata.name` — and the issuer is `https://sso.blackcats.cc/realms/homelab`. Read the
+secret out:
 
 ```bash
-mise exec -- kubectl get secret proxmox-oidc-secret -n auth \
-  -o jsonpath='{.data.OIDC_CLIENT_ID}'     | base64 -d; echo
-mise exec -- kubectl get secret proxmox-oidc-secret -n auth \
-  -o jsonpath='{.data.OIDC_CLIENT_SECRET}' | base64 -d; echo
+mise exec -- kubectl get secret proxmox-client-secret -n keycloak \
+  -o jsonpath='{.data.secret}' | base64 -d; echo
 ```
+
+Until 2026-09-21 this was a separate three-key `proxmox-oidc-secret` bundle in the
+`auth` namespace; it was dropped with Zitadel because it duplicated a credential that
+already lives beside every other Keycloak client.
 
 On the Proxmox host, create the OpenID Connect realm (or use Datacenter → Realms → Add):
 

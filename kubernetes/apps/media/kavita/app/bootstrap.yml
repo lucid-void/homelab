@@ -1,6 +1,6 @@
 ---
 # Bootstraps Kavita: (1) registers the first user (auto-admin), and
-# (2) enables OIDC account provisioning so Zitadel users can self-register.
+# (2) enables OIDC account provisioning so Keycloak users can self-register.
 # Both steps are idempotent — safe to re-run.
 apiVersion: batch/v1
 kind: Job

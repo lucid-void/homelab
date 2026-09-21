@@ -32,8 +32,8 @@ confirm the bridge supports 9000 before changing anything here.
 - **Never set `gatewayAPI.enableAlpn` to false or drop it** — without it the Envoy HTTPS
   listener negotiates **no** ALPN protocol. curl and browsers silently fall back to
   HTTP/1.1, but strict clients fail the TLS handshake outright with
-  `server did not agree on a protocol`. That breaks the Zitadel bootstrap (gRPC needs
-  h2) and external OIDC clients such as Proxmox `proxmox-openid` ("Failed to contact
+  `server did not agree on a protocol`. That breaks any gRPC route (gRPC needs h2)
+  and external OIDC clients such as Proxmox `proxmox-openid` ("Failed to contact
   token endpoint: Request failed").
 - **Never remove the explicit `MTU: 9000`** — Cilium's MTU auto-detection otherwise
   picks the Netbird `wt0` interface (MTU 1280) and throttles ALL pod traffic to

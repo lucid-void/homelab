@@ -164,7 +164,7 @@ GatewayClass: cilium  (kube-system, controller: io.cilium/gateway-controller)
         ├── Listener: http   port 80   *.blackcats.cc   → HTTPRoute (redirect to https)
         ├── Listener: https  port 443  *.blackcats.cc   → TLS terminated by cert shared-tls
         │     ├── HTTPRoute: <app>  (per-app namespace)
-        │     └── GRPCRoute: <app>  (per-app namespace, e.g. Zitadel gRPC-Web)
+        │     └── GRPCRoute: <app>  (per-app namespace; none in use today)
         └── Listener: ssh    port 22   (no hostname)    → TCPRoute
               └── TCPRoute: gitea-ssh  (namespace gitea) → gitea-ssh:22 → pod :2222
 ```

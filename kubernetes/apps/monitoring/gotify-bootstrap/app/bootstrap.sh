@@ -180,7 +180,6 @@ echo "Provisioning tokens:"
 # First, so a drift report later in this same run has a token to send with.
 ensure_app_token "gotify-bootstrap" "Gotify token provisioning drift"  monitoring  "$SELF_SECRET"       GOTIFY_TOKEN
 
-ensure_app_token "zitadel-bootstrap" "Zitadel OIDC provisioning drift"      auth        gotify-secret        GOTIFY_TOKEN
 ensure_app_token "etcd-snapshot"    "etcd snapshot backup notifications"    kube-system gotify-secret        GOTIFY_TOKEN
 ensure_app_token "homebox-backup"   "Homebox backup job notifications"      homebox     gotify-secret        GOTIFY_TOKEN
 ensure_app_token "changedetection-backup" "Changedetection.io backup job notifications" changedetection gotify-secret GOTIFY_TOKEN

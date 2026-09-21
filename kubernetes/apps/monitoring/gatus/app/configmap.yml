@@ -55,14 +55,6 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
-      - name: Zitadel
-        group: infrastructure
-        url: https://zitadel.blackcats.cc/debug/ready
-        interval: 1m
-        conditions:
-          - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
-
       - name: Gitea
         group: infrastructure
         url: https://gitea.blackcats.cc

@@ -19,7 +19,7 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 | Secrets | Sealed Secrets in-cluster; SOPS + age for Talos secrets |
 | GitOps | FluxCD |
 | TLS | cert-manager + Let's Encrypt DNS-01 (Cloudflare) |
-| Identity | Keycloak (the OIDC provider); Zitadel still running but serving nothing, pending removal |
+| Identity | Keycloak — the OIDC provider for every service on SSO |
 | Runtime security | Falco + Trivy Operator + kubent (weekly) |
 | Backups | Per-app CronJobs → restic → rclone → Filen (offsite) |
 | DNS | UDM SE (local override for `*.blackcats.cc`) + external-dns to Cloudflare |
@@ -55,7 +55,6 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 
 ### Identity
 - **Keycloak** — `sso.blackcats.cc`, the OIDC provider for every service on SSO
-- **Zitadel** — `auth.blackcats.cc`, **serves no application**; pending removal
 
 ### Dashboard
 - **Homepage** — `home.blackcats.cc`, no auth
