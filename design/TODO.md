@@ -2,14 +2,6 @@
 
 Open work only. A finished item is deleted, not struck through.
 
-## Broken now
-
-- `kube-apiserver` SLO rules produce no data — vm-stack's `metric_relabel_configs` drops
-  the exact histogram buckets its own bundled `kube-apiserver-burnrate`/`-histogram`/
-  `-availability` rules consume, so `KubeAPIErrorBudgetBurn` can never fire despite
-  having a live, non-blackholed alertmanager route. Either drop the three rule groups
-  (and the route) or stop dropping the buckets.
-
 ## Planned
 
 - **Rotate the GitHub PAT in `~/.claude/settings.local.json`** (workstation, not the

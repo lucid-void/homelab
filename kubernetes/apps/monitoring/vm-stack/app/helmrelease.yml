@@ -115,10 +115,6 @@ spec:
                 - alertname="NodeNetworkTransmitErrs"
                 - device=~"wt.+"
               receiver: blackhole
-            - matchers:
-                - alertname="KubeAPIErrorBudgetBurn"
-              receiver: gotify
-              repeat_interval: 24h
         receivers:
           - name: gotify
             # Re-enabled 2026-06-18: the control-plane flapping that caused the
