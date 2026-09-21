@@ -42,9 +42,9 @@ Every service is reachable only on the internal network or via Netbird VPN.
 |---|---|---|---|---|---|
 | Keycloak | keycloak | Keycloak CR (operator) | `sso.blackcats.cc` | Self (OIDC provider) | **The identity provider.** Official Keycloak Operator from a tag-pinned GitRepository; realm `homelab` from a `KeycloakRealmImport`; CNPG Postgres. Service is `keycloak-service`. Realm mail via a socat sidecar to the Proton Bridge |
 | Keycloak clients | keycloak | KeycloakOIDCClient CRs | — | — | One CR per app under `kubernetes/apps/keycloak/clients/`, each with a sealed `<app>-client-secret` that git owns. Requires the EXPERIMENTAL `client-admin-api:v2` server feature |
-| Zitadel | auth | HelmRelease | `auth.blackcats.cc` | Self (OIDC provider) | **Joplin's SAML IdP only** — every OIDC app moved to Keycloak. Retired when Joplin is deleted. Go binary backed by CNPG Postgres; gRPC-Web via Cilium GRPCRoute + h2c |
+| Zitadel | auth | HelmRelease | `auth.blackcats.cc` | Self (OIDC provider) | **Serves no application** — every OIDC app moved to Keycloak and Joplin, its last (SAML) consumer, was deleted 2026-09-21. Pending removal. Go binary backed by CNPG Postgres; gRPC-Web via Cilium GRPCRoute + h2c |
 | Mailrise | auth | Deployment | — | — | SMTP→Apprise relay for Zitadel email notifications |
-| Zitadel bootstrap | auth | Job | — | — | Terraform + Zitadel API. Now owns **only** Joplin's SAML application, its attribute-rename action and the `homelab` project — the eighteen OIDC resources were dropped from state with `removed { lifecycle { destroy = false } }`. Writes no Secrets into app namespaces any more |
+| Zitadel bootstrap | auth | Job | — | — | Terraform + Zitadel API. Owns **only** the now-unused Joplin SAML application, its attribute-rename action and the `homelab` project — the eighteen OIDC resources were dropped from state with `removed { lifecycle { destroy = false } }`. Writes no Secrets into app namespaces any more. Goes with Zitadel |
 
 ---
 
@@ -89,8 +89,6 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | FreshRSS | freshrss | HelmRelease | `rss.blackcats.cc` | Keycloak OIDC (Apache mod_auth_openidc) | `nfs-client` PVC (config); CNPG Postgres |
 | Homebox | homebox | HelmRelease | `homebox.blackcats.cc` | Built-in | `nfs-client` PVC (SQLite data dir) |
 | homebox-backup | homebox | CronJob | — | — | Daily 02:00; SQLite data dir; restic → rclone-filen |
-| Joplin Server | joplin | HelmRelease | `joplin.blackcats.cc` | **Zitadel SAML** (not OIDC; the only remaining Zitadel consumer) + local break-glass admin | `joplin-blobs` PVC (`nfs-client`, RWO — attachments); CNPG Postgres |
-| joplin-backup | joplin | CronJob | — | — | Daily 06:00; Postgres dump + blobs PVC in one snapshot; restic → rclone-filen |
 | CouchDB (Obsidian LiveSync) | obsidian | HelmRelease | `obsidian.blackcats.cc` | **CouchDB HTTP Basic** (SealedSecret) — not on SSO | `couchdb-data` PVC (`openebs-hostpath`, RWO — shards + _users) |
 | obsidian-backup | obsidian | CronJob | — | — | Daily 02:30; quiesced CouchDB data dir; restic → rclone-filen |
 | Homepage | homepage | HelmRelease | `home.blackcats.cc` | — | No storage. Tiles live in the chart's `helm-values.yml` (a `configMapGenerator`, so an edit makes a new ConfigMap and a Helm upgrade — Reloader is not in this path). Six groups: **Media**, **AI** (Open WebUI, LiteLLM), **Games**, **Documents**, **Development**, **Infrastructure**. Every new externally-reachable service gets a tile — step 10 of gitops.md's "Adding a New Application" |
@@ -152,19 +150,3 @@ the `KeycloakOIDCClient`'s `metadata.name`.
 Goldilocks and Gatus are **not** in this table and never have been — neither has an OIDC
 client or a secret. They are not on SSO.
 
-Joplin is **not** in this table — it uses SAML, not OIDC.
-
----
-
-## SAML (Joplin only)
-
-Joplin Server is the single SAML service in the cluster. Wiring:
-
-| Piece | Where |
-|---|---|
-| SP metadata (static XML) | `kubernetes/apps/joplin/joplin/app/saml-sp-configmap.yml` → mounted at `/saml-sp/sp.xml` |
-| IdP metadata | fetched from `https://zitadel.blackcats.cc/saml/v2/metadata` at pod start by the `saml-idp-metadata` initContainer → `/saml-idp/idp.xml` |
-| Zitadel SAML app | `zitadel_application_saml.joplin` in the zitadel-bootstrap Terraform |
-| Attribute rename action | `zitadel_action.joplin_saml_attributes` + `zitadel_trigger_actions` on `FLOW_TYPE_SAML_RESPONSE` / `TRIGGER_TYPE_PRE_SAML_RESPONSE_CREATION` |
-
-**Client support is narrower than OIDC apps:** desktop needs the separate **"Joplin Server (Beta, SAML)"** sync target (login happens in a browser via a `joplin://` callback, so only one Joplin instance may run); the **CLI does not support SAML at all**.

@@ -4,10 +4,13 @@
 
 ## Current state
 
-**Zitadel serves exactly one application: Joplin, over SAML.** Every OIDC app moved to
-Keycloak (`design/decisions/keycloak.md`); Zitadel is retained only until Joplin is
-deleted, at which point the HelmRelease, database, managed role, bootstrap Job,
-Terraform, DNS record and the `auth` namespace all go with it.
+**Zitadel serves nothing.** Every OIDC app moved to Keycloak
+(`design/decisions/keycloak.md`), and Joplin — its last consumer, over SAML — was
+deleted on 2026-09-21. What remains is a running instance with no clients: the
+HelmRelease, database, managed role, bootstrap Job, Terraform, DNS record and the
+`auth` namespace are all pending removal (`design/TODO.md`). `auth/proxmox-oidc-secret`
+must move out of the namespace before that happens — Proxmox reads it and its client
+lives in Keycloak.
 
 It remains a separate user store with its own credentials and 2FA — a Go binary backed
 by Postgres at `zitadel.blackcats.cc`. Nothing federates between it and Keycloak.
@@ -29,8 +32,10 @@ OpenTofu image has no jq/kubectl/curl) hashes `main.tf`+`run.sh`+`.terraform.loc
 compares against `configHash` in `auth/zitadel-bootstrap-state`, and posts to Gotify
 priority 8 when an **unchanged** config still had resources to change. Being an
 initContainer means a failed apply stops the pod instead of reporting a false "no
-drift". `main.tf` now owns only Joplin's SAML application, its attribute-rename action
-and trigger, and the `homelab` project — it issues no client secrets and writes no
+drift". `main.tf` still owns Joplin's SAML application, its attribute-rename action
+and trigger, and the `homelab` project, all of which now back a deleted app — they are
+deliberately left in place so the whole Terraform goes in one step with Zitadel rather
+than needing a hand-run `tofu apply` first. It issues no client secrets and writes no
 Secrets. The eighteen OIDC resources were dropped from state with
 `removed { lifecycle { destroy = false } }` rather than deleted, so the Zitadel-side
 objects still exist and are simply unmanaged. The JSON plan can still contain secrets

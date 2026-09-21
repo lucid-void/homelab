@@ -4,40 +4,32 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Broken now
 
-- Local `talosconfig` (`~/.talos/config`) is empty — `talosctl` is unusable from the
-  workstation. Backups are unaffected (`etcd-snapshot` carries its own
-  `talosconfig-secret`), but design/runbook.md's recovery procedures all assume a
-  working local client. Regenerate from `talhelper genconfig` output / the
-  SOPS-encrypted secrets
-  and verify `talosctl -n 172.16.20.11 version`.
 - ~190Gi of orphaned `Released` PVs on the Synology (`gitea` valkey ×12, `vm-stack-grafana`
-  ×5, `plex-config`, `tranga-config`, `freshrss-notify-state`, `postgres-2`) —
-  `nfs-client` derives its share path from namespace+PVC name, so a same-named PVC
-  **re-adopts the old directory** on recreate. Confirm nothing is needed, delete the PV
-  objects, remove the backing directories.
+  ×5, `plex-config`, `tranga-config`, `freshrss-notify-state`, `postgres-2`, and now
+  `joplin-blobs`) — `nfs-client` derives its share path from namespace+PVC name, so a
+  same-named PVC **re-adopts the old directory** on recreate. Confirm nothing is needed,
+  delete the PV objects, remove the backing directories.
 - `kube-apiserver` SLO rules produce no data — vm-stack's `metric_relabel_configs` drops
   the exact histogram buckets its own bundled `kube-apiserver-burnrate`/`-histogram`/
   `-availability` rules consume, so `KubeAPIErrorBudgetBurn` can never fire despite
   having a live, non-blackholed alertmanager route. Either drop the three rule groups
   (and the route) or stop dropping the buckets.
-- Orphaned `openebs-hostpath` PV `pvc-641863e1-a4aa-49e9-9594-5568086f2369` (30Gi, ex
-  `vmsingle-vm-stack-victoria-metrics-k8s-stack`) is stuck `Released` with node affinity
-  naming the pre-rename node `k8s-cp-3` — openebs can't resolve it, so deletion retries
-  forever. Delete the PV object and the orphaned directory on cp-3 by hand.
 
 ## Planned
 
-- **Delete Joplin.** Decided; it is the only reason Zitadel still exists. Removing it
-  means `kubernetes/apps/joplin/` entire (HelmRelease, `joplin-blobs` PVC, the SAML SP
-  ConfigMap, the `saml-idp-metadata` initContainer, HTTPRoute), the `joplin` database
-  and managed role, `joplin-backup` and its restic repo, the `joplin.blackcats.cc` DNS
-  record, and the `joplin` namespace. **Export the notes first** — the blobs PVC and the
-  Postgres dump are the only copies, and the backup is deleted with it.
-  `design/decisions/joplin.md` goes too.
-- **Then retire Zitadel.** Every OIDC app is already on Keycloak; after Joplin it serves
-  nothing. Removing it means the HelmRelease, the `zitadel` database and managed role,
-  the bootstrap Job and its Terraform (the `homelab` project, the three Joplin SAML
-  resources, and the eighteen `removed` blocks), the `tfstate-default-zitadel-bootstrap`
+- **Joplin leftovers to clear by hand.** The manifests are gone (2026-09-21) but four
+  things outlive Flux: the `joplin` database and role in the shared CNPG cluster (the
+  `Database` CR's reclaim policy is `retain`, so both survive the prune —
+  `DROP DATABASE joplin; DROP ROLE joplin;`), the restic repo at
+  `rclone:filen:backups/restic/joplin`, the `joplin-backup` application in Gotify
+  (`gotify-bootstrap` no longer manages it), and the local plaintext
+  `kubernetes/apps/joplin/**/*-secret.yml` files — which hold the only copy of that
+  restic repo's password, so delete them last.
+- **Retire Zitadel.** Every OIDC app is on Keycloak and Joplin — its last consumer — was
+  deleted on 2026-09-21, so it now serves nothing. Removing it means the HelmRelease,
+  the `zitadel` database and managed role, the bootstrap Job and its Terraform (the
+  `homelab` project, the three Joplin SAML resources, and the eighteen `removed`
+  blocks), the `tfstate-default-zitadel-bootstrap`
   Secret, the `auth.blackcats.cc` DNS record, Mailrise, and the `auth` namespace.
   `auth/proxmox-oidc-secret` must move first — Proxmox reads it and is not going
   anywhere. Keep the Zitadel-side OIDC clients until Keycloak has run a while: they are
@@ -48,28 +40,26 @@ Open work only. A finished item is deleted, not struck through.
   2026-09-20 and must be treated as disclosed. Regenerate at
   https://github.com/settings/tokens. Unrelated to Flux's `github-deploy-key`, which is
   a separate sealed credential and was not exposed.
-- **Keycloak groups and the nine browser-flow gates exist only in the server.** No CRD
+- **Keycloak groups and the ten browser-flow gates exist only in the server.** No CRD
   expresses group membership, group→role mapping, or `authenticationFlowBindingOverrides`,
   so none of it is reproducible from git — a realm rebuild loses every entitlement and
-  reopens all nine clients to any realm user. The layout is written down in
+  reopens all ten clients to any realm user. The layout is written down in
   `design/decisions/keycloak.md`, which is a record, not a restore path. Decide whether
   to accept that or drive it from OpenTofu's Keycloak provider.
 - **`pve` and `synology` are on neither Gatus nor Homepage.** The add-a-service path now
   covers both surfaces (`design/docs/gitops.md` steps 9 and 10, plus step 8 for gating a
   new OIDC client), and the eight services that had drifted onto the cluster unregistered
-  — Jellyfin, Keycloak, Open WebUI, LiteLLM, RomM, Joplin, Obsidian LiveSync, kromgo —
-  are all wired in (2026-09-20). What is left is the decision: `llama-swap` and
+  — Jellyfin, Keycloak, Open WebUI, LiteLLM, RomM, Obsidian LiveSync, kromgo (Joplin
+  too, since deleted) — are all wired in (2026-09-20). What is left is the decision: `llama-swap` and
   `minecraft-valkey` are deliberately absent (ClusterIP-only), but `pve` and `synology`
   are real hosts with no Gatus check at all.
-- **Jellyfin is deployed but not configured.** The manifests are in git; everything that
-  makes it usable is not, and none of it is expressible in one:
-  - Keycloak groups `/jellyfin/user` and `/jellyfin/admin`, the `browser-jellyfin` flow
-    override, and a **flat roles protocol mapper** — the SSO plugin's `RoleClaim` reads a
-    flat array and cannot walk `resource_access.jellyfin.roles`. Until the flow override
-    exists, the client is ungated (the item above, in the concrete).
-  - Plugins and the Abyss theme, per `design/decisions/jellyfin-ui.md`. Install File
-    Transformation first: dependents install, report healthy and render nothing without
-    it, which reads as a broken plugin rather than a missing dependency.
+- **Jellyfin's usable state lives outside git.** SSO is finished (2026-09-21): groups,
+  the `jellyfin_roles` flat mapper, and the `browser-jellyfin` flow bound to the client,
+  plus the UI plugins on the config PVC. None of it is expressible in a CRD or a
+  manifest, so a realm rebuild or a lost cp-2 disk redoes all of it by hand —
+  `design/decisions/jellyfin.md` and `jellyfin-ui.md` are the record. Still outstanding:
+  - The **Webhook plugin → Gotify**, so Jellyfin joins the cluster's alerting path.
+  - The **Abyss theme** — no Custom CSS is set, so the UI is stock.
   - The local Jellyfin admin is the break-glass path for a forked SSO plugin on the auth
     path. It must keep a real password.
 - **Neither media server's config PVC is backed up.** `plex-config-local` (cp-1) and
@@ -199,9 +189,9 @@ Open work only. A finished item is deleted, not struck through.
   restore from Filen).
 - No Keycloak break-glass / account-recovery runbook. Jellyfin's local admin is the
   only local-auth fallback that is meant to stay (its SSO plugin is a fork sitting on
-  the auth path); Joplin's `LOCAL_AUTH_ENABLED=true` disappears with Joplin. Every
-  other app is fully gated on Keycloak SSO with no documented path if the realm admin
-  is locked out.
+  the auth path) — Joplin's `LOCAL_AUTH_ENABLED=true` went with Joplin. Every other app
+  is fully gated on Keycloak SSO with no documented path if the realm admin is locked
+  out.
 - SOPS age key protection is undocumented — no record of where the single key lives,
   whether it has a passphrase, or whether an off-Synology copy exists. It decrypts
   Talos secrets and the Sealed Secrets controller key backup.

@@ -126,10 +126,6 @@ config:
             href: https://homebox.blackcats.cc
             description: Home inventory
             icon: homebox.png
-        - Joplin:
-            href: https://joplin.blackcats.cc
-            description: Notes sync
-            icon: joplin.png
         - Degoog:
             href: https://degoog.blackcats.cc
             description: Search engine aggregator
@@ -152,12 +148,6 @@ config:
             href: https://sso.blackcats.cc
             description: Identity & access
             icon: keycloak.png
-        # Kept only as Joplin's SAML IdP -- every OIDC app is on Keycloak above.
-        # This tile goes when Joplin does.
-        - Zitadel:
-            href: https://zitadel.blackcats.cc
-            description: SAML IdP (Joplin only)
-            icon: sh-zitadel
         - Gotify:
             href: https://gotify.blackcats.cc
             description: Notifications

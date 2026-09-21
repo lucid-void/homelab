@@ -19,7 +19,7 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 | Secrets | Sealed Secrets in-cluster; SOPS + age for Talos secrets |
 | GitOps | FluxCD |
 | TLS | cert-manager + Let's Encrypt DNS-01 (Cloudflare) |
-| Identity | Keycloak (the OIDC provider); Zitadel retained for Joplin's SAML only |
+| Identity | Keycloak (the OIDC provider); Zitadel still running but serving nothing, pending removal |
 | Runtime security | Falco + Trivy Operator + kubent (weekly) |
 | Backups | Per-app CronJobs → restic → rclone → Filen (offsite) |
 | DNS | UDM SE (local override for `*.blackcats.cc`) + external-dns to Cloudflare |
@@ -55,7 +55,7 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 
 ### Identity
 - **Keycloak** — `sso.blackcats.cc`, the OIDC provider for every service on SSO
-- **Zitadel** — `auth.blackcats.cc`, **Joplin's SAML IdP only**; retired when Joplin is deleted
+- **Zitadel** — `auth.blackcats.cc`, **serves no application**; pending removal
 
 ### Dashboard
 - **Homepage** — `home.blackcats.cc`, no auth
@@ -94,7 +94,7 @@ Homelab/
 │   └── images/              # custom container images (built in CI, pushed to GHCR)
 ├── infra/
 │   ├── packer/              # Debian + Talos VM templates
-│   └── terraform/           # VM + DNS provisioning, Joplin's SAML app (OpenTofu)
+│   └── terraform/           # VM + DNS provisioning (OpenTofu)
 ├── .github/workflows/       # CI: image builds, manifest + security scans
 ├── design/                  # design specs, runbook, decisions (operator-only)
 ├── INSTALLATION.md          # cluster bootstrap procedure (Phase 1 → live cluster)

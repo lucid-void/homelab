@@ -5,8 +5,9 @@
 ## Current state
 
 Keycloak at `sso.blackcats.cc` is the identity provider for every application on SSO.
-It replaced Zitadel in a single cutover; Zitadel survives only to serve Joplin's SAML
-application and is retired when Joplin is deleted (`design/decisions/zitadel.md`).
+It replaced Zitadel in a single cutover. Zitadel now serves nothing — its last
+consumer, Joplin's SAML application, was deleted on 2026-09-21 — and is itself
+pending removal (`design/decisions/zitadel.md`).
 
 Deployed by the **official Keycloak Operator**, installed from
 `github.com/keycloak/keycloak-k8s-resources` at a pinned tag, filtered to

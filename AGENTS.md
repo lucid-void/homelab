@@ -78,7 +78,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Trivy, Falco, kubent, kube-linter, k8s-cleaner        | design/decisions/security-tooling.md  |
 | pinning an image tag, lscr tags, Renovate regexes     | design/decisions/images.md            |
 | Keycloak, SSO, OIDC clients, realm, client roles      | design/decisions/keycloak.md          |
-| Zitadel — Joplin's SAML IdP only, its Terraform bootstrap | design/decisions/zitadel.md       |
+| Zitadel — serves nothing, pending removal; its Terraform bootstrap | design/decisions/zitadel.md |
 | Gitea                                                 | design/decisions/gitea.md             |
 | FreshRSS, or Paperless (OIDC and the app itself)       | design/decisions/oidc-apps.md         |
 | Immich                                                | design/decisions/immich.md            |
@@ -88,7 +88,6 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | sonarr/radarr/prowlarr/sabnzbd/seerr/suwayomi/kavita  | design/decisions/media-stack.md       |
 | Minecraft servers, Velocity proxy, world data         | design/decisions/minecraft.md         |
 | RomM                                                  | design/decisions/romm.md              |
-| Joplin                                                | design/decisions/joplin.md            |
 | Homebox                                               | design/decisions/homebox.md           |
 | Obsidian LiveSync                                     | design/decisions/obsidian-livesync.md |
 | Proton Mail Bridge                                    | design/decisions/protonmail-bridge.md |

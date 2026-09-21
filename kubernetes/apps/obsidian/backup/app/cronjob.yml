@@ -29,8 +29,8 @@ spec:
         spec:
           serviceAccountName: obsidian-backup
           restartPolicy: Never
-          # Deliberately NO podAffinity, unlike joplin/homebox. Those mount
-          # nfs-client PVCs, which can bind anywhere, so they must be pinned to
+          # Deliberately NO podAffinity, unlike homebox. That one mounts an
+          # nfs-client PVC, which can bind anywhere, so it must be pinned to
           # the app's node by hand. couchdb-data is openebs-hostpath: its PV
           # carries nodeAffinity from first bind, so the scheduler already has
           # to place this pod on the right node. Adding podAffinity on the app

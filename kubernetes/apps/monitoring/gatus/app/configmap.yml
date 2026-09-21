@@ -157,14 +157,6 @@ data:
           - "[STATUS] < 400"
           - "[CERTIFICATE_EXPIRATION] > 720h"
 
-      - name: Joplin
-        group: apps
-        url: https://joplin.blackcats.cc/api/ping
-        interval: 1m
-        conditions:
-          - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
-
       # CouchDB is Obsidian LiveSync's backend, not a UI -- `/` is the server
       # welcome document and answers 401 because config-configmap.yml sets
       # require_valid_user = true under both [chttpd] and [chttpd_auth]. A 401

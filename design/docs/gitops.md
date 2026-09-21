@@ -75,7 +75,6 @@ gateway-api
                                                                       └── gitea
                                                                       └── freshrss
                           └── auth-database ───→ zitadel ──→ zitadel-bootstrap
-                                                                └── joplin
               └── democratic-csi
               └── openebs
               └── reflector
