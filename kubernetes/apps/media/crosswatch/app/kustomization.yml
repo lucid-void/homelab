@@ -5,3 +5,4 @@ resources:
   - ./pvc.yml
   - ./config-key-sealed.yml
   - ./helmrelease.yml
+  - ./route.yml

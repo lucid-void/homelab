@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: crosswatch-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgCMxyhIdeYt+FAhH4CVPpBYP9UuguPsIEc0KJ/LXQ2sIWIAmgHnyoFRDpVeMxcLPpkizZjE7OuNOBuev4TD48bknHcXs1EwEWkcHgEmSq8vfI4NuwCIJsoJfYRMViQzJL/MhafiHVx9bKzOY77JjJ7Q3nSdb+5CcijB67LWYKLAJtkluB6GoIVDFpczvG1chpwdgX+eFyTO2eJbKu3a4hHMtVgdgtf78Gcje9meAXts6HJOJ+bbvJZjIWlWZKxv6uqYFzdR5Na1BZPFyg/xGkZfD8EJ5yEqEwrDqtx/1o8sfVGxVNpjLyjq5Kz6plWq0UJwf7iKmsyGAPSHrDs47DK/kCGlG5+jtSb4l1g+jidUnamXTsfmGXbUhEOmTXCncmlAHKkVBQkGki7Twz+WU062j50VMhwApVa7ieyBc4IS3E5umOwDtqK4oqPKDmOmwMx9eFMk6Pm8LSwrlS8hSsueoQQuxMDzFtsmTVtga0/OTgIBdfbf4OaZxmmvXT0qmvlVq7OHzQZ6/uNLDORWgqM4AoJuuEfr2P9jn+SspQWNWGHHSkd2BxvvOXZWS2u8dgNAabmm+qcaQpoTspepuRmyyTxckc29Yu1hdH3BjwdOAsKjdDYKCnnQbFzRSOCQCK9+xeZuN5nKoMdEaQv9gbB7e1WuK/gWLDvWtlF/VIBz7PoUi4rL0ud4AqgBh+nc7kHLoYtjalkPnOGwzb7vj9uaGmWzF/lWYy+CuXj4i+Phpg==
+  template:
+    metadata:
+      name: crosswatch-client-secret
+      namespace: keycloak
+    type: Opaque
