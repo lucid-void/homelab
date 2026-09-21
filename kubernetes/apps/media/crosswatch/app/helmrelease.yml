@@ -1,0 +1,83 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: crosswatch
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 1
+        # config.json is a single SQLite-adjacent JSON document on an RWO NFS
+        # volume; two replicas would interleave writes and lose pair definitions.
+        strategy: Recreate
+        pod:
+          securityContext:
+            runAsUser: 2202
+            runAsGroup: 2200
+            fsGroup: 2200
+            runAsNonRoot: true
+        containers:
+          app:
+            image:
+              repository: ghcr.io/cenodude/crosswatch
+              # v0.12.3 released 2026-09-16. Pre-1.0 with eight releases in the
+              # preceding month — pin exactly, never auto-merge a bump.
+              tag: "v0.12.3"
+            env:
+              TZ: Europe/Brussels
+            envFrom:
+              # No `optional: true` — chart 3.7.3 strips it silently, so a missing
+              # secret would surface as an unexplained runtime failure instead of a
+              # Flux error.
+              - secretRef:
+                  name: crosswatch-config-key
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 8787
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+              readiness: *probes
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 25m
+              limits:
+                memory: 1Gi
+
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 8787
+
+    persistence:
+      config:
+        existingClaim: crosswatch-config
+        globalMounts:
+          - path: /config

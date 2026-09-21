@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: crosswatch-config-key
+  namespace: media
+spec:
+  encryptedData:
+    CW_CONFIG_KEY: AgA+T9x8UbdQwzJCtQg96Bh0z9dLT83ysCbrL5RwUhnTa9ybH3UGj5t/EHqZ2lzBrRjed2zChMF0BrJUnrcDJC6ybBcxNKZBa8wwNj7XpqjB9QD0oRdTbvzLNaJvVRD5zCTXGLe0hjIoD5VWt7DclbIqDqhPJogUU3d+V6ABssoKfo4TdgQtOycOiccLtMITMKIquIQz/F2M6ELgEoiNg3LmBivR+r2tAlJenGHLaZ/TjYUsEiPO4vQWAMxDdG5cgmHNK23LyI7kSSWQp6i0bt6e3ZKHCYTmXDiuWO4ZIHjCH9sx5y4+HAy0JtyIDYwp2l7+gRyrd9NELOx22XUzFPQEeZmFFriBI49y+nz/eUYR9Xo1i79elSpq51Lh2HOIu876+DNr08e83QkNIantCa1tbjo4Mlpt/xs2dzV9KH3Lz0pwA5gxPy1ICPjQsjW3peYQYyEWPhYENa+4P7oDeqKA7ofqjqfMY7eZXkSpKSy7Du25z6Q7GQg2Lwy4GJTOWw1G1FoLfXfwVsMgOIZSZUwdsT0C137qDm6eoCRdRod2Zj4YwmDJMyO0ndznUuRSgknDLP6c9EO6BeHoCE3+5b0UR+S3m6hhZqgKAIEEHqcPv5peCYBM2ZCIhOeVFpSm+tU13deDNfcCn/cCVdg81OLc+3LihgJ95eSXIdH7fhE3QGdpCfigIIg/3/70u5wZJ1ivW3o+35IVD93RhmyWR6M36Qv/ts8TS8zqp/gA7OJO1JG/lBMUZeG51UiYjg==
+  template:
+    metadata:
+      name: crosswatch-config-key
+      namespace: media
+    type: Opaque
