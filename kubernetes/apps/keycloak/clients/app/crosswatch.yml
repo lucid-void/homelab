@@ -1,0 +1,28 @@
+---
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakOIDCClient
+metadata:
+  # There is no `clientId` field on this CRD — the apiserver prunes one in silence.
+  # metadata.name IS the client id.
+  name: crosswatch
+  namespace: keycloak
+spec:
+  keycloakCRName: keycloak
+  realm: homelab
+  client:
+    displayName: CrossWatch
+    enabled: true
+    loginFlows: [STANDARD]
+    redirectUris:
+      # Confirm this path against CrossWatch's OIDC settings screen before the
+      # first login attempt — api/authOidcAPI.py owns the callback route.
+      - https://crosswatch.blackcats.cc/auth/oidc/callback
+    webOrigins:
+      - https://crosswatch.blackcats.cc
+    # `user` is the entitlement gate, matching every other client in this realm.
+    roles: [user]
+    auth:
+      method: client-secret
+      secretRef:
+        name: crosswatch-client-secret
+        key: secret
