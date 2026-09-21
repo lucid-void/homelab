@@ -17,6 +17,13 @@ SELF_SECRET="gotify-bootstrap-secret"
 # had to be rotated, a client that had to be rebuilt.
 DRIFT=()
 
+# Two Gotify objects with the same name. Never expected on any run kind — one of
+# them is an orphan holding a token nothing reads — and never repaired here: the
+# token is blanked on GET, so nothing in this script can tell which of the two
+# the stored Secret belongs to. Reported for a human, kept out of DRIFT so a
+# 'changed' run cannot swallow it as expected.
+DUPES=()
+
 # ---------------------------------------------------------------------------
 # Run classification
 #
@@ -83,10 +90,23 @@ stored_token() {
 # dance is needed.
 ensure_app_token() {
   local name="$1" desc="$2" ns="$3" secret="$4" key="$5" prefix="${6:-}"
-  local id stored token
+  local list id count stored token
 
-  id=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" "${GOTIFY_URL}/application" \
-    | jq -r --arg n "$name" 'map(select(.name == $n)) | first | .id // empty') || true
+  # Never `|| true` this listing. A swallowed GET failure reads as "the app does
+  # not exist", and the else branch below then POSTs a second application with
+  # the same name and overwrites the Secret with its token — leaving the original
+  # app orphaned, holding a token nothing reads. One blip, one permanent
+  # duplicate, silent because the next run matches the orphan by name and
+  # "reuses" the stored token forever.
+  if ! list=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" "${GOTIFY_URL}/application"); then
+    echo "FATAL: could not list Gotify applications while resolving '${name}'" >&2
+    exit 1
+  fi
+  id=$(printf '%s' "$list" | jq -r --arg n "$name" '[.[] | select(.name == $n)] | first | .id // empty')
+  count=$(printf '%s' "$list" | jq -r --arg n "$name" '[.[] | select(.name == $n)] | length')
+  if [ "$count" -gt 1 ]; then
+    DUPES+=("${name}: ${count} applications share this name (ids $(printf '%s' "$list" | jq -r --arg n "$name" '[.[] | select(.name == $n) | .id] | join(", ")')) — ${ns}/${secret} holds the token of exactly one; delete the others in the Gotify UI")
+  fi
   stored=$(stored_token "$ns" "$secret" "$key" "$prefix")
 
   if [ -n "$id" ] && [ -n "$stored" ]; then
@@ -123,10 +143,19 @@ ensure_app_token() {
 # cleanup.
 ensure_client_token() {
   local name="$1" ns="$2" secret="$3" key="$4"
-  local id stored token
+  local list id count stored token
 
-  id=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" "${GOTIFY_URL}/client" \
-    | jq -r --arg n "$name" 'map(select(.name == $n)) | first | .id // empty') || true
+  # Same reasoning as ensure_app_token: a swallowed listing failure would create
+  # a duplicate client instead of reusing the existing one.
+  if ! list=$(curl -sf -u "admin:${GOTIFY_ADMIN_PASS}" "${GOTIFY_URL}/client"); then
+    echo "FATAL: could not list Gotify clients while resolving '${name}'" >&2
+    exit 1
+  fi
+  id=$(printf '%s' "$list" | jq -r --arg n "$name" '[.[] | select(.name == $n)] | first | .id // empty')
+  count=$(printf '%s' "$list" | jq -r --arg n "$name" '[.[] | select(.name == $n)] | length')
+  if [ "$count" -gt 1 ]; then
+    DUPES+=("${name} client: ${count} clients share this name (ids $(printf '%s' "$list" | jq -r --arg n "$name" '[.[] | select(.name == $n) | .id] | join(", ")')) — ${ns}/${secret} holds the token of exactly one; delete the others in the Gotify UI")
+  fi
   stored=$(stored_token "$ns" "$secret" "$key" "")
 
   if [ -n "$id" ] && [ -n "$stored" ]; then
@@ -190,6 +219,13 @@ ensure_app_token "gitea-backup"     "Gitea backup job notifications"        gite
 ensure_app_token "obsidian-backup"  "Obsidian CouchDB backup notifications" obsidian    gotify-secret        GOTIFY_TOKEN
 ensure_app_token "minecraft-backup" "Minecraft backup job notifications"    media       gotify-secret        GOTIFY_TOKEN
 ensure_app_token "minecraft-events" "Minecraft player join/leave events"    media       minecraft-events-gotify-secret GOTIFY_TOKEN
+# Jellyfin's Webhook plugin cannot read a Secret — the token is pasted into its
+# plugin config on the config PVC. So this entry provisions the token, but a
+# rotation here does NOT reach Jellyfin: it would keep posting a dead token and
+# Gotify would answer 401 silently. Rotation only happens if this Secret loses
+# its key, which is exactly what the DRIFT notification reports — treat a drift
+# report naming jellyfin as "go re-paste the token into the plugin".
+ensure_app_token "jellyfin"         "Jellyfin server and plugin events"     media       jellyfin-gotify-secret GOTIFY_TOKEN
 ensure_app_token "security-scanner" "Trivy weekly security report"          security    gotify-secret        GOTIFY_TOKEN
 ensure_app_token "falco"            "Falco runtime security alerts"         security    falco-gotify-secret  GOTIFY_TOKEN
 ensure_app_token "gatus"            "Gatus health monitoring alerts"        monitoring  gatus-gotify-secret  GOTIFY_TOKEN
@@ -227,11 +263,25 @@ else
     8
 fi
 
+# Duplicates are reported on every run kind, including 'changed' and 'initial':
+# adding an entry to the token list above explains a *created* app, never two
+# apps with one name.
+if [ "${#DUPES[@]}" -gt 0 ]; then
+  echo "DUPLICATE OBJECTS (${#DUPES[@]}) — not repaired, needs a human:"
+  printf '  DUPE: %s\n' "${DUPES[@]}"
+  notify_gotify "⚠ Duplicate Gotify applications" \
+    "$(printf 'gotify-bootstrap found %s name(s) with more than one object in Gotify:\n\n' "${#DUPES[@]}"
+       printf '• %s\n' "${DUPES[@]}"
+       printf '\nThe extra object holds a token nothing provisions or reads. This script cannot tell which one is live (Gotify blanks tokens on GET), so delete the orphan by hand.\n')" \
+    8
+fi
+
 kubectl create configmap "$STATE_CM" -n "$STATE_NS" \
   --from-literal=scriptHash="$SCRIPT_HASH" \
   --from-literal=lastRun="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --from-literal=lastRunKind="$RUN_KIND" \
   --from-literal=lastRunDrift="${#DRIFT[@]}" \
+  --from-literal=lastRunDupes="${#DUPES[@]}" \
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 
 echo "Bootstrap complete."

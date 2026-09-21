@@ -32,6 +32,17 @@ delivered by `configMapGenerator` (hash-suffixed name, deliberately **not**
 would only block an emergency in-place patch), and runs on `backup-tools` (no
 start-time `apk`), non-root with a read-only rootfs.
 
+**Duplicate detection.** Two applications with one name means one of them is an orphan
+holding a token nothing provisions or reads. The script cannot repair it — Gotify blanks
+the token on GET, so nothing can tell which of the two the Secret belongs to — so it
+counts the name matches, reports them as `DUPE:` and notifies at priority 8. Reported on
+*every* run kind, unlike drift: adding an entry to the token list explains a created
+app, never two apps with one name. The cause was `id=$(curl ... ) || true` around the
+`GET /application`: a swallowed listing failure read as "app does not exist", so the run
+POSTed a second application and overwrote the Secret with its token, orphaning the
+first — and every later run then matched the orphan by name and "reused" the stored
+token, so it stayed invisible. Both listings now fail the Job instead.
+
 **Drift reporting.** The script hashes itself and stores that hash in the
 `monitoring/gotify-bootstrap-state` ConfigMap: a `created`/`rotated` outcome on an
 *unchanged* hash is real drift, logged as `DRIFT:` and pushed to Gotify at priority 8
@@ -48,8 +59,18 @@ deps are installed with `pip install --target /tmp/pylib` +
 
 ## Rules
 
-- **After adding a new app token to `gotify-bootstrap`, update the echo log at the end
-  of the job script** — otherwise the run under-reports what it provisioned.
+- **Every consumer but one reads its token from a Secret; Jellyfin cannot.** The
+  `jellyfin` token is provisioned into `media/jellyfin-gotify-secret` like any other, but
+  its consumer is a *plugin*, and the Webhook plugin has no Secret indirection — the
+  token is pasted into its config on Jellyfin's config PVC. So a rotation never reaches
+  it: Jellyfin keeps posting a dead token and Gotify answers `401`, silently. Rotation
+  only fires when that Secret loses its key, which is exactly what the drift report
+  names — so **a `DRIFT:` line mentioning `jellyfin` means "go re-paste the token into
+  the plugin"**, not "already repaired" as it does for every other entry.
+- **Never let a Gotify listing call fail soft** — `curl ... || true` around
+  `GET /application` or `GET /client` turns a transient blip into a permanent duplicate
+  application, because an empty id is indistinguishable from "does not exist" and the
+  create branch runs.
 - **Never re-add a "look up the token each run" path** — Gotify 3 blanks tokens on GET,
   so that pattern creates a duplicate application every run; the destination Secret must
   stay the source of truth.
@@ -60,6 +81,6 @@ deps are installed with `pip install --target /tmp/pylib` +
 
 ```bash
 mise exec -- kubectl get job gotify-bootstrap -n monitoring
-mise exec -- kubectl get configmap gotify-bootstrap-state -n monitoring -o yaml
+mise exec -- kubectl get configmap gotify-bootstrap-state -n monitoring -o yaml  # lastRunDupes should be 0
 mise exec -- kubectl logs -n monitoring deploy/gotify-telegram
 ```
