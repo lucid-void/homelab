@@ -118,9 +118,10 @@ Installed, deliberately left unauthorized. See `design/decisions/jellyfin-ui.md`
   the same play, and Trakt ends up with duplicate scrobbles and inflated rewatch counts.
   Jellyfin history reaches Trakt through the chain instead — never authorize this
   plugin.
-- **Never auto-merge a CrossWatch image bump.** Pre-1.0 (`v0.12.3`, eight releases in
-  the month before it), under heavy churn. Pin the tag exactly and read the release
-  notes before merging — see `.github/renovate.json`.
+- **Never auto-merge a CrossWatch image bump.** Pre-1.0, eight releases in the month
+  before the tag currently pinned (see `design/docs/services.md` for what that tag is),
+  under heavy churn. Pin the tag exactly and read the release notes before merging —
+  see `.github/renovate.json`.
 - **Never write a raw Secret for CrossWatch or queue credentials** — same repo-wide
   rule, sealed with `kubeseal --cert kubernetes/flux/pub-cert.pem`.
 - **Never rely on `optional: true` on either workload's `envFrom`** — chart 3.7.3 strips
