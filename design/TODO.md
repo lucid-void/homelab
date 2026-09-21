@@ -4,11 +4,6 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Broken now
 
-- ~190Gi of orphaned `Released` PVs on the Synology (`gitea` valkey ×12, `vm-stack-grafana`
-  ×5, `plex-config`, `tranga-config`, `freshrss-notify-state`, `postgres-2`, and now
-  `joplin-blobs`) — `nfs-client` derives its share path from namespace+PVC name, so a
-  same-named PVC **re-adopts the old directory** on recreate. Confirm nothing is needed,
-  delete the PV objects, remove the backing directories.
 - `kube-apiserver` SLO rules produce no data — vm-stack's `metric_relabel_configs` drops
   the exact histogram buckets its own bundled `kube-apiserver-burnrate`/`-histogram`/
   `-availability` rules consume, so `KubeAPIErrorBudgetBurn` can never fire despite
@@ -17,14 +12,6 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Planned
 
-- **Joplin leftovers to clear by hand.** The manifests are gone (2026-09-21) but four
-  things outlive Flux: the `joplin` database and role in the shared CNPG cluster (the
-  `Database` CR's reclaim policy is `retain`, so both survive the prune —
-  `DROP DATABASE joplin; DROP ROLE joplin;`), the restic repo at
-  `rclone:filen:backups/restic/joplin`, the `joplin-backup` application in Gotify
-  (`gotify-bootstrap` no longer manages it), and the local plaintext
-  `kubernetes/apps/joplin/**/*-secret.yml` files — which hold the only copy of that
-  restic repo's password, so delete them last.
 - **Retire Zitadel.** Every OIDC app is on Keycloak and Joplin — its last consumer — was
   deleted on 2026-09-21, so it now serves nothing. Removing it means the HelmRelease,
   the `zitadel` database and managed role, the bootstrap Job and its Terraform (the
@@ -49,8 +36,8 @@ Open work only. A finished item is deleted, not struck through.
 - **`pve` and `synology` are on neither Gatus nor Homepage.** The add-a-service path now
   covers both surfaces (`design/docs/gitops.md` steps 9 and 10, plus step 8 for gating a
   new OIDC client), and the eight services that had drifted onto the cluster unregistered
-  — Jellyfin, Keycloak, Open WebUI, LiteLLM, RomM, Obsidian LiveSync, kromgo (Joplin
-  too, since deleted) — are all wired in (2026-09-20). What is left is the decision: `llama-swap` and
+  — Jellyfin, Keycloak, Open WebUI, LiteLLM, RomM, Obsidian LiveSync, kromgo — are all
+  wired in (2026-09-20). What is left is the decision: `llama-swap` and
   `minecraft-valkey` are deliberately absent (ClusterIP-only), but `pve` and `synology`
   are real hosts with no Gatus check at all.
 - **Jellyfin's usable state lives outside git.** SSO is finished (2026-09-21): groups,
@@ -189,9 +176,8 @@ Open work only. A finished item is deleted, not struck through.
   restore from Filen).
 - No Keycloak break-glass / account-recovery runbook. Jellyfin's local admin is the
   only local-auth fallback that is meant to stay (its SSO plugin is a fork sitting on
-  the auth path) — Joplin's `LOCAL_AUTH_ENABLED=true` went with Joplin. Every other app
-  is fully gated on Keycloak SSO with no documented path if the realm admin is locked
-  out.
+  the auth path). Every other app is fully gated on Keycloak SSO with no documented
+  path if the realm admin is locked out.
 - SOPS age key protection is undocumented — no record of where the single key lives,
   whether it has a passphrase, or whether an off-Synology copy exists. It decrypts
   Talos secrets and the Sealed Secrets controller key backup.
