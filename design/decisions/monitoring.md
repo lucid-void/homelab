@@ -75,6 +75,19 @@ scope and nothing else.
   (`monitoring.blackcats.cc/scrape: <target>`), never `app.kubernetes.io/name`** —
   Flux `commonMetadata` rewrites that label on every resource in a Kustomization, so
   selecting on it silently matches the wrong Services or none.
+- **The four `kube-apiserver-*` SLO rule groups are off, and must stay off while the
+  apiserver scrape drops its histogram buckets** — `availability`, `burnrate`,
+  `histogram` and `slos` are all built on `apiserver_request_sli_duration_seconds_bucket`,
+  which the `kubeApiServer` scrape drops as the highest-cardinality series on a control
+  plane already under leader-election pressure. Enabled, every rule evaluated to zero
+  samples and fired a permanent (info) `RecordingRulesNoData`; `KubeAPIErrorBudgetBurn`
+  read the empty burnrate recordings and could never fire. Re-enable the groups only in
+  the same change that un-drops the bucket metric, and re-add an alertmanager route for
+  `KubeAPIErrorBudgetBurn` only then — a route for an alert that cannot fire reads as
+  coverage that does not exist. Real apiserver alerting is unaffected: the
+  `kubernetes-system-apiserver` group (`KubeAPIDown`, `KubeAPITerminatedRequests`,
+  `KubeAggregatedAPIErrors`, `KubeClientCertificateExpiration`) uses metrics outside the
+  drop regex.
 - **Validate rules with `promtool check rules` before pushing** — it also checks
   annotation templates, not just PromQL.
 - **Never combine `[BODY]` and `[CERTIFICATE_EXPIRATION]` on one gatus endpoint** — a
