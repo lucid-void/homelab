@@ -53,11 +53,11 @@ Installed, deliberately left unauthorized. See `design/decisions/jellyfin-ui.md`
 
 ### Historical Trakt data — one-time import, not a live integration
 
-The Trakt watch-history archive (from Hobi/Showly) was imported once from a
-`trakt.tv/settings/data` export ("Export now", a ZIP of JSON files), via a separate
-throwaway script outside this repo. Trakt is not connected to CrossWatch, Plex, Jellyfin,
-or anything else in this cluster on an ongoing basis — the import was a one-time
-backfill, not a sync leg.
+The Trakt watch-history archive was imported once from a `trakt.tv/settings/data`
+export ("Export now", a ZIP of JSON files) using `.agents/scripts/trakt-export-to-plex.py`
+(see "Migrating Trakt history" below). Trakt is not connected to CrossWatch, Plex,
+Jellyfin, or anything else in this cluster on an ongoing basis — the import was a
+one-time backfill, not a sync leg.
 
 **Durable constraint:** as of 2026-07-30, creating a Trakt API app requires a paid VIP
 account, and Trakt deleted existing free-account apps. This is why there is no ongoing
@@ -103,6 +103,40 @@ UI and persisted encrypted in `config.json`, using `crosswatch-config-key`
 key means re-entering every provider login** — the ciphertext on the PVC is unrecoverable
 without it. This has not been done yet; no provider is logged in, and the Plex ↔
 Jellyfin sync pair has not been created in the UI either.
+
+## Migrating Trakt history
+
+`.agents/scripts/trakt-export-to-plex.py` is a **one-time** migration script, not
+ongoing tooling — it marks a Trakt export's watch history as watched in Plex, once,
+before the owner leaves Trakt for good. CrossWatch's Plex ↔ Jellyfin pair then carries
+the marks to Jellyfin, so the script only ever talks to Plex. Python 3 stdlib only, no
+dependencies.
+
+**Get the export:** `trakt.tv/settings/data` → "Export now" → download the ZIP.
+
+**Safety:** Plex's config PVC has no backup CronJob (`design/docs/storage.md`), so a bad
+write here has no way back. Dry-run is the default — nothing is written to Plex unless
+`--apply` is passed. Matching is strictly by id (Plex's own metadata guid, then
+imdb/tmdb/tvdb); there is no title fallback, since a wrong title match would silently
+corrupt watch state.
+
+```bash
+# 1. Inspect the export first — no Plex contact, confirms the file shapes match what
+#    the script expects. Works directly on the ZIP.
+python3 .agents/scripts/trakt-export-to-plex.py --inspect ~/Downloads/trakt-export.zip
+
+# 2. Dry run against Plex — prints matched/unmatched counts and samples, writes nothing.
+export PLEX_TOKEN=...
+python3 .agents/scripts/trakt-export-to-plex.py ~/Downloads/trakt-export.zip
+
+# 3. Only once the dry-run summary looks right:
+python3 .agents/scripts/trakt-export-to-plex.py ~/Downloads/trakt-export.zip --apply
+```
+
+Only `watched-history-*.json` (one entry per play, movies and episodes) is used for
+matching — it's the only export file with per-episode detail. The deduplicated
+`watched-movies.json` / `watched-shows-*.json` summaries and the watchlist files are
+parsed and shown by `--inspect` but never written from.
 
 ## Verify
 
