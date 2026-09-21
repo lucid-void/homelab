@@ -14,7 +14,6 @@ resources:
   - ./plex/ks.yml
   - ./jellyfin/ks.yml
   - ./crosswatch/ks.yml
-  - ./trakt-seerr-queue/ks.yml
   - ./suwayomi/ks.yml
   - ./kavita/ks.yml
   - ./romm/database/ks.yml
