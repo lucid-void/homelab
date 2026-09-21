@@ -107,7 +107,7 @@ scope and nothing else.
   cert-manager is *supposed* to act and leaves no margin. It survives today only
   because non-`[BODY]` endpoints re-handshake instantly and pick the new certificate
   up the same minute.
-- **A gatus endpoint asserts what "up" means for that service, and three here do not
+- **A gatus endpoint asserts what "up" means for that service, and four here do not
   assert `200` on `/`** — the probe path is a judgement, so record it rather than
   rederive it:
   - **Keycloak** is checked at `/realms/homelab/.well-known/openid-configuration`
@@ -120,6 +120,19 @@ scope and nothing else.
   - **Obsidian LiveSync and FreshRSS assert `401`, not `200`.** For LiveSync a `200`
     would mean CouchDB's `require_valid_user` had come off, i.e. the probe going green
     *is* the incident.
+  - **Jellyfin SSO asserts `302`** at `/sso/OID/start/keycloak`, and needs
+    `client.ignore-redirect: true` — without it gatus follows the redirect and reports
+    *Keycloak's* status, so the check stays green while Jellyfin's end is broken. It
+    exists because `/health` stays `200` through a completely broken login, while the
+    SSO plugin is a third-party fork that Jellyfin's *Update Plugins* task upgrades
+    unattended on every pod restart. Two limits worth knowing: gatus cannot assert on
+    response headers, so this catches "SSO is broken" but not "the `302` carried a
+    usable PAR `request_uri`"; and the probe is **not read-only** — each run pushes an
+    authorization request that Keycloak stores until expiry, which is why it runs at
+    `5m` rather than the usual `1m`. It also carries no
+    `[CERTIFICATE_EXPIRATION]` condition: the `Jellyfin` endpoint already asserts that
+    same host's `shared-tls` certificate every minute, and two endpoints asserting one
+    certificate alert twice for one condition.
 - **Never size a request or limit from Goldilocks/VPA output** — there is no
   metrics-server in this cluster, so the recommender ingests nothing and emits only
   its configured floors; treat every recommendation as fabricated.
