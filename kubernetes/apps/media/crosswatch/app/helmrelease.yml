@@ -38,9 +38,15 @@ spec:
           app:
             image:
               repository: ghcr.io/cenodude/crosswatch
-              # v0.12.3 released 2026-09-16. Pre-1.0 with eight releases in the
-              # preceding month — pin exactly, never auto-merge a bump.
-              tag: "v0.12.3"
+              # Pre-1.0 with eight releases in the month before this pin — pin
+              # exactly, never auto-merge a bump.
+              #
+              # The image tag carries NO `v` prefix, unlike the GitHub release
+              # it corresponds to. Release "v0.12.3" publishes as tag "0.12.3";
+              # `v0.12.3` does not exist and fails as ImagePullBackOff with
+              # "not found", which reads like a missing image rather than a
+              # malformed tag.
+              tag: "0.12.3"
             env:
               TZ: Europe/Brussels
             envFrom:
