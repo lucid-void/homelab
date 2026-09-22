@@ -207,45 +207,23 @@ Two things worth knowing if this is ever re-run:
   Plex before the import now read `viewCount: 2`. Watched state is correct; only play
   counts on the overlap are inflated by one. Re-running would inflate them further.
 
-## Migrating the Trakt watchlist
+## The Trakt watchlist was not migrated
 
-`.agents/scripts/trakt-watchlist-to-plex.py` is a **one-time** migration script, separate
-from the history import above — it seeds the Trakt export's *watchlist* (not watch
-history) into the owner's Plex watchlist, once, before the owner leaves Trakt for good.
-It talks to Plex's hosted account API (`discover.provider.plex.tv`), not the local
-server, since the watchlist lives on the plex.tv account rather than on any one server —
-it needs the same plex.tv account `PLEX_TOKEN` the history script uses. Once an item is
-on the Plex watchlist, Seerr's existing Plex-watchlist auto-request picks it up and turns
-it into a Sonarr/Radarr request on its own; this script's only job is getting items onto
-that watchlist. Python 3 stdlib only, no dependencies.
+The Trakt export also carried a 302-item watchlist. It was **deliberately not migrated**,
+and the seeding script was removed rather than kept around.
 
-The Plex `ratingKey` each item needs is read straight from the export's
-`ids.plex.guid` — no id translation happens, matching Plex's own metadata guid directly.
-An entry without `ids.plex.guid` is reported as unaddable and skipped; there is no
-title-search or other fallback, the same "never guess" stance as the history script.
+Ten items were seeded into the Plex watchlist before that decision; the rest were left
+behind. Two reasons, both worth remembering before anyone rebuilds this:
 
-**Get the export:** `trakt.tv/settings/data` → "Export now" → download the ZIP (same
-export the history script uses; this script reads `lists-watchlist-*.json` out of it).
+- **Seerr's watchlist auto-request is armed** (`watchlistSyncMovies` and
+  `watchlistSyncTv` are both set for the account). Every item added to the Plex
+  watchlist becomes a request, and each TV entry is a whole series — so a bulk seed is a
+  bulk download, not a bookmark import.
+- **The list had gone stale.** Entries dated back to 2022, and included unreleased
+  titles that Sonarr/Radarr would hold indefinitely.
 
-**`--limit N`** exists so the owner isn't flooding Seerr with every new watchlist item's
-auto-request at once — it adds only the first `N` new items, ordered by the export's
-`rank` (falling back to `listed_at`), so repeated runs with `--limit` make forward
-progress in batches instead of re-adding the same items each time.
-
-```bash
-# 1. Inspect the export first — no Plex contact, confirms the watchlist files parse and
-#    reports how many entries carry ids.plex.guid. Works directly on the ZIP.
-python3 .agents/scripts/trakt-watchlist-to-plex.py --inspect ~/Downloads/trakt-export.zip
-
-# 2. Dry run against Plex — fetches the current watchlist, prints how many entries are
-#    already on it vs. new, and a sample of what would be added. Writes nothing.
-export PLEX_TOKEN=...
-python3 .agents/scripts/trakt-watchlist-to-plex.py ~/Downloads/trakt-export.zip
-
-# 3. Only once the dry-run summary looks right, seed a first batch rather than all at once:
-python3 .agents/scripts/trakt-watchlist-to-plex.py ~/Downloads/trakt-export.zip \
-  --apply --limit 25
-```
+New watchlist entries are made directly in Plex from now on, where Seerr picks them up
+natively. There is no Trakt watchlist path in this design.
 
 ## Verify
 
