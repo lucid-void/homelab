@@ -76,9 +76,14 @@ rebuilds it by hand if the PVC is ever lost:
 - **Plex ↔ Jellyfin.** Two-way. Syncs **history and playback progress**. Watchlist sync
   **off**. Ratings and collections are out of scope.
 
-CrossWatch assigns the configured pair an id (e.g. `pair_07c3`) only once it exists in
-the UI — this has not happened yet, and no id is recorded here for that reason. Once the
-pair is configured, capture its id with `cw sync list` (see Verify) and add it here.
+The pair's id is **`pair_d2644b0b4e64`**. Both providers also carry
+`strict_id_matching: true`, and history is `add`-only (`remove: false`) so a sync can
+only ever mark something watched, never un-watch it.
+
+Scheduled on CrossWatch's own scheduler: `mode: custom_interval`,
+`custom_interval_minutes: 15`. **Do not use the "Every N hours" frequency for this** —
+its field is hours, so a `15` meant as minutes becomes a 15-hour gap between syncs, which
+looks like a broken sync rather than a slow one.
 
 ### Jellyfin Trakt plugin
 
