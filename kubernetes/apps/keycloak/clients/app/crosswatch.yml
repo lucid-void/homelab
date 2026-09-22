@@ -14,9 +14,11 @@ spec:
     enabled: true
     loginFlows: [STANDARD]
     redirectUris:
-      # Confirm this path against CrossWatch's OIDC settings screen before the
-      # first login attempt — api/authOidcAPI.py owns the callback route.
-      - https://crosswatch.blackcats.cc/auth/oidc/callback
+      # Read from the running image: api/authOidcAPI.py builds this as
+      # `{origin}/api/app-auth/oidc/callback` (_callback_url, and the router is
+      # mounted under /api/app-auth). The app never reports the path in its UI,
+      # so take it from the source, not from a guess.
+      - https://crosswatch.blackcats.cc/api/app-auth/oidc/callback
     webOrigins:
       - https://crosswatch.blackcats.cc
     # `user` is the entitlement gate, matching every other client in this realm.
