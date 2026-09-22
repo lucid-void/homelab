@@ -36,6 +36,24 @@ port 8787, exposed at `https://crosswatch.example.com` via `HTTPRoute`, behind K
 OIDC (client `crosswatch`, `user` role — see
 `kubernetes/apps/keycloak/clients/app/crosswatch.yml`).
 
+**OIDC settings, entered in the CrossWatch UI** (Settings → Authentication) and stored
+in `config.json` under `app_auth.oidc` — UI-only state, so this is its only record:
+
+| Field | Value |
+|---|---|
+| Issuer | `https://sso.example.com/realms/homelab` |
+| Client ID | `crosswatch` |
+| Client secret | `kubectl get secret crosswatch-client-secret -n keycloak -o jsonpath='{.data.secret}' \| base64 -d` |
+| Scopes | `openid profile email` |
+
+**Keycloak is served at `sso.example.com`, not `keycloak.example.com`.** The latter has
+no DNS record and resolves nowhere, so an issuer built from it fails in a way that hides
+its own cause: CrossWatch *saves* the config to disk, then fails the link step with a
+`NameResolutionError` behind a 502, and the UI redisplays the OIDC toggle as disabled.
+That looks like "the setting won't persist" — but `app_auth.oidc.enabled` is `true` in
+`config.json` the whole time. Check `kubectl logs deploy/crosswatch | grep OIDC` before
+believing the toggle.
+
 **Sync pair definition — the only record of this configuration.** The pair is authored
 through the CrossWatch web UI and lives in `config.json` on the PVC, which is not in
 git. This prose is what rebuilds it by hand if the PVC is ever lost:
