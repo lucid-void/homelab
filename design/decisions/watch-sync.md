@@ -60,7 +60,7 @@ encrypted), which is not in git:
 
 | Provider | Server URL | Auth |
 |---|---|---|
-| Plex | `http://plex-app.media.svc.cluster.local:32400` | Plex account link |
+| Plex | `https://plex.blackcats.cc:443` (as configured; `http://plex-app.media.svc.cluster.local:32400` also works) | Plex account link |
 | Jellyfin | `http://jellyfin.media.svc.cluster.local:8096` | Jellyfin API key + user id |
 
 **The Plex Service is `plex-app`, not `plex`.** `bjw-s/app-template` names the Service
@@ -251,7 +251,12 @@ python3 .agents/scripts/trakt-watchlist-to-plex.py ~/Downloads/trakt-export.zip 
 
 ```bash
 mise exec -- kubectl get pods -n media -l app.kubernetes.io/name=crosswatch
-mise exec -- kubectl exec -n media deploy/crosswatch -- cw sync list   # confirm watchlist sync is off; record the pair id here once configured
+# `cw` needs its own API token once app auth is on, and will refuse with
+# "Unauthorized (GET /api/pairs)" until `cw --local auth token create` is run in
+# the container. Reading config.json is the lower-friction check and needs no token:
+mise exec -- kubectl exec -n media deploy/crosswatch -- sh -c 'cat /config/config.json' \
+  | python3 -c 'import sys,json; p=json.load(sys.stdin)["pairs"][0]; \
+print(p["id"], p["mode"], {k:v["enable"] for k,v in p["features"].items()})'
 mise exec -- kubectl get keycloakoidcclient crosswatch -n keycloak \
   -o custom-columns='NAME:.metadata.name,ERRORS:.status.conditions[?(@.type=="HasErrors")].status'
 curl -sf https://crosswatch.blackcats.cc && echo
