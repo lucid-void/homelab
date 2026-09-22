@@ -90,6 +90,15 @@ the watchlist Plex maintains for that account.
   before the tag currently pinned (see `design/docs/services.md` for what that tag is),
   under heavy churn. Pin the tag exactly and read the release notes before merging —
   see `.github/renovate.json`.
+- **Never copy a CrossWatch version from its GitHub release into the image tag.** The
+  releases are named `vX.Y.Z`; the ghcr tags are `X.Y.Z`, with no `v`. A v-prefixed tag
+  does not exist and fails as `ImagePullBackOff` — `failed to resolve reference … not
+  found` — which reads as a missing or private image rather than a malformed tag. Take
+  the tag from the registry, not the release page:
+  `curl -s "https://ghcr.io/token?scope=repository:cenodude/crosswatch:pull&service=ghcr.io"`
+  then `GET https://ghcr.io/v2/cenodude/crosswatch/tags/list?n=1000` with that bearer
+  token. Note the tag list pages at 100 by default and is unsorted, so a naive read
+  shows `0.9.x` as newest — follow the `Link` header and sort numerically.
 - **Never write a raw Secret for CrossWatch credentials** — same repo-wide rule, sealed
   with `kubeseal --cert kubernetes/flux/pub-cert.pem`.
 - **Never rely on `optional: true` on CrossWatch's `envFrom`** — chart 3.7.3 strips it
