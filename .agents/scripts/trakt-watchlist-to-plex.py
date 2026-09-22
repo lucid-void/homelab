@@ -450,6 +450,13 @@ def print_summary(
     print(f"Total export entries: {stats.total_entries}")
     print(f"  with ids.plex.guid (addable): {with_guid_count}")
     print(f"  without ids.plex.guid (unaddable): {len(without_guid)}")
+    # Printed even when zero: without it the three lines above cannot be
+    # reconciled against the total, and a reader checking the arithmetic
+    # before an irreversible-ish write reads the gap as a bug.
+    print(
+        f"  not a movie or show (season/episode entries, skipped): "
+        f"{stats.unrecognised_entries}"
+    )
     print(f"Current Plex watchlist size (per Plex): {existing_watchlist_total}")
     print(f"Already on the Plex watchlist (unique, skipped): {already_on_watchlist_count}")
     print(f"Would be added (unique, new): {len(to_add)}")
