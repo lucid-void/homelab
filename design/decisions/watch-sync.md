@@ -138,6 +138,28 @@ matching — it's the only export file with per-episode detail. The deduplicated
 `watched-movies.json` / `watched-shows-*.json` summaries and the watchlist files are
 parsed and shown by `--inspect` but never written from.
 
+### The run that happened
+
+Run once against Plex on 2026-09-22. The export held 10,007 plays, deduplicating to 165
+unique movies and 8,925 unique episodes. **3,711 items were marked watched (27 movies,
+3,684 episodes), 0 failed.**
+
+The remainder were not failures. The library holds 120 movies against 165 watched, so
+most unmatched films were simply never owned. Every id type was checked independently
+against Plex afterwards and each resolved the same 3,684 episodes — `tmdb` alone reaches
+the same total as all four combined, so no id type recovers anything the others miss.
+3,711 is the ceiling this library allows, not a matching shortfall.
+
+Two things worth knowing if this is ever re-run:
+
+- **Trakt's `ids.plex.guid` matches Plex's `guid` attribute, not its `Guid[]` array.**
+  `Guid[]` carries only `imdb`/`tmdb`/`tvdb`, so the script's plex-id path never matches
+  and its summary always reports `plex: 0`. Harmless — those items match on tmdb anyway,
+  and correcting it would add exactly zero — but the zero is expected, not a symptom.
+- **Scrobbling an already-watched item increments its `viewCount`.** Items watched in
+  Plex before the import now read `viewCount: 2`. Watched state is correct; only play
+  counts on the overlap are inflated by one. Re-running would inflate them further.
+
 ## Verify
 
 ```bash
