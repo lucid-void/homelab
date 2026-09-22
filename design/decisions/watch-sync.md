@@ -54,9 +54,24 @@ That looks like "the setting won't persist" — but `app_auth.oidc.enabled` is `
 `config.json` the whole time. Check `kubectl logs deploy/crosswatch | grep OIDC` before
 believing the toggle.
 
+**Provider connections — the only record of this configuration.** Entered in the
+CrossWatch UI under Settings → Connections, stored in `config.json` on the PVC (secrets
+encrypted), which is not in git:
+
+| Provider | Server URL | Auth |
+|---|---|---|
+| Plex | `http://plex-app.media.svc.cluster.local:32400` | Plex account link |
+| Jellyfin | `http://jellyfin.media.svc.cluster.local:8096` | Jellyfin API key + user id |
+
+**The Plex Service is `plex-app`, not `plex`.** `bjw-s/app-template` names the Service
+after the controller, so `plex.media.svc.cluster.local` does not resolve and fails as
+`Name or service not known` — which reads as a DNS or network fault rather than a wrong
+name. `plex-direct` (the `pool-b` LoadBalancer at `172.16.20.51:32400`) also works but
+leaves the cluster and back; prefer the ClusterIP.
+
 **Sync pair definition — the only record of this configuration.** The pair is authored
-through the CrossWatch web UI and lives in `config.json` on the PVC, which is not in
-git. This prose is what rebuilds it by hand if the PVC is ever lost:
+through the CrossWatch web UI and lives in the same `config.json`. This prose is what
+rebuilds it by hand if the PVC is ever lost:
 
 - **Plex ↔ Jellyfin.** Two-way. Syncs **history and playback progress**. Watchlist sync
   **off**. Ratings and collections are out of scope.
