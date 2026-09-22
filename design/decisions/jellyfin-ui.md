@@ -5,8 +5,8 @@ web UI and lives only on the config PVC, so this file is the rebuild script. It 
 run on 2026-09-21. The server deployment is `design/decisions/jellyfin.md`.
 
 **Installed:** SSO Authentication, File Transformation, Plugin Pages, Home Screen
-Sections, Media Bar, Jellyfin Enhanced, Intro Skipper, Trakt. **Not yet: Webhook**, and
-no theme — Custom CSS is unset.
+Sections, Media Bar, Jellyfin Enhanced, Intro Skipper, Trakt, Webhook. **No theme** —
+Custom CSS is unset.
 
 ## Plugins
 
@@ -149,6 +149,7 @@ afterwards.
 | **Jellyfin Enhanced** | Quality/language/rating tags, coloured ratings, metadata icons, watch progress, file sizes, release dates, reviews; Bookmarks / Activity Feed / Calendar / Downloads pages via Plugin Pages; active streams (own only); arr links |
 | **Media Bar** | Shuffle 15 s, 25 items (12 films / 13 shows), preload 2, page backdrop synced, trailers on |
 | **File Transformation** | Stock. Its `Transformations` list reads empty in config because other plugins register theirs at runtime — that is not a broken install. |
+| **Webhook** | Two Gotify destinations — plugin events at priority 7, account events at 5. See below. |
 
 Home screen row order: My Media, Continue Watching / Next Up, Recently Added Movies,
 Recently Added Shows, Because You Watched, Watch Again, My List, Collections, Upcoming
@@ -207,6 +208,93 @@ matters: the plugin pushed the authorization request to Keycloak, which it can o
 with a readable discovery document and a valid client secret. Anything else is a lockout
 in progress, and the local admin is how you get back in.
 
+
+### Webhook → Gotify
+
+Two destinations, both on the **built-in Gotify type** — not the Generic one. Every guide
+reaches for Generic plus an `X-Gotify-Key` header; it is unnecessary, because
+`GotifyOptions` is native and handles the token itself.
+
+| Destination | Events | Priority |
+|---|---|---|
+| Jellyfin plugins | `PluginInstalled`, `PluginUpdated`, `PluginUninstalled`, `PluginInstallationFailed`, `PendingRestart` | 7 |
+| Jellyfin accounts | `AuthenticationFailure`, `UserCreated`, `UserDeleted`, `UserLockedOut` | 5 |
+
+One entry carries one priority, which is the only reason these are two entries and not
+one. The plugin set is 7 because the plugin that can move on its own is the one holding
+SSO — this destination exists precisely because that happened unnoticed.
+
+Deliberately **not** subscribed: `ItemAdded` (Sonarr and Radarr import constantly),
+`PlaybackStart`/`Stop` (Trakt already scrobbles), `TaskCompleted` and `UserDataSaved`
+(noise), `AuthenticationSuccess`.
+
+`WebhookUri` is `http://gotify.monitoring.svc.cluster.local` — the in-cluster Service,
+matching every other Gotify producer, and **without** `/message`: the client builds
+`{WebhookUri}/message?token=…` itself, so including it would post to `/message/message`.
+
+The token comes from `media/jellyfin-gotify-secret`, provisioned by `gotify-bootstrap` —
+but **Jellyfin cannot read a Secret**, so it is pasted into the plugin config and a
+rotation never reaches it. `design/decisions/gotify.md` carries that rule.
+
+#### Four ways this fails silently
+
+Each of these cost a round trip, and none produce an obvious error:
+
+1. **The template must be base64-encoded.** `BaseOption.GetCompiledTemplate()` runs the
+   stored string through `Base64Decode` before handing it to Handlebars, so a plain-text
+   template throws inside the *sender*, not at save time. The dashboard encodes on save;
+   anything writing the config directly has to do it too.
+2. **`SendAllProperties: true` silently overrides the template.** With it on, the body is
+   the raw property bag — `{"ServerId":…,"NotificationType":…}` — and the `Template` is
+   never rendered at all. Gotify then rejects it with
+   `Field 'message' is required`, which reads like a template bug and is not one. It must
+   be **off** for a templated destination.
+3. **Config changes only take effect after a pod restart.** Destinations are bound at
+   startup, so editing the config on a running server produces *nothing* — no delivery,
+   no error, not even a log line. Every "it still is not working" here was really "the
+   server has not been restarted yet".
+4. **`AuthenticationFailure` does not fire for an unknown username.** Jellyfin throws
+   before raising the event, so testing with a made-up user proves nothing. Test with
+   `UserCreated`/`UserDeleted` instead — create a throwaway user and delete it.
+
+The template itself must render a complete Gotify message object, since the rendered text
+*is* the POST body:
+
+```handlebars
+{
+  "title": "Jellyfin: {{NotificationType}}",
+  "message": "{{#if PluginName}}Plugin: {{PluginName}} {{PluginVersion}}\n{{/if}}{{#if NotificationUsername}}User: {{NotificationUsername}}\n{{/if}}Server: {{ServerName}}",
+  "priority": {{Priority}}
+}
+```
+
+`{{Priority}}` is injected by the Gotify client from the destination's own `Priority`, so
+it needs no quoting. Handlebars HTML-escapes `{{ }}`, which is what keeps a title
+containing a quote from breaking the JSON.
+
+**The token appears in Jellyfin's own logs.** It is a query parameter, so any delivery
+failure logs the full URL including the token at `[WRN]`. Rotating it means re-pasting it
+here anyway; just do not paste those log lines anywhere public.
+
+#### Verify
+
+Installing and immediately uninstalling a plugin fires both plugin events without ever
+loading it, so it leaves no config, database or state behind:
+
+```bash
+# install then immediately uninstall any small plugin from the dashboard, then:
+mise exec -- kubectl logs -n media -l app.kubernetes.io/name=jellyfin | grep -i gotify
+```
+
+A clean run logs **nothing at all** from `Jellyfin.Plugin.Webhook` — it is quiet on
+success and only speaks up on failure, so no output is the pass condition. Confirm the
+two priority-7 messages (`PluginInstalled`, `PluginUninstalled`) arrived by reading
+Gotify itself, with the client token from `monitoring/gotify-client-secret`:
+
+```bash
+curl -s "http://gotify.monitoring.svc.cluster.local/message?limit=5" \
+  -H "X-Gotify-Key: ${CLIENT_TOKEN}"
+```
 
 ## Theme
 
