@@ -241,7 +241,7 @@ spec:
           backup:
             image:
               repository: itzg/mc-backup
-              tag: "2026.9.1"
+              tag: "2026.9.2"
             env:
               TZ: Europe/Brussels
               BACKUP_INTERVAL: "2h"
