@@ -46,7 +46,7 @@ spec:
               # `v0.12.3` does not exist and fails as ImagePullBackOff with
               # "not found", which reads like a missing image rather than a
               # malformed tag.
-              tag: "0.12.3"
+              tag: "0.12.4"
             env:
               TZ: Europe/Brussels
             envFrom:
