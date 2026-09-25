@@ -91,6 +91,18 @@ Gotify token comes from `changedetection/gotify-secret`, provisioned by the
   references at different moments. A missed poll window costs nothing for this app.
 - **The backup Job must keep its `podAffinity` onto the app pod's node** — the claim is
   RWO on `nfs-client`, so a Job scheduled elsewhere blocks on the mount.
+- **The backup Job must run as `runAsUser: 0`, not the house `65534`** — the app runs as
+  root and ignores `PUID`/`PGID` (see above), and it writes essentially its whole
+  datastore (the index, every `watch.json`/`tag.json`, every snapshot `.txt`) via Python
+  `tempfile`+`os.replace()`, which defaults to mode `0600`. That's nearly the entire
+  tree, not excludable derived data the way Paperless's search index is, so uid 65534
+  fails `restic backup` with "permission denied" on ~45 files, exit 3, and `set -e`
+  aborts before `forget`/`check` run. This is `design/decisions/backups.md`'s
+  "diagnose from a pod at the backup's uid" rule turning up a real positive rather than
+  a false one — the fix here is the uid, not an exclude, because there's no PUID/PGID
+  knob to make the app cooperate. Confirmed root reads fine and NFS does not
+  root-squash it. Failed every night from the CronJob's creation (2026-09-19) until
+  fixed 2026-09-25 — `lastSuccessfulTime` was `<none>` the whole time.
 - **Treat the container resource values as estimates until re-derived from
   VictoriaMetrics** — they were set before the service had any history, which the house
   rule otherwise forbids. Re-derive with a 30d p90 and pin `metrics_path="/metrics/cadvisor"`

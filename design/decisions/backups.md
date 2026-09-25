@@ -96,7 +96,10 @@ Gotify notifications are priority 5 on success, 8 on failure. The token is in
   Tantivy search index writes `meta.json`/`.managed.json` mode `0600` as uid 1000, hence
   `--exclude=/data/index`; the index is derived data, rebuilt with
   `document_index reindex` (`design/runbook.md`). Do not instead loosen the backup's
-  uid — that couples it to the app image.
+  uid — that couples it to the app image. This is Paperless-specific: it holds because
+  only one derived path is unreadable there. When the unreadable set is nearly the
+  whole tree and there's no PUID/PGID knob to fix it at the source, loosening the uid
+  is correct instead — see changedetection in `design/decisions/changedetection.md`.
 - **Diagnose an unreadable-file failure from a pod running as the backup's uid with the
   same read-only mounts** — a `find` inside the app pod lies twice: it runs as root, and
   paperless bind-mounts the PVCs at `/data` and `/media`, not at the
