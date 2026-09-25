@@ -112,3 +112,12 @@ spec:
         globalMounts:
           - path: /Media
             readOnly: true
+      # Intel iGPU render node, passed through to cp-2 only (design/decisions/
+      # jellyfin.md — Quick Sync). hostPath, not a PVC: this is a device node,
+      # not storage.
+      render:
+        type: hostPath
+        hostPath: /dev/dri
+        hostPathType: Directory
+        globalMounts:
+          - path: /dev/dri
