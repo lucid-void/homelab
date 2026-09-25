@@ -22,8 +22,24 @@ changing that selector later abandons the library rather than migrating it.
 at `/Media`. Web access is HTTPRoute-only — **no `pool-b` LoadBalancer**, so
 `172.16.20.51` (Plex direct/GDM) and `.52` (Velocity) are untouched.
 
-Transcoding is CPU-only: no GPU device plugin exists, and the Talos VMs get no iGPU
-passthrough from the Proxmox host.
+Transcoding uses Intel Quick Sync (VAAPI/QSV), via cp-2's passed-through iGPU
+(`design/architecture.md`'s Talos Extensions table, `infra/terraform/kubernetes.tf`'s
+`hostpci` block on cp-2). It reaches the container as the schedulable resource
+`gpu.intel.com/i915`, not a hostPath volume — the `media` namespace enforces
+PodSecurity `baseline`, which forbids hostPath volumes outright, and broadening the
+whole namespace to `privileged` for every app in it just for this was rejected. The
+Intel GPU device plugin DaemonSet (`kubernetes/apps/kube-system/intel-gpu-plugin`,
+`kube-system` — PSA-exempt) exposes the resource instead; it's node-pinned to cp-2,
+the only node with the device. Software transcoding is still the fallback for codecs
+QSV doesn't cover — the container keeps no CPU limit for that reason.
+
+The container still needs POSIX group access to open `/dev/dri/renderD128` even
+though the device plugin (not a hostPath mount) is what gets it there — the
+`supplementalGroups` value in the HelmRelease was read live off cp-2
+(`stat -c '%g' /dev/dri/renderD128` inside the pod), not guessed. **Re-run that check
+after any Talos upgrade touching cp-2** — nothing pins this gid stable across an
+`i915` extension or Talos version change, and a silent mismatch means transcodes
+quietly stop using hardware instead of failing loudly.
 
 `JELLYFIN_PublishedServerUrl` is Jellyfin's analogue of Plex's `ADVERTISE_IP`: the
 absolute base URL handed to clients. Without it, clients arriving through the Gateway are
@@ -32,6 +48,11 @@ below.
 
 ## Rules
 
+- **Never add a hostPath volume to this HelmRelease.** The `media` namespace inherits
+  the cluster-default PodSecurity `baseline`, which forbids hostPath volumes outright —
+  a Helm upgrade adding one fails admission (`PodSecurity "baseline:latest": hostPath
+  volumes`) and Flux auto-rolls back. GPU access goes through the Intel GPU device
+  plugin's `gpu.intel.com/i915` resource instead (see Current state above).
 - **Never mount transcode scratch on the config PVC.** `/config/transcodes` is an
   `emptyDir`. A single long 4K transcode writes tens of GB of segments, and filling the
   50Gi hostpath volume corrupts the SQLite library sharing it.

@@ -1,0 +1,92 @@
+# Exposes cp-2's passed-through Intel iGPU (design/decisions/jellyfin.md) as the
+# schedulable resource `gpu.intel.com/i915`, via the kubelet device-plugin API —
+# not a hostPath volume in the consuming pod. That distinction is why this exists:
+# the `media` namespace enforces PodSecurity `baseline`, which forbids hostPath
+# volumes outright, and broadening that namespace to `privileged` for every app in
+# it (sonarr/radarr/plex/kavita/romm/minecraft/...) just for Jellyfin's GPU access
+# was rejected. This DaemonSet's own hostPath mounts (device nodes, the kubelet's
+# device-plugin socket dir) are fine because kube-system is PSA-exempt — confirmed
+# live: it carries no pod-security.kubernetes.io/enforce label at all, unlike the
+# namespaces (security/democratic-csi/openebs/monitoring) that explicitly opt into
+# `privileged`, yet its existing hostPath-using DaemonSets (Cilium, CSI node
+# agents) already run there without issue.
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: intel-gpu-plugin
+  labels:
+    app: intel-gpu-plugin
+spec:
+  selector:
+    matchLabels:
+      app: intel-gpu-plugin
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: intel-gpu-plugin
+    spec:
+      # Only cp-2 has the passed-through iGPU (infra/terraform/kubernetes.tf).
+      # Scheduling this on cp-1/cp-3/llm-1 would just crashloop it against a
+      # missing /dev/dri.
+      nodeSelector:
+        kubernetes.io/hostname: cp-2
+      containers:
+        - name: intel-gpu-plugin
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          # Pinned release tag, not `devel` (repo rule: never a rolling image tag).
+          image: intel/intel-gpu-plugin:v0.37.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              memory: "45Mi"
+              cpu: 40m
+            limits:
+              memory: "115Mi"
+              cpu: 100m
+          volumeMounts:
+            - name: devfs
+              mountPath: /dev/dri
+              readOnly: true
+            - name: sysfsdrm
+              mountPath: /sys/class/drm
+              readOnly: true
+            - name: kubeletsockets
+              mountPath: /var/lib/kubelet/device-plugins
+            - name: cdipath
+              mountPath: /var/run/cdi
+      volumes:
+        - name: devfs
+          hostPath:
+            path: /dev/dri
+        - name: sysfsdrm
+          hostPath:
+            path: /sys/class/drm
+        - name: kubeletsockets
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+        - name: cdipath
+          hostPath:
+            path: /var/run/cdi
+            type: DirectoryOrCreate
