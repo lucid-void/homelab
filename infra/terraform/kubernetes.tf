@@ -29,6 +29,7 @@ locals {
       mac_address = "BC:24:11:01:20:00"
       tags        = ["k8s_cp"]
       dns_records = []
+      hostpci     = []
     }
     cp-2 = {
       vm_id       = 2021
@@ -39,6 +40,12 @@ locals {
       mac_address = "BC:24:11:01:21:00"
       tags        = ["k8s_cp"]
       dns_records = []
+      # Intel iGPU passthrough for Jellyfin Quick Sync — see
+      # design/decisions/jellyfin.md. "IGPU" is a Proxmox Resource Mapping
+      # (Datacenter > Resource Mappings), not a raw PCI id: `id` requires
+      # root user/pass on the provider, and this provider authenticates
+      # with api_token.
+      hostpci     = ["IGPU"]
     }
     cp-3 = {
       vm_id       = 2022
@@ -49,6 +56,7 @@ locals {
       mac_address = "BC:24:11:01:22:00"
       tags        = ["k8s_cp"]
       dns_records = []
+      hostpci     = []
     }
 
     # Dedicated LLM inference worker. NOT a control plane, NOT an etcd member,
@@ -114,6 +122,7 @@ locals {
       mac_address = "BC:24:11:01:23:00"
       tags        = ["k8s_worker"]
       dns_records = []
+      hostpci     = []
     }
   }
 }
@@ -160,6 +169,20 @@ resource "proxmox_virtual_environment_vm" "k8s_nodes" {
     model       = "virtio"
     mtu         = 9000
     mac_address = each.value.mac_address
+  }
+
+  dynamic "hostpci" {
+    for_each = { for idx, mapping in each.value.hostpci : idx => mapping }
+    content {
+      device  = "hostpci${hostpci.key}"
+      mapping = hostpci.value
+      # pcie=true requires the VM's machine type to be q35 — cp-2's isn't,
+      # and failed to start with "q35 machine model is not enabled" on the
+      # first attempt. Legacy PCI passthrough works with the current
+      # (i440fx) machine type and is fine for a compute-only device.
+      pcie    = false
+      xvga    = false  # not needed as primary display — only /dev/dri matters
+    }
   }
 
   # No initialization block — Talos does not use cloud-init.
