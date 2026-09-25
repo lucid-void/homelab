@@ -48,7 +48,7 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
           # Pinned release tag, not `devel` (repo rule: never a rolling image tag).
-          image: intel/intel-gpu-plugin:v0.37.0
+          image: intel/intel-gpu-plugin:0.37.0
           imagePullPolicy: IfNotPresent
           securityContext:
             readOnlyRootFilesystem: true
