@@ -15,3 +15,4 @@ resources:
   - ./descheduler/ks.yml
   - ./k8s-cleaner/ks.yml
   - ./etcd-snapshot/ks.yml
+  - ./intel-gpu-plugin/ks.yml

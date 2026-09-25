@@ -82,11 +82,18 @@ spec:
               requests:
                 memory: 1Gi
                 cpu: 200m
+                # Intel GPU device plugin (kubernetes/apps/kube-system/intel-gpu-plugin)
+                # exposes cp-2's passed-through iGPU as this schedulable resource — not
+                # a hostPath volume, since the media namespace's PodSecurity `baseline`
+                # forbids those. Extended resources require requests == limits.
+                gpu.intel.com/i915: 1
               limits:
-                # No GPU device plugin exists in this cluster, so every transcode is
-                # software on the Arrow Lake P-cores. Deliberately no CPU limit:
-                # throttling a transcode produces buffering, not a clean failure.
+                # Quick Sync (VAAPI) handles most transcodes now — see
+                # design/decisions/jellyfin.md. Still no CPU limit: QSV doesn't cover
+                # every codec path, software fallback runs on the Arrow Lake P-cores,
+                # and throttling it produces buffering, not a clean failure.
                 memory: 6Gi
+                gpu.intel.com/i915: 1
 
     service:
       app:
@@ -112,12 +119,3 @@ spec:
         globalMounts:
           - path: /Media
             readOnly: true
-      # Intel iGPU render node, passed through to cp-2 only (design/decisions/
-      # jellyfin.md — Quick Sync). hostPath, not a PVC: this is a device node,
-      # not storage.
-      render:
-        type: hostPath
-        hostPath: /dev/dri
-        hostPathType: Directory
-        globalMounts:
-          - path: /dev/dri
