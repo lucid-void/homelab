@@ -145,6 +145,10 @@ nodes:
             - siderolabs/netbird
             # - siderolabs/nut-client
             - siderolabs/qemu-guest-agent
+            # Intel iGPU driver for Jellyfin Quick Sync — cp-2 ONLY, matching
+            # the hostpci passthrough in infra/terraform/kubernetes.tf (only
+            # cp-2's VM has the device). See design/decisions/jellyfin.md.
+            - siderolabs/i915
     networkInterfaces:
       - interface: ens18
         addresses: [172.16.20.12/24]
