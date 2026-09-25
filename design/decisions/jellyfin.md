@@ -37,13 +37,14 @@ Intel GPU device plugin DaemonSet (`kubernetes/apps/kube-system/intel-gpu-plugin
 the only node with the device. Software transcoding is still the fallback for codecs
 QSV doesn't cover — the container keeps no CPU limit for that reason.
 
-The container still needs POSIX group access to open `/dev/dri/renderD128` even
-though the device plugin (not a hostPath mount) is what gets it there — the
-`supplementalGroups` value in the HelmRelease was read live off cp-2
-(`stat -c '%g' /dev/dri/renderD128` inside the pod), not guessed. **Re-run that check
-after any Talos upgrade touching cp-2** — nothing pins this gid stable across an
-`i915` extension or Talos version change, and a silent mismatch means transcodes
-quietly stop using hardware instead of failing loudly.
+No `supplementalGroups` needed: the device plugin uses CDI (`/var/run/cdi` in its
+DaemonSet) to hand the container `/dev/dri/renderD128` at mode `crw-rw-rw-`
+(confirmed live — `stat` inside the pod), not the host's normal `root:render 660`.
+Any container UID can open it. This is different from what a raw hostPath mount
+would have required (matching the host's render-group gid) — don't add
+`supplementalGroups` back in if this ever gets refactored; verify the live device
+mode first (`kubectl exec -n media deploy/jellyfin -- stat -c '%a %U %G'
+/dev/dri/renderD128`) rather than assuming either way.
 
 `JELLYFIN_PublishedServerUrl` is Jellyfin's analogue of Plex's `ADVERTISE_IP`: the
 absolute base URL handed to clients. Without it, clients arriving through the Gateway are
