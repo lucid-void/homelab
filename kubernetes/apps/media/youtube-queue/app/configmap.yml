@@ -21,7 +21,9 @@ data:
       # activeDeadlineSeconds (3300s) in one go — see design/decisions/youtube-queue.md.
       # Unconfirmed whether this also caps ytdl-sub's per-run metadata walk.
       throttle_protection:
-        max_downloads_per_subscription: 8
+        max_downloads_per_subscription:
+          min: 8
+          max: 8
 
     # One show, "YouTube": seasons by upload year, episodes by upload date.
     # 1080p cap keeps the emptyDir and the share in check; the iPad doesn't need more.
