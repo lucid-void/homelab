@@ -19,7 +19,11 @@ changing that selector later abandons the library rather than migrating it.
 
 `media` namespace, `replicas: 1`, `bjw-s/app-template`, `lscr.io/linuxserver/jellyfin`
 (PUID 2202 / PGID 2200, matching the rest of the stack). `media-nfs` mounted read-only
-at `/Media`. Web access is HTTPRoute-only — **no `pool-b` LoadBalancer**, so
+at `/Media`, plus one writable subPath: `YouTube` at `/YouTube`, the ytdl-sub download
+queue (`design/decisions/youtube-queue.md`), so watched videos can be deleted from the
+Jellyfin UI. An `alpine` initContainer (`youtube-dir`) creates that directory as uid 2202
+first — the kubelet can't be relied on to create a missing subPath dir on the Synology
+share. Web access is HTTPRoute-only — **no `pool-b` LoadBalancer**, so
 `172.16.20.51` (Plex direct/GDM) and `.52` (Velocity) are untouched.
 
 Transcoding uses Intel Quick Sync (VAAPI/QSV), via cp-2's passed-through iGPU
@@ -48,6 +52,9 @@ below.
 
 ## Rules
 
+- **Keep `/Media` read-only; `/YouTube` is the only writable path.** Widening the
+  main mount to RW would let a stray "Delete media" click remove Plex's library too.
+  If another app needs Jellyfin-side deletes, give it its own subPath mount.
 - **Never add a hostPath volume to this HelmRelease.** The `media` namespace inherits
   the cluster-default PodSecurity `baseline`, which forbids hostPath volumes outright —
   a Helm upgrade adding one fails admission (`PodSecurity "baseline:latest": hostPath

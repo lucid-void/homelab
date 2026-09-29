@@ -31,6 +31,22 @@ spec:
           # and openebs-hostpath would otherwise happily put both on the same disk.
           nodeSelector:
             kubernetes.io/hostname: cp-2
+        # /YouTube is a subPath mount, and the kubelet can't reliably create a
+        # missing subPath dir on the Synology share (root squash). Create it as the
+        # media uid first; `|| true` so a share hiccup can't keep Jellyfin down.
+        initContainers:
+          youtube-dir:
+            image:
+              repository: alpine
+              tag: "3.24"
+            command: ["/bin/sh", "-c", "mkdir -p /share/YouTube || true"]
+            securityContext:
+              runAsUser: 2202
+              runAsGroup: 2200
+              runAsNonRoot: true
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
         containers:
           app:
             image:
@@ -116,6 +132,20 @@ spec:
           - path: /config/transcodes
       media:
         existingClaim: media-nfs
-        globalMounts:
-          - path: /Media
-            readOnly: true
+        advancedMounts:
+          app:
+            app:
+              - path: /Media
+                readOnly: true
+            youtube-dir:
+              - path: /share
+      # The one writable corner of the share: ytdl-sub's YouTube queue
+      # (kubernetes/apps/media/youtube-queue). RW so watched videos can be deleted
+      # from inside Jellyfin; the rest of /Media stays read-only.
+      youtube:
+        existingClaim: media-nfs
+        advancedMounts:
+          app:
+            app:
+              - path: /YouTube
+                subPath: YouTube
