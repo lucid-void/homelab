@@ -1,0 +1,93 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: youtube-queue
+  namespace: media
+  annotations:
+    # deliberate: same TTL + history-limit pairing as minecraft-backup — the TTL
+    # clears a lone failed Job after 24h so KubeJobFailed doesn't re-fire forever,
+    # the limits cap how many an hourly schedule can pile up before that.
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see comment"
+    # yt-dlp, deno (YouTube JS challenges) and python all expect a writable HOME;
+    # HOME and /tmp are emptyDirs, but the image is untested read-only.
+    ignore-check.kube-linter.io/no-read-only-root-fs: "yt-dlp/deno caches"
+spec:
+  # Hourly, off the :00 herd.
+  schedule: "17 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # Under the hour, so a stuck run can't collide with the next one's slot.
+      activeDeadlineSeconds: 3300
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          # Same uid/gid as the rest of the media stack, so Jellyfin (PUID 2202)
+          # can delete what this writes.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 2202
+            runAsGroup: 2200
+          volumes:
+            - name: media
+              persistentVolumeClaim:
+                claimName: media-nfs
+            - name: config
+              configMap:
+                name: youtube-queue-config
+            # HOME, the rendered subscriptions file and in-progress downloads.
+            - name: work
+              emptyDir:
+                sizeLimit: 20Gi
+            - name: tmp
+              emptyDir: {}
+          containers:
+            - name: ytdl-sub
+              # Renovate bumps this tag, and ytdl-sub pins the yt-dlp it ships with,
+              # so the tag is also how yt-dlp stays current. Plain date tags only —
+              # see design/decisions/youtube-queue.md.
+              image: ghcr.io/jmbannon/ytdl-sub:2026.08.26
+              # Bypass the image's s6 /init (cron daemon + PUID remapping): the
+              # CronJob is the scheduler, and securityContext sets the uid.
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  sed "s/__PLAYLIST_ID__/${PLAYLIST_ID}/" /defaults/subscriptions.yaml > /work/subscriptions.yaml
+                  mkdir -p /Media/YouTube
+                  exec ytdl-sub --config /defaults/config.yaml sub /work/subscriptions.yaml
+              workingDir: /work
+              env:
+                - name: HOME
+                  value: /work
+                - name: TZ
+                  value: Europe/Brussels
+              envFrom:
+                - secretRef:
+                    name: youtube-queue-secret
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: media
+                  mountPath: /Media
+                - name: config
+                  mountPath: /defaults
+                  readOnly: true
+                - name: work
+                  mountPath: /work
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  memory: 256Mi
+                  cpu: 100m
+                limits:
+                  memory: 2Gi

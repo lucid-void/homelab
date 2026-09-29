@@ -110,7 +110,7 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | SABnzbd | `nzb.blackcats.cc` | `lscr.io/linuxserver/sabnzbd:4.5.1` | Config PVC (`nfs-client`) + `media-nfs` |
 | Seerr | `seerr.blackcats.cc` | `ghcr.io/seerr-team/seerr:v3.2.0` | Config PVC (`nfs-client`) — pod `securityContext` instead of PUID/PGID |
 | Plex | `plex.blackcats.cc` | `lscr.io/linuxserver/plex:1.41.7` | Config PVC (`openebs-hostpath`, pinned to cp-1) + `media-nfs` (readOnly) |
-| Jellyfin | `jellyfin.blackcats.cc` | `lscr.io/linuxserver/jellyfin` | Config PVC (`openebs-hostpath`, pinned to **cp-2** — deliberately not cp-1, where Plex's is) + `media-nfs` (readOnly) + `emptyDir` at `/config/transcodes` |
+| Jellyfin | `jellyfin.blackcats.cc` | `lscr.io/linuxserver/jellyfin` | Config PVC (`openebs-hostpath`, pinned to **cp-2** — deliberately not cp-1, where Plex's is) + `media-nfs` (readOnly, except subPath `YouTube` at `/YouTube`, RW) + `emptyDir` at `/config/transcodes` |
 | Suwayomi | `suwayomi.blackcats.cc` | `ghcr.io/suwayomi/suwayomi-server:v2.2.2100` (+ `flaresolverr` v3.5.0) | `suwayomi-config` PVC (`nfs-client`, embedded H2) + `media-nfs` subPath `Manga` (downloads) |
 | Kavita | `kavita.blackcats.cc` | `lscr.io/linuxserver/kavita:0.9.0` | `kavita-config` PVC (`nfs-client`, internal SQLite) + `media-nfs` subPath `Manga` (readOnly) |
 | RomM | `romm.blackcats.cc` | `rommapp/romm:5.0.0` | `romm-config` PVC (`nfs-client`) + `media-nfs` subPath `Games` (ROM library) + `emptyDir` at `/redis-data` — CNPG Postgres for the app DB |
@@ -120,6 +120,7 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | minecraft-proxy | — (LoadBalancer `172.16.20.52:25565`) | `itzg/mc-proxy:java25` (Velocity 3.5.1) | none |
 | minecraft-valkey | — (ClusterIP `:6379`) | `valkey/valkey` | none |
 | minecraft-events | — (no Service) | `ghcr.io/lucid-void/backup-tools` | none |
+| youtube-queue | — (hourly CronJob, no Service) | `ghcr.io/jmbannon/ytdl-sub` | `media-nfs` → `/Media/YouTube` + `emptyDir` scratch — downloads a public/unlisted YouTube playlist into Jellyfin; see `design/decisions/youtube-queue.md` |
 
 Sonarr and Radarr use CNPG Postgres, migrated from SQLite with pgloader. The one-shot
 migration Jobs were deleted once the migration was done — they ran

@@ -190,6 +190,19 @@ Open work only. A finished item is deleted, not struck through.
     settings on until a policy has been proven against a throwaway copy.
 - nftables host firewall on the Talos nodes (default-deny inbound, SSH/node_exporter/
   Promtail allowlist, per-host overrides) — not yet implemented on k8s nodes.
+- **youtube-queue: auto-delete watched videos.** Today watched videos are deleted by
+  hand in Jellyfin. Next step: a small CronJob that asks the Jellyfin API for played
+  items under `/YouTube` older than N days and deletes them. Needs a Jellyfin API key
+  (SealedSecret). See `design/decisions/youtube-queue.md`.
+- **youtube-queue: a broken yt-dlp still exits 0.** ytdl-sub logs the yt-dlp error and
+  reports `Success`, so the CronJob stays green when YouTube breaks the pinned version
+  and `KubeJobFailed` never fires. Fix by grepping the log for `ERROR:` and exiting
+  non-zero, or by alerting when `/Media/YouTube` hasn't changed in N days.
+- **youtube-queue: PO token provider not deployed.** Only needed if downloads start failing
+  with `Sign in to confirm you're not a bot` or 403s on formats. Deploy
+  `bgutil-ytdlp-pot-provider` as a Deployment + Service (not a sidecar, which would keep
+  the Job from finishing), and add its yt-dlp client plugin — it isn't in the ytdl-sub
+  image.
 
 ## Accepted gaps
 
