@@ -16,6 +16,7 @@ resources:
   - ./crosswatch/ks.yml
   - ./suwayomi/ks.yml
   - ./kavita/ks.yml
+  - ./youtube-queue/ks.yml
   - ./romm/database/ks.yml
   - ./romm/ks.yml
   - ./minecraft-proxy/ks.yml

@@ -1,0 +1,24 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: youtube-queue-config
+  namespace: media
+data:
+  config.yaml: |
+    configuration:
+      # Scratch space for in-progress downloads — an emptyDir, so a half-finished
+      # video never lands on the share. Finished files are moved to the output dir.
+      working_directory: /work/.ytdl-sub-working-directory
+  # __PLAYLIST_ID__ is substituted at runtime from youtube-queue-secret. The repo is
+  # public and an unlisted playlist's ID is its only access control.
+  subscriptions.yaml: |
+    __preset__:
+      overrides:
+        # Jellyfin reads this through its own RW mount at /YouTube (subPath YouTube).
+        tv_show_directory: /Media/YouTube
+
+    # One show, "YouTube": seasons by upload year, episodes by upload date.
+    # 1080p cap keeps the emptyDir and the share in check; the iPad doesn't need more.
+    Jellyfin TV Show by Date | Max 1080p:
+      "YouTube": "https://www.youtube.com/playlist?list=__PLAYLIST_ID__"

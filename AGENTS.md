@@ -84,6 +84,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Plex                                                  | design/decisions/plex.md              |
 | Jellyfin the deployment, its Keycloak wiring          | design/decisions/jellyfin.md          |
 | Jellyfin plugins, its theme, the SSO plugin fork      | design/decisions/jellyfin-ui.md       |
+| YouTube → Jellyfin downloads, ytdl-sub              | design/decisions/youtube-queue.md     |
 | watch history sync between Plex and Jellyfin, CrossWatch | design/decisions/watch-sync.md        |
 | sonarr/radarr/prowlarr/sabnzbd/seerr/suwayomi/kavita  | design/decisions/media-stack.md       |
 | Minecraft servers, Velocity proxy, world data         | design/decisions/minecraft.md         |

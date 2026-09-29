@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: youtube-queue-secret
+  namespace: media
+spec:
+  encryptedData:
+    PLAYLIST_ID: AgAbXDATkjBsdA4rwfUV1fP5e8Ng6/1ZXGGmjwTkwKCa9ojJopk2w9N/i7gU7t/IvrAaLGR30gCrl0GWJ7Fub99S0SwBEYwTgGNa7uNFJoJRT3aeVwJ6BJWl8OFTgSetAMq6pITkaD1L8YFATaB/d9DDv/2nqigydZq4stshjBhk4CCP/9o2KeASn0IteeCIBs1lOoTB4gjm4Nkr+D6HFNn9cggEAulJTQkJ8qzJSg5V0KhUPYA/8Uxyx92XVn5F8uDY13GYq65yy6Tx6mnYlLAYs3VazF77iSeGpByZFfn6UnlZvKIlZM7lvezNt8xxYtZ3OS+seAzRTin16lgi4fqijObNojiqoF0lr0lWJuuDCzIq3Eima1xapl5Fn8liO0V+vJJbjrIaHwboeW0jB4ZuqgSdHyLuO87RGjoOBWRZBgqp88ClF1z6/fgFMgzFSfYmO7joBUhP8XZJnHxelrr8wZKLX00xE8cayFx4Isv3ek2W0zbiSV6ebjNK3Bq77womXjkDOR/Fsz+ooEFN+NDDUctDZHAVWWHt+zVXJ1kL1qVQEF7SBTg18qbOHUstPQnN8eyeMLKHOHG7KCN5ooD3XhfHYEflkxZ60Dp0WWMSw6V1LTqyvHUpAdvzMJN9hchW1/6ReV/phGrV3XyaIz9UB9Qxe8yvd6Om+gxWD4/krD+JIfs04xDqWBgNzD6hIz2OZ0xGAID/IR+CAJaF
+  template:
+    metadata:
+      name: youtube-queue-secret
+      namespace: media
