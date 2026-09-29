@@ -90,4 +90,8 @@ spec:
                   memory: 256Mi
                   cpu: 100m
                 limits:
-                  memory: 2Gi
+                  # 2Gi OOMKilled every hourly run against the 956-item backlog before
+                  # a single video downloaded — live cgroup measurement showed 1.8Gi
+                  # used at item 663/956, ~2.6Gi extrapolated for the full metadata
+                  # walk. 4Gi gives headroom; see design/decisions/youtube-queue.md.
+                  memory: 4Gi
