@@ -448,9 +448,9 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 - Modify: `app/main.py`, `app/kustomization.yml` (add `status.py` to `files:`), `tests/test_core.py` (`MainWiringTests`)
 - Modify: `design/decisions/flight-tracker.md`, `design/decisions/monitoring.md` (all under `kubernetes/apps/monitoring/flight-tracker/` or `design/decisions/`)
 
-- [ ] **Step 1: Update `MainWiringTests` first** (in `tests/test_core.py`): add `import status` next to the other imports inside the test, register `status.Status(bot.ctx("status"), lambda q: [])` after alerts, and change the assertion to `["alerts", "fetch", "list", "status", "track", "untrack"]`. Run the suite; expected `OK` (the test builds its own bot, it pins the registry). Confirm `grep -c status kubernetes/apps/monitoring/flight-tracker/app/main.py` is `0`.
+- [x] **Step 1: Update `MainWiringTests` first** (in `tests/test_core.py`): add `import status` next to the other imports inside the test, register `status.Status(bot.ctx("status"), lambda q: [])` after alerts, and change the assertion to `["alerts", "fetch", "list", "status", "track", "untrack"]`. Run the suite; expected `OK` (the test builds its own bot, it pins the registry). Confirm `grep -c status kubernetes/apps/monitoring/flight-tracker/app/main.py` is `0`.
 
-- [ ] **Step 2: Edit `main.py`**: add `import status` after `import flights`; in `main()` add `vm_url = os.environ.get("VM_URL", status.DEFAULT_VM_URL)` after `gotify_host`, and after the alerts registration add:
+- [x] **Step 2: Edit `main.py`**: add `import status` after `import flights`; in `main()` add `vm_url = os.environ.get("VM_URL", status.DEFAULT_VM_URL)` after `gotify_host`, and after the alerts registration add:
 
 ```python
     bot.register(status.Status(bot.ctx("status"), lambda promql: status.vm_query(vm_url, promql)))
@@ -458,7 +458,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 `app/kustomization.yml`: add `- status.py` after `- main.py` in `files:`.
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 ```bash
 python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests
@@ -468,7 +468,7 @@ mise exec -- kubectl kustomize kubernetes/apps/monitoring/flight-tracker/app | g
 
 Expected: `OK`; five files listed; `validate=0`.
 
-- [ ] **Step 4: Local smoke test** (fake tokens, unreachable services; must print `flight-tracker started` and fail only on the network)
+- [x] **Step 4: Local smoke test** (fake tokens, unreachable services; must print `flight-tracker started` and fail only on the network)
 
 ```bash
 cd kubernetes/apps/monitoring/flight-tracker/app
@@ -479,11 +479,11 @@ TELEGRAM_BOT_TOKEN=x TELEGRAM_CHAT_ID=123 AERODATABOX_KEY=x CLIENT_TOKEN=x GOTIF
 rm -rf $D
 ```
 
-- [ ] **Step 5: Docs**
+- [x] **Step 5: Docs**
   - `design/decisions/flight-tracker.md`: add `status.py` to the file list and layout, `/status` to the command summary, and rules: **`/status` relies on `ALERTS`, `kube_pod_status_phase`, `kube_deployment_status_replicas_unavailable` and `kube_cronjob_*`; an unavailable check is red, never green**; **the backup line matches CronJobs by name (`*-backup`, `etcd-snapshot`), so a new backup job with another name is not covered**; **there is no Flux line, because the Flux controllers do not emit per-object Ready metrics** (needs kube-state-metrics custom resource state).
   - `design/decisions/monitoring.md`: read it first, add one sentence in the fitting place: the bot's `/status` reads those series from vmsingle, so renaming or dropping them breaks it.
 
-- [ ] **Step 6: Commit** (tick boxes first)
+- [x] **Step 6: Commit** (tick boxes first)
 
 ```bash
 git add kubernetes/apps/monitoring/flight-tracker design/decisions/flight-tracker.md design/decisions/monitoring.md \
@@ -500,5 +500,5 @@ git status --short
 
 ### Task 3: Final verification (ship needs the user)
 
-- [ ] **Step 1:** Suite green; `git diff --stat main...HEAD` shows only `status.py`, `test_status.py`, `main.py`, `test_core.py`, `kustomization.yml`, the two design files and the plan.
+- [x] **Step 1:** Suite green; `git diff --stat main...HEAD` shows only `status.py`, `test_status.py`, `main.py`, `test_core.py`, `kustomization.yml`, the two design files and the plan.
 - [ ] **Step 2:** Tell the user it is ready and wait for an explicit push instruction. Ship steps when told: `git push origin main` (after a fast-forward merge), `mise exec -- flux reconcile kustomization flight-tracker --with-source`, `kubectl -n monitoring logs deploy/flight-tracker --tail=15`, then `/status` in the chat (expect red while `KubeJobFailed` is firing). Rollback: revert the merge range, push, reconcile.

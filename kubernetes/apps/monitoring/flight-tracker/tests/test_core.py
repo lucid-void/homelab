@@ -263,13 +263,15 @@ class MainWiringTests(unittest.TestCase):
     def test_main_registers_flights_and_alerts_without_clashes(self):
         import alerts
         import flights
+        import status
         import main  # noqa: F401  (import must not run the bot)
         with tempfile.TemporaryDirectory() as d:
             bot = core.Bot(FakeTg(), "123", d)
             bot.register(flights.Flights(bot.ctx("flights"), lambda n, day: [], os.path.join(d, "state.json")))
             bot.register(alerts.Alerts(bot.ctx("alerts"), lambda: []))
+            bot.register(status.Status(bot.ctx("status"), lambda q: []))
             bot.handle_message("/alerts off 4h")
-        self.assertEqual(sorted(bot.commands), ["alerts", "fetch", "list", "track", "untrack"])
+        self.assertEqual(sorted(bot.commands), ["alerts", "fetch", "list", "status", "track", "untrack"])
         self.assertEqual(sorted(bot.callbacks), ["f"])
         self.assertTrue(bot.tg.sent[-1][0].startswith("Alerts: OFF until"))
 
