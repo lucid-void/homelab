@@ -37,7 +37,7 @@ spec:
       containers:
         - name: tracker
           image: python:3.14.7-alpine3.24
-          command: ["python", "-u", "/scripts/tracker.py"]
+          command: ["python", "-u", "/scripts/main.py"]
           env:
             - name: STATE_PATH
               value: /data/state.json

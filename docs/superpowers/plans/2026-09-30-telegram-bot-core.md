@@ -794,7 +794,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 - Consumes: `core.Bot`, `core.Telegram`, `core.log`, `flights.Flights`, `flights.fetch_flight`.
 - Produces: the process entrypoint `python -u /scripts/main.py`.
 
-- [ ] **Step 1: Create `app/main.py`**
+- [x] **Step 1: Create `app/main.py`**
 
 ```python
 #!/usr/bin/env python3
@@ -825,7 +825,7 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 2: Add a wiring test** in `tests/test_core.py` (append before `if __name__`), proving `main` imports and the pieces fit:
+- [x] **Step 2: Add a wiring test** in `tests/test_core.py` (append before `if __name__`), proving `main` imports and the pieces fit:
 
 ```python
 class MainWiringTests(unittest.TestCase):
@@ -842,7 +842,7 @@ class MainWiringTests(unittest.TestCase):
 Run: `python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests`
 Expected: `OK`.
 
-- [ ] **Step 3: Update the manifests**
+- [x] **Step 3: Update the manifests**
 
 In `app/kustomization.yml` change the `files:` list to:
 
@@ -855,7 +855,7 @@ In `app/kustomization.yml` change the `files:` list to:
 
 In `app/deployment.yml` change `command: ["python", "-u", "/scripts/tracker.py"]` to `command: ["python", "-u", "/scripts/main.py"]`. Change nothing else (keep `STATE_PATH`, `strategy: Recreate`, volumes, resources).
 
-- [ ] **Step 4: Verify the rendered ConfigMap and the schema**
+- [x] **Step 4: Verify the rendered ConfigMap and the schema**
 
 ```bash
 cd ~/repos/Homelab
@@ -865,7 +865,7 @@ mise exec -- kubectl kustomize kubernetes/apps/monitoring/flight-tracker/app | g
 
 Expected: the ConfigMap lists `core.py`, `flights.py`, `main.py`; the command line shows `/scripts/main.py`; `type: Recreate` present; the validation script exits 0. If the ConfigMap is missing a file, the `files:` list is wrong.
 
-- [ ] **Step 5: Local start-up smoke test** (no network, proves the process starts and fails only on Telegram, not on imports)
+- [x] **Step 5: Local start-up smoke test** (no network, proves the process starts and fails only on Telegram, not on imports)
 
 ```bash
 cd kubernetes/apps/monitoring/flight-tracker/app
@@ -876,7 +876,7 @@ rm -f /tmp/fs-smoke-state.json /tmp/core.json
 
 Expected: prints `flight-tracker started`, then `getUpdates failed: ...` lines (no network or bad token), and `exit=124` from `timeout`. A Python traceback means a wiring bug: fix before continuing.
 
-- [ ] **Step 6: Commit** (tick boxes first)
+- [x] **Step 6: Commit** (tick boxes first)
 
 ```bash
 git add kubernetes/apps/monitoring/flight-tracker/app/main.py \
