@@ -3,7 +3,9 @@ import os
 import sys
 import tempfile
 import unittest
+import urllib.error
 from datetime import datetime, timedelta, timezone
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 import tracker  # noqa: E402
@@ -447,6 +449,110 @@ class PersistenceTests(unittest.TestCase):
         again = h.make()
         self.assertEqual(again.state["flights"], [])
         self.assertTrue(os.path.exists(h.path + ".corrupt"))
+
+
+def fake_response(body, status=200):
+    resp = mock.MagicMock()
+    resp.status = status
+    resp.read.return_value = body
+    resp.__enter__.return_value = resp
+    return resp
+
+
+class FetchFlightTests(unittest.TestCase):
+    def call(self, side_effect=None, return_value=None):
+        with mock.patch("tracker.urllib.request.urlopen",
+                        side_effect=side_effect, return_value=return_value) as m:
+            try:
+                result = tracker.fetch_flight("LH123", "2026-10-05", "SECRET-KEY")
+            finally:
+                self.request = m.call_args[0][0]
+        return result
+
+    def test_200_returns_the_list(self):
+        self.assertEqual(self.call(return_value=fake_response(b'[{"number": "LH 123"}]')),
+                         [{"number": "LH 123"}])
+        self.assertIn("/flights/number/LH123/2026-10-05", self.request.full_url)
+        self.assertEqual(self.request.get_header("X-rapidapi-key"), "SECRET-KEY")
+
+    def test_204_and_empty_body_mean_no_data(self):
+        self.assertEqual(self.call(return_value=fake_response(b"", 204)), [])
+
+    def test_404_means_no_data(self):
+        err = urllib.error.HTTPError("u", 404, "nf", {}, None)
+        self.assertEqual(self.call(side_effect=err), [])
+
+    def test_server_error_raises_without_leaking_the_key(self):
+        err = urllib.error.HTTPError("https://x/?k=SECRET-KEY", 500, "boom", {}, None)
+        with self.assertRaises(tracker.FetchError) as ctx:
+            self.call(side_effect=err)
+        self.assertNotIn("SECRET-KEY", str(ctx.exception))
+
+    def test_network_error_raises(self):
+        with self.assertRaises(tracker.FetchError):
+            self.call(side_effect=urllib.error.URLError("dns"))
+
+    def test_garbage_body_raises(self):
+        with self.assertRaises(tracker.FetchError):
+            self.call(return_value=fake_response(b"<html>"))
+
+
+class TelegramTests(unittest.TestCase):
+    def test_send_with_buttons_builds_inline_keyboard(self):
+        tg = tracker.Telegram("TOKEN", "123")
+        with mock.patch.object(tg, "_call") as call:
+            tg.send("Which flight?", [("LH123 · 2026-10-05", "f:LH123:2026-10-05")])
+        method, body = call.call_args[0]
+        self.assertEqual(method, "sendMessage")
+        self.assertEqual(body["chat_id"], "123")
+        self.assertEqual(body["reply_markup"],
+                         {"inline_keyboard": [[{"text": "LH123 · 2026-10-05",
+                                                "callback_data": "f:LH123:2026-10-05"}]]})
+
+    def test_send_failure_is_swallowed(self):
+        tg = tracker.Telegram("TOKEN", "123")
+        with mock.patch.object(tg, "_call", side_effect=OSError("down")):
+            tg.send("hi")  # must not raise
+
+
+class Recorder:
+    def __init__(self):
+        self.messages, self.callbacks, self.answered = [], [], []
+
+    def handle_message(self, text):
+        self.messages.append(text)
+
+    def handle_callback(self, data):
+        self.callbacks.append(data)
+
+
+class DispatchTests(unittest.TestCase):
+    def setUp(self):
+        self.r = Recorder()
+
+    def go(self, update):
+        tracker.dispatch(update, "123", self.r, self.r.answered.append)
+
+    def test_message_from_owner_is_handled(self):
+        self.go({"message": {"chat": {"id": 123}, "text": "/list"}})
+        self.assertEqual(self.r.messages, ["/list"])
+
+    def test_message_from_stranger_is_ignored(self):
+        self.go({"message": {"chat": {"id": 999}, "text": "/list"}})
+        self.assertEqual(self.r.messages, [])
+
+    def test_button_from_owner_is_answered_and_handled(self):
+        self.go({"callback_query": {"id": "cb1", "from": {"id": 123}, "data": "f:LH123:2026-10-05"}})
+        self.assertEqual(self.r.answered, ["cb1"])
+        self.assertEqual(self.r.callbacks, ["f:LH123:2026-10-05"])
+
+    def test_button_from_stranger_is_ignored(self):
+        self.go({"callback_query": {"id": "cb1", "from": {"id": 999}, "data": "f:LH123:2026-10-05"}})
+        self.assertEqual((self.r.answered, self.r.callbacks), ([], []))
+
+    def test_unknown_update_kinds_are_ignored(self):
+        self.go({"edited_message": {"chat": {"id": 123}}})
+        self.assertEqual((self.r.messages, self.r.callbacks), ([], []))
 
 
 if __name__ == "__main__":

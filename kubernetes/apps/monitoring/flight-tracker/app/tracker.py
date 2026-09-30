@@ -487,3 +487,111 @@ class Tracker:
                         self._save()
                     continue
                 self._apply(flight, snap, now, notify=True)
+
+
+# ---------- network edges ----------
+
+def fetch_flight(number, day, key, timeout=20):
+    """One AeroDataBox lookup. [] means the API has no data; FetchError means it failed."""
+    url = (f"https://{API_HOST}/flights/number/{number}/{day}"
+           "?dateLocalRole=Departure&withAircraftImage=false&withLocation=false")
+    req = urllib.request.Request(url, headers={"x-rapidapi-key": key, "x-rapidapi-host": API_HOST})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read()
+            if resp.status == 204 or not body:
+                return []
+            return json.loads(body)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return []
+        raise FetchError(f"HTTP {e.code}") from None
+    except (OSError, ValueError) as e:
+        raise FetchError(type(e).__name__) from None
+
+
+class Telegram:
+    def __init__(self, token, chat_id):
+        self.token, self.chat_id = token, chat_id
+
+    def _call(self, method, body, timeout=20):
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{self.token}/{method}",
+            data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.load(resp)
+
+    def send(self, text, buttons=None):
+        body = {"chat_id": self.chat_id, "text": text}
+        if buttons:
+            body["reply_markup"] = {"inline_keyboard": [
+                [{"text": label, "callback_data": data}] for label, data in buttons]}
+        try:
+            self._call("sendMessage", body)
+        except (OSError, ValueError) as e:
+            log(f"send failed: {type(e).__name__}")
+
+    def answer(self, callback_id):
+        try:
+            self._call("answerCallbackQuery", {"callback_query_id": callback_id})
+        except (OSError, ValueError) as e:
+            log(f"answer failed: {type(e).__name__}")
+
+    def updates(self, offset):
+        body = {"offset": offset, "timeout": 50, "allowed_updates": ["message", "callback_query"]}
+        return self._call("getUpdates", body, timeout=65)["result"]
+
+
+def dispatch(update, chat_id, tracker, answer):
+    """Route one Telegram update. Anything not from the owner's chat is ignored."""
+    msg = update.get("message")
+    if msg and str(msg.get("chat", {}).get("id")) == chat_id:
+        tracker.handle_message(msg.get("text"))
+        return
+    cq = update.get("callback_query")
+    if cq and str(cq.get("from", {}).get("id")) == chat_id:
+        answer(cq.get("id"))
+        tracker.handle_callback(cq.get("data"))
+
+
+# ---------- main ----------
+
+def scheduler_loop(tracker):
+    while True:
+        try:
+            tracker.poll_due()
+        except Exception as e:  # keep the scheduler alive
+            log(f"poll failed: {type(e).__name__}")
+        time.sleep(60)
+
+
+def receiver_loop(tracker, tg, chat_id):
+    while True:
+        try:
+            updates = tg.updates(tracker.state["offset"])
+        except (OSError, ValueError, KeyError) as e:
+            log(f"getUpdates failed: {type(e).__name__}")
+            time.sleep(30)
+            continue
+        for update in updates:
+            tracker.set_offset(update["update_id"] + 1)
+            try:
+                dispatch(update, chat_id, tracker, tg.answer)
+            except Exception as e:  # a bad update must not kill the bot
+                log(f"update failed: {type(e).__name__}")
+
+
+def run():
+    token = os.environ["TELEGRAM_BOT_TOKEN"]
+    chat_id = os.environ["TELEGRAM_CHAT_ID"]
+    key = os.environ["AERODATABOX_KEY"]
+    path = os.environ.get("STATE_PATH", "/data/state.json")
+    tg = Telegram(token, chat_id)
+    tracker = Tracker(path, lambda number, day: fetch_flight(number, day, key), tg.send)
+    threading.Thread(target=scheduler_loop, args=(tracker,), daemon=True).start()
+    log("flight-tracker started")
+    receiver_loop(tracker, tg, chat_id)
+
+
+if __name__ == "__main__":
+    run()
