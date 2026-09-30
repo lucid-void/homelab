@@ -1223,6 +1223,12 @@ class FetchFlightTests(unittest.TestCase):
         self.assertIn("/flights/number/LH123/2026-10-05", self.request.full_url)
         self.assertEqual(self.request.get_header("X-rapidapi-key"), "SECRET-KEY")
 
+    def test_sends_a_custom_user_agent(self):
+        # Cloudflare in front of RapidAPI answers 403 (code 1010) to Python's default one.
+        self.call(return_value=fake_response(b"[]"))
+        agent = self.request.get_header("User-agent")
+        self.assertTrue(agent and not agent.startswith("Python-urllib"))
+
     def test_204_and_empty_body_mean_no_data(self):
         self.assertEqual(self.call(return_value=fake_response(b"", 204)), [])
 
@@ -1319,7 +1325,11 @@ def fetch_flight(number, day, key, timeout=20):
     """One AeroDataBox lookup. [] means the API has no data; FetchError means it failed."""
     url = (f"https://{API_HOST}/flights/number/{number}/{day}"
            "?dateLocalRole=Departure&withAircraftImage=false&withLocation=false")
-    req = urllib.request.Request(url, headers={"x-rapidapi-key": key, "x-rapidapi-host": API_HOST})
+    req = urllib.request.Request(url, headers={
+        "x-rapidapi-key": key,
+        "x-rapidapi-host": API_HOST,
+        "user-agent": "homelab-flight-tracker/1",  # the default Python UA gets a Cloudflare 403 (1010)
+    })
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             body = resp.read()
