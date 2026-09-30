@@ -21,7 +21,10 @@ spec:
   jobTemplate:
     spec:
       # Under the hour, so a stuck run can't collide with the next one's slot.
-      activeDeadlineSeconds: 3300
+      # Was 3300 — several runs hit this deadline mid-download once the 4Gi memory
+      # fix let them get that far (YouTube-side throttling makes walk time variable).
+      # 3550 buys more margin, still under the :17 to :17 hourly slot.
+      activeDeadlineSeconds: 3550
       backoffLimit: 0
       ttlSecondsAfterFinished: 86400
       template:
