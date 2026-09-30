@@ -67,7 +67,7 @@ Inputs the spec implies but a straight implementation would not test. Each has a
 
 **Files:** none changed.
 
-- [ ] **Step 1: Create the working branch** (the plan and spec are already committed on `main`)
+- [x] **Step 1: Create the working branch** (the plan and spec are already committed on `main`)
 
 ```bash
 cd ~/repos/Homelab
@@ -77,12 +77,12 @@ git status --short
 
 Expected: `M design/decisions/jellyfin.md` and `M design/docs/storage.md` carried over. Leave them alone.
 
-- [ ] **Step 2: Confirm the baseline is green**
+- [x] **Step 2: Confirm the baseline is green**
 
 Run: `python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests`
 Expected: `Ran 88 tests` ... `OK`
 
-- [ ] **Step 3: Find every reference to the files being renamed**
+- [x] **Step 3: Find every reference to the files being renamed**
 
 ```bash
 grep -rn "tracker\.py\|test_tracker" --exclude-dir=.git --exclude-dir=__pycache__ . | grep -v "docs/superpowers"
@@ -108,7 +108,7 @@ Write down each hit outside `kubernetes/apps/monitoring/flight-tracker/`. Task 5
   - Module protocol: attributes `name: str`, `help: list[str]`, `commands: dict[str, fn(args: list[str])]`, `callbacks: dict[str, fn(parts: list[str])]`, optional `start()`
 - Note: `tracker.py` is untouched in this task and still has its own copies of `parse_command`, `Telegram` and `dispatch`. That duplication ends in Task 2.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `kubernetes/apps/monitoring/flight-tracker/tests/test_core.py`:
 
@@ -378,12 +378,12 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests -p 'test_core.py'`
 Expected: `ModuleNotFoundError: No module named 'core'`
 
-- [ ] **Step 3: Write `core.py`**
+- [x] **Step 3: Write `core.py`**
 
 Create `kubernetes/apps/monitoring/flight-tracker/app/core.py`:
 
@@ -574,12 +574,12 @@ class Bot:
                 time.sleep(30)
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests`
 Expected: `OK`. The old `test_tracker.py` still passes (88 tests) plus the new core tests.
 
-- [ ] **Step 5: Commit** (also tick this task's boxes in this plan file first)
+- [x] **Step 5: Commit** (also tick this task's boxes in this plan file first)
 
 ```bash
 git add kubernetes/apps/monitoring/flight-tracker/app/core.py \
