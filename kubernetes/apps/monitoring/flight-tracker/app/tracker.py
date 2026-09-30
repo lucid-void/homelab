@@ -495,7 +495,11 @@ def fetch_flight(number, day, key, timeout=20):
     """One AeroDataBox lookup. [] means the API has no data; FetchError means it failed."""
     url = (f"https://{API_HOST}/flights/number/{number}/{day}"
            "?dateLocalRole=Departure&withAircraftImage=false&withLocation=false")
-    req = urllib.request.Request(url, headers={"x-rapidapi-key": key, "x-rapidapi-host": API_HOST})
+    req = urllib.request.Request(url, headers={
+        "x-rapidapi-key": key,
+        "x-rapidapi-host": API_HOST,
+        "user-agent": "homelab-flight-tracker/1",  # the default Python UA gets a Cloudflare 403 (1010)
+    })
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             body = resp.read()

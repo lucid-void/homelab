@@ -475,6 +475,12 @@ class FetchFlightTests(unittest.TestCase):
         self.assertIn("/flights/number/LH123/2026-10-05", self.request.full_url)
         self.assertEqual(self.request.get_header("X-rapidapi-key"), "SECRET-KEY")
 
+    def test_sends_a_custom_user_agent(self):
+        # Cloudflare in front of RapidAPI answers 403 (code 1010) to Python's default one.
+        self.call(return_value=fake_response(b"[]"))
+        agent = self.request.get_header("User-agent")
+        self.assertTrue(agent and not agent.startswith("Python-urllib"))
+
     def test_204_and_empty_body_mean_no_data(self):
         self.assertEqual(self.call(return_value=fake_response(b"", 204)), [])
 
