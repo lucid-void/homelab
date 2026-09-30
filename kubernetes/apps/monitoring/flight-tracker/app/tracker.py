@@ -229,3 +229,261 @@ def finish_reason(now, flight):
     if end and now > end:
         return "no data after the arrival window"
     return None
+
+
+# ---------- the tracker ----------
+
+class FetchError(Exception):
+    """The API call failed (HTTP error, timeout, unreadable body)."""
+
+
+class Tracker:
+    def __init__(self, path, fetch, send, now=lambda: datetime.now(UTC)):
+        self.path, self.fetch, self.send, self.now = path, fetch, send, now
+        self.lock = threading.RLock()
+        self.state = self._load()
+
+    # -- persistence --
+
+    def _load(self):
+        try:
+            with open(self.path) as f:
+                state = json.load(f)
+        except FileNotFoundError:
+            state = {}
+        except json.JSONDecodeError:
+            os.replace(self.path, self.path + ".corrupt")
+            log("state file corrupt, moved aside")
+            state = {}
+        state.setdefault("flights", [])
+        state.setdefault("offset", 0)
+        state.setdefault("failing", False)
+        state.setdefault("usage", {"month": None, "units": 0, "warned": False, "paused_notified": False})
+        return state
+
+    def _save(self):
+        tmp = self.path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(self.state, f)
+        os.replace(tmp, self.path)
+
+    def set_offset(self, offset):
+        with self.lock:
+            self.state["offset"] = offset
+            self._save()
+
+    # -- API budget --
+
+    def _roll(self, now):
+        usage = self.state["usage"]
+        month = now.strftime("%Y-%m")
+        if usage["month"] != month:
+            usage.update(month=month, units=0, warned=False, paused_notified=False)
+        return usage
+
+    def _paused(self, now):
+        return self._roll(now)["units"] >= PAUSE_AT * MONTHLY_UNITS
+
+    def _spend(self, now):
+        usage = self._roll(now)
+        usage["units"] += UNITS_PER_CALL
+        if usage["units"] >= PAUSE_AT * MONTHLY_UNITS and not usage["paused_notified"]:
+            usage["warned"] = usage["paused_notified"] = True
+            self.send(f"API budget 95% used ({usage['units']}/{MONTHLY_UNITS} units): "
+                      "scheduled checks paused, /fetch still works")
+        elif usage["units"] >= WARN_AT * MONTHLY_UNITS and not usage["warned"]:
+            usage["warned"] = True
+            self.send(f"API budget 80% used ({usage['units']}/{MONTHLY_UNITS} units)")
+
+    def _lookup(self, number, day, now):
+        """One API call. Returns a snapshot, or None on any failure or empty answer."""
+        self._roll(now)
+        try:
+            raw = self.fetch(number, day)
+        except FetchError:
+            raw = None
+        self._spend(now)
+        snap = parse_leg(raw)
+        if snap is not None:
+            self.state["failing"] = False
+        self._save()
+        return snap
+
+    # -- helpers --
+
+    def _find(self, number, day):
+        for f in self.state["flights"]:
+            if f["number"] == number and f["date"] == day:
+                return f
+        return None
+
+    def _matches(self, number, day):
+        return [f for f in self.state["flights"]
+                if f["number"] == number and (day is None or f["date"] == day)]
+
+    def _sorted(self):
+        def key(f):
+            d = f["snapshot"]["dep"]
+            return d["est_utc"] or d["sched_utc"] or ""
+        return sorted(self.state["flights"], key=key)
+
+    def _schedule(self, flight, now):
+        snap = flight["snapshot"]
+        if snap["status"] == "Arrived" and not flight.get("arrived_seen"):
+            flight["arrived_seen"] = now.isoformat()
+        flight["next_poll"] = (now + poll_interval(now, snap)).isoformat()
+
+    def _apply(self, flight, snap, now, notify):
+        old = flight["snapshot"]
+        snap = suppress_jitter(old, snap)
+        changes = diff_snapshots(old, snap)
+        flight["snapshot"] = snap
+        self._schedule(flight, now)
+        self._save()
+        if notify and changes:
+            self.send(format_changes(flight["number"], flight["date"], changes))
+
+    def _hard_fetch(self, flight):
+        now = self.now()
+        snap = self._lookup(flight["number"], flight["date"], now)
+        if snap is None:
+            self.send(FAILED)
+            return
+        self.send(format_snapshot(flight["number"], flight["date"], snap))
+        self._apply(flight, snap, now, notify=False)
+
+    def _choose(self, flights):
+        buttons = [(f"{f['number']} · {f['date']}", f"f:{f['number']}:{f['date']}") for f in flights]
+        self.send("Which flight?", buttons)
+
+    # -- commands --
+
+    def handle_message(self, text):
+        cmd = parse_command(text)
+        if cmd is None:
+            return
+        name, args = cmd
+        with self.lock:
+            if name == "track":
+                self._track(args)
+            elif name == "untrack":
+                self._untrack(args)
+            elif name == "list":
+                self._list()
+            elif name == "fetch":
+                self._fetch_cmd(args)
+            else:
+                self.send(HELP)
+
+    def handle_callback(self, data):
+        parts = (data or "").split(":")
+        if len(parts) != 3 or parts[0] != "f":
+            return
+        with self.lock:
+            flight = self._find(parts[1], parts[2])
+            if flight is None:
+                self.send(f"Not tracked: {parts[1]}")
+                return
+            self._hard_fetch(flight)
+
+    def _track(self, args):
+        parsed = parse_track_args(args)
+        if parsed is None:
+            self.send("Usage: /track LH123 2026-10-05")
+            return
+        number, day = parsed
+        now = self.now()
+        if self._find(number, day):
+            self.send(f"Already tracking {number} {day}")
+            return
+        if date.fromisoformat(day) < now.date() - timedelta(days=1):
+            self.send("That date is in the past")
+            return
+        snap = self._lookup(number, day, now)
+        if snap is None:
+            self.send(FAILED)
+            return
+        flight = {"number": number, "date": day, "snapshot": snap,
+                  "next_poll": None, "arrived_seen": None}
+        self._schedule(flight, now)
+        self.state["flights"].append(flight)
+        self._save()
+        self.send(format_snapshot(number, day, snap))
+
+    def _untrack(self, args):
+        ref = parse_ref(args)
+        if ref is None:
+            self.send("Usage: /untrack LH123")
+            return
+        number, day = ref
+        matches = self._matches(number, day)
+        if not matches:
+            self.send(f"Not tracked: {number}")
+        elif len(matches) > 1:
+            self.send(f"Several dates tracked, use /untrack {number} <date>")
+        else:
+            self.state["flights"].remove(matches[0])
+            self._save()
+            self.send(f"Stopped tracking {number} {matches[0]['date']}")
+
+    def _list(self):
+        flights = self._sorted()
+        if not flights:
+            self.send(NO_FLIGHTS)
+            return
+        lines = []
+        for f in flights:
+            s = f["snapshot"]
+            nxt = _utc(f["next_poll"])
+            when = nxt.strftime("%H:%M UTC") if nxt else "—"
+            lines.append(f"{f['number']} · {f['date']} · {s['status']}"
+                         f" · dep {fmt_time(s['dep']['est'] or s['dep']['sched'])} · next check {when}")
+        units = self._roll(self.now())["units"]
+        lines.append(f"API units this month: {units}/{MONTHLY_UNITS}")
+        self.send("\n".join(lines))
+
+    def _fetch_cmd(self, args):
+        if not args:
+            flights = self._sorted()
+        else:
+            ref = parse_ref(args)
+            if ref is None:
+                self.send("Usage: /fetch [LH123]")
+                return
+            flights = self._matches(*ref)
+            if not flights:
+                self.send(f"Not tracked: {ref[0]}")
+                return
+        if not flights:
+            self.send(NO_FLIGHTS)
+        elif len(flights) == 1:
+            self._hard_fetch(flights[0])
+        else:
+            self._choose(flights)
+
+    # -- scheduler --
+
+    def poll_due(self):
+        with self.lock:
+            now = self.now()
+            for flight in list(self.state["flights"]):
+                reason = finish_reason(now, flight)
+                if reason:
+                    self.state["flights"].remove(flight)
+                    self._save()
+                    self.send(f"Stopped tracking {flight['number']} {flight['date']}: {reason}")
+                    continue
+                due = _utc(flight["next_poll"])
+                if (due and now < due) or self._paused(now):
+                    continue
+                snap = self._lookup(flight["number"], flight["date"], now)
+                if snap is None:
+                    flight["next_poll"] = (now + RETRY_AFTER_FAILURE).isoformat()
+                    if not self.state["failing"]:
+                        self.state["failing"] = True
+                        self._save()
+                        self.send(FAILED)
+                    else:
+                        self._save()
+                    continue
+                self._apply(flight, snap, now, notify=True)
