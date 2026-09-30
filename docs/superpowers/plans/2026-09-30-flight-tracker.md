@@ -1525,6 +1525,7 @@ resources:
   - ./aerodatabox-sealed.yml
 configMapGenerator:
   - name: flight-tracker-script
+    namespace: monitoring   # must match the Deployment's namespace or the hashed name is not propagated
     files:
       - tracker.py
 ```
