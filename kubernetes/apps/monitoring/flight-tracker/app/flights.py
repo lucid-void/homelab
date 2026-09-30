@@ -9,6 +9,8 @@ import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 
+from core import log
+
 UTC = timezone.utc
 API_HOST = "aerodatabox.p.rapidapi.com"
 UNITS_PER_CALL = 2  # confirmed in Task 1: x-ratelimit-api-units drops by 2 per call
@@ -23,27 +25,9 @@ PRE_DEPARTURE = {"Unknown", "Expected", "CheckIn", "Boarding", "GateClosed", "De
 CANCELLED = {"Canceled", "CanceledUncertain"}
 FLIGHT_RE = re.compile(r"^([A-Z0-9]{2})0*(\d{1,4})([A-Z]?)$")  # leading zeros dropped: SK0486 == SK486
 TIME_LABELS = {"Dep scheduled", "Dep expected", "Arr scheduled", "Arr expected"}
-HELP = (
-    "/track LH123 2026-10-05 - start tracking a flight\n"
-    "/untrack LH123 - stop tracking\n"
-    "/list - tracked flights\n"
-    "/fetch - refresh a tracked flight now (pick from the list)\n"
-    "/fetch LH123 - refresh that flight now"
-)
-
-
-def log(msg):
-    print(msg, flush=True)
 
 
 # ---------- parsing ----------
-
-def parse_command(text):
-    parts = (text or "").split()
-    if not parts or not parts[0].startswith("/"):
-        return None
-    return parts[0][1:].split("@")[0].lower(), parts[1:]
-
 
 def normalize_flight_number(text):
     match = FLIGHT_RE.match(re.sub(r"\s+", "", text or "").upper())
@@ -268,7 +252,6 @@ class Tracker:
             log("state file corrupt, moved aside")
             state = {}
         state.setdefault("flights", [])
-        state.setdefault("offset", 0)
         state.setdefault("failing", False)
         state.setdefault("usage", {"month": None, "units": 0, "warned": False, "paused_notified": False})
         return state
@@ -278,11 +261,6 @@ class Tracker:
         with open(tmp, "w") as f:
             json.dump(self.state, f)
         os.replace(tmp, self.path)
-
-    def set_offset(self, offset):
-        with self.lock:
-            self.state["offset"] = offset
-            self._save()
 
     # -- API budget --
 
@@ -371,34 +349,6 @@ class Tracker:
         self.send("Which flight?", buttons)
 
     # -- commands --
-
-    def handle_message(self, text):
-        cmd = parse_command(text)
-        if cmd is None:
-            return
-        name, args = cmd
-        with self.lock:
-            if name == "track":
-                self._track(args)
-            elif name == "untrack":
-                self._untrack(args)
-            elif name == "list":
-                self._list()
-            elif name == "fetch":
-                self._fetch_cmd(args)
-            else:
-                self.send(HELP)
-
-    def handle_callback(self, data):
-        parts = (data or "").split(":")
-        if len(parts) != 3 or parts[0] != "f":
-            return
-        with self.lock:
-            flight = self._find(parts[1], parts[2])
-            if flight is None:
-                self.send(f"Not tracked: {parts[1]}")
-                return
-            self._hard_fetch(flight)
 
     def _track(self, args):
         parsed = parse_track_args(args)
@@ -533,51 +483,7 @@ def fetch_flight(number, day, key, timeout=20):
         raise FetchError(type(e).__name__) from None
 
 
-class Telegram:
-    def __init__(self, token, chat_id):
-        self.token, self.chat_id = token, chat_id
-
-    def _call(self, method, body, timeout=20):
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{self.token}/{method}",
-            data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.load(resp)
-
-    def send(self, text, buttons=None):
-        body = {"chat_id": self.chat_id, "text": text}
-        if buttons:
-            body["reply_markup"] = {"inline_keyboard": [
-                [{"text": label, "callback_data": data}] for label, data in buttons]}
-        try:
-            self._call("sendMessage", body)
-        except (OSError, ValueError) as e:
-            log(f"send failed: {type(e).__name__}")
-
-    def answer(self, callback_id):
-        try:
-            self._call("answerCallbackQuery", {"callback_query_id": callback_id})
-        except (OSError, ValueError) as e:
-            log(f"answer failed: {type(e).__name__}")
-
-    def updates(self, offset):
-        body = {"offset": offset, "timeout": 50, "allowed_updates": ["message", "callback_query"]}
-        return self._call("getUpdates", body, timeout=65)["result"]
-
-
-def dispatch(update, chat_id, tracker, answer):
-    """Route one Telegram update. Anything not from the owner's chat is ignored."""
-    msg = update.get("message")
-    if msg and str(msg.get("chat", {}).get("id")) == chat_id:
-        tracker.handle_message(msg.get("text"))
-        return
-    cq = update.get("callback_query")
-    if cq and str(cq.get("from", {}).get("id")) == chat_id:
-        answer(cq.get("id"))
-        tracker.handle_callback(cq.get("data"))
-
-
-# ---------- main ----------
+# ---------- module ----------
 
 def scheduler_loop(tracker):
     while True:
@@ -588,33 +494,44 @@ def scheduler_loop(tracker):
         time.sleep(60)
 
 
-def receiver_loop(tracker, tg, chat_id):
-    while True:
-        try:
-            updates = tg.updates(tracker.state["offset"])
-        except (OSError, ValueError, KeyError) as e:
-            log(f"getUpdates failed: {type(e).__name__}")
-            time.sleep(30)
-            continue
-        for update in updates:
-            tracker.set_offset(update["update_id"] + 1)
-            try:
-                dispatch(update, chat_id, tracker, tg.answer)
-            except Exception as e:  # a bad update must not kill the bot
-                log(f"update failed: {type(e).__name__}")
+class Flights:
+    """The flight tracker as a bot module: wires Tracker's handlers into the core registry."""
 
+    name = "flights"
+    help = [
+        "/track LH123 2026-10-05 - start tracking a flight",
+        "/untrack LH123 - stop tracking",
+        "/list - tracked flights",
+        "/fetch - refresh a tracked flight now (pick from the list)",
+        "/fetch LH123 - refresh that flight now",
+    ]
 
-def run():
-    token = os.environ["TELEGRAM_BOT_TOKEN"]
-    chat_id = os.environ["TELEGRAM_CHAT_ID"]
-    key = os.environ["AERODATABOX_KEY"]
-    path = os.environ.get("STATE_PATH", "/data/state.json")
-    tg = Telegram(token, chat_id)
-    tracker = Tracker(path, lambda number, day: fetch_flight(number, day, key), tg.send)
-    threading.Thread(target=scheduler_loop, args=(tracker,), daemon=True).start()
-    log("flight-tracker started")
-    receiver_loop(tracker, tg, chat_id)
+    def __init__(self, ctx, fetch, state_path, now=lambda: datetime.now(UTC)):
+        self.tracker = Tracker(state_path, fetch, ctx.send, now)
+        self.commands = {
+            "track": self._locked(self.tracker._track),
+            "untrack": self._locked(self.tracker._untrack),
+            "list": self._locked(lambda args: self.tracker._list()),
+            "fetch": self._locked(self.tracker._fetch_cmd),
+        }
+        self.callbacks = {"f": self._fetch_button}
 
+    def _locked(self, fn):
+        def run(args):
+            with self.tracker.lock:
+                fn(args)
+        return run
 
-if __name__ == "__main__":
-    run()
+    def _fetch_button(self, parts):
+        if len(parts) != 2:
+            return
+        number, day = parts
+        with self.tracker.lock:
+            flight = self.tracker._find(number, day)
+            if flight is None:
+                self.tracker.send(f"Not tracked: {number}")
+                return
+            self.tracker._hard_fetch(flight)
+
+    def start(self):
+        threading.Thread(target=scheduler_loop, args=(self.tracker,), daemon=True).start()
