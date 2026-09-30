@@ -48,6 +48,8 @@ spec:
                 name: telegram-secret
             - secretRef:
                 name: aerodatabox-secret
+            - secretRef:
+                name: gotify-client-secret
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

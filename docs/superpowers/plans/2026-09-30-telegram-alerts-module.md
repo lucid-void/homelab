@@ -572,7 +572,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 **Interfaces:** Consumes `alerts.Alerts`, `alerts.fetch_messages`.
 
-- [ ] **Step 1: Update the wiring test first** (in `tests/test_core.py`, replace `MainWiringTests`)
+- [x] **Step 1: Update the wiring test first** (in `tests/test_core.py`, replace `MainWiringTests`)
 
 ```python
 class MainWiringTests(unittest.TestCase):
@@ -593,7 +593,7 @@ class MainWiringTests(unittest.TestCase):
 Run the suite. Expected: this test PASSES already if Task 1 is done (it only uses classes); that is fine, it pins the registry. Then confirm `main.py` does not yet register alerts:
 `grep -c alerts kubernetes/apps/monitoring/flight-tracker/app/main.py` → `0`.
 
-- [ ] **Step 2: Edit `main.py`** to read the client token and register the module
+- [x] **Step 2: Edit `main.py`** to read the client token and register the module
 
 Replace the body of `main()` with:
 
@@ -619,7 +619,7 @@ def main():
 
 and add `import alerts` above `import core`.
 
-- [ ] **Step 3: Manifests**
+- [x] **Step 3: Manifests**
 
 `app/kustomization.yml`: add `- alerts.py` to the `files:` list (order: `alerts.py`, `core.py`, `flights.py`, `main.py`).
 
@@ -645,7 +645,7 @@ git rm kubernetes/apps/monitoring/gotify-telegram/app/deployment.yml \
        kubernetes/apps/monitoring/gotify-telegram/app/script-configmap.yml
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests
@@ -657,7 +657,7 @@ mise exec -- kubectl kustomize kubernetes/apps/monitoring/gotify-telegram/app | 
 
 Expected: suite `OK`; the ConfigMap lists four files; `gotify-client-secret` and `type: Recreate` present; the gotify-telegram render shows only the `SealedSecret` `telegram-secret`; both validate scripts exit 0.
 
-- [ ] **Step 5: Local start-up smoke test** (fake tokens; must print `flight-tracker started` and fail only on the network)
+- [x] **Step 5: Local start-up smoke test** (fake tokens; must print `flight-tracker started` and fail only on the network)
 
 ```bash
 cd kubernetes/apps/monitoring/flight-tracker/app
@@ -670,7 +670,7 @@ rm -rf $D
 
 Expected: `flight-tracker started`, then `getUpdates failed: ...` and `gotify poll failed: URLError` (or `OSError` subclass name). A traceback means a wiring bug.
 
-- [ ] **Step 6: Commit** (tick boxes first)
+- [x] **Step 6: Commit** (tick boxes first)
 
 ```bash
 git add kubernetes/apps/monitoring/flight-tracker kubernetes/apps/monitoring/gotify-telegram \
