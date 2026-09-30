@@ -603,7 +603,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 - Consumes: `core.log`, `core.Bot`, `core.Ctx` from Task 1.
 - Produces (used by Task 3): `flights.Flights(ctx, fetch, state_path, now=<utc clock>)` implementing the module protocol (`name = "flights"`, `help`, `commands` = `track`/`untrack`/`list`/`fetch`, `callbacks` = `{"f": ...}`, `start()`), attribute `.tracker`; `flights.fetch_flight(number, day, key, timeout=20)` unchanged.
 
-- [ ] **Step 1: Rename with git mv**
+- [x] **Step 1: Rename with git mv**
 
 ```bash
 cd ~/repos/Homelab/kubernetes/apps/monitoring/flight-tracker
@@ -611,7 +611,7 @@ git mv app/tracker.py app/flights.py
 git mv tests/test_tracker.py tests/test_flights.py
 ```
 
-- [ ] **Step 2: Strip the parts that moved to the core, in `app/flights.py`**
+- [x] **Step 2: Strip the parts that moved to the core, in `app/flights.py`**
 
 Make these edits (line numbers are from the original `tracker.py`; match on the text):
 
@@ -628,7 +628,7 @@ Make these edits (line numbers are from the original `tracker.py`; match on the 
 6. In `Tracker`, delete `handle_message` and `handle_callback` (the `# -- commands --` section keeps `_track`, `_untrack`, `_list`, `_fetch_cmd`).
 7. Delete from `class Telegram:` through the end of the file **except** `scheduler_loop`. That removes `Telegram`, `dispatch`, `receiver_loop`, `run` and the `if __name__ == "__main__":` block. Keep the `# ---------- main ----------` header renamed to `# ---------- module ----------` and keep `scheduler_loop` exactly as is.
 
-- [ ] **Step 3: Add the `Flights` module at the end of `app/flights.py`**
+- [x] **Step 3: Add the `Flights` module at the end of `app/flights.py`**
 
 ```python
 class Flights:
@@ -674,7 +674,7 @@ class Flights:
         threading.Thread(target=scheduler_loop, args=(self.tracker,), daemon=True).start()
 ```
 
-- [ ] **Step 4: Rewire the tests in `tests/test_flights.py`**
+- [x] **Step 4: Rewire the tests in `tests/test_flights.py`**
 
 1. Replace the line `import tracker  # noqa: E402` with two lines:
    ```python
@@ -761,14 +761,14 @@ class Flights:
            self.assertEqual(self.h.texts(), ["Not tracked: ZZ9"])
    ```
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run (from repo root): `python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests`
 Expected: `OK`, zero failures. `test_flights.py` should have about 79 tests (88 minus the 9 moved) plus the 5 new ones; the exact number is not the check, zero failures is.
 
 If a flights test fails on `handle_message` / `handle_callback` / `tracker.` leftovers, fix that call site by hand; do not weaken any assertion.
 
-- [ ] **Step 6: Commit** (tick boxes first)
+- [x] **Step 6: Commit** (tick boxes first)
 
 ```bash
 git add kubernetes/apps/monitoring/flight-tracker/app/flights.py \
