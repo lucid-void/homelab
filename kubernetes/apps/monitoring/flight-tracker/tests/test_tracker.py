@@ -134,8 +134,41 @@ class ScheduleTests(unittest.TestCase):
     def interval(self, now, **kw):
         return tracker.poll_interval(now, snap(**kw))
 
-    def test_far_out_polls_every_two_days(self):
-        self.assertEqual(self.interval(datetime(2026, 10, 1, 8, 15, tzinfo=UTC)), timedelta(hours=48))
+    def test_far_out_lands_on_the_72h_boundary(self):
+        self.assertEqual(self.interval(datetime(2026, 10, 1, 8, 15, tzinfo=UTC)), timedelta(hours=24))
+
+    def test_very_far_out_polls_every_two_days(self):
+        self.assertEqual(self.interval(datetime(2026, 9, 27, 8, 15, tzinfo=UTC)), timedelta(hours=48))
+
+    def untils(self, hours_before, **kw):
+        """Time-to-departure at every poll of a flight first seen `hours_before` departure."""
+        s = snap(**kw)
+        dep = datetime(2026, 10, 5, 8, 15, tzinfo=UTC)
+        now, out = dep - timedelta(hours=hours_before), []
+        while now < dep:
+            out.append(dep - now)
+            now += tracker.poll_interval(now, s)
+        return out
+
+    def test_no_window_is_skipped(self):
+        # Gates are published 1-3 h out; a poll must land in the 6h-2h window
+        # and in the last 2 h whatever the moment the flight was added.
+        for hours in (100, 30.2, 18.5, 7.0):
+            untils = self.untils(hours)
+            self.assertTrue(any(timedelta(hours=2) <= u <= timedelta(hours=6, minutes=10) for u in untils),
+                            (hours, untils))
+            self.assertTrue(any(timedelta(0) < u <= timedelta(hours=2) for u in untils), (hours, untils))
+
+    def test_call_count_stays_near_the_budget(self):
+        self.assertLessEqual(len(self.untils(100)), 32)
+
+    def test_in_flight_poll_does_not_overshoot_arrival(self):
+        arr = dict(arr_est_utc="2026-10-05 09:15Z", arr_est="2026-10-05 11:15+02:00", status="Departed")
+        self.assertEqual(self.interval(datetime(2026, 10, 5, 8, 20, tzinfo=UTC), **arr), timedelta(minutes=55))
+
+    def test_in_flight_poll_has_a_floor(self):
+        arr = dict(arr_est_utc="2026-10-05 09:15Z", arr_est="2026-10-05 11:15+02:00", status="Departed")
+        self.assertEqual(self.interval(datetime(2026, 10, 5, 9, 10, tzinfo=UTC), **arr), timedelta(minutes=15))
 
     def test_two_days_out(self):
         self.assertEqual(self.interval(datetime(2026, 10, 3, 8, 15, tzinfo=UTC)), timedelta(hours=12))
@@ -338,6 +371,13 @@ class BudgetTests(unittest.TestCase):
         h.tracker.handle_message("/fetch LH123")
         self.assertEqual(h.calls, [("LH123", "2026-10-05")])
 
+    def test_unreachable_api_costs_no_units(self):
+        h = Harness()
+        h.responses.append(tracker.FetchError("URLError", spent=False))
+        h.tracker.handle_message("/track LH123 2026-10-05")
+        self.assertEqual(h.texts(), ["Failed to fetch API"])
+        self.assertEqual(h.tracker.state["usage"]["units"], 0)
+
     def test_new_month_resets_the_counter(self):
         h = Harness()
         h.tracker.state["usage"] = {"month": "2026-09", "units": 590,
@@ -346,6 +386,31 @@ class BudgetTests(unittest.TestCase):
         usage = h.tracker.state["usage"]
         self.assertEqual((usage["month"], usage["units"], usage["paused_notified"]),
                          ("2026-10", tracker.UNITS_PER_CALL, False))
+
+
+class RetryTests(unittest.TestCase):
+    def test_failed_lookups_back_off_instead_of_polling_every_15_minutes(self):
+        h = Harness()
+        h.now = datetime(2026, 10, 3, 8, 15, tzinfo=UTC)  # 2 days out: normal interval is 12 h
+        h.track()
+        h.calls.clear()
+        h.responses.extend([tracker.FetchError("x")] * 200)
+        for _ in range(24 * 60):  # a day of one-minute scheduler ticks
+            h.now += timedelta(minutes=1)
+            h.tracker.poll_due()
+        self.assertLessEqual(len(h.calls), 8)
+
+    def test_success_resets_the_backoff(self):
+        h = Harness()
+        h.track()
+        h.now = T0 + timedelta(minutes=16)
+        h.responses.append(tracker.FetchError("x"))
+        h.tracker.poll_due()
+        self.assertEqual(h.tracker.state["flights"][0]["failures"], 1)
+        h.now += timedelta(minutes=16)
+        h.responses.append(payload())
+        h.tracker.poll_due()
+        self.assertEqual(h.tracker.state["flights"][0]["failures"], 0)
 
 
 class CommandTests(unittest.TestCase):
@@ -494,9 +559,16 @@ class FetchFlightTests(unittest.TestCase):
             self.call(side_effect=err)
         self.assertNotIn("SECRET-KEY", str(ctx.exception))
 
-    def test_network_error_raises(self):
-        with self.assertRaises(tracker.FetchError):
+    def test_network_error_raises_and_is_not_billed(self):
+        with self.assertRaises(tracker.FetchError) as ctx:
             self.call(side_effect=urllib.error.URLError("dns"))
+        self.assertFalse(ctx.exception.spent)
+
+    def test_http_error_is_billed(self):
+        err = urllib.error.HTTPError("u", 500, "boom", {}, None)
+        with self.assertRaises(tracker.FetchError) as ctx:
+            self.call(side_effect=err)
+        self.assertTrue(ctx.exception.spent)
 
     def test_garbage_body_raises(self):
         with self.assertRaises(tracker.FetchError):

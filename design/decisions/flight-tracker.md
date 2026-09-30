@@ -22,11 +22,19 @@ and `SK486` are the same flight.
 - **Do not prune `gotify-telegram`** without sealing a separate `telegram-secret` for this
   app: `flight-tracker` `dependsOn` it for that Secret.
 - **Polling spends a small free quota (about 200 calls a month).** The schedule (48 h →
-  12 h → 6 h → 60 min → 15 min in the last 2 h → 120 min in flight → 15 min after
-  arrival, about 27 calls a flight) and the 80%/95% budget guard exist for that reason.
-  The counter is a local estimate by calendar month, not RapidAPI's billing cycle; `/list`
-  shows it, and the `x-ratelimit-api-units-remaining` response header is the truth.
-  Raising polling frequency needs the arithmetic redone.
+  12 h → 6 h → 60 min → 15 min in the last 2 h → up to 120 min in flight, aiming at the
+  expected arrival → 15 min after arrival, about 27 calls a flight) and the 80%/95%
+  budget guard exist for that reason. **Each interval is cut at the next window boundary**
+  — without that, a poll made 7 h out lands 30 min before departure and the 6 h–2 h
+  window, when gates are published, is never polled. The counter is a local estimate by
+  calendar month, not RapidAPI's billing cycle; `/list` shows it, and the
+  `x-ratelimit-api-units-remaining` response header is the truth. Raising polling
+  frequency needs the arithmetic redone.
+- **Failed scheduled polls back off** (15 min, doubling, capped at the flight's normal
+  interval, reset by a success). Flat 15-minute retries on a flight the API no longer
+  knows would reach the 95% pause in about two days and silence every other flight.
+  Requests that never reached RapidAPI (DNS, refused, timeout) are not billed to the
+  counter; an HTTP error or an unreadable body is.
 - **Send a custom `User-Agent` on every AeroDataBox call.** Cloudflare in front of RapidAPI
   answers Python's default agent with `403 error code 1010`, which looks like a bad key.
 - **The `configMapGenerator` must set `namespace: monitoring`**, as `gotify-bootstrap`
