@@ -70,8 +70,10 @@ Edge cases, each with a test:
 
 - **First start, no state:** seed `last_id` with the current highest id and forward nothing, so
   the existing Gotify history is not replayed into Telegram. Empty server: `last_id = 0`.
-- **Gotify DB reset** (highest id below `last_id`): reset `last_id` to the highest id and log
-  once. Otherwise every alert after a reset would be silently skipped forever.
+- **Gotify DB reset** (highest id below `last_id`): reset `last_id` to 0, log once, and
+  forward what the server now holds. Everything on the server is post-reset, and skipping it
+  would swallow the priority-8 `DRIFT` message that `gotify-bootstrap` posts right after a
+  reset. Without the rewind every alert after a reset would be skipped forever.
 - **More than 100 new messages in one interval:** only the newest 100 are seen; documented,
   not handled (a 10 s window with 100 alerts is an incident, and the Gotify UI has them).
 - **Poll failure** (network, HTTP error, bad JSON): log the exception type, keep `last_id`,
