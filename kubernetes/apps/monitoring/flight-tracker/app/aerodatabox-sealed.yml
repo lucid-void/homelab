@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: aerodatabox-secret
+  namespace: monitoring
+spec:
+  encryptedData:
+    AERODATABOX_KEY: AgC4GtXWSPdoj4c6c4JUjTn1YaiFv/jU2s0cVJFyZq+JHQDNjPKp1EWjAtxFXpWfWGTiNDCXs4oReM2tvh0k7WOuge401gzKA3q6ciSy8fzjPIZwX1jwUgrb29dcVqxRUTcUm+fwTxlyxsuUxLUgVJmqk33hN3LtE87Ho/jVcj+KRn7z3BnwX/s/IVU5diUxtIg5utNB4o8D8CUxKD2xc6vHQA9xPpDe+gskN9R61iYcIXi8azi0x/PRYvzqbg2BuSUxY9N/yjovjMEUUP29osA0ROoBpFCpQ/freGTJnkvcCSzMwBRo5S0KOUVvukr8mszymlgjCnWs0CdnoMTckujREa+qDjImLjKOkEFays+iv/n0DOm30KFE827VidgKpQmM8IDz473MCqSKgTa+pArtYMAbWbAS+IgNOeNuVpgV6V6B+L8rVa4onI/8cM7TQJgtpSNhcQtE05WOq/j/Q0Cf+442a5KHe1JItyUKQqoxVfo+CU/2M3nIoHeLtmpR26v6X3pnjKi/9kaEiJGGLw1qnIpl+GobdqoydBXAjSgv8y8jDzGO5CiRuolvSttQmjBC6uSeT+bFktj7+NJq1aBnQmWic36p95ImW2WX70fm8iJIndElO2zEf4TV5mJSgHj43eKpVOkTzlEblukJqwiipxqRcQ1ZADi8A5th1nqom24VDG1MELlE9VY7dTnTzHB7DB+sscWc4PRuTg8FYs2j6ogEHmmIuK4o0aj0aLUqXaOSbeKQjPSuf/W5r6825P0LqQ==
+  template:
+    metadata:
+      name: aerodatabox-secret
+      namespace: monitoring

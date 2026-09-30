@@ -7,6 +7,7 @@ resources:
   - ./gotify-bootstrap/ks.yml
   - ./flux-notifications/ks.yml
   - ./gotify-telegram/ks.yml
+  - ./flight-tracker/ks.yml
   - ./gatus/ks.yml
   - ./am-gotify-bridge/ks.yml
   - ./vm-stack/ks.yml
