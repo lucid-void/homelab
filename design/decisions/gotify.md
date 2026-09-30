@@ -1,6 +1,6 @@
 # Gotify
 
-**Read before editing:** `kubernetes/apps/monitoring/gotify/`, `kubernetes/apps/monitoring/gotify-bootstrap/`, `kubernetes/apps/monitoring/gotify-telegram/`
+**Read before editing:** `kubernetes/apps/monitoring/gotify/`, `kubernetes/apps/monitoring/gotify-bootstrap/`, `kubernetes/apps/monitoring/gotify-telegram/`, `kubernetes/apps/monitoring/flight-tracker/`
 
 ## Current state
 
@@ -52,10 +52,12 @@ durable record — the TTL deletes the pod's logs an hour later.
 `activeDeadlineSeconds: 600` bounds the otherwise-unbounded `until curl .../health`
 wait.
 
-**gotify-telegram bridge**, in `monitoring/gotify-telegram`: a Python WebSocket bridge
-that consumes `/stream?token=CLIENT_TOKEN` and forwards to the Telegram Bot API. Pip
-deps are installed with `pip install --target /tmp/pylib` +
-`PYTHONPATH=/tmp/pylib`, because uid `65534` (nobody) cannot write to `/.local`.
+**Telegram alerts** are the `alerts` module of the bot in `monitoring/flight-tracker`: it
+polls `GET /message?limit=100` every 10 s with the `gotify-client-secret` token, forwards
+messages newer than a persisted `last_id`, and drops them while muted with `/alerts off`
+(they stay in the Gotify UI). Polling replaced a WebSocket bridge to keep the bot stdlib-only,
+with no `pip install` at boot. The `gotify-telegram` Kustomization survives only to own
+`telegram-secret`, which the bot depends on.
 
 ## Rules
 
@@ -74,8 +76,11 @@ deps are installed with `pip install --target /tmp/pylib` +
 - **Never re-add a "look up the token each run" path** — Gotify 3 blanks tokens on GET,
   so that pattern creates a duplicate application every run; the destination Secret must
   stay the source of truth.
-- **Run `gotify-telegram` with `python -u`** — otherwise its output is buffered and
-  never appears in `kubectl logs`.
+- **A Gotify DB reset rewinds message ids.** The alerts module sees the newest id below its
+  stored `last_id`, resets to 0 and forwards what the server now holds. That matters because
+  the `DRIFT` message follows a reset; skipping ids would swallow it.
+- **A rotated client token restarts the bot pod** (Reloader watches the Secret). The alerts
+  module keeps `last_id` in `/data/alerts.json`, so a restart replays nothing.
 
 ## Verify
 
