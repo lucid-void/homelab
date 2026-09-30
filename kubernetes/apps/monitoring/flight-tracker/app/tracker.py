@@ -189,6 +189,19 @@ def format_changes(number, day, changes):
 
 # ---------- scheduling ----------
 
+# (floor, interval): while more than `floor` remains before departure, poll every
+# `interval`, but never step past the floor, so no window is skipped. The 6h-2h
+# window matters most: gates are published 1-3 h out.
+WINDOWS = [
+    (timedelta(hours=72), timedelta(hours=48)),
+    (timedelta(hours=24), timedelta(hours=12)),
+    (timedelta(hours=6), timedelta(hours=6)),
+    (timedelta(hours=2), timedelta(minutes=60)),
+    (timedelta(0), timedelta(minutes=15)),
+]
+MIN_STEP = timedelta(minutes=10)
+
+
 def poll_interval(now, snap):
     """How long to wait after a poll made at `now`."""
     if snap["status"] == "Arrived":
@@ -198,18 +211,13 @@ def poll_interval(now, snap):
     if dep is None:
         return timedelta(hours=6)
     until = dep - now
-    if until > timedelta(hours=72):
-        return timedelta(hours=48)
-    if until > timedelta(hours=24):
-        return timedelta(hours=12)
-    if until > timedelta(hours=6):
-        return timedelta(hours=6)
-    if until > timedelta(hours=2):
-        return timedelta(minutes=60)
-    if until > timedelta(0) or snap["status"] in PRE_DEPARTURE:
+    for floor, interval in WINDOWS:
+        if until > floor:
+            return min(interval, max(until - floor, MIN_STEP))
+    if snap["status"] in PRE_DEPARTURE:
         return timedelta(minutes=15)
-    if arr is not None and now >= arr:
-        return timedelta(minutes=15)
+    if arr is not None:  # in flight: look again around landing, not an hour after it
+        return min(timedelta(minutes=120), max(arr - now, timedelta(minutes=15)))
     return timedelta(minutes=120)
 
 
@@ -234,7 +242,11 @@ def finish_reason(now, flight):
 # ---------- the tracker ----------
 
 class FetchError(Exception):
-    """The API call failed (HTTP error, timeout, unreadable body)."""
+    """The API call failed. `spent` is False when the request never reached the API."""
+
+    def __init__(self, message="", spent=True):
+        super().__init__(message)
+        self.spent = spent
 
 
 class Tracker:
@@ -299,10 +311,11 @@ class Tracker:
         """One API call. Returns a snapshot, or None on any failure or empty answer."""
         self._roll(now)
         try:
-            raw = self.fetch(number, day)
-        except FetchError:
-            raw = None
-        self._spend(now)
+            raw, spent = self.fetch(number, day), True
+        except FetchError as e:
+            raw, spent = None, e.spent
+        if spent:
+            self._spend(now)
         snap = parse_leg(raw)
         if snap is not None:
             self.state["failing"] = False
@@ -338,6 +351,7 @@ class Tracker:
         snap = suppress_jitter(old, snap)
         changes = diff_snapshots(old, snap)
         flight["snapshot"] = snap
+        flight["failures"] = 0
         self._schedule(flight, now)
         self._save()
         if notify and changes:
@@ -478,7 +492,10 @@ class Tracker:
                     continue
                 snap = self._lookup(flight["number"], flight["date"], now)
                 if snap is None:
-                    flight["next_poll"] = (now + RETRY_AFTER_FAILURE).isoformat()
+                    flight["failures"] = flight.get("failures", 0) + 1
+                    backoff = RETRY_AFTER_FAILURE * 2 ** min(flight["failures"] - 1, 12)
+                    retry = min(backoff, poll_interval(now, flight["snapshot"]))
+                    flight["next_poll"] = (now + retry).isoformat()
                     if not self.state["failing"]:
                         self.state["failing"] = True
                         self._save()
@@ -510,7 +527,9 @@ def fetch_flight(number, day, key, timeout=20):
         if e.code == 404:
             return []
         raise FetchError(f"HTTP {e.code}") from None
-    except (OSError, ValueError) as e:
+    except OSError as e:  # DNS, refused, timeout: nothing reached RapidAPI
+        raise FetchError(type(e).__name__, spent=False) from None
+    except ValueError as e:  # unreadable body: the call was answered and billed
         raise FetchError(type(e).__name__) from None
 
 

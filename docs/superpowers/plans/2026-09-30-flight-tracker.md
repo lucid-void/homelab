@@ -1759,3 +1759,13 @@ Ask the owner to send: `/track <FLIGHT> <DATE>`, `/list`, `/fetch`, then `/untra
 - [ ] **Step 7: Close out**
 
 Tell the owner to regenerate the RapidAPI key (it appeared in the chat), and that after regenerating, the sealed secret needs re-sealing. Offer to do that as a separate change.
+
+---
+
+## Post-review changes (2026-09-30)
+
+The final review changed three things after this plan was executed; the code and tests are
+authoritative where they differ from the blocks above: poll intervals are cut at window
+boundaries (`WINDOWS`, `MIN_STEP`) and the in-flight interval aims at the expected arrival;
+failed scheduled polls back off exponentially, capped at the flight's normal interval; a
+`FetchError` carries `spent` and network failures are not billed to the API counter.

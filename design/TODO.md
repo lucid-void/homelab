@@ -4,6 +4,10 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Planned
 
+- **Rotate the RapidAPI (AeroDataBox) key.** It was pasted into an agent transcript on
+  2026-09-30 and must be treated as disclosed. Regenerate it on RapidAPI, then re-seal
+  `kubernetes/apps/monitoring/flight-tracker/app/aerodatabox-sealed.yml` (plaintext in the
+  gitignored `aerodatabox-secret.yml`, sealed with the repo's `kubeseal` command).
 - **Rotate the GitHub PAT in `~/.claude/settings.local.json`** (workstation, not the
   cluster). It was never committed — `git log -S` finds it in no commit and a global
   gitignore covers the file — but it was read aloud into an agent transcript on
@@ -217,3 +221,13 @@ Open work only. A finished item is deleted, not struck through.
   the alerts that actually matter (`NodeFilesystemAlmostFull`, the Minecraft
   world-size exporter) measure real usage instead of the claim, so the fiction is
   cosmetic rather than dangerous.
+- **flight-tracker rough edges, accepted (2026-09-30 review):** a state file that is
+  non-UTF-8 or valid JSON but not an object still crash-loops the pod (only invalid JSON
+  is moved aside); `http.client.HTTPException` subclasses (`IncompleteRead`,
+  `BadStatusLine`) are not caught, so one can kill the receiver thread and restart the
+  pod; a delay longer than the flight time plus 6 h can drop a flight while it is still
+  `Delayed`; a snapshot with no times is polled every 6 h forever; an expected time that
+  flaps between present and absent alerts each time; the budget counter resets on the
+  calendar month while RapidAPI's cycle resets on the subscription day (read
+  `x-ratelimit-api-units-remaining` to fix); `poll_due` holds the state lock across network
+  calls, so a reply can lag behind a slow poll.
