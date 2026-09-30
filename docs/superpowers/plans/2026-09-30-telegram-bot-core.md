@@ -949,12 +949,12 @@ Add any other file fixed in step 4 to that `git add`.
 
 **Files:** none changed unless a check fails.
 
-- [ ] **Step 1: Full suite green**
+- [x] **Step 1: Full suite green**
 
 Run: `python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests`
 Expected: `OK`.
 
-- [ ] **Step 2: Diff is only what the spec allows**
+- [x] **Step 2: Diff is only what the spec allows**
 
 ```bash
 git diff --stat main...HEAD
@@ -963,7 +963,7 @@ git status --short
 
 Expected in the diff: `core.py`, `flights.py` (renamed from `tracker.py`), `main.py`, `kustomization.yml`, `deployment.yml`, `test_core.py`, `test_flights.py` (renamed), `design/decisions/flight-tracker.md`, `.claude/CLAUDE.md`, plus the plan file. Not in the diff: any file under `gotify-telegram/`, any `*-sealed.yml`, `pvc.yml`, `ks.yml`, and the two unrelated modified files (they must still show as ` M` in `git status`, uncommitted).
 
-- [ ] **Step 3: Confirm behavior is unchanged in the flights file**
+- [x] **Step 3: Confirm behavior is unchanged in the flights file**
 
 ```bash
 git diff -M main...HEAD -- kubernetes/apps/monitoring/flight-tracker/app/flights.py | grep '^[-+]' | grep -v '^+++\|^---'
@@ -971,7 +971,7 @@ git diff -M main...HEAD -- kubernetes/apps/monitoring/flight-tracker/app/flights
 
 Expected: removals limited to `HELP`, `log`, `parse_command`, `set_offset`, the `offset` default, `handle_message`/`handle_callback`, and the `Telegram`/`dispatch`/`receiver_loop`/`run` block; additions limited to `from core import log` and the `Flights` class. Any other changed line is a regression risk: revert it.
 
-- [ ] **Step 4: Commit any fixes** (skip if none), tick this task's boxes.
+- [x] **Step 4: Commit any fixes** (skip if none), tick this task's boxes.
 
 ---
 
