@@ -188,5 +188,266 @@ class FinishTests(unittest.TestCase):
         self.assertIsNone(tracker.finish_reason(T0, self.flight()))
 
 
+class Harness:
+    """A Tracker wired to a fake clock, a scripted API and a message log."""
+
+    def __init__(self):
+        self.dir = tempfile.TemporaryDirectory()
+        unittest.addModuleCleanup(self.dir.cleanup)
+        self.path = os.path.join(self.dir.name, "state.json")
+        self.now = T0
+        self.sent = []       # (text, buttons)
+        self.calls = []      # (number, day)
+        self.responses = []  # queue of payload lists or exceptions
+        self.tracker = self.make()
+
+    def make(self):
+        return tracker.Tracker(self.path, self._fetch,
+                               lambda text, buttons=None: self.sent.append((text, buttons)),
+                               lambda: self.now)
+
+    def _fetch(self, number, day):
+        self.calls.append((number, day))
+        r = self.responses.pop(0)
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+    def texts(self):
+        return [t for t, _ in self.sent]
+
+    def track(self, number="LH123", **kw):
+        self.responses.append(payload(**kw))
+        self.tracker.handle_message(f"/track {number} 2026-10-05")
+
+
+class TrackTests(unittest.TestCase):
+    def setUp(self):
+        self.h = Harness()
+
+    def test_track_stores_and_replies_with_snapshot(self):
+        self.h.responses.append(payload())
+        self.h.tracker.handle_message("/track lh 123 2026-10-05")
+        self.assertEqual(self.h.calls, [("LH123", "2026-10-05")])
+        self.assertIn("✈ LH123 · 2026-10-05 · Expected", self.h.texts()[-1])
+        self.assertEqual(len(self.h.tracker.state["flights"]), 1)
+
+    def test_fetch_error_is_reported_and_nothing_stored(self):
+        self.h.responses.append(tracker.FetchError("HTTP 500"))
+        self.h.tracker.handle_message("/track LH123 2026-10-05")
+        self.assertEqual(self.h.texts(), ["Failed to fetch API"])
+        self.assertEqual(self.h.tracker.state["flights"], [])
+
+    def test_empty_response_is_a_failure(self):
+        self.h.responses.append([])
+        self.h.tracker.handle_message("/track LH123 2026-10-05")
+        self.assertEqual(self.h.texts(), ["Failed to fetch API"])
+        self.assertEqual(self.h.tracker.state["flights"], [])
+
+    def test_duplicate_track_makes_no_call(self):
+        self.h.track()
+        self.h.calls.clear()
+        self.h.tracker.handle_message("/track LH123 2026-10-05")
+        self.assertEqual(self.h.calls, [])
+        self.assertEqual(self.h.texts()[-1], "Already tracking LH123 2026-10-05")
+
+    def test_past_date_makes_no_call(self):
+        self.h.tracker.handle_message("/track LH123 2026-10-01")
+        self.assertEqual(self.h.calls, [])
+        self.assertEqual(self.h.texts(), ["That date is in the past"])
+
+    def test_bad_usage(self):
+        self.h.tracker.handle_message("/track LH123")
+        self.assertTrue(self.h.texts()[0].startswith("Usage:"))
+        self.assertEqual(self.h.calls, [])
+
+
+class PollTests(unittest.TestCase):
+    def setUp(self):
+        self.h = Harness()
+        self.h.track()
+        self.h.sent.clear()
+        self.h.calls.clear()
+
+    def poll_at(self, minutes, response):
+        self.h.now = T0 + timedelta(minutes=minutes)
+        self.h.responses.append(response)
+        self.h.tracker.poll_due()
+
+    def test_not_due_makes_no_call(self):
+        self.h.now = T0 + timedelta(minutes=14)  # interval at T0 is 15 min
+        self.h.tracker.poll_due()
+        self.assertEqual(self.h.calls, [])
+
+    def test_gate_change_sends_one_message(self):
+        self.poll_at(16, payload(dep_gate="B24"))
+        self.assertEqual(len(self.h.sent), 1)
+        self.assertIn("Dep gate: A12 → B24", self.h.texts()[0])
+
+    def test_unchanged_poll_is_silent(self):
+        self.poll_at(16, payload())
+        self.assertEqual(self.h.sent, [])
+
+    def test_small_wobble_is_silent(self):
+        self.poll_at(16, payload(dep_est_utc="2026-10-05 08:17Z", dep_est="2026-10-05 10:17+02:00"))
+        self.assertEqual(self.h.sent, [])
+
+    def test_expected_time_first_appearing_equal_to_schedule_is_silent(self):
+        self.poll_at(16, payload(dep_est_utc="2026-10-05 08:15Z", dep_est="2026-10-05 10:15+02:00"))
+        self.assertEqual(self.h.sent, [])
+
+    def test_failure_streak_notifies_once_and_rearms(self):
+        for minutes, resp in [(16, tracker.FetchError("x")), (35, tracker.FetchError("x")),
+                              (55, payload()), (75, tracker.FetchError("x"))]:
+            self.poll_at(minutes, resp)
+        self.assertEqual(self.h.texts(), ["Failed to fetch API", "Failed to fetch API"])
+
+    def test_landed_flight_is_alerted_then_dropped(self):
+        self.poll_at(16, payload(status="Arrived", arr_belt="5"))
+        self.assertIn("Belt: — → 5", self.h.texts()[0])
+        self.h.tracker.poll_due()
+        self.assertEqual(self.h.texts()[-1], "Stopped tracking LH123 2026-10-05: landed")
+        self.assertEqual(self.h.tracker.state["flights"], [])
+
+    def test_cancelled_flight_is_dropped(self):
+        self.poll_at(16, payload(status="Canceled"))
+        self.h.tracker.poll_due()
+        self.assertEqual(self.h.texts()[-1], "Stopped tracking LH123 2026-10-05: cancelled")
+
+
+class BudgetTests(unittest.TestCase):
+    def test_warns_at_80_percent(self):
+        h = Harness()
+        start = int(tracker.WARN_AT * tracker.MONTHLY_UNITS) - tracker.UNITS_PER_CALL
+        h.tracker.state["usage"] = {"month": "2026-10", "units": start,
+                                    "warned": False, "paused_notified": False}
+        h.track()
+        self.assertTrue(any("80%" in t for t in h.texts()))
+
+    def test_paused_skips_scheduled_polls_but_not_fetch(self):
+        h = Harness()
+        h.track()
+        h.tracker.state["usage"]["units"] = int(tracker.PAUSE_AT * tracker.MONTHLY_UNITS)
+        h.calls.clear()
+        h.now = T0 + timedelta(minutes=16)
+        h.tracker.poll_due()
+        self.assertEqual(h.calls, [])
+        h.responses.append(payload())
+        h.tracker.handle_message("/fetch LH123")
+        self.assertEqual(h.calls, [("LH123", "2026-10-05")])
+
+    def test_new_month_resets_the_counter(self):
+        h = Harness()
+        h.tracker.state["usage"] = {"month": "2026-09", "units": 590,
+                                    "warned": True, "paused_notified": True}
+        h.track()
+        usage = h.tracker.state["usage"]
+        self.assertEqual((usage["month"], usage["units"], usage["paused_notified"]),
+                         ("2026-10", tracker.UNITS_PER_CALL, False))
+
+
+class CommandTests(unittest.TestCase):
+    def setUp(self):
+        self.h = Harness()
+
+    def test_fetch_with_nothing_tracked(self):
+        self.h.tracker.handle_message("/fetch")
+        self.assertEqual(self.h.texts(), ["No tracked flights"])
+
+    def test_fetch_with_one_flight_fetches_directly(self):
+        self.h.track()
+        self.h.sent.clear()
+        self.h.responses.append(payload(dep_gate="B24"))
+        self.h.tracker.handle_message("/fetch")
+        text, buttons = self.h.sent[-1]
+        self.assertIn("Gate B24", text)
+        self.assertIsNone(buttons)
+
+    def test_fetch_with_several_flights_shows_buttons_soonest_first(self):
+        self.h.track("BA456", dep_sched_utc="2026-10-05 09:00Z", dep_sched="2026-10-05 11:00+02:00")
+        self.h.track("LH123")
+        self.h.sent.clear()
+        self.h.tracker.handle_message("/fetch")
+        text, buttons = self.h.sent[-1]
+        self.assertEqual(text, "Which flight?")
+        self.assertEqual(buttons, [("LH123 · 2026-10-05", "f:LH123:2026-10-05"),
+                                   ("BA456 · 2026-10-05", "f:BA456:2026-10-05")])
+
+    def test_fetch_of_untracked_flight_makes_no_call(self):
+        self.h.tracker.handle_message("/fetch XX1")
+        self.assertEqual(self.h.texts(), ["Not tracked: XX1"])
+        self.assertEqual(self.h.calls, [])
+
+    def test_fetch_replies_even_when_unchanged(self):
+        self.h.track()
+        self.h.sent.clear()
+        self.h.responses.append(payload())
+        self.h.tracker.handle_message("/fetch LH123")
+        self.assertIn("✈ LH123 · 2026-10-05 · Expected", self.h.texts()[-1])
+
+    def test_fetch_failure_keeps_the_flight(self):
+        self.h.track()
+        self.h.sent.clear()
+        self.h.responses.append(tracker.FetchError("x"))
+        self.h.tracker.handle_message("/fetch LH123")
+        self.assertEqual(self.h.texts(), ["Failed to fetch API"])
+        self.assertEqual(len(self.h.tracker.state["flights"]), 1)
+
+    def test_button_tap_fetches(self):
+        self.h.track()
+        self.h.sent.clear()
+        self.h.responses.append(payload())
+        self.h.tracker.handle_callback("f:LH123:2026-10-05")
+        self.assertIn("✈ LH123", self.h.texts()[-1])
+
+    def test_stale_button_for_dropped_flight(self):
+        self.h.tracker.handle_callback("f:LH123:2026-10-05")
+        self.assertEqual(self.h.texts(), ["Not tracked: LH123"])
+        self.assertEqual(self.h.calls, [])
+
+    def test_garbage_callback_is_ignored(self):
+        self.h.tracker.handle_callback("nonsense")
+        self.assertEqual(self.h.sent, [])
+
+    def test_untrack(self):
+        self.h.track()
+        self.h.tracker.handle_message("/untrack LH123")
+        self.assertEqual(self.h.tracker.state["flights"], [])
+        self.h.tracker.handle_message("/untrack LH123")
+        self.assertEqual(self.h.texts()[-1], "Not tracked: LH123")
+
+    def test_list(self):
+        self.h.track()
+        self.h.tracker.handle_message("/list")
+        text = self.h.texts()[-1]
+        self.assertIn("LH123 · 2026-10-05 · Expected", text)
+        self.assertIn(f"API units this month: {tracker.UNITS_PER_CALL}/{tracker.MONTHLY_UNITS}", text)
+
+    def test_help(self):
+        self.h.tracker.handle_message("/help")
+        self.assertIn("/track", self.h.texts()[0])
+
+
+class PersistenceTests(unittest.TestCase):
+    def test_state_survives_restart(self):
+        h = Harness()
+        h.track()
+        h.tracker.set_offset(42)
+        again = h.make()
+        self.assertEqual(len(again.state["flights"]), 1)
+        self.assertEqual(again.state["offset"], 42)
+
+    def test_missing_state_starts_empty(self):
+        self.assertEqual(Harness().tracker.state["flights"], [])
+
+    def test_corrupt_state_is_moved_aside(self):
+        h = Harness()
+        with open(h.path, "w") as f:
+            f.write("{not json")
+        again = h.make()
+        self.assertEqual(again.state["flights"], [])
+        self.assertTrue(os.path.exists(h.path + ".corrupt"))
+
+
 if __name__ == "__main__":
     unittest.main()

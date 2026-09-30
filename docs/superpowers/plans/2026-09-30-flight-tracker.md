@@ -646,6 +646,7 @@ class Harness:
 
     def __init__(self):
         self.dir = tempfile.TemporaryDirectory()
+        unittest.addModuleCleanup(self.dir.cleanup)
         self.path = os.path.join(self.dir.name, "state.json")
         self.now = T0
         self.sent = []       # (text, buttons)
