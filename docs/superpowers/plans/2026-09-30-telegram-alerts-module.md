@@ -45,7 +45,7 @@ Each has a test in the task named in brackets.
 - Consumes: `core.log`, `core.Ctx(name, send, state_path)`.
 - Produces (Task 2): `alerts.fetch_messages(host, token, timeout=10) -> list`, `alerts.Alerts(ctx, fetch, now=<utc clock>)` implementing the module protocol (`name="alerts"`, `help`, `commands={"alerts": fn}`, `callbacks={}`, `start()`), plus `Alerts.poll_once() -> bool`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `kubernetes/apps/monitoring/flight-tracker/tests/test_alerts.py`:
 
@@ -347,12 +347,12 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests -p test_alerts.py`
 Expected: `ModuleNotFoundError: No module named 'alerts'`
 
-- [ ] **Step 3: Write `alerts.py`**
+- [x] **Step 3: Write `alerts.py`**
 
 Create `kubernetes/apps/monitoring/flight-tracker/app/alerts.py`:
 
@@ -542,12 +542,12 @@ class Alerts:
             time.sleep(POLL_SECONDS)
 ```
 
-- [ ] **Step 4: Run the whole suite**
+- [x] **Step 4: Run the whole suite**
 
 Run: `python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests`
 Expected: `OK`. If a test fails, fix the code, not the test, unless the test contradicts the spec (then ledger a ruling).
 
-- [ ] **Step 5: Commit** (tick this task's boxes first)
+- [x] **Step 5: Commit** (tick this task's boxes first)
 
 ```bash
 git add kubernetes/apps/monitoring/flight-tracker/app/alerts.py \
