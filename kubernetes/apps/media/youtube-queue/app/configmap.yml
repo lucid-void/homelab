@@ -18,12 +18,16 @@ data:
         # Jellyfin reads this through its own RW mount at /YouTube (subPath YouTube).
         tv_show_directory: /Media/YouTube
       # Caps actual downloads per run so a large backlog can't blow the CronJob's
-      # activeDeadlineSeconds (3300s) in one go — see design/decisions/youtube-queue.md.
-      # Unconfirmed whether this also caps ytdl-sub's per-run metadata walk.
+      # activeDeadlineSeconds (3550s) in one go — see design/decisions/youtube-queue.md.
+      # Confirmed live: this does NOT cap the metadata walk, which still covers the
+      # whole playlist every run regardless of this value.
       throttle_protection:
         max_downloads_per_subscription:
           min: 8
           max: 8
+      # Title first, then the date code — default order is reversed. Only affects
+      # new downloads; doesn't rename files already on the share.
+      episode_file_name: "{file_title} - s{season_number_padded}.e{episode_number_padded}"
 
     # One show, "YouTube": seasons by upload year, episodes by upload date.
     # 1080p cap keeps the emptyDir and the share in check; the iPad doesn't need more.
