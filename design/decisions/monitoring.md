@@ -55,6 +55,10 @@ scope and nothing else.
 
 ## Rules
 
+- **The Telegram bot's `/status` reads `ALERTS`, `kube_pod_status_phase`,
+  `kube_deployment_status_replicas_unavailable` and `kube_cronjob_*` from VMSingle** —
+  renaming or dropping those series (a kube-state-metrics or vmalert change) turns its lines
+  red. Detail in `design/decisions/flight-tracker.md`.
 - **Verify a kromgo query returns series before committing the badge** — kromgo answers
   `200` with an error payload when a query matches nothing, so a typo'd metric renders
   as a broken badge on a public README and nothing alerts. Query VMSingle directly

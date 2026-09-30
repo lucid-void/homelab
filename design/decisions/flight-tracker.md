@@ -7,8 +7,8 @@
 Single-user Telegram bot in `monitoring`. You send `/track LH123 2026-10-05`; it polls
 AeroDataBox (RapidAPI free plan, 400 units/month at 2 units per call) and messages gate,
 terminal, time and status changes. `/list`, `/untrack`, and `/fetch` (tappable list of
-tracked flights, or `/fetch LH123`) complete the flight interface; `/alerts` mutes Gotify forwarding. Four stdlib-only Python
-files (`core.py`, `flights.py`, `alerts.py`, `main.py`) delivered by one `configMapGenerator` `files:`; state is
+tracked flights, or `/fetch LH123`) complete the flight interface; `/alerts` mutes Gotify forwarding, `/status` summarises cluster health. Five
+stdlib-only Python files (`core.py`, `flights.py`, `alerts.py`, `status.py`, `main.py`) delivered by one `configMapGenerator` `files:`; state is
 JSON on an `nfs-client` PVC.
 
 It reuses the existing bot (`telegram-secret`, owned by the `gotify-telegram` Kustomization),
@@ -20,7 +20,7 @@ and `SK486` are the same flight.
 
 `core.py` owns the Telegram client, the owner-only check, the update offset (`/data/core.json`),
 and a registry of commands and inline-button prefixes. `flights.py` is the flight tracker as a
-module. `alerts.py` forwards Gotify messages to Telegram and owns `/alerts`. `main.py` builds the bot and registers modules. A module is any object with `name`,
+module. `alerts.py` forwards Gotify messages to Telegram and owns `/alerts`. `status.py` answers `/status` from VictoriaMetrics. `main.py` builds the bot and registers modules. A module is any object with `name`,
 `help` (lines), `commands` (`name -> fn(args)`), `callbacks` (`prefix -> fn(parts)`) and an
 optional `start()`; the core hands it a `Ctx` with `send`, `log` and its own state path
 `/data/<name>.json`. Flights is the exception: it keeps its historical `/data/state.json`.
@@ -48,6 +48,16 @@ on the class. The core needs no change.
 - **Missing or corrupt `alerts.json` means alerts ON**, never muted.
 - **First start with no `alerts.json` forwards nothing** and records the newest Gotify id, so
   old history is not replayed into Telegram.
+- **`/status` relies on `ALERTS`, `kube_pod_status_phase`, `kube_deployment_status_replicas_unavailable`
+  and `kube_cronjob_*` from vmsingle (env `VM_URL`).** A check whose data is missing is red
+  `unavailable`, never green: with kube-state-metrics down the pod and backup series vanish,
+  and reading that as zero would report a healthy cluster.
+- **The `/status` backup line matches CronJobs by name (`*-backup`, `etcd-snapshot`)**, so a new
+  backup job with another name is not covered until the pattern in `status.py` changes. A
+  matching CronJob that never succeeded shows as `never`; it has no `last_successful_time`.
+- **`/status` has no Flux line.** The Flux controllers emit no per-object Ready metric
+  (`gotk_resource_info` is absent); it needs kube-state-metrics custom resource state in the
+  `vm-stack` HelmRelease first. Flux events still reach Telegram through the alerts module.
 - **Do not prune `gotify-telegram`** without sealing a separate `telegram-secret` for this
   app: `flight-tracker` `dependsOn` it for that Secret.
 - **Polling spends a small free quota (about 200 calls a month).** The schedule (48 h →

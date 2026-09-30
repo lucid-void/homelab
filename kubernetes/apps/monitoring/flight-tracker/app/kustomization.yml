@@ -13,3 +13,4 @@ configMapGenerator:
       - core.py
       - flights.py
       - main.py
+      - status.py

@@ -6,6 +6,7 @@ import os
 import alerts
 import core
 import flights
+import status
 
 
 def main():
@@ -14,6 +15,7 @@ def main():
     key = os.environ["AERODATABOX_KEY"]
     gotify_token = os.environ["CLIENT_TOKEN"]
     gotify_host = os.environ.get("GOTIFY_HOST", "http://gotify.monitoring.svc.cluster.local")
+    vm_url = os.environ.get("VM_URL", status.DEFAULT_VM_URL)
     state_path = os.environ.get("STATE_PATH", "/data/state.json")
     data_dir = os.environ.get("DATA_DIR", os.path.dirname(state_path))
 
@@ -22,6 +24,7 @@ def main():
         bot.ctx("flights"), lambda number, day: flights.fetch_flight(number, day, key), state_path))
     bot.register(alerts.Alerts(
         bot.ctx("alerts"), lambda: alerts.fetch_messages(gotify_host, gotify_token)))
+    bot.register(status.Status(bot.ctx("status"), lambda promql: status.vm_query(vm_url, promql)))
     bot.start()
     core.log("flight-tracker started")
     bot.run()
