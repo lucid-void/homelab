@@ -44,7 +44,7 @@ Each has a test in Task 1.
 - Consumes: `core.log`, `core.Ctx`.
 - Produces (Task 2): `status.DEFAULT_VM_URL`, `status.vm_query(base, promql, timeout=5) -> list`, `status.Status(ctx, query)` implementing the module protocol (`name="status"`, `help`, `commands={"status": fn}`, `callbacks={}`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `kubernetes/apps/monitoring/flight-tracker/tests/test_status.py`:
 
@@ -267,12 +267,12 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests -p test_status.py`
 Expected: `ModuleNotFoundError: No module named 'status'`
 
-- [ ] **Step 3: Write `status.py`**
+- [x] **Step 3: Write `status.py`**
 
 Create `kubernetes/apps/monitoring/flight-tracker/app/status.py`:
 
@@ -424,12 +424,12 @@ class Status:
         self.ctx.send("\n".join([header] + [line for _, line in results]))
 ```
 
-- [ ] **Step 4: Run the whole suite**
+- [x] **Step 4: Run the whole suite**
 
 Run: `python3 -m unittest discover -s kubernetes/apps/monitoring/flight-tracker/tests`
 Expected: `OK`. Fix code, not tests, unless a test contradicts the spec (ledger a ruling).
 
-- [ ] **Step 5: Commit** (tick this task's boxes first)
+- [x] **Step 5: Commit** (tick this task's boxes first)
 
 ```bash
 git add kubernetes/apps/monitoring/flight-tracker/app/status.py \
