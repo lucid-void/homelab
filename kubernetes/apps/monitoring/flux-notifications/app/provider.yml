@@ -7,7 +7,7 @@
 #
 # Caveat: the generic payload carries no Gotify `priority`, so messages land at
 # priority 0. They still appear in Gotify and are forwarded to Telegram by
-# gotify-telegram (no priority filter), just with the low-priority (green) emoji.
+# the bot's alerts module (no priority filter), just with the low-priority (green) emoji.
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
 metadata:

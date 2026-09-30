@@ -7,11 +7,12 @@
 Single-user Telegram bot in `monitoring`. You send `/track LH123 2026-10-05`; it polls
 AeroDataBox (RapidAPI free plan, 400 units/month at 2 units per call) and messages gate,
 terminal, time and status changes. `/list`, `/untrack`, and `/fetch` (tappable list of
-tracked flights, or `/fetch LH123`) complete the interface. Three stdlib-only Python
-files (`core.py`, `flights.py`, `main.py`) delivered by one `configMapGenerator` `files:`; state is
+tracked flights, or `/fetch LH123`) complete the flight interface; `/alerts` mutes Gotify forwarding. Four stdlib-only Python
+files (`core.py`, `flights.py`, `alerts.py`, `main.py`) delivered by one `configMapGenerator` `files:`; state is
 JSON on an `nfs-client` PVC.
 
-It reuses the existing bot (`telegram-secret`, owned by the `gotify-telegram` Kustomization)
+It reuses the existing bot (`telegram-secret`, owned by the `gotify-telegram` Kustomization),
+also loads `gotify-client-secret` (provisioned by `gotify-bootstrap`) for the alerts module,
 and answers only `TELEGRAM_CHAT_ID`. Flight numbers are normalised, so `sk0486`, `SK 486`
 and `SK486` are the same flight.
 
@@ -19,7 +20,7 @@ and `SK486` are the same flight.
 
 `core.py` owns the Telegram client, the owner-only check, the update offset (`/data/core.json`),
 and a registry of commands and inline-button prefixes. `flights.py` is the flight tracker as a
-module. `main.py` builds the bot and registers modules. A module is any object with `name`,
+module. `alerts.py` forwards Gotify messages to Telegram and owns `/alerts`. `main.py` builds the bot and registers modules. A module is any object with `name`,
 `help` (lines), `commands` (`name -> fn(args)`), `callbacks` (`prefix -> fn(parts)`) and an
 optional `start()`; the core hands it a `Ctx` with `send`, `log` and its own state path
 `/data/<name>.json`. Flights is the exception: it keeps its historical `/data/state.json`.
@@ -42,6 +43,11 @@ on the class. The core needs no change.
 - **Callback data keeps the `f:NUMBER:DAY` format**, so buttons in old chat messages still work.
 - **Duplicate command names or callback prefixes across modules fail at startup.** That is
   intentional.
+- **`/alerts off` drops Gotify messages from Telegram** (they stay in the Gotify UI) and never
+  mutes flight messages. `/alerts off 4h` expires by itself; no duration lasts until `/alerts on`.
+- **Missing or corrupt `alerts.json` means alerts ON**, never muted.
+- **First start with no `alerts.json` forwards nothing** and records the newest Gotify id, so
+  old history is not replayed into Telegram.
 - **Do not prune `gotify-telegram`** without sealing a separate `telegram-secret` for this
   app: `flight-tracker` `dependsOn` it for that Secret.
 - **Polling spends a small free quota (about 200 calls a month).** The schedule (48 h →

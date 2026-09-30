@@ -690,21 +690,21 @@ Confirm `git status --short` shows the two deletions committed and nothing under
 **Files:**
 - Modify: `design/decisions/gotify.md`, `design/decisions/flight-tracker.md`, `AGENTS.md` (routing row), `kubernetes/apps/monitoring/flux-notifications/app/provider.yml` (comment only, if it names the bridge as a live thing)
 
-- [ ] **Step 1: Read `design/decisions/gotify.md` and `design/decisions/flight-tracker.md` in full.** Keep all existing rules. Do not record deployed versions.
+- [x] **Step 1: Read `design/decisions/gotify.md` and `design/decisions/flight-tracker.md` in full.** Keep all existing rules. Do not record deployed versions.
 
-- [ ] **Step 2: `gotify.md`**
+- [x] **Step 2: `gotify.md`**
   - In `**Read before editing:**` keep `gotify-telegram/` and add `flight-tracker/`.
   - Replace the whole `**gotify-telegram bridge**` paragraph with: the Telegram side is the `alerts` module of the bot in `monitoring/flight-tracker`, polling `GET /message` every 10 s with the `gotify-client-secret` token, forwarding messages newer than a persisted `last_id`, and dropping them while muted with `/alerts off`. The `gotify-telegram` Kustomization survives only to own `telegram-secret`.
   - Delete the rule `Run gotify-telegram with python -u` (the bridge no longer exists).
   - Add rules: **a Gotify DB reset rewinds ids; the module detects `top < last_id` and forwards what the server holds** (the bootstrap `DRIFT` message follows a reset); **the client token rotating restarts the bot pod via Reloader, and the module seeds nothing from history on a fresh state**.
 
-- [ ] **Step 3: `flight-tracker.md`**
+- [x] **Step 3: `flight-tracker.md`**
   - Add `alerts.py` to the layout section and list `/alerts` among the commands.
   - Add rules: **`/alerts off` drops Gotify messages from Telegram (they stay in the Gotify UI) and never mutes flight messages**; **missing or corrupt `alerts.json` means alerts ON**; **first start with no `alerts.json` forwards nothing and records the newest Gotify id**; **the bot now also depends on `gotify-client-secret`** (provisioned by `gotify-bootstrap`).
 
-- [ ] **Step 4: `AGENTS.md`** row `Gotify, its app tokens, the Telegram bridge` → `Gotify, its app tokens, the Telegram alerts module`. If `flux-notifications/app/provider.yml` line 10 comment calls the bridge live, reword it to `the bot's alerts module`; comment only.
+- [x] **Step 4: `AGENTS.md`** row `Gotify, its app tokens, the Telegram bridge` → `Gotify, its app tokens, the Telegram alerts module`. If `flux-notifications/app/provider.yml` line 10 comment calls the bridge live, reword it to `the bot's alerts module`; comment only.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 grep -rn "python -u\|gotify-telegram bridge" design/decisions/gotify.md   # expect no output
@@ -721,7 +721,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 ### Task 4: Final verification and ship (ship needs the user)
 
-- [ ] **Step 1: Suite green and diff scope.** Run the test command; `git diff --stat main...HEAD` must show only: `alerts.py`, `test_alerts.py`, `main.py`, `test_core.py`, the two flight-tracker manifests, the gotify-telegram manifests (2 deleted, 1 edited), the docs above and the plan. No sealed secrets, no `ks.yml`, no PVC.
+- [x] **Step 1: Suite green and diff scope.** Run the test command; `git diff --stat main...HEAD` must show only: `alerts.py`, `test_alerts.py`, `main.py`, `test_core.py`, the two flight-tracker manifests, the gotify-telegram manifests (2 deleted, 1 edited), the docs above and the plan. No sealed secrets, no `ks.yml`, no PVC.
 
 - [ ] **Step 2: Ask the user before pushing.** Merging to `main` deploys: it replaces the bridge with the in-bot forwarder. Estimate: push 1 min, Flux reconcile up to 30 min or immediate with `mise exec -- flux reconcile kustomization flight-tracker --with-source` and `gotify-telegram`.
 
