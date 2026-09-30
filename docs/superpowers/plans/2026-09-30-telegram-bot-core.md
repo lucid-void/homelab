@@ -898,9 +898,9 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 - Modify: `.claude/CLAUDE.md` (one routing-table row)
 - Modify only if they name `tracker.py` or describe the file layout: any other hit from Task 0 step 3
 
-- [ ] **Step 1: Read `design/decisions/flight-tracker.md` in full** (it is short) and keep its existing rules. Design files describe the implemented state and must not record deployed versions.
+- [x] **Step 1: Read `design/decisions/flight-tracker.md` in full** (it is short) and keep its existing rules. Design files describe the implemented state and must not record deployed versions.
 
-- [ ] **Step 2: Update the file**
+- [x] **Step 2: Update the file**
 
 1. Wherever it says the bot is "one stdlib-only Python file" / names `tracker.py`, replace with: three stdlib-only files (`core.py`, `flights.py`, `main.py`) delivered by one `configMapGenerator`.
 2. Add a `## Layout and modules` section:
@@ -926,13 +926,13 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
    - **Duplicate command names or callback prefixes across modules fail at startup** — that is intentional.
 4. Update any "Read before editing" path list to include the three files.
 
-- [ ] **Step 3: Update the routing row in `.claude/CLAUDE.md`**
+- [x] **Step 3: Update the routing row in `.claude/CLAUDE.md`**
 
 Change the row text `flight tracker, AeroDataBox, its Telegram commands` to `Telegram bot (core, modules, commands), flight tracker, AeroDataBox`. Leave the file path column as is.
 
-- [ ] **Step 4: Fix other references** from Task 0 step 3 (`tracker.py`, `test_tracker`), if any. Re-run the grep; expected no hits outside `docs/superpowers/`.
+- [x] **Step 4: Fix other references** from Task 0 step 3 (`tracker.py`, `test_tracker`), if any. Re-run the grep; expected no hits outside `docs/superpowers/`.
 
-- [ ] **Step 5: Commit** (tick boxes first)
+- [x] **Step 5: Commit** (tick boxes first)
 
 ```bash
 git add design/decisions/flight-tracker.md .claude/CLAUDE.md docs/superpowers/plans/2026-09-30-telegram-bot-core.md

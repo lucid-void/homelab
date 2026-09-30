@@ -7,18 +7,41 @@
 Single-user Telegram bot in `monitoring`. You send `/track LH123 2026-10-05`; it polls
 AeroDataBox (RapidAPI free plan, 400 units/month at 2 units per call) and messages gate,
 terminal, time and status changes. `/list`, `/untrack`, and `/fetch` (tappable list of
-tracked flights, or `/fetch LH123`) complete the interface. One stdlib-only Python file,
-delivered by `configMapGenerator` `files:`; state is a JSON file on an `nfs-client` PVC.
+tracked flights, or `/fetch LH123`) complete the interface. Three stdlib-only Python
+files (`core.py`, `flights.py`, `main.py`) delivered by one `configMapGenerator` `files:`; state is
+JSON on an `nfs-client` PVC.
 
 It reuses the existing bot (`telegram-secret`, owned by the `gotify-telegram` Kustomization)
 and answers only `TELEGRAM_CHAT_ID`. Flight numbers are normalised, so `sk0486`, `SK 486`
 and `SK486` are the same flight.
+
+## Layout and modules
+
+`core.py` owns the Telegram client, the owner-only check, the update offset (`/data/core.json`),
+and a registry of commands and inline-button prefixes. `flights.py` is the flight tracker as a
+module. `main.py` builds the bot and registers modules. A module is any object with `name`,
+`help` (lines), `commands` (`name -> fn(args)`), `callbacks` (`prefix -> fn(parts)`) and an
+optional `start()`; the core hands it a `Ctx` with `send`, `log` and its own state path
+`/data/<name>.json`. Flights is the exception: it keeps its historical `/data/state.json`.
+
+To add a feature: write `<feature>.py` with a module class, add it to `files:` in
+`app/kustomization.yml`, add one `bot.register(...)` line in `main.py`, and put its help lines
+on the class. The core needs no change.
 
 ## Rules
 
 - **It is the only `getUpdates` consumer of the shared bot token.** `gotify-telegram` only
   sends. A second poller, or a webhook, on the same token makes Telegram answer `409` and
   the receiver loop will back off and log `getUpdates failed`.
+- **Do not rename the app, Kustomization, Deployment or `flight-tracker-data` PVC without
+  copying the state first.** A rename changes the Flux Kustomization name and `prune: true`
+  deletes the PVC holding the live flight state.
+- **`core.json` is authoritative for the update offset; `state.json["offset"]` is only the
+  first-start seed.** On the first start after the split the core reads the old offset from
+  `state.json`, so Telegram does not replay old commands.
+- **Callback data keeps the `f:NUMBER:DAY` format**, so buttons in old chat messages still work.
+- **Duplicate command names or callback prefixes across modules fail at startup.** That is
+  intentional.
 - **Do not prune `gotify-telegram`** without sealing a separate `telegram-secret` for this
   app: `flight-tracker` `dependsOn` it for that Secret.
 - **Polling spends a small free quota (about 200 calls a month).** The schedule (48 h →

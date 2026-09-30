@@ -75,7 +75,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | VictoriaMetrics, Grafana, VMRule alert rules, Goldilocks, Gatus, kromgo README badges | design/decisions/monitoring.md |
 | Minecraft metrics, mc-monitor, world-size alerts      | design/decisions/minecraft-monitoring.md |
 | Gotify, its app tokens, the Telegram bridge           | design/decisions/gotify.md            |
-| flight tracker, AeroDataBox, its Telegram commands    | design/decisions/flight-tracker.md    |
+| Telegram bot (core, modules, commands), flight tracker, AeroDataBox | design/decisions/flight-tracker.md    |
 | Trivy, Falco, kubent, kube-linter, k8s-cleaner        | design/decisions/security-tooling.md  |
 | pinning an image tag, lscr tags, Renovate regexes     | design/decisions/images.md            |
 | Keycloak, SSO, OIDC clients, realm, client roles      | design/decisions/keycloak.md          |
