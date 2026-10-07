@@ -13,7 +13,8 @@ from freshrss import FreshRSSError
 UTC = timezone.utc
 POLL_SECONDS = 1800
 LOOP_SECONDS = 30
-MAX_PER_POLL = 40       # about 7 s each on CPU, so a poll stays under 5 minutes
+TOPICS_PER_CALL = 3     # topics scored per Clef call: about 7 s per call on CPU
+MAX_PER_POLL = 40       # an article with 10 topics is 4 calls, so a poll stays within minutes
 MAX_TOPICS = 10
 MAX_TOPIC_LEN = 80
 MAX_SEEN = 5000
@@ -133,14 +134,17 @@ class News:
             return True
         scored, matches = [], []
         for article in fresh[:MAX_PER_POLL]:
-            questions = {f"t{i}": f"Is this article about: {t}?" for i, t in enumerate(topics)}
+            state = {"title": article["title"], "summary": article["summary"]}
+            hit = []
             try:
-                probs = self.clef.noul({"title": article["title"], "summary": article["summary"]}, questions)
+                for start in range(0, len(topics), TOPICS_PER_CALL):
+                    chunk = list(enumerate(topics))[start:start + TOPICS_PER_CALL]
+                    probs = self.clef.noul(state, {f"t{i}": f"Is this article about: {t}?" for i, t in chunk})
+                    hit += [t for i, t in chunk if probs[f"t{i}"] >= THRESHOLD]
             except ClefError as e:
                 self._fail(f"clef unavailable ({e}), articles stay unseen")
                 break
             scored.append(article)
-            hit = [t for i, t in enumerate(topics) if probs[f"t{i}"] >= THRESHOLD]
             if hit:
                 matches.append({"id": article["id"], "title": article["title"],
                                 "url": article["url"], "topics": hit})
@@ -179,8 +183,14 @@ class News:
             if last is None:  # first ever check: start the schedule, do not send on install
                 self._save()
                 return False
-            pending = self.state["pending"]
+            followed = {t.lower() for t in self._topics()}  # drop matches for topics unfollowed since
+            pending = []
+            for item in self.state["pending"]:
+                kept = [t for t in item["topics"] if t.lower() in followed]
+                if kept:
+                    pending.append({**item, "topics": kept})
             if not pending:
+                self.state["pending"] = []
                 self._save()
                 return False
             text, used = self._digest_text(pending)
