@@ -9,7 +9,9 @@ from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 import alerts  # noqa: E402
+import clef  # noqa: E402
 import core  # noqa: E402
+import triage  # noqa: E402
 
 UTC = timezone.utc
 T0 = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
@@ -287,6 +289,117 @@ class ModuleTests(unittest.TestCase):
         self.assertEqual(a.callbacks, {})
         self.assertTrue(a.help and all(line.startswith("/alerts") for line in a.help))
 
+
+
+class FakeJudge:
+    """Stands in for Triage: noise titles are dropped; `on_judge` runs after each judgement."""
+
+    def __init__(self, noise=(), on_judge=None):
+        self.noise, self.on_judge, self.judged = set(noise), on_judge, []
+
+    def judge(self, msg):
+        self.judged.append(msg["id"])
+        if self.on_judge:
+            self.on_judge(msg)
+        return msg["title"] not in self.noise
+
+
+class TriageHarness(Harness):
+    def __init__(self, judge):
+        self.judge = judge
+        super().__init__()
+
+    def make(self):
+        ctx = core.Ctx("alerts", lambda text, buttons=None: self.sent.append(text), self.path)
+        return alerts.Alerts(ctx, self._fetch, lambda: self.now, triage=self.judge)
+
+
+class TriageTests(unittest.TestCase):
+    def test_noise_is_dropped_and_needed_is_forwarded(self):
+        h = TriageHarness(FakeJudge(noise={"Backup: x"}))
+        h.seed(1)
+        h.poll([m(3, title="Needed"), m(2, title="Backup: x")])
+        self.assertEqual(h.sent, ["\U0001f7e1 Needed\nb"])
+        self.assertEqual(h.state()["last_id"], 3)
+
+    def test_critical_messages_are_sent_before_judged_ones(self):
+        h = TriageHarness(FakeJudge())
+        h.seed(1)
+        h.poll([m(4, title="low2"), m(3, title="CRIT", priority=9), m(2, title="low1")])
+        self.assertEqual([x.split("\n")[0] for x in h.sent],
+                         ["\U0001f534 CRIT", "\U0001f7e1 low1", "\U0001f7e1 low2"])
+
+    def test_real_triage_forwards_when_clef_is_down(self):
+        class Down:
+            def noul(self, state, questions):
+                raise clef.ClefError("OSError")
+        h = TriageHarness(triage.Triage(Down()))
+        h.seed(1)
+        h.poll([m(2, title="anything")])
+        self.assertEqual(len(h.sent), 1)
+        self.assertEqual(h.state()["dropped"], [])
+
+    def test_a_muted_poll_never_calls_triage(self):
+        j = FakeJudge()
+        h = TriageHarness(j)
+        h.seed(1)
+        h.say("off")
+        h.poll([m(2)])
+        self.assertEqual((h.sent[-1:], j.judged), (["Alerts: OFF (until you turn them on)"], []))
+
+    def test_muting_during_judging_stops_the_rest(self):
+        h = TriageHarness(FakeJudge(on_judge=lambda msg: h.say("off") if msg["id"] == 2 else None))
+        h.seed(1)
+        h.sent.clear()
+        h.poll([m(2), m(3)])
+        self.assertEqual(h.sent, ["Alerts: OFF (until you turn them on)"])
+        self.assertEqual(h.state()["last_id"], 3)
+
+    def test_dropped_command_lists_newest_first_and_survives_restart(self):
+        h = TriageHarness(FakeJudge(noise={"n1", "n2"}))
+        h.seed(1)
+        h.poll([m(2, title="n1")])
+        h.now = T0 + timedelta(minutes=5)
+        h.poll([m(3, title="n2")])
+        h.sent.clear()
+        h.alerts = h.make()
+        h.say("dropped")
+        text = h.sent[0]
+        self.assertIn("Last 2 messages", text)
+        self.assertLess(text.index("n2"), text.index("n1"))
+        self.assertIn("10-05 12:05", text)
+
+    def test_only_the_last_twenty_drops_are_kept(self):
+        h = TriageHarness(FakeJudge(noise={"n"}))
+        h.seed(1)
+        h.poll([m(i, title="n") for i in range(2, 30)])
+        self.assertEqual(len(h.state()["dropped"]), alerts.MAX_DROPS)
+        self.assertEqual(h.state()["dropped"][0]["id"], 29)
+
+    def test_dropped_command_without_triage_or_drops(self):
+        h = Harness()
+        h.say("dropped")
+        self.assertEqual(h.sent, ["Triage is off: every message is forwarded."])
+        t = TriageHarness(FakeJudge())
+        t.say("dropped")
+        self.assertEqual(t.sent, ["Triage has dropped nothing yet."])
+
+    def test_corrupt_dropped_state_is_reset_not_fatal(self):
+        h = TriageHarness(FakeJudge())
+        h.write(json.dumps({"last_id": 1, "muted": False, "until": None, "dropped": "oops"}))
+        h.alerts = h.make()
+        self.assertEqual(h.alerts.state["dropped"], [])
+
+    def test_old_state_file_without_dropped_still_loads(self):
+        h = TriageHarness(FakeJudge())
+        h.write(json.dumps({"last_id": 5, "muted": False, "until": None}))
+        h.alerts = h.make()
+        self.assertEqual((h.alerts.state["last_id"], h.alerts.state["dropped"]), (5, []))
+
+    def test_usage_mentions_dropped(self):
+        h = Harness()
+        h.say("bogus")
+        self.assertIn("dropped", h.sent[0])
 
 if __name__ == "__main__":
     unittest.main()
