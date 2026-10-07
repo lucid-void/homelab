@@ -401,5 +401,29 @@ class TriageTests(unittest.TestCase):
         h.say("bogus")
         self.assertIn("dropped", h.sent[0])
 
+    def test_corrupt_dropped_entries_are_filtered_and_capped(self):
+        h = TriageHarness(FakeJudge())
+        # Mixed valid/invalid entries: numbers, strings, incomplete dicts, and complete dicts
+        h.write(json.dumps({"last_id": 1, "muted": False, "until": None,
+                            "dropped": [1, "x", {"at": 5, "title": None},
+                                        {"id": 1, "title": "ok", "priority": 5, "at": "2026-10-05T12:00:00+00:00"}]}))
+        h.alerts = h.make()
+        # Only dicts should remain; 2 invalid + 1 incomplete (missing id, title, priority) + 1 complete = 2 valid
+        self.assertEqual(len(h.alerts.state["dropped"]), 2)
+        # The command should not raise and should send a message
+        h.say("dropped")
+        self.assertEqual(len(h.sent), 1)
+        self.assertIn("Last 2 messages", h.sent[0])
+
+    def test_dropped_entries_over_limit_are_capped_on_load(self):
+        h = TriageHarness(FakeJudge())
+        # Create 30 valid dict entries
+        entries = [{"id": i, "title": f"msg{i}", "priority": 5, "at": "2026-10-05T12:00:00+00:00"}
+                   for i in range(1, 31)]
+        h.write(json.dumps({"last_id": 1, "muted": False, "until": None, "dropped": entries}))
+        h.alerts = h.make()
+        # Should be capped to MAX_DROPS (20)
+        self.assertEqual(len(h.alerts.state["dropped"]), alerts.MAX_DROPS)
+
 if __name__ == "__main__":
     unittest.main()

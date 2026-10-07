@@ -93,6 +93,8 @@ class Alerts:
         state = {key: raw.get(key) for key in default}
         if not isinstance(state["dropped"], list):
             state["dropped"] = []
+        else:
+            state["dropped"] = [d for d in state["dropped"] if isinstance(d, dict)][:MAX_DROPS]
         return state
 
     def _save(self):
@@ -163,7 +165,7 @@ class Alerts:
         drops = self.state["dropped"]
         if not drops:
             return "Triage has dropped nothing yet."
-        lines = [f"- {(d.get('at') or '')[5:16].replace('T', ' ')} {d.get('title') or '(no title)'}" for d in drops]
+        lines = [f"- {str(d.get('at') or '')[5:16].replace('T', ' ')} {str(d.get('title') or '(no title)')}" for d in drops]
         return f"Last {len(drops)} messages kept out of Telegram (still in Gotify):\n" + "\n".join(lines)
 
     # -- forwarder --
