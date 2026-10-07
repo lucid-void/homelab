@@ -5,6 +5,7 @@ import os
 import sys
 import unittest
 import urllib.error
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 import clef  # noqa: E402
@@ -106,6 +107,28 @@ class TriageTests(unittest.TestCase):
         triage.Triage(f).judge(msg(title="t" * 5000, message="m" * 500000))
         state = f.calls[0][0]
         self.assertEqual((len(state["title"]), len(state["message"])), (triage.MAX_TITLE, triage.MAX_MESSAGE))
+
+    def test_clef_error_starts_a_cooldown_that_skips_clef_then_retries(self):
+        now = [1000.0]
+        f = FakeClef(error=clef.ClefError("OSError"))
+        t = triage.Triage(f, cooldown=300, clock=lambda: now[0])
+        self.assertTrue(t.judge(msg(id=1)))
+        self.assertEqual(len(f.calls), 1)
+        now[0] += 299
+        self.assertTrue(t.judge(msg(id=2)))
+        self.assertTrue(t.judge(msg(id=3)))
+        self.assertEqual(len(f.calls), 1)
+        now[0] += 2
+        self.assertTrue(t.judge(msg(id=4)))
+        self.assertEqual(len(f.calls), 2)
+
+    def test_cooldown_start_is_logged_once_not_per_message(self):
+        now = [0.0]
+        t = triage.Triage(FakeClef(error=clef.ClefError("OSError")), clock=lambda: now[0])
+        with mock.patch("triage.log") as lg:
+            for i in range(5):
+                t.judge(msg(id=i))
+        self.assertEqual(lg.call_count, 1)
 
     def test_is_critical(self):
         self.assertTrue(triage.is_critical(msg(priority=8)))
