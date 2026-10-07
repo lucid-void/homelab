@@ -8,12 +8,14 @@ import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+import triage as triage_mod
 from core import log
 
 UTC = timezone.utc
 POLL_SECONDS = 10
 MAX_MUTE = timedelta(days=7)
-USAGE = "Usage: /alerts [on | off [1h|4h|24h]]"
+MAX_DROPS = 20
+USAGE = "Usage: /alerts [on | off [1h|4h|24h] | dropped]"
 DURATION_RE = re.compile(r"^(\d{1,4})([hm])$")
 
 
@@ -59,10 +61,11 @@ class Alerts:
         "/alerts - show whether Gotify alerts are on",
         "/alerts off [1h|4h|24h] - mute them (no duration = until on)",
         "/alerts on - unmute",
+        "/alerts dropped - the last messages triage kept out of Telegram",
     ]
 
-    def __init__(self, ctx, fetch, now=lambda: datetime.now(UTC)):
-        self.ctx, self.fetch, self.now = ctx, fetch, now
+    def __init__(self, ctx, fetch, now=lambda: datetime.now(UTC), triage=None):
+        self.ctx, self.fetch, self.now, self.triage = ctx, fetch, now, triage
         self.lock = threading.RLock()
         self.failing = False
         self.commands = {"alerts": self._command}
@@ -72,7 +75,7 @@ class Alerts:
     # -- persistence --
 
     def _load(self):
-        default = {"last_id": None, "muted": False, "until": None}
+        default = {"last_id": None, "muted": False, "until": None, "dropped": []}
         try:
             with open(self.ctx.state_path) as f:
                 raw = json.load(f)
@@ -87,7 +90,10 @@ class Alerts:
         if not ok:
             log("alerts state has the wrong shape, alerts stay on")
             return default
-        return {key: raw.get(key) for key in default}
+        state = {key: raw.get(key) for key in default}
+        if not isinstance(state["dropped"], list):
+            state["dropped"] = []
+        return state
 
     def _save(self):
         tmp = self.ctx.state_path + ".tmp"
@@ -126,6 +132,8 @@ class Alerts:
                 self.state["muted"], self.state["until"] = False, None
                 self._save()
                 self.ctx.send(self._status(now))
+            elif args == ["dropped"]:
+                self.ctx.send(self._dropped_text())
             elif args[0] == "off" and len(args) <= 2:
                 until = None
                 if len(args) == 2:
@@ -139,6 +147,24 @@ class Alerts:
                 self.ctx.send(self._status(now))
             else:
                 self.ctx.send(USAGE)
+
+    # -- triage drops --
+
+    def _record_drop(self, msg):
+        with self.lock:
+            entry = {"id": msg["id"], "title": msg.get("title") or "", "priority": msg.get("priority"),
+                     "at": self.now().isoformat()}
+            self.state["dropped"] = ([entry] + self.state["dropped"])[:MAX_DROPS]
+            self._save()
+
+    def _dropped_text(self):
+        if self.triage is None:
+            return "Triage is off: every message is forwarded."
+        drops = self.state["dropped"]
+        if not drops:
+            return "Triage has dropped nothing yet."
+        lines = [f"- {(d.get('at') or '')[5:16].replace('T', ' ')} {d.get('title') or '(no title)'}" for d in drops]
+        return f"Last {len(drops)} messages kept out of Telegram (still in Gotify):\n" + "\n".join(lines)
 
     # -- forwarder --
 
@@ -163,13 +189,26 @@ class Alerts:
             elif top < last:
                 log("gotify ids went backwards, assuming a database reset")
                 last = 0
-            if not self._is_muted(self.now()):
-                for msg in valid:
-                    if msg["id"] > last:
-                        self.ctx.send(format_message(msg))
+            new = [x for x in valid if x["id"] > last]
+            muted = self._is_muted(self.now())
+        if not muted:
+            self._deliver(new)  # outside the lock: judging is slow and /alerts must stay responsive
+        with self.lock:
             self.state["last_id"] = max(last, top)
             self._save()
         return True
+
+    def _deliver(self, new):
+        if self.triage is not None:  # critical messages first, so a slow burst never delays them
+            new = sorted(new, key=lambda x: (not triage_mod.is_critical(x), x["id"]))
+        for msg in new:
+            if self.triage is not None and not self.triage.judge(msg):
+                self._record_drop(msg)
+                continue
+            with self.lock:
+                if self._is_muted(self.now()):  # muted while we were judging
+                    return
+            self.ctx.send(format_message(msg))
 
     def start(self):
         threading.Thread(target=self._loop, daemon=True).start()
