@@ -96,18 +96,28 @@ on the class. The core needs no change.
   `ClefError`, so `judge` never raises). Dropped messages stay in the Gotify UI; the last 20 are
   kept in `alerts.json` and listed by `/alerts dropped`, and corrupt entries are filtered on
   load. Triage runs outside the alerts lock; do not move it inside, it would freeze `/alerts`
-  for the length of a burst.
+  for the length of a burst. `/alerts dropped` times are UTC.
+- **Triage cannot stall critical alerts.** Critical messages are sent first. After a Clef error
+  triage skips Clef for 5 minutes (everything is forwarded unjudged), and each poll judges for at
+  most 20 s: once that budget is spent the remaining low-priority messages are forwarded
+  unjudged and no drops are recorded. Mute is checked before each message, so muting mid-batch
+  stops judging.
 - **The news module needs the sealed `freshrss-api-secret`** (`FRESHRSS_USER`,
   `FRESHRSS_API_PASSWORD` = FreshRSS's API password, which bypasses OIDC/2FA). Without it the
-  module is simply not registered and the log says so.
+  module is simply not registered and the log says so; it needs BOTH keys non-empty.
+  `DIGEST_HOURS` is validated (a comma list of hours 0-23; any bad value logs and falls back
+  to 8,18).
 - **The first news poll never scores the backlog.** The poll stores its start time as `since` and
   every FreshRSS fetch passes it as `ot`, so articles older than the install are excluded (the
   API returns at most 100 per call, a bigger backlog would otherwise leak through); the first poll
   also seeds anything newer as seen without scoring it. A poll with no topics marks articles seen too; only articles that arrive while topics exist can match.
   The FreshRSS client raises on a response whose `items` is not a list, so a malformed first
   response cannot seed an empty seen-list.
-- **A poll scores at most 40 articles** (about 7 s each); the rest wait for the next poll. A Clef
-  failure leaves the unscored articles unseen so nothing is lost.
+- **A poll scores at most 40 articles**, and news scores at most 3 topics per Clef call (about
+  7 s per call, measured on headline-only input; summaries add time), so an article with 10
+  topics is 4 calls. News uses its own 60 s Clef client; triage uses a 15 s one. The rest wait
+  for the next poll. A Clef failure on any call leaves that article unseen so nothing is lost.
+  Pending matches for topics unfollowed since are dropped at digest time.
 - **Digest times are 08:00 and 18:00 in `DIGEST_TZ`**; if the zone database is missing the bot
   logs it and uses UTC. The first digest check only starts the schedule.
 - **A failed digest send is retried, not lost.** `Telegram.send` returns True/False;
