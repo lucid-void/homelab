@@ -1,3 +1,4 @@
+import http.client
 import io
 import json
 import os
@@ -49,6 +50,7 @@ class ClefTests(unittest.TestCase):
 
     def test_every_failure_becomes_clef_error(self):
         bad = [OSError("down"), urllib.error.URLError("x"), TimeoutError(),
+               http.client.IncompleteRead(b"x"), http.client.BadStatusLine("x"),
                {}, {"answers": {}}, {"answers": {"a": {}}},
                answer(a="0.9"), answer(a=1.5), answer(a=-0.1), answer(a=True), "text"]
         for payload in bad:
