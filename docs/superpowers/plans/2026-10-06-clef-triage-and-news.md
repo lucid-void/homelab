@@ -2203,6 +2203,8 @@ Expected: both `OK`; only the user's two unrelated modified files (`design/decis
 
 - [ ] **Step 2: Ask the user, then open a PR**
 
+Warn the user first: the merge also changes `llama-swap`'s memory request (60Gi to 46Gi), which recreates the `llama-swap` pod (a 34 GiB model reload, so a short chat outage).
+
 Ask: "Ready to push `feat/clef-triage-news` and open a PR? Merging deploys Clef to `llm-1` and lowers `llama-swap`'s memory request." On a yes:
 
 ```bash
@@ -2240,6 +2242,11 @@ mise exec -- kubectl -n ai exec deploy/llama-swap -- curl -s localhost:8080/v1/m
 ```
 and ask the user to send one chat message through `chat.blackcats.cc` or time one `local-fast` call. Baseline decode is 8.4 to 8.9 tok/s. **If decode drops by more than 20%, or `kubectl -n ai get pods` shows `llama-swap` restarted, stop and report: revert the memory change with `git revert` and keep Clef off until a smaller quantisation is chosen.**
 
+Repeat the decode check at two more moments, with the same >20% / restart rule (and the same revert):
+
+1. DURING a news poll. A poll starts every 30 minutes after the bot's first start, and keeps Clef busy for minutes. Trigger or observe it through the bot log lines (`kubectl -n monitoring logs deploy/flight-tracker --tail=50`), and while it runs time one `local-fast` call or one chat reply (`kubectl -n ai top` is unavailable, so the timing of a chat reply is the measure). If chat suffers, lower `CLEF_THREADS` rather than reverting first.
+2. After a few days of normal chat use. The llama-swap prompt cache (up to 8 GiB) fills over days and can push its working set past its request, so re-check decode speed and `kubectl -n ai get pods` for a restart or eviction.
+
 - [ ] **Step 5: Seal the FreshRSS API credentials (user action)**
 
 Tell the user to run, in this repo, replacing the placeholders (the `-secret.yml` suffix is gitignored):
@@ -2263,9 +2270,10 @@ Then add `  - ./freshrss-api-sealed.yml` under `resources:` in `kubernetes/apps/
 
 1. `/alerts dropped` replies "Triage has dropped nothing yet." (or a list).
 2. `/topics add kubernetes security` replies "Following: kubernetes security" and lists it.
-3. `kubectl -n monitoring logs deploy/flight-tracker --tail=50` shows `triage message ... p=... forward|drop` lines for new Gotify messages and no `FRESHRSS_USER not set` line (after Step 5).
+3. `kubectl -n monitoring logs deploy/flight-tracker --tail=50` shows `triage message ... p=... forward|drop` lines for new Gotify messages and no "news module off" line once the secret is sealed (after Step 5).
 4. Trigger low-priority test messages: use the Gotify UI to send a priority 5 message titled `Backup: test ✓` and confirm it does not arrive, then one titled `ALERT: disk failing` and confirm it does.
-5. After the next 08:00 or 18:00 (Brussels), a digest arrives if matching articles were found; confirm zone handling: `mise exec -- kubectl -n monitoring exec deploy/flight-tracker -- python3 -c "import zoneinfo;zoneinfo.ZoneInfo('Europe/Brussels');print('tz ok')"` (no `timezone ... not found` log line).
+5. Seeding check: once the first poll has run, publish or fetch a FreshRSS article AFTER it and confirm it shows up in a later poll's log (proves `ot`/`since` works and the backlog is not replayed).
+6. After the next 08:00 or 18:00 (Brussels), a digest arrives if matching articles were found; confirm zone handling: `mise exec -- kubectl -n monitoring exec deploy/flight-tracker -- python3 -c "import zoneinfo;zoneinfo.ZoneInfo('Europe/Brussels');print('tz ok')"` (no `timezone ... not found` log line).
 
 - [ ] **Step 7: Review the drops after a week**
 
