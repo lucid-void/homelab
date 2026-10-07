@@ -146,6 +146,32 @@ class PollTests(unittest.TestCase):
         self.assertEqual(len(h.clef.calls), 1)
         self.assertEqual(h.state()["pending"][0]["topics"], ["rust", "python"])
 
+    def test_topics_are_scored_in_chunks_of_three(self):
+        h = Harness()
+        for t in ("aa", "bb", "cc", "dd", "ee", "ff", "gg"):
+            h.say("add", t)
+        h.seed()
+        h.poll([art(2, "aa ee gg")])
+        self.assertEqual([sorted(q) for _, q in h.clef.calls],
+                         [["t0", "t1", "t2"], ["t3", "t4", "t5"], ["t6"]])
+        self.assertEqual(h.state()["pending"][0]["topics"], ["aa", "ee", "gg"])
+
+    def test_clef_error_in_a_later_chunk_leaves_the_article_unseen(self):
+        h = Harness()
+        for t in ("aa", "bb", "cc", "dd"):
+            h.say("add", t)
+        h.seed()
+        real = h.clef.noul
+
+        def flaky(state, questions):
+            if len(h.clef.calls) == 1:
+                h.clef.calls.append((state, questions))
+                raise clef.ClefError("OSError")
+            return real(state, questions)
+        h.clef.noul = flaky
+        self.assertFalse(h.poll([art(2, "aa dd")]))
+        self.assertEqual((h.state()["seen"], h.state()["pending"]), ([], []))
+
     def test_non_matching_article_is_seen_but_not_pending(self):
         h = Harness()
         h.say("add", "rust")
@@ -272,6 +298,35 @@ class DigestTests(unittest.TestCase):
         h.news._finish([], [{"id": str(i), "title": "t", "url": "", "topics": ["x"]}
                             for i in range(news.MAX_PENDING + 20)])
         self.assertEqual(len(h.state()["pending"]), news.MAX_PENDING)
+
+    def test_matches_for_unfollowed_topics_are_dropped_at_digest_time(self):
+        h = Harness()
+        h.say("add", "rust")
+        h.say("add", "python")
+        h.seed()
+        h.poll([art(2, "rust only"), art(3, "Python and Rust"), art(4, "python only")])
+        h.say("rm", "python")
+        h.sent.clear()
+        h.news.maybe_digest()
+        h.now = T0.replace(hour=18)
+        self.assertTrue(h.news.maybe_digest())
+        self.assertIn("rust only", h.sent[0])
+        self.assertIn("Python and Rust (rust)", h.sent[0])
+        self.assertNotIn("python only", h.sent[0])
+        self.assertEqual(h.state()["pending"], [])
+
+    def test_digest_with_only_unfollowed_matches_sends_nothing_and_closes_the_slot(self):
+        h = Harness()
+        h.say("add", "rust")
+        h.seed()
+        h.poll([art(2, "rust")])
+        h.say("rm", "rust")
+        h.news.maybe_digest()
+        h.sent.clear()
+        h.now = T0.replace(hour=18)
+        self.assertFalse(h.news.maybe_digest())
+        self.assertEqual((h.sent, h.state()["pending"]), ([], []))
+        self.assertEqual(h.state()["last_slot"], "2026-10-06T18")
 
     def test_digest_failure_restores_pending_and_slot(self):
         h = Harness()

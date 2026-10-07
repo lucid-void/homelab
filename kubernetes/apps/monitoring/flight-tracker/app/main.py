@@ -40,7 +40,8 @@ def main():
     bot = core.Bot(core.Telegram(token, chat_id), chat_id, data_dir, legacy_state=state_path)
     bot.register(flights.Flights(
         bot.ctx("flights"), lambda number, day: flights.fetch_flight(number, day, key), state_path))
-    clef_client = clef.Clef(os.environ.get("CLEF_URL", DEFAULT_CLEF_URL))
+    clef_url = os.environ.get("CLEF_URL", DEFAULT_CLEF_URL)
+    clef_client = clef.Clef(clef_url)  # triage: fail fast, 15 s
     bot.register(alerts.Alerts(
         bot.ctx("alerts"), lambda: alerts.fetch_messages(gotify_host, gotify_token),
         triage=triage.Triage(clef_client)))
@@ -48,7 +49,8 @@ def main():
         source = freshrss.FreshRSS(os.environ.get("FRESHRSS_URL", DEFAULT_FRESHRSS_URL),
                                    os.environ["FRESHRSS_USER"], os.environ["FRESHRSS_API_PASSWORD"])
         hours = tuple(int(h) for h in os.environ.get("DIGEST_HOURS", "8,18").split(","))
-        bot.register(news.News(bot.ctx("news"), chat_id, source, clef_client,
+        news_clef = clef.Clef(clef_url, timeout=60)  # news scores chunks of topics on CPU: allow longer
+        bot.register(news.News(bot.ctx("news"), chat_id, source, news_clef,
                                tz=digest_tz(), digest_hours=hours))
     else:
         core.log("FRESHRSS_USER not set, news module off")
