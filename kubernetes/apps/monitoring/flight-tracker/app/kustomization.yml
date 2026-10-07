@@ -10,7 +10,11 @@ configMapGenerator:
     namespace: monitoring   # must match the Deployment's namespace or the hashed name is not propagated
     files:
       - alerts.py
+      - clef.py
       - core.py
       - flights.py
+      - freshrss.py
       - main.py
+      - news.py
       - status.py
+      - triage.py
