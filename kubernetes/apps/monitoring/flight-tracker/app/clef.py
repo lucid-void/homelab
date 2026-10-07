@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Client for the in-cluster Clef service (SystemOne request shape, `noul` questions only)."""
+import http.client
 import json
 import urllib.request
 
@@ -30,5 +31,5 @@ class Clef:
                     raise ValueError("probability")
                 result[qid] = float(p)
             return result
-        except (OSError, ValueError, KeyError, TypeError) as e:
+        except (OSError, ValueError, KeyError, TypeError, http.client.HTTPException) as e:
             raise ClefError(type(e).__name__) from e
