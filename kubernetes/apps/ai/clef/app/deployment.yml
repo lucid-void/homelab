@@ -1,0 +1,115 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clef
+  namespace: ai
+  annotations:
+    reloader.stakater.com/auto: "true"
+    # Root so the files on the openebs-hostpath volume (created root-owned) are writable,
+    # the same reason llama-swap and model-fetch run as root.
+    ignore-check.kube-linter.io/run-as-non-root: "hostpath volume is root-owned; same as llama-swap"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # RWO node-local volume: a rolling update would hang on the second pod
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clef
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clef
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: llm-1
+      tolerations:
+        - key: workload
+          operator: Equal
+          value: llm
+          effect: NoSchedule
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: clef-data
+        - name: scripts
+          configMap:
+            name: clef-scripts
+        - name: tmp
+          emptyDir:
+            sizeLimit: 4Gi
+      initContainers:
+        - name: setup
+          image: python:3.12.15-slim-bookworm
+          command: ["/bin/sh", "/scripts/setup.sh"]
+          env:
+            - name: CLEF_REVISION
+              value: 17f0b0ad64efb65d273590632833508766b2aae6
+            - name: HF_HOME
+              value: /data/hf
+            - name: HOME
+              value: /tmp
+            - name: TMPDIR
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: scripts, mountPath: /scripts, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 2Gi}
+      containers:
+        - name: clef
+          image: python:3.12.15-slim-bookworm
+          command: ["/data/venv/bin/python", "-u", "/scripts/server.py"]
+          env:
+            - name: CLEF_SNAPSHOT
+              value: /data/hf/hub/models--Cloudflare--clef-flash/snapshots/17f0b0ad64efb65d273590632833508766b2aae6
+            - name: CLEF_THREADS
+              value: "6"
+            - name: HF_HOME
+              value: /data/hf
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: HOME
+              value: /tmp
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          livenessProbe:
+            tcpSocket: {port: http}
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: scripts, mountPath: /scripts, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+          resources:
+            # Measured 2026-10-06: peak 20.8 GiB (includes page cache of the weights).
+            # The request is what the scheduler counts; llama-swap's was lowered to fit it.
+            requests: {cpu: "2", memory: 18Gi}
+            limits: {memory: 24Gi}

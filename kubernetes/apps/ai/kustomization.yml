@@ -5,5 +5,6 @@ resources:
   - ./namespace.yml
   - ./database/ks.yml
   - ./llama-swap/ks.yml
+  - ./clef/ks.yml
   - ./litellm/ks.yml
   - ./open-webui/ks.yml

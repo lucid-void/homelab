@@ -1,0 +1,15 @@
+---
+# openebs-hostpath, node-local on llm-1, like llama-models: the weights are read on every
+# start and the Deployment is pinned to that node. 19 GB weights + about 3 GB venv.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: clef-data
+  namespace: ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      storage: 30Gi
