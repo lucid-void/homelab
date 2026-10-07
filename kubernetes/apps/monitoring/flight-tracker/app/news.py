@@ -186,7 +186,13 @@ class News:
             text, used = self._digest_text(pending)
             self.state["pending"] = pending[used:]
             self._save()
-        self.ctx.send(text)
+        ok = self.ctx.send(text)
+        if ok is False:
+            with self.lock:
+                self.state["pending"] = pending
+                self.state["last_slot"] = last
+                self._save()
+            return False
         return True
 
     def _digest_text(self, pending):

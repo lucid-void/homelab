@@ -94,6 +94,18 @@ class TelegramTests(unittest.TestCase):
         with mock.patch.object(tg, "_call", side_effect=OSError("down")):
             tg.send("hi")  # must not raise
 
+    def test_send_returns_true_on_success(self):
+        tg = core.Telegram("TOKEN", "123")
+        with mock.patch.object(tg, "_call"):
+            self.assertTrue(tg.send("hi"))
+
+    def test_send_returns_false_on_oserror(self):
+        tg = core.Telegram("TOKEN", "123")
+        with mock.patch.object(tg, "_call", side_effect=OSError("down")):
+            self.assertFalse(tg.send("hi"))
+        with mock.patch.object(tg, "_call", side_effect=ValueError("bad json")):
+            self.assertFalse(tg.send("hi"))
+
 
 class RegistryTests(BotCase):
     def test_command_routes_to_handler_with_args(self):
