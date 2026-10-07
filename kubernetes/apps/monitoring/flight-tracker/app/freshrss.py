@@ -44,6 +44,8 @@ class FreshRSS:
                 headers={"Authorization": f"GoogleLogin auth={token}"})
             with self.opener(req, timeout=self.timeout) as resp:
                 items = json.load(resp)["items"]
+            if not isinstance(items, list):
+                raise FreshRSSError("shape")
             articles = []
             for item in items:
                 if not isinstance(item, dict) or not isinstance(item.get("id"), str):
