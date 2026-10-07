@@ -22,9 +22,10 @@ def art(n, title=None, url=None):
 
 class FakeSource:
     def __init__(self):
-        self.batches = []
+        self.batches, self.since = [], []
 
-    def unread(self):
+    def unread(self, since=None):
+        self.since.append(since)
         r = self.batches.pop(0)
         if isinstance(r, Exception):
             raise r
@@ -126,6 +127,24 @@ class PollTests(unittest.TestCase):
         self.assertEqual(h.clef.calls, [])
         self.assertEqual(h.state()["seen"], ["a1", "a2"])
 
+    def test_first_poll_stores_since_and_passes_it_later_polls_reuse_it(self):
+        h = Harness()
+        h.seed([art(1)])
+        stamp = int(T0.timestamp())
+        self.assertEqual((h.state()["since"], h.source.since), (stamp, [stamp]))
+        h.now = T0 + timedelta(hours=1)
+        h.poll([art(2)])
+        self.assertEqual((h.state()["since"], h.source.since), (stamp, [stamp, stamp]))
+
+    def test_since_survives_a_failed_first_fetch(self):
+        h = Harness()
+        h.poll(freshrss.FreshRSSError("OSError"))
+        stamp = int(T0.timestamp())
+        self.assertEqual(h.state()["since"], stamp)
+        h.now = T0 + timedelta(hours=1)
+        h.seed([art(1)])
+        self.assertEqual(h.source.since, [stamp, stamp])
+
     def test_new_matching_article_becomes_pending_once(self):
         h = Harness()
         h.say("add", "rust")
@@ -223,6 +242,8 @@ class PollTests(unittest.TestCase):
 
     def test_corrupt_or_wrong_shape_state_starts_empty(self):
         for content in ("{nope", json.dumps({"topics": "x"}), json.dumps([1]),
+                        json.dumps({"topics": {"42": ["rust"]}, "pending": [], "since": "x"}),
+                        json.dumps({"topics": {"42": ["rust"]}, "pending": [], "since": True}),
                         json.dumps({"topics": {"1": [1]}, "pending": []})):
             with self.subTest(content=content):
                 h = Harness()

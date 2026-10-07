@@ -100,8 +100,10 @@ on the class. The core needs no change.
 - **The news module needs the sealed `freshrss-api-secret`** (`FRESHRSS_USER`,
   `FRESHRSS_API_PASSWORD` = FreshRSS's API password, which bypasses OIDC/2FA). Without it the
   module is simply not registered and the log says so.
-- **The first news poll marks the whole unread backlog as seen without scoring it**, and a poll
-  with no topics marks articles seen too; only articles that arrive while topics exist can match.
+- **The first news poll never scores the backlog.** The poll stores its start time as `since` and
+  every FreshRSS fetch passes it as `ot`, so articles older than the install are excluded (the
+  API returns at most 100 per call, a bigger backlog would otherwise leak through); the first poll
+  also seeds anything newer as seen without scoring it. A poll with no topics marks articles seen too; only articles that arrive while topics exist can match.
   The FreshRSS client raises on a response whose `items` is not a list, so a malformed first
   response cannot seed an empty seen-list.
 - **A poll scores at most 40 articles** (about 7 s each); the rest wait for the next poll. A Clef

@@ -53,6 +53,14 @@ class FreshRSSTests(unittest.TestCase):
         self.assertEqual(parse_qs(url.query), {"xt": ["user/-/state/com.google/read"], "n": ["50"], "output": ["json"]})
         self.assertEqual(stream.get_header("Authorization"), "GoogleLogin auth=alice/tok123")
 
+    def test_ot_is_sent_only_when_since_is_given(self):
+        s = FakeServer([item()])
+        self.client(s).unread()
+        self.assertNotIn("ot", parse_qs(urlparse(s.requests[1].full_url).query))
+        s = FakeServer([item()])
+        self.client(s).unread(since=1790000000.7)
+        self.assertEqual(parse_qs(urlparse(s.requests[1].full_url).query)["ot"], ["1790000000"])
+
     def test_articles_are_flattened_to_plain_text(self):
         [a] = self.client(FakeServer([item()])).unread()
         self.assertEqual(a, {"id": "tag:google.com,2005:reader/item/1", "title": "T",

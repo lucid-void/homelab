@@ -34,11 +34,14 @@ class FreshRSS:
                     return line[5:]
         raise FreshRSSError("login")
 
-    def unread(self, limit=100):
-        """Newest-first unread articles as {id, title, summary, url}."""
+    def unread(self, limit=100, since=None):
+        """Newest-first unread articles as {id, title, summary, url}; `since` (epoch seconds) drops older ones."""
         try:
             token = self._login()
-            query = urllib.parse.urlencode({"xt": "user/-/state/com.google/read", "n": limit, "output": "json"})
+            params = {"xt": "user/-/state/com.google/read", "n": limit, "output": "json"}
+            if since is not None:
+                params["ot"] = int(since)
+            query = urllib.parse.urlencode(params)
             req = urllib.request.Request(
                 f"{self.base}/reader/api/0/stream/contents/reading-list?{query}",
                 headers={"Authorization": f"GoogleLogin auth={token}"})
