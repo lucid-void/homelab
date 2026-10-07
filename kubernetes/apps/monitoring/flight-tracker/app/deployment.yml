@@ -43,6 +43,14 @@ spec:
               value: /data/state.json
             - name: PYTHONDONTWRITEBYTECODE
               value: "1"
+            - name: CLEF_URL
+              value: http://clef.ai.svc.cluster.local:8080
+            - name: FRESHRSS_URL
+              value: http://freshrss.freshrss.svc.cluster.local
+            - name: DIGEST_TZ
+              value: Europe/Brussels
+            - name: DIGEST_HOURS
+              value: "8,18"
           envFrom:
             - secretRef:
                 name: telegram-secret
@@ -50,6 +58,9 @@ spec:
                 name: aerodatabox-secret
             - secretRef:
                 name: gotify-client-secret
+            - secretRef:
+                name: freshrss-api-secret
+                optional: true   # news module stays off until this is sealed; plain Deployment, so optional is honoured
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
