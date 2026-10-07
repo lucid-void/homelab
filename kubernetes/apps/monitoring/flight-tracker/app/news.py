@@ -45,7 +45,7 @@ class News:
     # -- persistence --
 
     def _load(self):
-        default = {"topics": {}, "seen": None, "pending": [], "last_slot": None}
+        default = {"topics": {}, "seen": None, "pending": [], "last_slot": None, "since": None}
         try:
             with open(self.ctx.state_path) as f:
                 raw = json.load(f)
@@ -59,7 +59,9 @@ class News:
                       for v in raw["topics"].values())
               and (raw.get("seen") is None or isinstance(raw["seen"], list))
               and isinstance(raw.get("pending"), list)
-              and (raw.get("last_slot") is None or isinstance(raw["last_slot"], str)))
+              and (raw.get("last_slot") is None or isinstance(raw["last_slot"], str))
+              and (raw.get("since") is None
+                   or (isinstance(raw["since"], (int, float)) and not isinstance(raw["since"], bool))))
         if not ok:
             log("news state has the wrong shape, starting empty")
             return default
@@ -115,14 +117,19 @@ class News:
     # -- polling --
 
     def poll_once(self):
+        with self.lock:
+            if self.state["since"] is None:  # first run: articles older than the install are never fetched
+                self.state["since"] = int(self.now().timestamp())
+                self._save()
+            since = self.state["since"]
         try:
-            articles = self.source.unread()
+            articles = self.source.unread(since=since)
         except FreshRSSError as e:
             self._fail(f"freshrss unavailable ({e})")
             return False
         with self.lock:
             topics = list(self._topics())
-            if self.state["seen"] is None:  # first run: do not replay the whole unread backlog
+            if self.state["seen"] is None:  # first run: seed what is already there, do not replay it
                 self.state["seen"] = [a["id"] for a in articles]
                 self._save()
                 self.failing = False
