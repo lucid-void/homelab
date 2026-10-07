@@ -21,6 +21,7 @@ spec:
       labels:
         app.kubernetes.io/name: clef
     spec:
+      priorityClassName: clef-low   # kubelet evicts Clef before llama-swap under node memory pressure
       nodeSelector:
         kubernetes.io/hostname: llm-1
       tolerations:
