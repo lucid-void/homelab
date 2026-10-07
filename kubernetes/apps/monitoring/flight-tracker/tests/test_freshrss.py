@@ -76,6 +76,11 @@ class FreshRSSTests(unittest.TestCase):
             with self.subTest(s=s), self.assertRaises(freshrss.FreshRSSError):
                 self.client(s).unread()
 
+    def test_items_must_be_a_list(self):
+        for items in ({}, "x", 5, None):
+            with self.subTest(items=items), self.assertRaises(freshrss.FreshRSSError):
+                self.client(FakeServer(items=items)).unread()
+
     def test_plain(self):
         self.assertEqual(freshrss.plain("<a href='x'>a</a>  &lt;b&gt;\n c"), "a <b> c")
         self.assertEqual(freshrss.plain(None), "")
