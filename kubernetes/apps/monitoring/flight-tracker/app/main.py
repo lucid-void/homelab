@@ -18,6 +18,18 @@ DEFAULT_CLEF_URL = "http://clef.ai.svc.cluster.local:8080"
 DEFAULT_FRESHRSS_URL = "http://freshrss.freshrss.svc.cluster.local"
 
 
+def parse_digest_hours(text):
+    """Sorted unique hours (0-23) from a comma list; anything wrong falls back to 8 and 18."""
+    try:
+        hours = {int(part) for part in text.split(",")}
+        if not hours or any(not 0 <= h <= 23 for h in hours):
+            raise ValueError
+    except ValueError:
+        core.log(f"DIGEST_HOURS {text!r} is not a comma list of hours 0-23, using 8,18")
+        return (8, 18)
+    return tuple(sorted(hours))
+
+
 def digest_tz():
     name = os.environ.get("DIGEST_TZ", "Europe/Brussels")
     try:
@@ -45,15 +57,17 @@ def main():
     bot.register(alerts.Alerts(
         bot.ctx("alerts"), lambda: alerts.fetch_messages(gotify_host, gotify_token),
         triage=triage.Triage(clef_client)))
-    if os.environ.get("FRESHRSS_USER"):  # the news module needs the sealed freshrss-api-secret
+    fr_user = os.environ.get("FRESHRSS_USER")
+    fr_password = os.environ.get("FRESHRSS_API_PASSWORD")
+    if fr_user and fr_password:  # the news module needs the sealed freshrss-api-secret
         source = freshrss.FreshRSS(os.environ.get("FRESHRSS_URL", DEFAULT_FRESHRSS_URL),
-                                   os.environ["FRESHRSS_USER"], os.environ["FRESHRSS_API_PASSWORD"])
-        hours = tuple(int(h) for h in os.environ.get("DIGEST_HOURS", "8,18").split(","))
+                                   fr_user, fr_password)
+        hours = parse_digest_hours(os.environ.get("DIGEST_HOURS", "8,18"))
         news_clef = clef.Clef(clef_url, timeout=60)  # news scores chunks of topics on CPU: allow longer
         bot.register(news.News(bot.ctx("news"), chat_id, source, news_clef,
                                tz=digest_tz(), digest_hours=hours))
     else:
-        core.log("FRESHRSS_USER not set, news module off")
+        core.log("FRESHRSS_USER or FRESHRSS_API_PASSWORD missing or empty, news module off")
     bot.register(status.Status(bot.ctx("status"), lambda promql: status.vm_query(vm_url, promql)))
     bot.start()
     core.log("flight-tracker started")
