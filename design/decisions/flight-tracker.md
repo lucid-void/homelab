@@ -7,8 +7,8 @@
 Single-user Telegram bot in `monitoring`. You send `/track LH123 2026-10-05`; it polls
 AeroDataBox (RapidAPI free plan, 400 units/month at 2 units per call) and messages gate,
 terminal, time and status changes. `/list`, `/untrack`, and `/fetch` (tappable list of
-tracked flights, or `/fetch LH123`) complete the flight interface; `/alerts` mutes Gotify forwarding, `/status` summarises cluster health. Five
-stdlib-only Python files (`core.py`, `flights.py`, `alerts.py`, `status.py`, `main.py`) delivered by one `configMapGenerator` `files:`; state is
+tracked flights, or `/fetch LH123`) complete the flight interface; `/alerts` mutes Gotify forwarding, `/status` summarises cluster health. `alerts.py` runs Clef triage on Gotify messages below priority 8, and `news.py` sends a twice-daily FreshRSS digest of articles matching `/topics`. Nine
+stdlib-only Python files (`core.py`, `flights.py`, `alerts.py`, `status.py`, `clef.py`, `triage.py`, `freshrss.py`, `news.py`, `main.py`) delivered by one `configMapGenerator` `files:`; state is
 JSON on an `nfs-client` PVC.
 
 It reuses the existing bot (`telegram-secret`, owned by the `gotify-telegram` Kustomization),
@@ -91,6 +91,31 @@ on the class. The core needs no change.
 - **The API key is sealed in `aerodatabox-sealed.yml`.** To rotate it, regenerate on
   RapidAPI, write a plaintext `aerodatabox-secret.yml` (gitignored) and re-seal it with the
   repo's `kubeseal` command.
+- **Triage never drops priority >= 8, a message with no usable priority, or anything when Clef
+  fails** (timeout 15 s, bad answer, service down; `clef.py` turns every transport error into
+  `ClefError`, so `judge` never raises). Dropped messages stay in the Gotify UI; the last 20 are
+  kept in `alerts.json` and listed by `/alerts dropped`, and corrupt entries are filtered on
+  load. Triage runs outside the alerts lock; do not move it inside, it would freeze `/alerts`
+  for the length of a burst.
+- **The news module needs the sealed `freshrss-api-secret`** (`FRESHRSS_USER`,
+  `FRESHRSS_API_PASSWORD` = FreshRSS's API password, which bypasses OIDC/2FA). Without it the
+  module is simply not registered and the log says so.
+- **The first news poll marks the whole unread backlog as seen without scoring it**, and a poll
+  with no topics marks articles seen too; only articles that arrive while topics exist can match.
+  The FreshRSS client raises on a response whose `items` is not a list, so a malformed first
+  response cannot seed an empty seen-list.
+- **A poll scores at most 40 articles** (about 7 s each); the rest wait for the next poll. A Clef
+  failure leaves the unscored articles unseen so nothing is lost.
+- **Digest times are 08:00 and 18:00 in `DIGEST_TZ`**; if the zone database is missing the bot
+  logs it and uses UTC. The first digest check only starts the schedule.
+- **A failed digest send is retried, not lost.** `Telegram.send` returns True/False;
+  `maybe_digest` puts the pending matches and the previous slot back when it returns False, so
+  the next loop pass (about 30 s) tries again.
+- **Article text is untrusted.** A crafted article can fool the classifier into a false match; the
+  result is a wrong line in a digest, nothing more.
+- **Topics are stored per chat id** in `/data/news.json`, but the core still answers only
+  `TELEGRAM_CHAT_ID`, so there is one list today. Multi-user needs the core to pass the chat id to
+  commands.
 
 ## Verify
 

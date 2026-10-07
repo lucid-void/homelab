@@ -30,6 +30,14 @@ has `dependsOn: keycloak-clients`. **`OAUTH_MERGE_ACCOUNTS_BY_EMAIL` defaults to
 `false`**, so on an IdP change Open WebUI orphans the existing account and silently
 creates a new empty one rather than failing.
 
+## Clef (decision model)
+
+`clef` in `ai` runs Cloudflare's open `clef-flash` (Apache 2.0) on CPU on `llm-1`, reached at
+`clef.ai.svc.cluster.local:8080`. It is **not** a `llama-swap` model and **not** behind LiteLLM:
+Clef is a Qwen backbone plus a trained `joint_head` and custom code, and it answers with one
+probability per option in a single forward pass (no text generation). The only client is the
+Telegram bot (`design/decisions/flight-tracker.md`).
+
 ## Rules
 
 - **Never raise `--ctx-size` without reading `KV self size` from a fresh boot log
@@ -93,6 +101,19 @@ creates a new empty one rather than failing.
 - **There is no cloud fallback, by choice** — `router_settings.fallbacks` is commented
   out in the LiteLLM config and no cloud model is registered, so agentic requests take
   as long as they take rather than being routed away.
+- **Never run Clef from a GGUF in `llama-server`** — the community GGUFs hold only the Qwen
+  backbone; the `joint_head` is a separate file and the decision logic is Cloudflare's
+  `joint_schema_model.py`. A GGUF gives plausible-looking, wrong answers.
+- **`llama-swap` requests 46Gi, not 60Gi, so Clef (18Gi request, 24Gi limit) can schedule** —
+  allocatable is ~68.2 GiB and the DaemonSets request ~1.6 GiB. Measured Clef peak was 20.8 GiB
+  (includes page cache of the weights). If `llama-swap` decode slows or the pod is evicted,
+  suspect this split first.
+- **Clef takes one request at a time (~4 s for one question, ~7 s for three).** The bot's
+  triage timeout is 15 s and fails open, so a news scoring run can make triage forward a message
+  it would have dropped — extra noise, never a lost message.
+- **The pinned weights revision is set twice in `clef/app/deployment.yml`**: `CLEF_REVISION` on
+  the initContainer and the revision inside the `CLEF_SNAPSHOT` path on the server container.
+  Change both together; the initContainer re-downloads 19 GB when the revision changes.
 
 ## Verify
 
