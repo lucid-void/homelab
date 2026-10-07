@@ -105,12 +105,23 @@ Telegram bot (`design/decisions/flight-tracker.md`).
   backbone; the `joint_head` is a separate file and the decision logic is Cloudflare's
   `joint_schema_model.py`. A GGUF gives plausible-looking, wrong answers.
 - **`llama-swap` requests 46Gi, not 60Gi, so Clef (18Gi request, 24Gi limit) can schedule** —
-  allocatable is ~68.2 GiB and the DaemonSets request ~1.6 GiB. Measured Clef peak was 20.8 GiB
+  allocatable is ~68 GiB and the DaemonSets request ~1.6 GiB. Measured Clef peak was 20.8 GiB
   (includes page cache of the weights). If `llama-swap` decode slows or the pod is evicted,
   suspect this split first.
+- **Clef has priority class `clef-low`** (value -100, no preemption), so the kubelet evicts it
+  before `llama-swap` under node memory pressure; its callers fail open. `llama-swap`'s 46Gi
+  request is below its real peak (weights plus the up-to-8 GiB prompt cache plus KV), so its
+  working set can exceed the request. The prompt cache fills over days: re-check decode speed
+  after a few days of chat use, not only at rollout.
+- **CPU is shared: `llama-swap` uses 6+2 threads and Clef 6 on the node's 8 vCPUs.** A news poll
+  keeps Clef busy for minutes, so check decode speed DURING a poll; lower `CLEF_THREADS` if
+  chat suffers.
 - **Clef takes one request at a time (~4 s for one question, ~7 s for three).** The bot's
-  triage timeout is 15 s and fails open, so a news scoring run can make triage forward a message
-  it would have dropped — extra noise, never a lost message.
+  triage timeout is 15 s and fails open (with a cooldown after an error), so a news scoring run
+  can make triage forward a message it would have dropped — extra noise, never a lost message.
+- **After changing the pinned weights revision, delete the old snapshot directory on the
+  `clef-data` PVC.** It has no quota; two snapshots plus the venv outgrow the 30Gi request and
+  land on `llm-1`'s disk.
 - **The pinned weights revision is set twice in `clef/app/deployment.yml`**: `CLEF_REVISION` on
   the initContainer and the revision inside the `CLEF_SNAPSHOT` path on the server container.
   Change both together; the initContainer re-downloads 19 GB when the revision changes.
