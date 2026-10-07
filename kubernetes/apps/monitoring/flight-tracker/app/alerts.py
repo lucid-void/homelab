@@ -15,6 +15,7 @@ UTC = timezone.utc
 POLL_SECONDS = 10
 MAX_MUTE = timedelta(days=7)
 MAX_DROPS = 20
+JUDGE_BUDGET = 20.0   # seconds of judging per poll; the rest is forwarded unjudged
 USAGE = "Usage: /alerts [on | off [1h|4h|24h] | dropped]"
 DURATION_RE = re.compile(r"^(\d{1,4})([hm])$")
 
@@ -64,8 +65,10 @@ class Alerts:
         "/alerts dropped - the last messages triage kept out of Telegram",
     ]
 
-    def __init__(self, ctx, fetch, now=lambda: datetime.now(UTC), triage=None):
+    def __init__(self, ctx, fetch, now=lambda: datetime.now(UTC), triage=None,
+                 clock=time.monotonic):
         self.ctx, self.fetch, self.now, self.triage = ctx, fetch, now, triage
+        self.clock = clock
         self.lock = threading.RLock()
         self.failing = False
         self.commands = {"alerts": self._command}
@@ -166,7 +169,7 @@ class Alerts:
         if not drops:
             return "Triage has dropped nothing yet."
         lines = [f"- {str(d.get('at') or '')[5:16].replace('T', ' ')} {str(d.get('title') or '(no title)')}" for d in drops]
-        return f"Last {len(drops)} messages kept out of Telegram (still in Gotify):\n" + "\n".join(lines)
+        return f"Last {len(drops)} messages kept out of Telegram (still in Gotify) (times UTC):\n" + "\n".join(lines)
 
     # -- forwarder --
 
@@ -203,8 +206,13 @@ class Alerts:
     def _deliver(self, new):
         if self.triage is not None:  # critical messages first, so a slow burst never delays them
             new = sorted(new, key=lambda x: (not triage_mod.is_critical(x), x["id"]))
+        start = self.clock()
         for msg in new:
-            if self.triage is not None and not self.triage.judge(msg):
+            with self.lock:
+                if self._is_muted(self.now()):  # muted since the last message: stop judging too
+                    return
+            if (self.triage is not None and self.clock() - start <= JUDGE_BUDGET
+                    and not self.triage.judge(msg)):  # over budget: forward unjudged (fail open)
                 self._record_drop(msg)
                 continue
             with self.lock:

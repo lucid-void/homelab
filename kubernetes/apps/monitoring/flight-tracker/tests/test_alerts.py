@@ -306,12 +306,13 @@ class FakeJudge:
 
 class TriageHarness(Harness):
     def __init__(self, judge):
-        self.judge = judge
+        self.judge, self.mono = judge, 0.0
         super().__init__()
 
     def make(self):
         ctx = core.Ctx("alerts", lambda text, buttons=None: self.sent.append(text), self.path)
-        return alerts.Alerts(ctx, self._fetch, lambda: self.now, triage=self.judge)
+        return alerts.Alerts(ctx, self._fetch, lambda: self.now, triage=self.judge,
+                             clock=lambda: self.mono)
 
 
 class TriageTests(unittest.TestCase):
@@ -354,6 +355,19 @@ class TriageTests(unittest.TestCase):
         h.poll([m(2), m(3)])
         self.assertEqual(h.sent, ["Alerts: OFF (until you turn them on)"])
         self.assertEqual(h.state()["last_id"], 3)
+        self.assertEqual(h.judge.judged, [2])
+        self.assertEqual(h.state()["dropped"], [])
+
+    def test_judging_budget_spent_forwards_the_rest_unjudged(self):
+        def slow(msg):
+            h.mono += 15.0
+        j = FakeJudge(noise={"n"}, on_judge=slow)
+        h = TriageHarness(j)
+        h.seed(1)
+        h.poll([m(5, title="n"), m(4, title="n"), m(3, title="n"), m(2, title="n")])
+        self.assertEqual(j.judged, [2, 3])
+        self.assertEqual(len(h.sent), 2)  # ids 4 and 5 forwarded unjudged
+        self.assertEqual([d["id"] for d in h.state()["dropped"]], [3, 2])
 
     def test_dropped_command_lists_newest_first_and_survives_restart(self):
         h = TriageHarness(FakeJudge(noise={"n1", "n2"}))
@@ -368,6 +382,7 @@ class TriageTests(unittest.TestCase):
         self.assertIn("Last 2 messages", text)
         self.assertLess(text.index("n2"), text.index("n1"))
         self.assertIn("10-05 12:05", text)
+        self.assertIn("(times UTC)", text.splitlines()[0])
 
     def test_only_the_last_twenty_drops_are_kept(self):
         h = TriageHarness(FakeJudge(noise={"n"}))
