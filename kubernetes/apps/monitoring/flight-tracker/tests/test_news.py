@@ -51,11 +51,12 @@ class Harness:
         unittest.addModuleCleanup(self.dir.cleanup)
         self.path = os.path.join(self.dir.name, "news.json")
         self.now, self.sent = T0, []
+        self.send_ok = True
         self.source, self.clef = FakeSource(), FakeClef()
         self.news = self.make()
 
     def make(self):
-        ctx = core.Ctx("news", lambda text, buttons=None: self.sent.append(text), self.path)
+        ctx = core.Ctx("news", lambda text, buttons=None: (self.sent.append(text), self.send_ok)[1], self.path)
         return news.News(ctx, CHAT, self.source, self.clef, now=lambda: self.now)
 
     def say(self, *args):
@@ -271,6 +272,21 @@ class DigestTests(unittest.TestCase):
         h.news._finish([], [{"id": str(i), "title": "t", "url": "", "topics": ["x"]}
                             for i in range(news.MAX_PENDING + 20)])
         self.assertEqual(len(h.state()["pending"]), news.MAX_PENDING)
+
+    def test_digest_failure_restores_pending_and_slot(self):
+        h = Harness()
+        self.pending(h, 2)
+        h.news.maybe_digest()
+        h.now = T0 + timedelta(hours=1)  # 08:00 UTC
+        pending_before = h.state()["pending"]
+        last_slot_before = h.state()["last_slot"]
+        h.send_ok = False
+        self.assertFalse(h.news.maybe_digest())
+        self.assertEqual(h.state()["pending"], pending_before)
+        self.assertEqual(h.state()["last_slot"], last_slot_before)
+        h.send_ok = True
+        self.assertTrue(h.news.maybe_digest())
+        self.assertEqual(h.state()["pending"], [])
 
     def test_module_protocol(self):
         h = Harness()

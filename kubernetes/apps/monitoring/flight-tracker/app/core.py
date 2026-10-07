@@ -43,8 +43,10 @@ class Telegram:
                 [{"text": label, "callback_data": data}] for label, data in buttons]}
         try:
             self._call("sendMessage", body)
+            return True
         except (OSError, ValueError) as e:
             log(f"send failed: {type(e).__name__}")
+            return False
 
     def answer(self, callback_id):
         try:
