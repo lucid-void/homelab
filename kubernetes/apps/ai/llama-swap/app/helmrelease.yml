@@ -92,7 +92,7 @@ spec:
             resources:
               requests:
                 cpu: 4
-                memory: 60Gi
+                memory: 46Gi
               # NO memory limit, deliberately. llama.cpp mmaps the GGUF, so those
               # pages count toward the cgroup as reclaimable page cache. A limit
               # anywhere near the working set does not OOMKill cleanly — it
@@ -101,10 +101,11 @@ spec:
               # nothing in the logs. The node is dedicated and tainted, so there
               # is nothing here to protect from an overrun.
               #
-              # 60Gi request, not 64Gi: allocatable is ~68.3 GiB after the 70 GB
-              # resize and the DaemonSets already request ~1 GiB, so 64Gi sits
-              # close enough to the ceiling that one more DaemonSet would make
-              # this pod unschedulable.
+              # 46Gi request: allocatable is ~68.3 GiB and the DaemonSets already
+              # request ~1.6 GiB, so this leaves room for the clef Deployment's 18Gi
+              # request (design/decisions/llm.md). It was 60Gi before clef existed. Real
+              # use is the 34.4 GiB weights plus up to 8 GiB prompt cache and the KV
+              # cache; if llm-1 is ever evicting llama-swap, this number is the first suspect.
               #
               # No CPU limit either, matching the house style — a CPU limit is
               # throttling, and throttling llama-server is directly a token-rate
