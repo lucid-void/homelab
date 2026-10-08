@@ -25,6 +25,7 @@ data:
           --model /models/Qwen3.6-35B-A3B-Q8_0.gguf
           --threads 6 --ctx-size 32768
           --cache-type-k q8_0 --cache-type-v q8_0 --flash-attn on
+          --cache-ram 4096
           --jinja --metrics
 
       # NO --cache-reuse HERE, and it must not be re-added for this model.
@@ -40,9 +41,11 @@ data:
       # a setting that was never in effect.
       #
       # The live prefix-caching mechanism is llama-server's cross-request prompt
-      # cache (--cache-ram), which is NOT gated by that check and is already on:
-      # cache_ram_mib defaults to 8192 MiB. Left at the default deliberately —
-      # but budget for it, it is 8 GiB of real memory.
+      # cache (--cache-ram), which is NOT gated by that check and is on by default
+      # at 8192 MiB. It is capped at 4096 MiB above so llama-swap's worst case
+      # (34.4 GiB weights + this cache + KV + overhead) stays under its 46Gi
+      # request, which the clef Deployment's scheduling depends on. Raising it
+      # re-opens the eviction risk described in design/decisions/llm.md.
 
       local-embed:
         ttl: 0

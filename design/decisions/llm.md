@@ -60,7 +60,9 @@ Telegram bot (`design/decisions/flight-tracker.md`).
   `cache_reuse is not supported by this context`, gated by `!llama_memory_can_shift(...)`,
   a property of the model's KV implementation that no flag overrides. The only live
   prefix caching is the cross-request prompt cache, which defaults to **8192 MiB** and
-  is on unasked — budget 8 GiB of real memory for it before sizing context.
+  is on unasked. It is capped with `--cache-ram 4096` so llama-swap's worst case stays
+  under its 46Gi request (Clef needs the rest of the node); raising it re-opens the
+  eviction risk below.
 - **LiteLLM needs a `4Gi` memory limit** — at `1Gi` it dies inside the Prisma migration
   in ~11s with exit **137** and **zero log output**; `lastState.terminated.reason` was
   the only evidence. Steady state runs just under 1Gi, so the startup spike is the
@@ -110,9 +112,10 @@ Telegram bot (`design/decisions/flight-tracker.md`).
   suspect this split first.
 - **Clef has priority class `clef-low`** (value -100, no preemption), so the kubelet evicts it
   before `llama-swap` under node memory pressure; its callers fail open. `llama-swap`'s 46Gi
-  request is below its real peak (weights plus the up-to-8 GiB prompt cache plus KV), so its
-  working set can exceed the request. The prompt cache fills over days: re-check decode speed
-  after a few days of chat use, not only at rollout.
+  request is meant to sit just above its expected working set (34.4 GiB weights plus the
+  4 GiB-capped prompt cache plus KV and overhead); if that working set ever exceeds the request,
+  `llama-swap` becomes an eviction candidate like Clef. The prompt cache fills over days:
+  re-check decode speed and the working set after a few days of chat use, not only at rollout.
 - **CPU is shared: `llama-swap` uses 6+2 threads and Clef 6 on the node's 8 vCPUs.** A news poll
   keeps Clef busy for minutes, so check decode speed DURING a poll; lower `CLEF_THREADS` if
   chat suffers.
