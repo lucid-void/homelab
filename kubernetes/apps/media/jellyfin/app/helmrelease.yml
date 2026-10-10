@@ -55,7 +55,7 @@ spec:
               # re-points it at every rebuild, which is how Plex silently drifted for
               # a week in 2026-08 (see design/decisions/plex.md). This tag shape
               # (X.Yubu####-lsNN) needed its own Renovate versioning regex.
-              tag: "12.1ubu2604-ls50"
+              tag: "12.2ubu2604-ls53"
             env:
               TZ: Europe/Brussels
               PUID: "2202"
