@@ -38,6 +38,7 @@ nowhere else.
   HelmRelease `env` rather than the secret, so it never shadows `romm-oidc-secret`. It
   must stay `true` because Keycloak is the only user store: an account only exists after
   its first sign-in.
+- **Pin `FORWARDED_ALLOW_IPS="*"` in the HelmRelease `env`** (5.4+) — upstream narrowed the default to loopback, which no longer trusts the Cilium Gateway's `X-Forwarded-*` headers (http:// redirects behind the https hostname, proxy IP in the audit log). Safe because the pod is reachable only through the Gateway. `ROMM_CORS_ALLOWED_ORIGINS` now defaults to deny; the web UI is same-origin, so leave it unset.
 - **Never assume a squashed-migration DB can be upgraded across the boundary** — v5
   squashed migrations 0002–0008 into `0001_initial_models`, so a DB whose
   `alembic_version` sits in that squashed range can no longer be upgraded from there.
