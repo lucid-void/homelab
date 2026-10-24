@@ -51,7 +51,7 @@ spec:
           config:
             image:
               repository: couchdb
-              tag: "3.5.2"
+              tag: "3.5.3"
             command:
               - sh
               - -c
@@ -70,7 +70,7 @@ spec:
           app:
             image:
               repository: couchdb
-              tag: "3.5.2"
+              tag: "3.5.3"
             # Deliberately NO securityContext / runAsNonRoot here. The image
             # ships with no USER and its entrypoint expects to start as root:
             # it chowns /opt/couchdb to couchdb:couchdb (uid 5984) before
