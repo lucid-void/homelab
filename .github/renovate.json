@@ -73,6 +73,13 @@
       "labels": ["major-update"]
     },
     {
+      "description": "Clef's venv lives on the clef-data PVC and is built by the setup initContainer under the python minor it first ran with; a python minor/major bump leaves /data/venv pointing at a missing interpreter and site-packages for the wrong ABI, so the container crash-loops. Patch bumps only.",
+      "matchFileNames": ["kubernetes/apps/ai/clef/app/deployment.yml"],
+      "matchPackageNames": ["python"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
+    },
+    {
       "description": "Gateway API CRDs are only as usable as the controller that reads them. Cilium 1.20.0 (running) documents support for Gateway API v1.6.1, so the bundle now tracks what Cilium targets rather than running ahead of it — 1.6.1 is also the minimum for git-over-SSH, since Cilium's TCPRoute controller watches the v1 GVK that only lands in 1.6. Hold at 1.6.x until Cilium declares support for a newer bundle — see design/docs/networking.md.",
       "matchPackageNames": ["gateway-api", "kubernetes-sigs/gateway-api"],
       "allowedVersions": "<1.7.0"

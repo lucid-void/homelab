@@ -46,7 +46,7 @@ spec:
             sizeLimit: 4Gi
       initContainers:
         - name: setup
-          image: python:3.15.1-slim-bookworm
+          image: python:3.12.15-slim-bookworm
           command: ["/bin/sh", "/scripts/setup.sh"]
           env:
             - name: CLEF_REVISION
@@ -71,7 +71,7 @@ spec:
             limits: {memory: 2Gi}
       containers:
         - name: clef
-          image: python:3.15.1-slim-bookworm
+          image: python:3.12.15-slim-bookworm
           command: ["/data/venv/bin/python", "-u", "/scripts/server.py"]
           env:
             - name: CLEF_SNAPSHOT
