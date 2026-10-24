@@ -103,6 +103,7 @@ Telegram bot (`design/decisions/flight-tracker.md`).
 - **There is no cloud fallback, by choice** — `router_settings.fallbacks` is commented
   out in the LiteLLM config and no cloud model is registered, so agentic requests take
   as long as they take rather than being routed away.
+- **Never bump Clef's `python` image minor/major** — the venv at `/data/venv` is built by the `setup` initContainer on the `clef-data` PVC under the interpreter it first ran with; a new minor leaves it pointing at a missing interpreter and wrong-ABI wheels. Renovate is told to skip it (`.github/renovate.json`); to move, delete the venv on the PVC and let `setup` rebuild.
 - **Never run Clef from a GGUF in `llama-server`** — the community GGUFs hold only the Qwen
   backbone; the `joint_head` is a separate file and the decision logic is Cloudflare's
   `joint_schema_model.py`. A GGUF gives plausible-looking, wrong answers.
