@@ -91,6 +91,13 @@ spec:
               # once its Keycloak user has signed in once. Set here rather than
               # in the sealed secret, so this does not fight romm-oidc-secret.
               OIDC_ALLOW_REGISTRATION: "true"
+              # 5.4 narrowed the default from "*" to loopback only. The Gateway
+              # (Cilium Envoy) is not loopback, so without this RomM ignores
+              # X-Forwarded-Proto/For: redirects come back as http:// behind
+              # the https hostname and the audit log records the proxy IP.
+              # "*" restores the pre-5.4 behaviour; safe because the pod is
+              # only reachable through the Gateway.
+              FORWARDED_ALLOW_IPS: "*"
             envFrom:
               # OIDC_ENABLED/PROVIDER/CLIENT_ID/CLIENT_SECRET/REDIRECT_URI/
               # SERVER_APPLICATION_URL — all from romm-oidc-sealed.yml.
