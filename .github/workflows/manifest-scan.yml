@@ -80,6 +80,7 @@ jobs:
             -ignore-filename-pattern 'helmfile\.ya?ml$' \
             -ignore-filename-pattern 'popeye-spinach\.ya?ml$' \
             -ignore-filename-pattern 'kubernetes/talos/' \
+            -ignore-filename-pattern '/tests/fixtures/' \
             -summary \
             -output json \
             kubernetes/ 2>&1)
