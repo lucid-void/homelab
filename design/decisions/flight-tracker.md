@@ -138,11 +138,11 @@ on the class. The core needs no change.
   Steel Ball Run) gets one extra one-question Clef call first, unless the text has an allow term
   such as "patch notes". Ruled-out products are dropped without any call.
 - **Delivery.** 0.7 or more goes to the 08:00/18:00 digest, grouped by tier, at most 25 items per
-  digest (the rest wait). Tier 3 items Clef judges time-sensitive are sent at once: they are queued
+  digest (the rest wait). Tier 3 items that are delivered (Clef must also say "major") and that Clef judges time-sensitive are sent at once: they are queued
   in `news.json` (`alerts`, at most 50) and retried every 30 s until Telegram accepts them; a
   failed send keeps them queued.
-- **A new profile `version` re-seeds the module** like a first run (new `since`, current unread
-  recorded as seen, nothing scored), so an OPML import or a big profile change never replays the
+- **A new profile `version` re-seeds the module** like a first run (new `since`; `ot=now` keeps the backlog
+  out, nothing is scored), so an OPML import or a big profile change never replays the
   backlog. Pure tuning (thresholds, wording, keywords) should not bump `version`.
 - **A missing or broken profile turns news off** with one log line; the rest of the bot runs.
   Every malformed case (huge numbers, NaN, a bad or over-nested regex, over-nested JSON) is
