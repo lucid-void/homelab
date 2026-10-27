@@ -1,0 +1,414 @@
+{
+  "version": 1,
+  "tiers": {
+    "1": 1.0,
+    "2": 0.6,
+    "3": 0.3
+  },
+  "deliver_min": 0.7,
+  "yes_at": 0.5,
+  "adjust": {
+    "marketing": 0.6,
+    "substantive": 0.2,
+    "major": 0.5,
+    "paywalled": 0.5,
+    "build_noise": 0.5
+  },
+  "pure_feed_pattern": "github\\.com/[^/]+/[^/]+/(releases|tags)",
+  "groups": {
+    "hpc_infra": {
+      "title": "HPC and AI datacenter infra",
+      "tier": 1,
+      "categories": [
+        "T1 HPC/AI infra"
+      ],
+      "keywords": [
+        "HPE Cray",
+        "Cray EX",
+        "HPCM",
+        "Slurm",
+        "Slingshot",
+        "InfiniBand",
+        "RoCE",
+        "LUMI",
+        "Sigma2",
+        "EuroHPC",
+        "Top500",
+        "AMD Instinct",
+        "EPYC",
+        "GB300",
+        "NVL72",
+        "DCGM",
+        "Run:AI",
+        "Kubeflow",
+        "GPFS",
+        "Rocky Linux",
+        "RHEL 9"
+      ],
+      "scoped_keywords": [
+        "VAST",
+        "DDN"
+      ]
+    },
+    "linux_desktop": {
+      "title": "Linux desktop and graphics",
+      "tier": 1,
+      "categories": [
+        "T1 Linux desktop"
+      ],
+      "keywords": [
+        "CachyOS",
+        "Arch Linux",
+        "Hyprland",
+        "Quickshell",
+        "Wayland",
+        "PipeWire",
+        "RADV",
+        "Navi 31",
+        "Neovim",
+        "LazyVim",
+        "AstroNvim",
+        "HDR on Linux"
+      ],
+      "scoped_keywords": [
+        "Mesa",
+        "Proton",
+        "HDR"
+      ]
+    },
+    "homelab": {
+      "title": "Homelab and self-hosting",
+      "tier": 1,
+      "categories": [
+        "T1 Homelab"
+      ],
+      "keywords": [
+        "Proxmox",
+        "FluxCD",
+        "Flux CD",
+        "Cilium",
+        "Gateway API",
+        "Terraform",
+        "Packer",
+        "Ansible",
+        "Renovate",
+        "Zitadel",
+        "CloudNativePG",
+        "VictoriaMetrics",
+        "UniFi",
+        "ZeroTier",
+        "Jellyfin",
+        "Sonarr",
+        "Radarr",
+        "Prowlarr",
+        "yt-dlp",
+        "ytdl-sub",
+        "Immich",
+        "Paperless-ngx",
+        "FreshRSS",
+        "Sealed Secrets",
+        "democratic-csi",
+        "MS-02",
+        "UGREEN",
+        "Synology"
+      ],
+      "scoped_keywords": [
+        "Flux",
+        "Talos"
+      ]
+    },
+    "local_ai": {
+      "title": "Local AI and agentic tooling",
+      "tier": 1,
+      "categories": [
+        "T1 Local AI / agents"
+      ],
+      "keywords": [
+        "llama.cpp",
+        "Intel Arc",
+        "Qwen",
+        "gpt-oss",
+        "GGUF",
+        "unsloth",
+        "bartowski",
+        "LM Studio",
+        "Claude Code",
+        "agentic coding",
+        "open-weight"
+      ],
+      "scoped_keywords": [
+        "MoE",
+        "MCP",
+        "Vulkan",
+        "agentic"
+      ]
+    },
+    "keyboards_electronics": {
+      "title": "Split keyboards and DIY electronics",
+      "tier": 1,
+      "categories": [
+        "T1 Keyboards/electronics"
+      ],
+      "keywords": [
+        "ZMK",
+        "QMK",
+        "Zephyr",
+        "Corne",
+        "crkbd",
+        "Charybdis",
+        "PMW3610",
+        "trackball",
+        "Gateron",
+        "nice!nano",
+        "nice!view",
+        "splitkb",
+        "KiCad",
+        "JLCPCB",
+        "STM32",
+        "RP2040",
+        "nRF52840",
+        "MeshCore",
+        "Meshtastic",
+        "USB-C PD",
+        "split keyboard",
+        "mechanical keyboard"
+      ],
+      "scoped_keywords": [
+        "ESP32",
+        "LoRa"
+      ]
+    },
+    "printing_3d": {
+      "title": "3D printing",
+      "tier": 1,
+      "categories": [
+        "T1 3D printing"
+      ],
+      "keywords": [
+        "Bambu",
+        "H2D",
+        "P3C",
+        "H3C",
+        "OrcaSlicer",
+        "FULU",
+        "Prusa",
+        "Snapmaker",
+        "toolchanger",
+        "multi-material",
+        "3D printer",
+        "3D printing"
+      ],
+      "scoped_keywords": []
+    },
+    "mobile_privacy": {
+      "title": "Mobile privacy",
+      "tier": 2,
+      "categories": [
+        "T2 Mobile privacy"
+      ],
+      "keywords": [
+        "GrapheneOS",
+        "UnifiedPush",
+        "microG",
+        "Molly",
+        "Element X",
+        "Aurora Store",
+        "Obtainium",
+        "F-Droid",
+        "ntfy"
+      ],
+      "scoped_keywords": [
+        "Signal",
+        "Matrix",
+        "Pixel"
+      ]
+    },
+    "gaming": {
+      "title": "Gaming",
+      "tier": 2,
+      "categories": [
+        "T2 Gaming"
+      ],
+      "keywords": [
+        "Expedition 33",
+        "Marvel Rivals",
+        "Guild Wars 2",
+        "ProtonDB",
+        "Atmosphere",
+        "Atmosphère",
+        "CTGP"
+      ],
+      "scoped_keywords": []
+    },
+    "pokemon_tcg": {
+      "title": "Pokémon TCG",
+      "tier": 2,
+      "categories": [
+        "T2 Pokemon TCG"
+      ],
+      "keywords": [
+        "Pokemon TCG",
+        "Pokémon TCG",
+        "Cardmarket",
+        "pull rate",
+        "Mega Dream",
+        "Gem Pack"
+      ],
+      "scoped_keywords": [
+        "Pokemon",
+        "Pokémon"
+      ]
+    },
+    "keyboard_business": {
+      "title": "Keyboard business (EU)",
+      "tier": 2,
+      "categories": [
+        "T2 EU compliance/business"
+      ],
+      "keywords": [
+        "GPSR",
+        "Radio Equipment Directive",
+        "EN 18031",
+        "Battery Regulation",
+        "WEEE",
+        "bijberoep"
+      ],
+      "scoped_keywords": [
+        "Etsy"
+      ]
+    },
+    "shopping": {
+      "title": "Gear you are shopping for",
+      "tier": 2,
+      "categories": [
+        "T2 Shopping/hardware"
+      ],
+      "keywords": [
+        "XREAL",
+        "RayNeo",
+        "Viture",
+        "Breezy Desktop",
+        "AirPods Pro 3",
+        "RTX 5090",
+        "Homey",
+        "IKEA smart home"
+      ],
+      "scoped_keywords": [
+        "Matter",
+        "Thread"
+      ]
+    },
+    "investing": {
+      "title": "Investing",
+      "tier": 2,
+      "categories": [
+        "T2 Investing/career"
+      ],
+      "keywords": [
+        "SanDisk",
+        "Alphabet",
+        "AMD",
+        "NVIDIA",
+        "semiconductor",
+        "Belgian investment tax"
+      ],
+      "scoped_keywords": []
+    },
+    "career": {
+      "title": "Career and industry moves",
+      "tier": 2,
+      "categories": [
+        "T2 Investing/career"
+      ],
+      "keywords": [
+        "HPE",
+        "Lenovo ISG",
+        "solutions architect",
+        "pre-sales"
+      ],
+      "scoped_keywords": []
+    },
+    "situational": {
+      "title": "Situational (events, travel, other)",
+      "tier": 3,
+      "categories": [
+        "T3 events/travel/other"
+      ],
+      "keywords": [
+        "Fri3d",
+        "BruCON",
+        "40C3",
+        "FOSDEM",
+        "NMBS",
+        "De Lijn",
+        "SNCF",
+        "Brussels Airport",
+        "Nikon D300",
+        "aurora forecast",
+        "Steel Ball Run",
+        "Sonos",
+        "AirPlay",
+        "Nanoleaf",
+        "EU261",
+        "ECC Belgium"
+      ],
+      "scoped_keywords": [
+        "strike",
+        "staking",
+        "CCC",
+        "aurora"
+      ]
+    }
+  },
+  "ruled_out": [
+    "Bambu X2D",
+    "Rokid Max 2",
+    "Rokid AR Spatial",
+    "Kimi K2.7",
+    "Sony XM4",
+    "Nothing Ear",
+    "UE Fits",
+    "TrueNAS",
+    "HP DL360 Gen9"
+  ],
+  "spoilers": {
+    "topics": [
+      "Expedition 33",
+      "Steel Ball Run"
+    ],
+    "allow": [
+      "patch notes",
+      "hotfix",
+      "release date",
+      "announcement",
+      "announces"
+    ]
+  },
+  "paywalled_domains": [
+    "ft.com",
+    "wsj.com",
+    "bloomberg.com",
+    "theinformation.com",
+    "economist.com",
+    "nytimes.com",
+    "barrons.com",
+    "tijd.be",
+    "seekingalpha.com",
+    "hbr.org"
+  ],
+  "build_noise": {
+    "title_regex": "^b\\d{3,}",
+    "unless_keywords": [
+      "Vulkan",
+      "Intel Arc",
+      "SYCL"
+    ]
+  },
+  "questions": {
+    "marketing": "Is this mainly marketing or a press release without measured numbers or benchmarks?",
+    "substantive": "Does this contain substantive technical or factual content, such as release notes, measurements, a security issue or a concrete announcement, rather than a vague overview?",
+    "major": "Is this major news in its field, such as a significant release, a security incident, a policy change or a large change in price or availability?",
+    "time_sensitive": "Is this time-sensitive and actionable soon, such as a strike, an event ticket sale, a call for papers deadline, a recall or a service disruption?",
+    "spoiler": "Does this reveal plot details or story spoilers?"
+  }
+}
