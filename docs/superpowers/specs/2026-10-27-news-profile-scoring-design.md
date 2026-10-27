@@ -41,12 +41,12 @@ questions          the exact Clef question texts (see below), so wording is tuna
 
 The 14 groups: Tier 1 `hpc_infra`, `linux_desktop`, `homelab`, `local_ai`, `keyboards_electronics`, `printing_3d`; Tier 2 `mobile_privacy`, `gaming`, `pokemon_tcg`, `keyboard_business`, `shopping`, `investing`, `career`; Tier 3 `situational` (events, travel disruption, photography, anime announcements, home audio, EU consumer rights). Keywords, ruled-out terms and spoiler topics are taken verbatim from the owner's profile; `categories` are the OPML category names already imported into FreshRSS (e.g. "T1 Homelab").
 
-## Matching and scoring (pure functions in `profile.py`)
+## Matching and scoring (pure functions in `interests.py`)
 
 1. **Candidates.** A group matches an article when (a) the article is from a pure release feed whose category is in the group's `categories`, or (b) a `keywords` entry matches the title or summary as a whole word, case-insensitive, or (c) a `scoped_keywords` entry matches AND the article's category is in the group's `categories`. The best group is the one with the lowest tier number (first listed on ties).
 2. **Drops without Clef.** A `ruled_out` term in the title drops the article. A `build_noise` title (`^b\d+`) is multiplied by 0.5 unless an `unless_keywords` entry matches.
 3. **Base score** is `tiers[tier]`. Pure release feeds also get `substantive` (+0.2) so a Tier 2 release (GrapheneOS) can pass, and skip Clef.
-4. **Clef call** (non-pure candidates only; one `Clef.noul` call, at most 3 questions): `marketing` (all tiers), `substantive` (Tier 2), `major` and `time_sensitive` (Tier 3), `spoiler` (only if the text mentions a spoiler topic and contains no `allow` term).
+4. **Clef call** (non-pure candidates only; one `Clef.noul` call, at most 3 questions): `marketing` (all tiers), `substantive` (Tier 2), `major` and `time_sensitive` (Tier 3), `spoiler` (only if the text mentions a spoiler topic and contains no `allow` term; it is a separate one-question Clef call made before the main call, so a normal call never exceeds 3 questions).
    - `spoiler` at least 0.5: drop.
    - `marketing` at least 0.5: score x 0.6.
    - `substantive` at least 0.5: +0.2. `major` at least 0.5: +0.5.
@@ -59,8 +59,8 @@ If any Clef call fails, the article is left unseen and retried next poll (nothin
 ## Module changes
 
 - `freshrss.py`: each article gains `feed` (origin title), `site` (origin.htmlUrl), `categories` (labels from `user/-/label/...`), unchanged otherwise; `unread(limit=250)` in the news poll; a new `labels()` call returns the category names that have subscriptions (used once at startup for the category check in Risks).
-- `profile.py` (new): load and validate the profile (any problem returns an error string; the news module then stays off with a log line, the bot keeps running), candidate matching, scoring, question building.
-- `news.py`: poll uses `profile.py` for profile groups and the existing per-topic path for custom `/topics`; digest groups items by tier (Tier 1, 2, 3), sorted by score then newest, at most 25 per digest, remainder carried to the next one; alert path sends immediately and is deduplicated through `seen`; `/topics` lists "Profile groups" read-only and "Your topics"; pending items carry `tier`, `score`, `group`.
+- `interests.py` (new; named to avoid shadowing Python's own `profile` module): load and validate the profile (any problem returns an error string; the news module then stays off with a log line, the bot keeps running), candidate matching, scoring, question building.
+- `news.py`: poll uses `interests.py` for profile groups and the existing per-topic path for custom `/topics`; digest groups items by tier (Tier 1, 2, 3), sorted by score then newest, at most 25 per digest, remainder carried to the next one; alert path sends immediately and is deduplicated through `seen`; `/topics` lists "Profile groups" read-only and "Your topics"; pending items carry `tier`, `score`, `group`.
 - `main.py`: loads `/scripts/news-profile.json`, passes the profile to `News`.
 - Kustomization: `news-profile.json` added to the `configMapGenerator` (Reloader restarts the bot on edits).
 
@@ -73,7 +73,7 @@ If any Clef call fails, the article is left unseen and retried next poll (nothin
 
 ## Testing
 
-- `profile.py` is pure and unit-tested with hand-built articles: pure-feed match, scoped-keyword homonyms (Signal in privacy feeds counts; Signal in an electronics feed does not), ruled-out drop, build-noise, each adjustment and the 0.7 boundary, spoiler allow-list, paywalled host, question selection per tier, malformed profile files.
+- `interests.py` is pure and unit-tested with hand-built articles: pure-feed match, scoped-keyword homonyms (Signal in privacy feeds counts; Signal in an electronics feed does not), ruled-out drop, build-noise, each adjustment and the 0.7 boundary, spoiler allow-list, paywalled host, question selection per tier, malformed profile files.
 - `news.py` tests use a fake Clef and fake source: scoring path, alert path and its dedup, digest tiering and cap, re-seed on version change, custom topics still work, Clef failure leaves articles unseen.
 - Before enabling, a dry run in the cluster scores live unread items with real Clef (nothing is sent) and the owner reviews the top 30 and a sample of rejections; thresholds and question wording are adjusted in `news-profile.json` only.
 
