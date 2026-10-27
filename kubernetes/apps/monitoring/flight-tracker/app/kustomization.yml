@@ -15,7 +15,9 @@ configMapGenerator:
       - core.py
       - flights.py
       - freshrss.py
+      - interests.py
       - main.py
+      - news-profile.json
       - news.py
       - status.py
       - triage.py
