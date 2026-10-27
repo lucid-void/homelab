@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import sys
@@ -9,7 +10,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 import clef  # noqa: E402
 import core  # noqa: E402
 import freshrss  # noqa: E402
+import interests  # noqa: E402
 import news  # noqa: E402
+import test_interests  # noqa: E402  (shares its small profile fixture)
 
 UTC = timezone.utc
 T0 = datetime(2026, 10, 6, 7, 0, tzinfo=UTC)
@@ -46,19 +49,40 @@ class FakeClef:
                 for qid, text in questions.items()}
 
 
+class ProfileClef(FakeClef):
+    """Profile questions get the configured probability (default 0.1); custom-topic questions work as in FakeClef."""
+
+    def __init__(self, **answers):
+        super().__init__()
+        self.answers = answers
+
+    def noul(self, state, questions):
+        if any(q.startswith("t") and q[1:].isdigit() for q in questions):
+            return super().noul(state, questions)
+        self.calls.append((state, questions))
+        if self.error:
+            raise self.error
+        return {q: self.answers.get(q, 0.1) for q in questions}
+
+
 class Harness:
+    profile = None
+
     def __init__(self):
         self.dir = tempfile.TemporaryDirectory()
         unittest.addModuleCleanup(self.dir.cleanup)
         self.path = os.path.join(self.dir.name, "news.json")
         self.now, self.sent = T0, []
         self.send_ok = True
-        self.source, self.clef = FakeSource(), FakeClef()
+        self.source, self.clef = FakeSource(), self.make_clef()
         self.news = self.make()
+
+    def make_clef(self):
+        return FakeClef()
 
     def make(self):
         ctx = core.Ctx("news", lambda text, buttons=None: (self.sent.append(text), self.send_ok)[1], self.path)
-        return news.News(ctx, CHAT, self.source, self.clef, now=lambda: self.now)
+        return news.News(ctx, CHAT, self.source, self.clef, now=lambda: self.now, profile=self.profile)
 
     def say(self, *args):
         self.news.commands["topics"](list(args))
@@ -369,6 +393,233 @@ class DigestTests(unittest.TestCase):
         self.assertEqual(set(h.news.commands), {"topics"})
         self.assertEqual(h.news.callbacks, {})
         self.assertTrue(all(isinstance(x, str) for x in h.news.help))
+
+
+def profile_for_tests(version=3):
+    raw = copy.deepcopy(test_interests.RAW)
+    raw["version"] = version
+    return interests.compile_profile(raw)
+
+
+def part(n, title, categories=(), site="", url=None, summary=""):
+    return {**art(n, title, url), "summary": summary, "categories": list(categories), "site": site, "feed": "f"}
+
+
+class ProfileHarness(Harness):
+    def __init__(self, version=3, **answers):
+        self.profile = profile_for_tests(version)
+        self._answers = answers
+        super().__init__()
+
+    def make_clef(self):
+        return ProfileClef(**self._answers)
+
+    def started(self):
+        """Run the first poll so later polls score instead of seeding."""
+        self.seed()
+        self.sent.clear()
+        return self
+
+
+RELEASE = "https://github.com/org/repo/releases"
+
+
+class ProfileTests(unittest.TestCase):
+    def test_first_poll_seeds_the_backlog_and_records_the_profile_version(self):
+        h = ProfileHarness()
+        h.poll([part(1, "Cilium old news", ["T1 Homelab"])])
+        self.assertEqual(h.clef.calls, [])
+        st = h.state()
+        self.assertEqual((st["seen"], st["profile_version"], st["pending"]), (["a1"], 3, []))
+
+    def test_changed_profile_version_reseeds_instead_of_scoring_the_backlog(self):
+        h = ProfileHarness(version=3).started()
+        h.poll([part(2, "Cilium new", ["T1 Homelab"])])
+        self.assertEqual(len(h.state()["pending"]), 1)
+        h.profile = profile_for_tests(version=4)
+        h.news = h.make()
+        h.now = T0 + timedelta(hours=1)
+        calls = len(h.clef.calls)
+        h.poll([part(3, "Cilium backlog", ["T1 Homelab"])])
+        st = h.state()
+        self.assertEqual(len(h.clef.calls), calls)
+        self.assertEqual((st["profile_version"], st["since"]), (4, int(h.now.timestamp())))
+        self.assertIn("a3", st["seen"])
+        self.assertEqual(len(st["pending"]), 1)  # the earlier match is kept, the backlog is not scored
+
+    def test_pure_release_article_is_queued_with_tier_score_and_group_and_no_clef_call(self):
+        h = ProfileHarness().started()
+        h.poll([part(2, "v1.2.3", ["T1 Homelab"], site=RELEASE)])
+        [item] = h.state()["pending"]
+        self.assertEqual((item["tier"], item["score"], item["group"], item["topics"]), (1, 1.0, "Homelab", ["Homelab"]))
+        self.assertEqual(h.clef.calls, [])
+
+    def test_marketing_demotes_a_tier1_article_out_of_the_digest(self):
+        h = ProfileHarness(marketing=0.9).started()
+        h.poll([part(2, "Cilium partner announcement", ["T1 Homelab"])])
+        st = h.state()
+        self.assertEqual((st["pending"], st["seen"][-1]), ([], "a2"))
+
+    def test_ruled_out_products_never_reach_clef(self):
+        h = ProfileHarness().started()
+        h.poll([part(2, "TrueNAS and Proxmox", ["T1 Homelab"])])
+        self.assertEqual((h.state()["pending"], h.clef.calls), ([], []))
+
+    def test_unmatched_articles_are_marked_seen_without_any_call(self):
+        h = ProfileHarness().started()
+        h.poll([part(2, "Celebrity news")])
+        self.assertEqual((h.state()["seen"][-1], h.clef.calls), ("a2", []))
+
+    def test_time_sensitive_tier3_becomes_an_alert_that_is_sent_once_and_cleared(self):
+        h = ProfileHarness(major=0.9, time_sensitive=0.9).started()
+        h.poll([part(2, "FOSDEM tickets on sale", ["T3 Other"], url="https://fosdem.example/t")])
+        st = h.state()
+        self.assertEqual((len(st["alerts"]), st["pending"]), (1, []))
+        self.assertTrue(h.news.send_alerts())
+        self.assertEqual(len(h.sent), 1)
+        self.assertIn("FOSDEM tickets on sale", h.sent[0])
+        self.assertIn("https://fosdem.example/t", h.sent[0])
+        self.assertEqual(h.state()["alerts"], [])
+        self.assertTrue(h.news.send_alerts())
+        self.assertEqual(len(h.sent), 1)
+
+    def test_a_failed_alert_send_is_kept_and_retried(self):
+        h = ProfileHarness(major=0.9, time_sensitive=0.9).started()
+        h.poll([part(2, "FOSDEM tickets on sale", ["T3 Other"])])
+        h.send_ok = False
+        self.assertFalse(h.news.send_alerts())
+        self.assertEqual(len(h.state()["alerts"]), 1)
+        h.send_ok = True
+        self.assertTrue(h.news.send_alerts())
+        self.assertEqual(h.state()["alerts"], [])
+
+    def test_queued_alerts_survive_a_restart(self):
+        h = ProfileHarness(major=0.9, time_sensitive=0.9).started()
+        h.poll([part(2, "FOSDEM tickets on sale", ["T3 Other"])])
+        h.news = h.make()
+        self.assertEqual(len(h.news.state["alerts"]), 1)
+
+    def test_major_but_not_urgent_tier3_goes_to_the_digest(self):
+        h = ProfileHarness(major=0.9).started()
+        h.poll([part(2, "FOSDEM schedule published", ["T3 Other"])])
+        st = h.state()
+        self.assertEqual((st["alerts"], len(st["pending"]), st["pending"][0]["tier"]), ([], 1, 3))
+
+    def test_clef_failure_leaves_the_article_unseen_and_loses_nothing(self):
+        h = ProfileHarness().started()
+        h.clef.error = clef.ClefError("OSError")
+        self.assertFalse(h.poll([part(2, "Cilium news", ["T1 Homelab"])]))
+        st = h.state()
+        self.assertNotIn("a2", st["seen"])
+        h.clef.error = None
+        self.assertTrue(h.poll([part(2, "Cilium news", ["T1 Homelab"])]))
+        self.assertEqual(len(h.state()["pending"]), 1)
+
+    def test_custom_topics_still_work_alongside_the_profile(self):
+        h = ProfileHarness().started()
+        h.say("add", "rust")
+        h.poll([part(2, "Rust 2.0 released")])
+        [item] = h.state()["pending"]
+        self.assertEqual((item["tier"], item["score"], item["topics"], item["group"]), (2, 0.8, ["rust"], None))
+
+    def test_an_article_matching_the_profile_and_a_custom_topic_is_one_item(self):
+        h = ProfileHarness().started()
+        h.say("add", "cilium")
+        h.poll([part(2, "Cilium 1.20", ["T1 Homelab"])])
+        [item] = h.state()["pending"]
+        self.assertEqual(item["topics"], ["Homelab", "cilium"])
+
+    def test_topics_command_lists_profile_groups_and_custom_topics(self):
+        h = ProfileHarness()
+        h.say("add", "rust")
+        h.sent.clear()
+        h.say()
+        text = h.sent[0]
+        self.assertIn("Profile groups", text)
+        self.assertIn("Homelab (tier 1)", text)
+        self.assertIn("1. rust", text)
+
+    def test_topics_command_without_custom_topics_still_explains_adding(self):
+        h = ProfileHarness()
+        h.say()
+        self.assertIn("/topics add", h.sent[0])
+
+    def test_bad_profile_version_in_state_starts_empty(self):
+        h = ProfileHarness()
+        with open(h.path, "w") as f:
+            json.dump({"topics": {}, "seen": [], "pending": [], "profile_version": "x"}, f)
+        h.news = h.make()
+        self.assertIsNone(h.news.state["profile_version"])
+        self.assertIsNone(h.news.state["seen"])
+
+
+class ProfileDigestTests(unittest.TestCase):
+    def due(self, h):
+        h.news.maybe_digest()
+        h.now = T0 + timedelta(hours=1)
+
+    def queue(self, h, items):
+        h.news.state["pending"] = items
+
+    def item(self, n, tier, score=1.0, group="G", title=None):
+        return {"id": f"p{n}", "title": title or f"title {n}", "url": f"https://x/{n}",
+                "topics": [group], "tier": tier, "score": score, "group": group, "custom": []}
+
+    def test_digest_is_grouped_by_tier_then_score_then_newest_first(self):
+        h = ProfileHarness().started()
+        self.due(h)
+        self.queue(h, [self.item(1, 2, 0.8), self.item(2, 1, 1.0), self.item(3, 3, 0.8), self.item(4, 1, 1.0)])
+        self.assertTrue(h.news.maybe_digest())
+        text = h.sent[-1]
+        self.assertIn("News digest: 4 items", text)
+        order = [text.index(f"title {n}") for n in (4, 2, 1, 3)]
+        self.assertEqual(order, sorted(order))
+        self.assertLess(text.index("Tier 1"), text.index("Tier 2"))
+        self.assertLess(text.index("Tier 2"), text.index("Tier 3"))
+        self.assertEqual(h.state()["pending"], [])
+
+    def test_digest_is_capped_and_the_rest_waits_for_the_next_one(self):
+        h = ProfileHarness().started()
+        self.due(h)
+        self.queue(h, [self.item(n, 1) for n in range(news.DIGEST_MAX_ITEMS + 5)])
+        h.news.maybe_digest()
+        self.assertEqual(h.sent[-1].count("https://x/"), news.DIGEST_MAX_ITEMS)
+        self.assertIn("+5 more", h.sent[-1])
+        self.assertEqual(len(h.state()["pending"]), 5)
+
+    def test_char_limit_also_splits_a_digest(self):
+        h = ProfileHarness().started()
+        self.due(h)
+        self.queue(h, [self.item(n, 1, title="t" * 300) for n in range(20)])
+        h.news.maybe_digest()
+        self.assertLessEqual(len(h.sent[-1]), 4096)
+        self.assertGreater(len(h.state()["pending"]), 0)
+
+    def test_failed_send_restores_everything(self):
+        h = ProfileHarness().started()
+        self.due(h)
+        self.queue(h, [self.item(1, 1), self.item(2, 2, 0.8)])
+        h.send_ok = False
+        self.assertFalse(h.news.maybe_digest())
+        self.assertEqual(len(h.state()["pending"]), 2)
+
+    def test_legacy_pending_items_without_a_tier_appear_under_tier_2(self):
+        h = ProfileHarness().started()
+        self.due(h)
+        h.say("add", "rust")
+        self.queue(h, [{"id": "old", "title": "Old Rust news", "url": "https://x/old", "topics": ["rust"]}])
+        self.assertTrue(h.news.maybe_digest())
+        self.assertIn("Tier 2", h.sent[-1])
+        self.assertIn("Old Rust news", h.sent[-1])
+
+    def test_custom_only_items_are_dropped_once_the_topic_is_unfollowed(self):
+        h = ProfileHarness().started()
+        self.due(h)
+        item = {**self.item(1, 2, 0.8, group=None), "group": None, "topics": ["rust"], "custom": ["rust"]}
+        self.queue(h, [item])
+        self.assertFalse(h.news.maybe_digest())
+        self.assertEqual(h.state()["pending"], [])
+        self.assertEqual(len(h.sent), 0)
 
 
 if __name__ == "__main__":
