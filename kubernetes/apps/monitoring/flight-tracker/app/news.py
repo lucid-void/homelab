@@ -6,6 +6,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
+import interests
 from clef import ClefError
 from core import log
 from freshrss import FreshRSSError
@@ -20,6 +21,10 @@ MAX_TOPIC_LEN = 80
 MAX_SEEN = 5000
 MAX_PENDING = 200
 DIGEST_MAX_CHARS = 3500
+DIGEST_MAX_ITEMS = 25
+MAX_ALERTS = 50
+CUSTOM_SCORE = 0.8      # an extra /topics match counts as a Tier 2 article that passed the threshold
+TIER_TITLES = {1: "Tier 1 - core", 2: "Tier 2 - regular", 3: "Tier 3 - situational"}
 THRESHOLD = 0.5
 USAGE = "Usage: /topics [add <topic> | rm <topic or number>]"
 
@@ -33,8 +38,9 @@ class News:
     ]
 
     def __init__(self, ctx, chat_id, source, clef, now=lambda: datetime.now(UTC), tz=UTC,
-                 digest_hours=(8, 18)):
+                 digest_hours=(8, 18), profile=None):
         self.ctx, self.chat, self.source, self.clef = ctx, str(chat_id), source, clef
+        self.profile = profile  # compiled interest profile (interests.py); None = custom topics only
         self.now, self.tz, self.hours = now, tz, tuple(sorted(digest_hours))
         self.lock = threading.RLock()
         self.failing = False
@@ -45,7 +51,8 @@ class News:
     # -- persistence --
 
     def _load(self):
-        default = {"topics": {}, "seen": None, "pending": [], "last_slot": None, "since": None}
+        default = {"topics": {}, "seen": None, "pending": [], "last_slot": None, "since": None,
+                   "profile_version": None, "alerts": []}
         try:
             with open(self.ctx.state_path) as f:
                 raw = json.load(f)
@@ -61,11 +68,16 @@ class News:
               and isinstance(raw.get("pending"), list)
               and (raw.get("last_slot") is None or isinstance(raw["last_slot"], str))
               and (raw.get("since") is None
-                   or (isinstance(raw["since"], (int, float)) and not isinstance(raw["since"], bool))))
+                   or (isinstance(raw["since"], (int, float)) and not isinstance(raw["since"], bool)))
+              and (raw.get("profile_version") is None
+                   or (isinstance(raw["profile_version"], int) and not isinstance(raw["profile_version"], bool)))
+              and isinstance(raw.get("alerts", []), list))
         if not ok:
             log("news state has the wrong shape, starting empty")
             return default
-        return {key: raw.get(key) for key in default}
+        state = {key: raw.get(key) for key in default}
+        state["alerts"] = state["alerts"] or []
+        return state
 
     def _save(self):
         tmp = self.ctx.state_path + ".tmp"
@@ -80,9 +92,17 @@ class News:
 
     def _list_text(self):
         topics = self._topics()
-        if not topics:
-            return "No topics yet. Add one: /topics add kubernetes security"
-        return "Topics:\n" + "\n".join(f"{i}. {t}" for i, t in enumerate(topics, 1))
+        if self.profile is None:
+            if not topics:
+                return "No topics yet. Add one: /topics add kubernetes security"
+            return "Topics:\n" + "\n".join(f"{i}. {t}" for i, t in enumerate(topics, 1))
+        lines = ["Profile groups (from git):"]
+        lines += [f"- {title} (tier {tier})" for title, tier in interests.group_lines(self.profile)]
+        if topics:
+            lines += ["", "Your extra topics:"] + [f"{i}. {t}" for i, t in enumerate(topics, 1)]
+        else:
+            lines += ["", "No extra topics. Add one: /topics add kubernetes security"]
+        return "\n".join(lines)
 
     def _command(self, args):
         with self.lock:
@@ -118,8 +138,13 @@ class News:
 
     def poll_once(self):
         with self.lock:
-            if self.state["since"] is None:  # first run: articles older than the install are never fetched
+            reseed = self.profile is not None and self.state["profile_version"] != self.profile["version"]
+            if self.state["since"] is None or reseed:
+                # first run, or a new profile: articles stored before now are never fetched or scored
                 self.state["since"] = int(self.now().timestamp())
+                self.state["seen"] = None
+                if self.profile is not None:
+                    self.state["profile_version"] = self.profile["version"]
                 self._save()
             since = self.state["since"]
         try:
@@ -136,40 +161,76 @@ class News:
                 return True
             seen = set(self.state["seen"])
         fresh = [a for a in articles if a["id"] not in seen]
-        if not topics:  # nothing to match against; do not hold these back for a later topic
+        if not topics and self.profile is None:  # nothing to match against; do not hold these back
             self._finish(fresh, [])
             return True
-        scored, matches = [], []
+        scored, matches, alerts = [], [], []
         for article in fresh[:MAX_PER_POLL]:
-            state = {"title": article["title"], "summary": article["summary"]}
-            hit = []
             try:
-                for start in range(0, len(topics), TOPICS_PER_CALL):
-                    chunk = list(enumerate(topics))[start:start + TOPICS_PER_CALL]
-                    probs = self.clef.noul(state, {f"t{i}": f"Is this article about: {t}?" for i, t in chunk})
-                    hit += [t for i, t in chunk if probs[f"t{i}"] >= THRESHOLD]
+                item, is_alert = self._score(article, topics)
             except ClefError as e:
                 self._fail(f"clef unavailable ({e}), articles stay unseen")
                 break
             scored.append(article)
-            if hit:
-                matches.append({"id": article["id"], "title": article["title"],
-                                "url": article["url"], "topics": hit})
+            if item is not None:
+                (alerts if is_alert else matches).append(item)
         else:
             self.failing = False
-        self._finish(scored, matches)
+        self._finish(scored, matches, alerts)
         return not self.failing
+
+    def _score(self, article, topics):
+        """(pending item or None, is_alert). ClefError propagates so the article is retried later."""
+        verdict = None
+        if self.profile is not None:
+            result = interests.assess(self.profile, article, self.clef)
+            if result["deliver"]:
+                verdict = result
+        hit = self._custom_hits(article, topics)
+        base = {"id": article["id"], "title": article["title"], "url": article["url"]}
+        if verdict is not None:
+            return ({**base, "topics": [verdict["group"]] + hit, "tier": verdict["tier"],
+                     "score": verdict["score"], "group": verdict["group"], "custom": hit}, verdict["alert"])
+        if not hit:
+            return None, False
+        if self.profile is None:
+            return {**base, "topics": hit}, False
+        return {**base, "topics": hit, "tier": 2, "score": CUSTOM_SCORE, "group": None, "custom": hit}, False
+
+    def _custom_hits(self, article, topics):
+        state = {"title": article["title"], "summary": article["summary"]}
+        hit = []
+        for start in range(0, len(topics), TOPICS_PER_CALL):
+            chunk = list(enumerate(topics))[start:start + TOPICS_PER_CALL]
+            probs = self.clef.noul(state, {f"t{i}": f"Is this article about: {t}?" for i, t in chunk})
+            hit += [t for i, t in chunk if probs[f"t{i}"] >= THRESHOLD]
+        return hit
 
     def _fail(self, text):
         if not self.failing:
             log(text)
         self.failing = True
 
-    def _finish(self, scored, matches):
+    def _finish(self, scored, matches, alerts=()):
         with self.lock:
             self.state["seen"] = (self.state["seen"] + [a["id"] for a in scored])[-MAX_SEEN:]
             self.state["pending"] = (self.state["pending"] + matches)[-MAX_PENDING:]
+            self.state["alerts"] = (self.state["alerts"] + list(alerts))[-MAX_ALERTS:]
             self._save()
+
+    def send_alerts(self):
+        """Send queued alerts one by one; a failed send keeps the rest queued for the next pass."""
+        while True:
+            with self.lock:
+                if not self.state["alerts"]:
+                    return True
+                item = self.state["alerts"][0]
+            ok = self.ctx.send(f"⏰ {item['title']} ({', '.join(item['topics'])})\n{item['url']}".rstrip())
+            if ok is False:
+                return False
+            with self.lock:
+                self.state["alerts"] = [a for a in self.state["alerts"] if a["id"] != item["id"]]
+                self._save()
 
     # -- digest --
 
@@ -193,15 +254,19 @@ class News:
             followed = {t.lower() for t in self._topics()}  # drop matches for topics unfollowed since
             pending = []
             for item in self.state["pending"]:
-                kept = [t for t in item["topics"] if t.lower() in followed]
+                if "tier" in item and item.get("group") is not None:  # a profile match: nothing to unfollow
+                    pending.append(item)
+                    continue
+                names = item.get("custom", item["topics"]) if "tier" in item else item["topics"]
+                kept = [t for t in names if t.lower() in followed]
                 if kept:
-                    pending.append({**item, "topics": kept})
+                    pending.append({**item, "topics": kept, **({"custom": kept} if "tier" in item else {})})
             if not pending:
                 self.state["pending"] = []
                 self._save()
                 return False
-            text, used = self._digest_text(pending)
-            self.state["pending"] = pending[used:]
+            text, remaining = self._digest_text(pending)
+            self.state["pending"] = remaining
             self._save()
         ok = self.ctx.send(text)
         if ok is False:
@@ -213,6 +278,33 @@ class News:
         return True
 
     def _digest_text(self, pending):
+        """(message text, items left for the next digest)."""
+        if self.profile is None:
+            return self._digest_text_plain(pending)
+        order = sorted(range(len(pending)),
+                       key=lambda i: (pending[i].get("tier", 2), -pending[i].get("score", CUSTOM_SCORE), -i))
+        chosen, size = [], 0
+        for i in order:
+            item = pending[i]
+            line = f"- {item['title']} ({', '.join(item['topics'])})\n  {item['url']}".rstrip()
+            if chosen and (len(chosen) >= DIGEST_MAX_ITEMS or size + len(line) > DIGEST_MAX_CHARS):
+                break
+            chosen.append((i, line))
+            size += len(line) + 1
+        lines, current = [], None
+        for i, line in chosen:
+            tier = pending[i].get("tier", 2)
+            if tier != current:
+                lines.append(("" if not lines else "\n") + TIER_TITLES[tier])
+                current = tier
+            lines.append(line)
+        left = [item for i, item in enumerate(pending) if i not in {i for i, _ in chosen}]
+        if left:
+            lines.append(f"\n+{len(left)} more in the next digest")
+        n = len(chosen)
+        return f"News digest: {n} item{'s' if n != 1 else ''}\n\n" + "\n".join(lines), left
+
+    def _digest_text_plain(self, pending):
         lines, size, used = [], 0, 0
         for item in pending:
             line = f"- {item['title']} ({', '.join(item['topics'])})\n  {item['url']}".rstrip()
@@ -224,7 +316,7 @@ class News:
         head = f"News digest: {used} match{'es' if used != 1 else ''}"
         if used < len(pending):
             lines.append(f"+{len(pending) - used} more in the next digest")
-        return head + "\n\n" + "\n".join(lines), used
+        return head + "\n\n" + "\n".join(lines), pending[used:]
 
     # -- loop --
 
@@ -238,6 +330,7 @@ class News:
                 if time.monotonic() >= next_poll:
                     self.poll_once()
                     next_poll = time.monotonic() + POLL_SECONDS
+                self.send_alerts()
                 self.maybe_digest()
             except Exception as e:  # keep the module alive
                 log(f"news loop failed: {type(e).__name__}")
