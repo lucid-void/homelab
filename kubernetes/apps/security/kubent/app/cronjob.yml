@@ -55,13 +55,16 @@ spec:
               volumeMounts:
                 - name: work
                   mountPath: /work
+              # OOMKilled (exit 137) at the old 128Mi limit on 2026-10-26: the
+              # collector lists every resource kind cluster-wide. backoffLimit 0
+              # made that one kill fail the whole weekly Job.
               resources:
                 requests:
                   cpu: 50m
-                  memory: 64Mi
-                limits:
-                  cpu: 200m
                   memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
           containers:
             - name: notify
               image: curlimages/curl:8.23.0
