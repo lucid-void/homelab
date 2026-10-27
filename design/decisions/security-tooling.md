@@ -32,7 +32,8 @@ runtime apk/GitHub download) into a shared `emptyDir`; main container `notify`
 (`optional: true`), echoing findings to its own stdout. No `--exit-error` — a
 "deprecated APIs found" result is a Gotify message, not a job failure; a genuine
 kubent error still exits non-zero. `ttlSecondsAfterFinished: 86400`. ClusterRole grants
-read-all, shared by the initContainer.
+read-all, shared by the initContainer. `scan` needs a 512Mi memory limit: at 128Mi it was
+OOMKilled (exit 137, `Init:OOMKilled`) on 2026-10-26 and `backoffLimit: 0` failed the Job.
 
 **manifest-scan gate** — `.github/kube-linter-run.sh` discovers leaf dirs holding raw
 workloads and runs kube-linter's default check set (not `addAllBuiltIn: true`, which
