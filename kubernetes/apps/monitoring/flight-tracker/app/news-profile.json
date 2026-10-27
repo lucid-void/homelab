@@ -91,7 +91,6 @@
         "Terraform",
         "Packer",
         "Ansible",
-        "Renovate",
         "Zitadel",
         "CloudNativePG",
         "VictoriaMetrics",
@@ -114,7 +113,8 @@
       ],
       "scoped_keywords": [
         "Flux",
-        "Talos"
+        "Talos",
+        "Renovate"
       ]
     },
     "local_ai": {
@@ -234,11 +234,12 @@
         "Marvel Rivals",
         "Guild Wars 2",
         "ProtonDB",
-        "Atmosphere",
-        "Atmosphère",
         "CTGP"
       ],
-      "scoped_keywords": []
+      "scoped_keywords": [
+        "Atmosphere",
+        "Atmosphère"
+      ]
     },
     "pokemon_tcg": {
       "title": "Pokémon TCG",

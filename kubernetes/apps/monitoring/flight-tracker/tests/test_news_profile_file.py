@@ -75,6 +75,20 @@ class NewsProfileFileTests(unittest.TestCase):
         self.assertNotEqual(patch["reason"], "spoiler")
         self.assertEqual(plot["reason"], "spoiler")
 
+    def test_renovate_and_atmosphere_are_common_words_outside_their_categories(self):
+        m1 = interests.match_group(self.p, art("Renovate your kitchen this winter", ["Core already in OPML"]))
+        self.assertIsNone(m1)
+        m2 = interests.match_group(self.p, art("The atmosphere of the new game is great", ["T1 Keyboards/electronics"]))
+        self.assertIsNone(m2)
+
+    def test_they_still_match_inside_their_own_category(self):
+        m1 = interests.match_group(self.p, art("Renovate bot now supports X", ["T1 Homelab"]))
+        self.assertEqual(m1[0]["key"], "homelab")
+        m2 = interests.match_group(self.p, art("Atmosphère 1.9 released", ["T2 Gaming"]))
+        self.assertEqual(m2[0]["key"], "gaming")
+        v3 = self.verdict(art("2.1.0", ["T1 Homelab"], site="https://github.com/renovatebot/renovate/releases"))
+        self.assertTrue(v3["deliver"])
+
 
 if __name__ == "__main__":
     unittest.main()
