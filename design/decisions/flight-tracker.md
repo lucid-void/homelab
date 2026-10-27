@@ -7,8 +7,8 @@
 Single-user Telegram bot in `monitoring`. You send `/track LH123 2026-10-05`; it polls
 AeroDataBox (RapidAPI free plan, 400 units/month at 2 units per call) and messages gate,
 terminal, time and status changes. `/list`, `/untrack`, and `/fetch` (tappable list of
-tracked flights, or `/fetch LH123`) complete the flight interface; `/alerts` mutes Gotify forwarding, `/status` summarises cluster health. `alerts.py` runs Clef triage on Gotify messages below priority 8, and `news.py` sends a twice-daily FreshRSS digest of articles matching `/topics`. Nine
-stdlib-only Python files (`core.py`, `flights.py`, `alerts.py`, `status.py`, `clef.py`, `triage.py`, `freshrss.py`, `news.py`, `main.py`) delivered by one `configMapGenerator` `files:`; state is
+tracked flights, or `/fetch LH123`) complete the flight interface; `/alerts` mutes Gotify forwarding, `/status` summarises cluster health. `alerts.py` runs Clef triage on Gotify messages below priority 8, and `news.py` sends a twice-daily FreshRSS digest of articles scored against `news-profile.json`. Ten
+stdlib-only Python files (`core.py`, `flights.py`, `alerts.py`, `status.py`, `clef.py`, `triage.py`, `freshrss.py`, `interests.py`, `news.py`, `main.py`) plus the data file `news-profile.json` (11 entries in total) are delivered by one `configMapGenerator` `files:`; state is
 JSON on an `nfs-client` PVC.
 
 It reuses the existing bot (`telegram-secret`, owned by the `gotify-telegram` Kustomization),
@@ -107,17 +107,48 @@ on the class. The core needs no change.
   module is simply not registered and the log says so; it needs BOTH keys non-empty.
   `DIGEST_HOURS` is validated (a comma list of hours 0-23; any bad value logs and falls back
   to 8,18).
-- **The first news poll never scores the backlog.** The poll stores its start time as `since` and
-  every FreshRSS fetch passes it as `ot`, so articles older than the install are excluded (the
-  API returns at most 100 per call, a bigger backlog would otherwise leak through); the first poll
-  also seeds anything newer as seen without scoring it. A poll with no topics marks articles seen too; only articles that arrive while topics exist can match.
+- **The first news poll never scores the backlog, and neither does a changed profile `version`**
+  (see the re-seed rule below). The poll stores its start time as `since` and
+  every FreshRSS fetch passes it as `ot`, so articles older than the install are excluded (a
+  poll fetches at most 250 unread articles, a bigger backlog would otherwise leak through); the first poll
+  also seeds anything newer as seen without scoring it. A poll with neither a profile nor topics marks articles seen too; only articles that arrive while something exists to match can match.
   The FreshRSS client raises on a response whose `items` is not a list, so a malformed first
   response cannot seed an empty seen-list.
-- **A poll scores at most 40 articles**, and news scores at most 3 topics per Clef call (about
+- **A poll scores at most 40 articles.** Extra `/topics` are scored at most 3 per Clef call (about
   7 s per call, measured on headline-only input; summaries add time), so an article with 10
-  topics is 4 calls. News uses its own 60 s Clef client; triage uses a 15 s one. The rest wait
+  extra topics is 4 calls; profile scoring asks at most 3 questions per call (the spoiler check
+  is a separate one-question call). News uses its own 60 s Clef client; triage uses a 15 s one. The rest wait
   for the next poll. A Clef failure on any call leaves that article unseen so nothing is lost.
   Pending matches for topics unfollowed since are dropped at digest time.
+- **News is scored from `news-profile.json`**, not from `/topics`. The file holds the 14 groups in 3
+  tiers, keywords, ruled-out products, spoiler topics, paywalled domains, the `0.7` delivery
+  threshold and the exact Clef question wording, so tuning is a JSON edit (Reloader restarts the
+  bot). Matching and scoring are pure functions in `interests.py`.
+- **A release feed is its own topic.** A GitHub `releases` or `tags` feed (by the feed's site URL)
+  whose FreshRSS category is a group's category matches that group with no keywords and no Clef
+  call. Elsewhere whole-word keywords decide; `scoped_keywords` (Signal, Matrix, Pixel, Thread,
+  Matter, Renovate, Atmosphere and similar) only count inside the group's categories.
+- **FreshRSS category names are part of the config.** `categories` in the profile must equal the
+  OPML category names; a renamed category silently stops matching. At startup the bot logs profile
+  categories with no subscribed feed (`warn_unused_categories`, from `FreshRSS.labels()`).
+- **Score = tier weight (1.0 / 0.6 / 0.3), adjusted by at most 3 Clef answers:** marketing without
+  numbers x0.6, Tier 2 substantive +0.2 (release feeds count as substantive), Tier 3 major +0.5;
+  paywalled domains x0.5 (an unparseable article URL counts as not paywalled); llama.cpp `bNNNN`
+  builds x0.5 unless the text mentions Vulkan, Intel Arc or SYCL. A spoiler topic (Expedition 33,
+  Steel Ball Run) gets one extra one-question Clef call first, unless the text has an allow term
+  such as "patch notes". Ruled-out products are dropped without any call.
+- **Delivery.** 0.7 or more goes to the 08:00/18:00 digest, grouped by tier, at most 25 items per
+  digest (the rest wait). Tier 3 items Clef judges time-sensitive are sent at once: they are queued
+  in `news.json` (`alerts`, at most 50) and retried every 30 s until Telegram accepts them; a
+  failed send keeps them queued.
+- **A new profile `version` re-seeds the module** like a first run (new `since`, current unread
+  recorded as seen, nothing scored), so an OPML import or a big profile change never replays the
+  backlog. Pure tuning (thresholds, wording, keywords) should not bump `version`.
+- **A missing or broken profile turns news off** with one log line; the rest of the bot runs.
+  Every malformed case (huge numbers, NaN, a bad or over-nested regex, over-nested JSON) is
+  reported as `ProfileError`, never a crash.
+- **`/topics` lists the profile groups read-only;** extra free-text topics (max 10) still work and
+  count as Tier 2 with score 0.8.
 - **Digest times are 08:00 and 18:00 in `DIGEST_TZ`**; if the zone database is missing the bot
   logs it and uses UTC. The first digest check only starts the schedule.
 - **A failed digest send is retried, not lost.** `Telegram.send` returns True/False;
