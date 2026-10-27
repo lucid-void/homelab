@@ -201,6 +201,12 @@ class AssessTests(unittest.TestCase):
         with self.assertRaises(clef.ClefError):
             interests.assess(self.p, article("Cilium news"), c)
 
+    def test_a_malformed_article_url_does_not_break_scoring(self):
+        a = article("Cilium 1.20 adds things", url="http://[oops/x")
+        v, c = self.run_assess(a)
+        self.assertEqual((v["deliver"], v["score"], v["tier"], v["group"]), (True, 1.0, 1, "Homelab"))
+        self.assertEqual(c.calls, [["marketing"]])
+
 
 class HelperTests(unittest.TestCase):
     def test_group_lines_keep_profile_order(self):
@@ -222,6 +228,7 @@ class ValidationTests(unittest.TestCase):
         cases = [
             lambda r: r.pop("version"), lambda r: r.update(version="1"), lambda r: r.update(version=True),
             lambda r: r["tiers"].pop("2"), lambda r: r["tiers"].update({"1": "high"}),
+            lambda r: r["tiers"].update({"1": 10**400}),
             lambda r: r.pop("deliver_min"), lambda r: r.pop("yes_at"),
             lambda r: r["adjust"].pop("marketing"),
             lambda r: r["questions"].pop("spoiler"), lambda r: r["questions"].update(major=""),
@@ -230,7 +237,10 @@ class ValidationTests(unittest.TestCase):
             lambda r: r["groups"]["ai"].update(title=""), lambda r: r["groups"]["ai"].update(categories=[]),
             lambda r: r["groups"]["ai"].update(keywords="x"), lambda r: r["groups"]["ai"].update(keywords=[1]),
             lambda r: r.update(pure_feed_pattern="("), lambda r: r.pop("pure_feed_pattern"),
-            lambda r: r["build_noise"].update(title_regex="["), lambda r: r.update(spoilers=[]),
+            lambda r: r.update(pure_feed_pattern="a{99999999999}"),
+            lambda r: r["build_noise"].update(title_regex="["),
+            lambda r: r["build_noise"].update(title_regex="(" * 1000 + ")" * 1000),
+            lambda r: r.update(spoilers=[]),
             lambda r: r.update(ruled_out="TrueNAS"), lambda r: r.update(paywalled_domains=[3]),
         ]
         for i, mutate in enumerate(cases):
@@ -263,6 +273,21 @@ class ValidationTests(unittest.TestCase):
         raw["build_noise"].pop("unless_keywords")
         raw["groups"]["ai"].pop("scoped_keywords")
         interests.compile_profile(raw)
+
+    def test_deliver_min_nan_and_inf_rejected(self):
+        for bad_val in (float("nan"), float("inf"), float("-inf")):
+            raw = copy.deepcopy(RAW)
+            raw["deliver_min"] = bad_val
+            with self.assertRaises(interests.ProfileError):
+                interests.compile_profile(raw)
+
+    def test_load_profile_rejects_deeply_nested_json(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "nested.json")
+            with open(path, "w") as f:
+                f.write("[" * 200000 + "]" * 200000)
+            with self.assertRaises(interests.ProfileError):
+                interests.load_profile(path)
 
 
 if __name__ == "__main__":

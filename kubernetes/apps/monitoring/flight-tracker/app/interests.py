@@ -5,6 +5,7 @@ Pure apart from load_profile(); the Clef client is passed to assess(), so nothin
 (Not called profile.py: that name shadows Python's own `profile` module.)
 """
 import json
+import math
 import re
 from urllib.parse import urlsplit
 
@@ -20,7 +21,13 @@ class ProfileError(Exception):
 def _num(value, where):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ProfileError(f"{where} must be a number")
-    return float(value)
+    try:
+        converted = float(value)
+    except OverflowError as e:
+        raise ProfileError(f"{where} is out of range") from e
+    if not math.isfinite(converted):
+        raise ProfileError(f"{where} must be a finite number")
+    return converted
 
 
 def _strings(value, where, required=True):
@@ -44,7 +51,7 @@ def _regex(pattern, where):
         raise ProfileError(f"{where} must be a regular expression string")
     try:
         return re.compile(pattern)
-    except re.error as e:
+    except (re.error, OverflowError, RecursionError) as e:
         raise ProfileError(f"{where} is not a valid regular expression: {e}") from e
 
 
@@ -61,7 +68,7 @@ def load_profile(path):
             raw = json.load(f)
     except OSError as e:
         raise ProfileError(f"cannot read {path}: {type(e).__name__}") from e
-    except ValueError as e:
+    except (ValueError, RecursionError) as e:
         raise ProfileError(f"{path} is not valid JSON") from e
     return compile_profile(raw)
 
@@ -169,7 +176,10 @@ def _verdict(group, score=0.0, deliver=False, alert=False, reason=""):
 
 
 def _host_matches(url, domains):
-    host = (urlsplit(url or "").hostname or "").lower()
+    try:
+        host = (urlsplit(url or "").hostname or "").lower()
+    except ValueError:
+        host = ""
     return any(host == d or host.endswith("." + d) for d in domains)
 
 
