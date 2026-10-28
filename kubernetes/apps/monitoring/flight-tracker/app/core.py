@@ -36,8 +36,11 @@ class Telegram:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.load(resp)
 
-    def send(self, text, buttons=None):
+    def send(self, text, buttons=None, html=False):
         body = {"chat_id": self.chat_id, "text": text}
+        if html:
+            body["parse_mode"] = "HTML"
+            body["disable_web_page_preview"] = True
         if buttons:
             body["reply_markup"] = {"inline_keyboard": [
                 [{"text": label, "callback_data": data}] for label, data in buttons]}

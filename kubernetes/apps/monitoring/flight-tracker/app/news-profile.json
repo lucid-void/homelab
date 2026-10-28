@@ -14,6 +14,7 @@
     "paywalled": 0.5,
     "build_noise": 0.5
   },
+  "skip_release_feeds": true,
   "pure_feed_pattern": "github\\.com/[^/]+/[^/]+/(releases|tags)",
   "groups": {
     "hpc_infra": {

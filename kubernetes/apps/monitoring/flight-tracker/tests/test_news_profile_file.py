@@ -32,6 +32,13 @@ class NewsProfileFileTests(unittest.TestCase):
     def verdict(self, a):
         return interests.assess(self.p, a, Quiet())
 
+    def release_verdict(self, a):  # the pure-feed rules, with release-feed skipping switched off
+        return interests.assess(dict(self.p, skip_release_feeds=False), a, Quiet())
+
+    def test_release_feeds_are_skipped(self):
+        v = self.verdict(art("v2.10.0", ["T1 Homelab"], site="https://github.com/fluxcd/flux2/releases"))
+        self.assertEqual((v["deliver"], v["reason"]), (False, "release feed"))
+
     def test_the_file_loads_with_the_fourteen_groups(self):
         self.assertEqual(len(self.p["groups"]), 14)
         self.assertEqual([t for _, t in interests.group_lines(self.p)], [1] * 6 + [2] * 7 + [3])
@@ -53,13 +60,13 @@ class NewsProfileFileTests(unittest.TestCase):
 
     def test_github_release_feeds_are_pure_matches(self):
         a = art("v2.10.0", ["T1 Homelab"], site="https://github.com/fluxcd/flux2/releases")
-        v = self.verdict(a)
+        v = self.release_verdict(a)
         self.assertEqual((v["deliver"], v["group"]), (True, "Homelab and self-hosting"))
 
     def test_llama_cpp_build_numbers_are_noise_unless_vulkan(self):
         site = "https://github.com/ggml-org/llama.cpp/releases"
-        noisy = self.verdict(art("b11918: opencl: initial support for q3_k (#31172)", ["T1 Local AI / agents"], site=site))
-        rescued = self.verdict(art("b11919: vulkan: faster matmul", ["T1 Local AI / agents"], site=site))
+        noisy = self.release_verdict(art("b11918: opencl: initial support for q3_k (#31172)", ["T1 Local AI / agents"], site=site))
+        rescued = self.release_verdict(art("b11919: vulkan: faster matmul", ["T1 Local AI / agents"], site=site))
         self.assertEqual((noisy["deliver"], rescued["deliver"]), (False, True))
 
     def test_ruled_out_products_are_dropped(self):
@@ -86,7 +93,7 @@ class NewsProfileFileTests(unittest.TestCase):
         self.assertEqual(m1[0]["key"], "homelab")
         m2 = interests.match_group(self.p, art("Atmosphère 1.9 released", ["T2 Gaming"]))
         self.assertEqual(m2[0]["key"], "gaming")
-        v3 = self.verdict(art("2.1.0", ["T1 Homelab"], site="https://github.com/renovatebot/renovate/releases"))
+        v3 = self.release_verdict(art("2.1.0", ["T1 Homelab"], site="https://github.com/renovatebot/renovate/releases"))
         self.assertTrue(v3["deliver"])
 
 
