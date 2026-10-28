@@ -4,6 +4,10 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Planned
 
+- **News digest backlog.** Items over a tier's quota still carry to the next digest, so a busy tier
+  builds a queue. Decided but not built: drop what was not shown (footer "N skipped") so a digest is
+  only news from the last 12 h, and ignore articles published more than 3 days ago (needs the
+  `published` field from the FreshRSS API; old Steam patch notes still get through today).
 - **Rotate the RapidAPI (AeroDataBox) key.** It was pasted into an agent transcript on
   2026-09-30 and must be treated as disclosed. Regenerate it on RapidAPI, then re-seal
   `kubernetes/apps/monitoring/flight-tracker/app/aerodatabox-sealed.yml` (plaintext in the

@@ -124,7 +124,9 @@ on the class. The core needs no change.
   tiers, keywords, ruled-out products, spoiler topics, paywalled domains, the `0.7` delivery
   threshold and the exact Clef question wording, so tuning is a JSON edit (Reloader restarts the
   bot). Matching and scoring are pure functions in `interests.py`.
-- **A release feed is its own topic.** A GitHub `releases` or `tags` feed (by the feed's site URL)
+- **Release feeds are skipped** (`skip_release_feeds: true`): tags are not news and filled every
+  Tier 1 slot; items queued earlier are dropped at the next digest. With the flag off, a GitHub
+  `releases` or `tags` feed (by the feed's site URL)
   whose FreshRSS category is a group's category matches that group with no keywords and no Clef
   call. Elsewhere whole-word keywords decide; `scoped_keywords` (Signal, Matrix, Pixel, Thread,
   Matter, Renovate, Atmosphere and similar) only count inside the group's categories.
@@ -137,8 +139,8 @@ on the class. The core needs no change.
   builds x0.5 unless the text mentions Vulkan, Intel Arc or SYCL. A spoiler topic (Expedition 33,
   Steel Ball Run) gets one extra one-question Clef call first, unless the text has an allow term
   such as "patch notes". Ruled-out products are dropped without any call.
-- **Delivery.** 0.7 or more goes to the 08:00/18:00 digest, grouped by tier, at most 25 items per
-  digest (the rest wait). Tier 3 items that are delivered (Clef must also say "major") and that Clef judges time-sensitive are sent at once: they are queued
+- **Delivery.** 0.7 or more goes to the 08:00/18:00 digest, grouped by tier with a quota per tier (10 / 8 / 4),
+  each tier cycling through its groups; the rest wait. Sent as HTML (linked titles, no previews). Tier 3 items that are delivered (Clef must also say "major") and that Clef judges time-sensitive are sent at once: they are queued
   in `news.json` (`alerts`, at most 50) and retried every 30 s until Telegram accepts them; a
   failed send keeps them queued.
 - **A new profile `version` re-seeds the module** like a first run (new `since`; `ot=now` keeps the backlog

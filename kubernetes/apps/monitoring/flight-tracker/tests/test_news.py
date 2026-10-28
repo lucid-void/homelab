@@ -81,7 +81,7 @@ class Harness:
         return FakeClef()
 
     def make(self):
-        ctx = core.Ctx("news", lambda text, buttons=None: (self.sent.append(text), self.send_ok)[1], self.path)
+        ctx = core.Ctx("news", lambda text, buttons=None, html=False: (self.sent.append(text), self.send_ok)[1], self.path)
         return news.News(ctx, CHAT, self.source, self.clef, now=lambda: self.now, profile=self.profile)
 
     def say(self, *args):
@@ -571,21 +571,45 @@ class ProfileDigestTests(unittest.TestCase):
         self.queue(h, [self.item(1, 2, 0.8), self.item(2, 1, 1.0), self.item(3, 3, 0.8), self.item(4, 1, 1.0)])
         self.assertTrue(h.news.maybe_digest())
         text = h.sent[-1]
-        self.assertIn("News digest: 4 items", text)
+        self.assertIn("News digest</b> · 4 items", text)
         order = [text.index(f"title {n}") for n in (4, 2, 1, 3)]
         self.assertEqual(order, sorted(order))
-        self.assertLess(text.index("Tier 1"), text.index("Tier 2"))
-        self.assertLess(text.index("Tier 2"), text.index("Tier 3"))
+        self.assertLess(text.index("Core"), text.index("Regular"))
+        self.assertLess(text.index("Regular"), text.index("Situational"))
         self.assertEqual(h.state()["pending"], [])
 
-    def test_digest_is_capped_and_the_rest_waits_for_the_next_one(self):
+    def test_each_tier_has_a_quota_and_the_rest_waits_for_the_next_digest(self):
         h = ProfileHarness().started()
         self.due(h)
-        self.queue(h, [self.item(n, 1) for n in range(news.DIGEST_MAX_ITEMS + 5)])
+        self.queue(h, [self.item(n, 1) for n in range(15)] + [self.item(100 + n, 2, 0.8) for n in range(3)])
         h.news.maybe_digest()
-        self.assertEqual(h.sent[-1].count("https://x/"), news.DIGEST_MAX_ITEMS)
+        self.assertEqual(h.sent[-1].count("https://x/"), news.TIER_QUOTA[1] + 3)
         self.assertIn("+5 more", h.sent[-1])
         self.assertEqual(len(h.state()["pending"]), 5)
+
+    def test_a_tier_cycles_through_its_groups(self):
+        h = ProfileHarness().started()
+        self.due(h)
+        items = [self.item(n, 1, group="Big") for n in range(12)] + [self.item(50, 1, group="Small")]
+        self.queue(h, items)
+        h.news.maybe_digest()
+        self.assertIn("title 50", h.sent[-1])
+
+    def test_links_are_html_escaped_and_sent_as_html(self):
+        h = ProfileHarness().started()
+        self.due(h)
+        self.queue(h, [{**self.item(1, 1), "title": "A <b> & C", "url": "https://x/?a=1&b=2"}])
+        h.news.maybe_digest()
+        self.assertIn('<a href="https://x/?a=1&amp;b=2">A &lt;b&gt; &amp; C</a>', h.sent[-1])
+
+    def test_release_items_queued_before_the_skip_are_dropped(self):
+        h = ProfileHarness().started()
+        h.news.profile = dict(h.news.profile, skip_release_feeds=True)
+        self.due(h)
+        self.queue(h, [{**self.item(1, 1), "url": "https://github.com/a/b/releases/tag/v1"}, self.item(2, 1)])
+        h.news.maybe_digest()
+        self.assertNotIn("releases/tag", h.sent[-1])
+        self.assertIn("title 2", h.sent[-1])
 
     def test_char_limit_also_splits_a_digest(self):
         h = ProfileHarness().started()
@@ -609,7 +633,7 @@ class ProfileDigestTests(unittest.TestCase):
         h.say("add", "rust")
         self.queue(h, [{"id": "old", "title": "Old Rust news", "url": "https://x/old", "topics": ["rust"]}])
         self.assertTrue(h.news.maybe_digest())
-        self.assertIn("Tier 2", h.sent[-1])
+        self.assertIn("Regular", h.sent[-1])
         self.assertIn("Old Rust news", h.sent[-1])
 
     def test_custom_only_items_are_dropped_once_the_topic_is_unfollowed(self):

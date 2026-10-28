@@ -73,6 +73,12 @@ def load_profile(path):
     return compile_profile(raw)
 
 
+def _flag(value, name):
+    if not isinstance(value, bool):
+        raise ProfileError(f"{name} must be true or false")
+    return value
+
+
 def compile_profile(raw):
     if not isinstance(raw, dict):
         raise ProfileError("the profile must be a JSON object")
@@ -126,6 +132,7 @@ def compile_profile(raw):
         "adjust": adjust,
         "questions": questions,
         "pure_rx": _regex(raw.get("pure_feed_pattern"), "pure_feed_pattern"),
+        "skip_release_feeds": _flag(raw.get("skip_release_feeds", False), "skip_release_feeds"),
         "groups": groups,
         "ruled_rx": _words(_strings(raw.get("ruled_out", []), "ruled_out", required=False)),
         "spoiler_rx": _words(_strings(spoilers.get("topics", []), "spoilers.topics", required=False)),
@@ -185,6 +192,8 @@ def _host_matches(url, domains):
 
 def assess(profile, article, clef):
     """Score one article. ClefError raised by `clef.noul` propagates (the caller retries later)."""
+    if profile["skip_release_feeds"] and profile["pure_rx"].search(article.get("site") or ""):
+        return _verdict(None, reason="release feed")  # tags are not news
     match = match_group(profile, article)
     if match is None:
         return _verdict(None, reason="no match")

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """/topics and a twice-daily digest of FreshRSS articles that match the owner's topics."""
+import html as htmllib
 import json
 import os
 import threading
@@ -21,10 +22,10 @@ MAX_TOPIC_LEN = 80
 MAX_SEEN = 5000
 MAX_PENDING = 200
 DIGEST_MAX_CHARS = 3500
-DIGEST_MAX_ITEMS = 25
+TIER_QUOTA = {1: 10, 2: 8, 3: 4}   # items per digest; each tier cycles through its groups
 MAX_ALERTS = 50
 CUSTOM_SCORE = 0.8      # an extra /topics match counts as a Tier 2 article that passed the threshold
-TIER_TITLES = {1: "Tier 1 - core", 2: "Tier 2 - regular", 3: "Tier 3 - situational"}
+TIER_TITLES = {1: "🔥 Core", 2: "📰 Regular", 3: "🧭 Situational"}
 THRESHOLD = 0.5
 USAGE = "Usage: /topics [add <topic> | rm <topic or number>]"
 
@@ -225,7 +226,7 @@ class News:
                 if not self.state["alerts"]:
                     return True
                 item = self.state["alerts"][0]
-            ok = self.ctx.send(f"⏰ {item['title']} ({', '.join(item['topics'])})\n{item['url']}".rstrip())
+            ok = self.ctx.send(f"⏰ {self._link(item)}", html=True)
             if ok is False:
                 return False
             with self.lock:
@@ -254,6 +255,9 @@ class News:
             followed = {t.lower() for t in self._topics()}  # drop matches for topics unfollowed since
             pending = []
             for item in self.state["pending"]:
+                if (self.profile is not None and self.profile["skip_release_feeds"]
+                        and self.profile["pure_rx"].search(item.get("url") or "")):
+                    continue  # queued before release feeds were skipped
                 if "tier" in item and item.get("group") is not None:  # a profile match: nothing to unfollow
                     pending.append(item)
                     continue
@@ -268,7 +272,7 @@ class News:
             text, remaining = self._digest_text(pending)
             self.state["pending"] = remaining
             self._save()
-        ok = self.ctx.send(text)
+        ok = self.ctx.send(text, html=self.profile is not None)
         if ok is False:
             with self.lock:
                 self.state["pending"] = pending
@@ -277,17 +281,38 @@ class News:
             return False
         return True
 
+    @staticmethod
+    def _link(item):
+        e = lambda t: htmllib.escape(t, quote=True)
+        return f'<a href="{e(item["url"])}">{e(item["title"])}</a> · <i>{e(", ".join(item["topics"]))}</i>'
+
+    def _pick(self, pending):
+        """Indexes to show: per tier up to its quota, cycling through the groups (best score, newest first)."""
+        chosen = []
+        for tier in (1, 2, 3):
+            buckets = {}
+            for i in sorted((i for i, it in enumerate(pending) if it.get("tier", 2) == tier),
+                            key=lambda i: (-pending[i].get("score", CUSTOM_SCORE), -i)):
+                buckets.setdefault(pending[i].get("group") or tuple(pending[i]["topics"]), []).append(i)
+            queues, taken = list(buckets.values()), 0
+            while queues and taken < TIER_QUOTA[tier]:
+                for q in list(queues):
+                    if taken >= TIER_QUOTA[tier]:
+                        break
+                    chosen.append(q.pop(0))
+                    taken += 1
+                    if not q:
+                        queues.remove(q)
+        return chosen
+
     def _digest_text(self, pending):
-        """(message text, items left for the next digest)."""
+        """(message text in HTML, items left for the next digest)."""
         if self.profile is None:
             return self._digest_text_plain(pending)
-        order = sorted(range(len(pending)),
-                       key=lambda i: (pending[i].get("tier", 2), -pending[i].get("score", CUSTOM_SCORE), -i))
         chosen, size = [], 0
-        for i in order:
-            item = pending[i]
-            line = f"- {item['title']} ({', '.join(item['topics'])})\n  {item['url']}".rstrip()
-            if chosen and (len(chosen) >= DIGEST_MAX_ITEMS or size + len(line) > DIGEST_MAX_CHARS):
+        for i in self._pick(pending):
+            line = f"• {self._link(pending[i])}"
+            if chosen and size + len(line) > DIGEST_MAX_CHARS:
                 break
             chosen.append((i, line))
             size += len(line) + 1
@@ -295,14 +320,15 @@ class News:
         for i, line in chosen:
             tier = pending[i].get("tier", 2)
             if tier != current:
-                lines.append(("" if not lines else "\n") + TIER_TITLES[tier])
+                lines.append(("" if not lines else "\n") + f"<b>{TIER_TITLES[tier]}</b>")
                 current = tier
             lines.append(line)
-        left = [item for i, item in enumerate(pending) if i not in {i for i, _ in chosen}]
+        shown = {i for i, _ in chosen}
+        left = [item for i, item in enumerate(pending) if i not in shown]
         if left:
             lines.append(f"\n+{len(left)} more in the next digest")
         n = len(chosen)
-        return f"News digest: {n} item{'s' if n != 1 else ''}\n\n" + "\n".join(lines), left
+        return f"📰 <b>News digest</b> · {n} item{'s' if n != 1 else ''}\n\n" + "\n".join(lines), left
 
     def _digest_text_plain(self, pending):
         lines, size, used = [], 0, 0
