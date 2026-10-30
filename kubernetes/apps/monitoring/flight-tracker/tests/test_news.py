@@ -578,14 +578,14 @@ class ProfileDigestTests(unittest.TestCase):
         self.assertLess(text.index("Regular"), text.index("Situational"))
         self.assertEqual(h.state()["pending"], [])
 
-    def test_each_tier_has_a_quota_and_the_rest_waits_for_the_next_digest(self):
+    def test_each_tier_has_a_quota_and_the_rest_is_dropped(self):
         h = ProfileHarness().started()
         self.due(h)
         self.queue(h, [self.item(n, 1) for n in range(15)] + [self.item(100 + n, 2, 0.8) for n in range(3)])
         h.news.maybe_digest()
         self.assertEqual(h.sent[-1].count("https://x/"), news.TIER_QUOTA[1] + 3)
-        self.assertIn("+5 more", h.sent[-1])
-        self.assertEqual(len(h.state()["pending"]), 5)
+        self.assertIn("5 more skipped", h.sent[-1])
+        self.assertEqual(h.state()["pending"], [])
 
     def test_a_tier_cycles_through_its_groups(self):
         h = ProfileHarness().started()
@@ -617,7 +617,7 @@ class ProfileDigestTests(unittest.TestCase):
         self.queue(h, [self.item(n, 1, title="t" * 300) for n in range(20)])
         h.news.maybe_digest()
         self.assertLessEqual(len(h.sent[-1]), 4096)
-        self.assertGreater(len(h.state()["pending"]), 0)
+        self.assertIn("skipped", h.sent[-1])
 
     def test_failed_send_restores_everything(self):
         h = ProfileHarness().started()
