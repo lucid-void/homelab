@@ -36,7 +36,7 @@ spec:
           emptyDir: {}
       containers:
         - name: tracker
-          image: python:3.15.1-alpine3.24
+          image: python:3.15.2-alpine3.24
           command: ["python", "-u", "/scripts/main.py"]
           env:
             - name: STATE_PATH
