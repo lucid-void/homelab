@@ -225,6 +225,11 @@ next restart, which can be days later.
   `openssl rand -hex 32`. Base64 emits `+`, which decodes as a SPACE in the
   form-encoded client-credentials body, and Keycloak answers `401
   invalid_client_credentials` while the stored secret matches byte-for-byte.
+- **Label every client Secret `operator.keycloak.org/kind: KeycloakOIDCClient`**, in the
+  SealedSecret's `spec.template.metadata.labels`. Since operator 26.8 an unlabelled Secret
+  fails reconciliation with `Secret ... not found with ... label`. Logins keep working and
+  `keycloak-clients` runs `wait: false`, so nothing reports it: all eleven clients failed
+  for 11 days after the bump in #263, and role and secret changes silently did nothing.
 - **Never write `spec.client.clientId`** — the field does not exist and is pruned in
   silence. `metadata.name` is the client id.
 - **Never trust `validate-manifests.sh` on a `KeycloakOIDCClient`** — kubeconform has no

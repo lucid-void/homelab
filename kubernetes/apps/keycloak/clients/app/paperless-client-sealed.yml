@@ -11,4 +11,6 @@ spec:
     metadata:
       name: paperless-client-secret
       namespace: keycloak
+      labels:
+        operator.keycloak.org/kind: KeycloakOIDCClient
     type: Opaque
