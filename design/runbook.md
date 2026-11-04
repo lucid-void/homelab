@@ -507,9 +507,19 @@ dropdown, so a Keycloak outage cannot lock you out of the hypervisor. That matte
 here than for any in-cluster app — the Gateway that serves `sso.blackcats.cc` runs on
 VMs this host hypervises.
 
-Then grant the autocreated account: Datacenter → Permissions → Add → User Permission,
-path `/`, user `<user>@keycloak`, role `Administrator`, Propagate on. The account is
-created on first login with no permissions at all.
+Then make permissions follow the Keycloak role. The account is created on first login with
+no permissions at all, so grant the groups rather than each user:
+
+```bash
+pveum realm modify keycloak --groups-claim proxmox_roles --groups-autocreate 1 --groups-overwrite 1
+# Log in once through Keycloak, which creates the groups, then read their exact names.
+pveum group list
+pveum acl modify / --groups admin-keycloak --roles Administrator
+pveum acl modify / --groups user-keycloak --roles PVEAuditor
+```
+
+`--groups-overwrite` replaces only an SSO user's group membership, so a permission granted
+directly to `<user>@keycloak` keeps working alongside this.
 
 **A pre-existing `zitadel` realm does not migrate.** Proxmox keys autocreated accounts
 on `<user>@<realm>`, so accounts under the old realm keep their ACLs and the new ones

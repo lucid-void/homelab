@@ -160,6 +160,41 @@ handed to Keycloak through `client.auth.secretRef`. A realm rebuild therefore do
 reissue credentials — the opposite of the Zitadel arrangement, where a DB reset
 silently rotated every app's secret.
 
+## Role claims — how `admin` reaches an app
+
+Keycloak's default `client roles` mapper only writes `resource_access` to the access
+token, which these apps do not read for roles. So each app that applies a role gets a flat,
+multivalued `<client>_roles` claim in the ID token, access token and userinfo.
+`usermodel.clientRoleMapping.clientId` must be set on the mapper: unset, it emits every
+client's roles into one list, and `admin` on one app reads as `admin` on all of them.
+
+| App | Reads the claim through | Without the claim at login |
+|---|---|---|
+| Gitea | `groupClaimName`, `adminGroup` in `gitea-oidc-secret` | Not checked |
+| Grafana | `role_attribute_path`, strict | Login refused |
+| Immich | `roleClaim` in `immich-oidc-config` | Role left as it is |
+| Jellyfin | SSO plugin `RoleClaim`, `AdminRoles` | See `jellyfin.md` |
+| Open WebUI | `ENABLE_OAUTH_ROLE_MANAGEMENT`, `OAUTH_ROLES_CLAIM` | Role left as it is |
+| Paperless | `PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM`, `..._SYNC_SUPERUSER_GROUP` | **Superuser removed** |
+| RomM | `OIDC_CLAIM_ROLES`, `OIDC_ROLE_ADMIN`, `OIDC_ROLE_VIEWER` | Role left as it is |
+| Proxmox | `--groups-claim` on the realm, set by hand (`design/runbook.md`) | Not checked |
+
+**Roles apply at the next login, not immediately.** Removing someone from a group does not
+end a session they already hold in an app.
+
+**FreshRSS has no way to read a role.** `is_admin` is per-user in
+`data/users/<name>/config.php`, and neither its OIDC support nor its CLI sets it, so it is
+changed in the FreshRSS UI. CrossWatch has no role of its own: the gate is the whole model.
+
+**`sso-audit` checks that all this still holds**
+(`kubernetes/apps/postgres/sso-audit/`). Daily, read-only and from the replica, it reports
+to Gotify any client with no gate, a gate that does not sort after authentication or checks
+the wrong role, a missing mapper, and any SSO account whose admin status differs from
+Keycloak in Gitea, Immich, Open WebUI, Paperless or RomM. It reads Keycloak's tables as the
+`postgres` superuser because that needs no Keycloak admin credential; those tables are not
+a stable interface, so a query failing after an upgrade is reported as a failed audit.
+Grafana, Jellyfin, Proxmox and FreshRSS accounts are not compared.
+
 ## Account re-linking — the cost of changing IdP
 
 **Every application keys its SSO link on the `sub` claim, and `sub` changes when the
@@ -176,7 +211,7 @@ The symptom differs per app and none of them say "the subject changed":
 | Paperless | `socialaccount_socialaccount.uid`, with `provider` = the allauth `provider_id` | offers to link |
 | Kavita | `AspNetUsers.OidcId` (SQLite on the config PVC) | "Email already in use" |
 | Grafana | `user_auth.auth_id` (SQLite) | "user sync failed … user not found" |
-| RomM | nothing — matches on the `email` claim | none; it just works |
+| RomM | `users.oidc_issuer` + `oidc_sub`, which start empty and link on the `email` claim | none while unlinked |
 
 Rewriting that one value per app is the whole fix. Two traps:
 
@@ -188,10 +223,9 @@ Rewriting that one value per app is the whole fix. Two traps:
 - **Grafana will not fall back to email.** `oauth_allow_insecure_email_lookup` defaults
   false, so a pre-existing user with the same email collides rather than linking.
 
-RomM is the one app that links cleanly, because it matches on email and stores no
-subject at all. The same design means **RomM roles cannot be driven from Keycloak** —
-`users.role` and `permission_group_id` are local columns with no OIDC mapping. Manage
-them in RomM.
+RomM is the one app that links cleanly, because an account with no stored subject links on
+its email. Its `users.role` follows `romm_roles`; `permission_group_id` is still managed in
+RomM.
 
 ## Realm mail
 

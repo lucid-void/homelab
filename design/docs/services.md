@@ -42,6 +42,8 @@ Every service is reachable only on the internal network or via Netbird VPN.
 |---|---|---|---|---|---|
 | Keycloak | keycloak | Keycloak CR (operator) | `sso.blackcats.cc` | Self (OIDC provider) | **The identity provider.** Official Keycloak Operator from a tag-pinned GitRepository; realm `homelab` from a `KeycloakRealmImport`; CNPG Postgres. Service is `keycloak-service`. Realm mail via a socat sidecar to the Proton Bridge |
 | Keycloak clients | keycloak | KeycloakOIDCClient CRs | — | — | One CR per app under `kubernetes/apps/keycloak/clients/`, each with a sealed `<app>-client-secret` that git owns. Requires the EXPERIMENTAL `client-admin-api:v2` server feature |
+| keycloak-entitlements | keycloak | Job | — | — | Converges role mappers, groups, group→role mappings and browser-flow gates from `entitlements.conf`. Re-runs ~hourly and reports changes to Gotify. See `design/decisions/keycloak.md` |
+| sso-audit | postgres | CronJob | — | — | Daily 07:15. Read-only comparison of Keycloak's gates and admin roles against Gitea, Immich, Open WebUI, Paperless and RomM; mismatches go to Gotify |
 
 ---
 
@@ -57,7 +59,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | am-gotify-bridge | monitoring | Deployment | — | — | Python HTTP bridge: AlertManager webhook → Gotify; listens :5000; reads `gotify-secret`; priority 8 firing / 5 resolved |
 | Gatus | monitoring | HelmRelease | `gatus.blackcats.cc` | **none** | HTTP/HTTPS health checks + cert expiry for all services. Not on SSO — it has never had an OIDC client or secret |
 | VictoriaMetrics Stack | monitoring | HelmRelease | — | — | `victoria-metrics-k8s-stack` v0.76.0; includes VMSingle (30Gi openebs-hostpath), VMAgent, VMAlert, AlertManager, Grafana, kube-state-metrics, node-exporter |
-| Grafana | monitoring | HelmRelease (subchart) | `grafana.blackcats.cc` | Keycloak OIDC | Dashboards for VictoriaMetrics data; credentials from the sealed `grafana-oidc-secret`. Role comes from a JMESPath `role_attribute_path` over `resource_access.grafana.roles` (client roles `admin`/`editor`/`viewer`) |
+| Grafana | monitoring | HelmRelease (subchart) | `grafana.blackcats.cc` | Keycloak OIDC | Dashboards for VictoriaMetrics data; credentials from the sealed `grafana-oidc-secret`. Role comes from a JMESPath `role_attribute_path` over the flat `grafana_roles` claim (client roles `admin`/`editor`/`viewer`), strict, so a login whose role cannot be read is refused |
 
 ---
 
@@ -143,11 +145,11 @@ the `KeycloakOIDCClient`'s `metadata.name`.
 | FreshRSS | `https://rss.blackcats.cc/i/oidc/` | Apache mod_auth_openidc; NOT `/i/?get=oidc` |
 | Gitea | `https://gitea.blackcats.cc/user/oauth2/Keycloak/callback` | The provider-name segment is case-sensitive and comes from the auth source's name in Gitea's DB, not from the client id |
 | Kavita | `https://kavita.blackcats.cc/signin-oidc` | ASP.NET OIDC middleware path; creds read from `/config/appsettings.json` (`OpenIdConnectSettings`), merged in by an initContainer |
-| RomM | `https://romm.blackcats.cc/api/oauth/openid` | `client_secret_basic`. All `OIDC_*` vars come from the sealed `media/romm-oidc-secret` — except `OIDC_ALLOW_REGISTRATION`, pinned to `true` in the HelmRelease, which must stay true for a Keycloak user's first login to create the RomM account |
-| CrossWatch | `https://crosswatch.blackcats.cc/api/app-auth/oidc/callback` | Keycloak OIDC, gated on the `user` client role. Path read from `api/authOidcAPI.py` in the running image (`_callback_url`); the app never shows it in its UI. Issuer is `https://sso.blackcats.cc/realms/homelab` |
+| RomM | `https://romm.blackcats.cc/api/oauth/openid` | `client_secret_basic`. All `OIDC_*` vars come from the sealed `media/romm-oidc-secret` — except `OIDC_ALLOW_REGISTRATION`, pinned to `true` in the HelmRelease, which must stay true for a Keycloak user's first login to create the RomM account, and the non-secret `OIDC_CLAIM_ROLES`/`OIDC_ROLE_*`, also in the HelmRelease |
+| CrossWatch | `https://crosswatch.blackcats.cc/api/app-auth/oidc/callback` | Keycloak OIDC, admin-only: gated on the `admin` client role. Path read from `api/authOidcAPI.py` in the running image (`_callback_url`); the app never shows it in its UI. Issuer is `https://sso.blackcats.cc/realms/homelab` |
 | Proxmox VE | `https://pve.blackcats.cc:8006` (+ `:443`) | Bare-metal host (172.16.20.3), not in-cluster. Redirect = web UI base URL (no path); `client_secret_basic`. Creds in `auth/proxmox-oidc-secret`, copied into the Proxmox `keycloak` realm manually (`pveum`, username claim `username` → `<user>@keycloak`). Not the default realm, so a Keycloak outage cannot lock the hypervisor out. See `design/runbook.md`. |
 | Open WebUI | `https://chat.blackcats.cc/oauth/oidc/callback` | `client_secret_post`, pinned client-side via `OAUTH_TOKEN_ENDPOINT_AUTH_METHOD`. **`ENABLE_OAUTH_SIGNUP` defaults to `false`** — without it the button renders and the first login fails with no account to create. **`OAUTH_MERGE_ACCOUNTS_BY_EMAIL` also defaults to `false`**, so a pre-existing account with the same email is orphaned rather than linked |
-| Grafana | `https://grafana.blackcats.cc/login/generic_oauth` | Role from `role_attribute_path` over `resource_access.grafana.roles`. **`oauth_allow_insecure_email_lookup` defaults false**, so Grafana matches only on `sub` — a pre-existing user with the same email collides instead of linking |
+| Grafana | `https://grafana.blackcats.cc/login/generic_oauth` | Role from `role_attribute_path` over `grafana_roles`. **`oauth_allow_insecure_email_lookup` defaults false**, so Grafana matches only on `sub` — a pre-existing user with the same email collides instead of linking |
 
 Goldilocks and Gatus are **not** in this table and never have been — neither has an OIDC
 client or a secret. They are not on SSO.

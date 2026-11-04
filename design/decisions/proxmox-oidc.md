@@ -18,6 +18,10 @@ Redirect URI is the Proxmox web UI base URL with no path
 `proxmox-openid` Rust crate uses `client_secret_basic`). Credentials are entered into a
 Proxmox OIDC realm manually via `pveum` (see design/runbook.md).
 
+Permissions follow the `proxmox_roles` claim through the realm's `--groups-claim`, with
+Administrator and PVEAuditor granted to the resulting groups. Both are set by hand on the
+host, so git holds only the mapper. `user` on Proxmox therefore means read-only.
+
 ## Rules
 
 - **Never front Proxmox behind the cluster Gateway** — the Gateway runs on VMs that

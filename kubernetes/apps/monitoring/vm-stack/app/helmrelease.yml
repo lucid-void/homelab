@@ -161,7 +161,7 @@ spec:
         server:
           root_url: https://grafana.blackcats.cc
         users:
-          auto_assign_org_role: Admin
+          auto_assign_org_role: Viewer
         auth:
           disable_login_form: false
         auth.generic_oauth:
@@ -174,10 +174,12 @@ spec:
           auth_url: https://sso.blackcats.cc/realms/homelab/protocol/openid-connect/auth
           token_url: https://sso.blackcats.cc/realms/homelab/protocol/openid-connect/token
           api_url: https://sso.blackcats.cc/realms/homelab/protocol/openid-connect/userinfo
-          # Keycloak puts client roles at resource_access.<clientId>.roles.
-          # Without this every SSO user lands on auto_assign_org_role (Admin).
-          role_attribute_path: "contains(resource_access.grafana.roles[*], 'admin') && 'Admin' || contains(resource_access.grafana.roles[*], 'editor') && 'Editor' || 'Viewer'"
-          role_attribute_strict: "false"
+          # A flat claim from the keycloak-entitlements Job. Keycloak's default
+          # resource_access.<clientId>.roles only reaches the access token, and Grafana
+          # reads the ID token and userinfo. Strict refuses a login whose role cannot be
+          # read, where non-strict would fall back to auto_assign_org_role.
+          role_attribute_path: "contains(grafana_roles[*], 'admin') && 'Admin' || contains(grafana_roles[*], 'editor') && 'Editor' || 'Viewer'"
+          role_attribute_strict: "true"
           use_pkce: "true"
           auto_login: "false"
       service:

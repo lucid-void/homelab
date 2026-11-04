@@ -25,6 +25,15 @@ is never registered in `INSTALLED_APPS` and the login button never appears. Also
 be registered on the IdP side, and it also keys the `socialaccount_socialaccount` rows
 already in the database — existing links do not follow a rename.
 
+**Paperless superuser follows the `paperless_roles` claim on every login**, through
+`PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM` and `..._SYNC_SUPERUSER_GROUP: admin`. Group
+sync itself stays off: Paperless is admin-only here, so `/paperless/admin` is the only group
+anyone needs. A login whose token lacks the claim loses superuser, so the mapper must exist
+first. The local admin account has no social link and is not touched.
+
+**FreshRSS cannot read a role.** `is_admin` lives in `data/users/<name>/config.php` and is
+set in the FreshRSS UI.
+
 `settings.token_auth_method` is pinned to `client_secret_post`. Left unset, allauth
 infers it from the discovery document — and that inference rule changed in allauth
 `65.16` (shipped in paperless v3.0): the prior version returned `client_secret_basic`

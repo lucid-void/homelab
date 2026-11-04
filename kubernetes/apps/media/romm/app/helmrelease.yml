@@ -91,6 +91,11 @@ spec:
               # once its Keycloak user has signed in once. Set here rather than
               # in the sealed secret, so this does not fight romm-oidc-secret.
               OIDC_ALLOW_REGISTRATION: "true"
+              # Applied on every login. RomM refuses a token that carries this claim
+              # without a matching role.
+              OIDC_CLAIM_ROLES: romm_roles
+              OIDC_ROLE_ADMIN: admin
+              OIDC_ROLE_VIEWER: user
               # 5.4 narrowed the default from "*" to loopback only. The Gateway
               # (Cilium Envoy) is not loopback, so without this RomM ignores
               # X-Forwarded-Proto/For: redirects come back as http:// behind

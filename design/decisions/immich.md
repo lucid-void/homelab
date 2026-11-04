@@ -6,7 +6,8 @@
 
 OIDC via Keycloak. Historically this was a Zitadel Web app (not Native — Native rejects `https://` redirect
 URIs), with `/api/oauth/mobile-redirect` as the redirect URI, proxying to
-`app.immich:///oauth-callback`.
+`app.immich:///oauth-callback`. `oauth.roleClaim` is `immich_roles`, so admin follows
+Keycloak on every login. A login with no readable role leaves the account as it is.
 
 Embeddings run on **VectorChord** (`vchord`; embedding indexes use the `vchordrq`
 access method) in the shared CNPG Postgres, via the custom image

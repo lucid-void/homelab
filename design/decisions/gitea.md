@@ -36,8 +36,11 @@ no failover.
 **OIDC.** Callback URI: `https://gitea.blackcats.cc/user/oauth2/Keycloak/callback` — the
 provider name segment is case-sensitive and must match `gitea.oauth[].name` exactly.
 The sealed `gitea-oidc-secret` carries a `values.yaml` key containing the full
-`gitea.oauth` list (`key`, `secret`, `autoDiscoverUrl`). The HelmRelease uses two
-`valuesFrom` entries: the static sealed secret (admin password) and the OIDC secret.
+`gitea.oauth` list (`key`, `secret`, `autoDiscoverUrl`, `groupClaimName`, `adminGroup`).
+The HelmRelease uses two `valuesFrom` entries: the static sealed secret (admin password)
+and the OIDC secret. `groupClaimName: gitea_roles` and `adminGroup: admin` make an SSO
+account's admin flag follow its Keycloak role at each login. The local admin account from
+the chart is not an SSO account and keeps its flag.
 
 **Gitea stores auth sources in its database and only ever adds or updates by name**, so
 renaming the provider in `gitea.oauth[].name` creates a *second* source rather than

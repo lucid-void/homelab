@@ -72,6 +72,10 @@ spec:
               PAPERLESS_APPS: "allauth.socialaccount.providers.openid_connect"
               PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL: "https"
               PAPERLESS_ACCOUNT_EMAIL_VERIFICATION: "none"
+              # Applied on every login. A login whose token lacks this claim demotes the
+              # account, so it depends on the keycloak-entitlements mapper existing.
+              PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM: paperless_roles
+              PAPERLESS_SOCIAL_ACCOUNT_SYNC_SUPERUSER_GROUP: admin
               # Proton Mail is end-to-end encrypted, so IMAP is only reachable
               # through the local Proton Mail Bridge — see the protonmail-bridge
               # HelmRelease alongside this one. Two settings are needed to talk
