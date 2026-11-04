@@ -114,6 +114,12 @@ spec:
               # renders, and the very first login fails — there is no account and
               # nothing will create one.
               ENABLE_OAUTH_SIGNUP: "true"
+              # Applied on every login. Without it a new SSO user waits at `pending` for
+              # manual approval and `admin` in Keycloak does nothing.
+              ENABLE_OAUTH_ROLE_MANAGEMENT: "true"
+              OAUTH_ROLES_CLAIM: openwebui_roles
+              OAUTH_ALLOWED_ROLES: user
+              OAUTH_ADMIN_ROLES: admin
               # Defaults to TRUE, which copies config into the database on first
               # boot and then IGNORES the environment. Git stops being the source
               # of truth and later rotations of anything above do nothing.

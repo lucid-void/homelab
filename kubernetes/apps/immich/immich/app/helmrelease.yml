@@ -24,6 +24,9 @@ spec:
   values:
     controllers:
       server:
+        annotations:
+          # immich-oidc-config is mounted as a file, so a change only applies on restart.
+          reloader.stakater.com/auto: "true"
         containers:
           app:
             image:

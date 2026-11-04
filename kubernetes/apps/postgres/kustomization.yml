@@ -5,3 +5,4 @@ resources:
   - ./namespace.yml
   - ./cluster/ks.yml
   - ./backup/ks.yml
+  - ./sso-audit/ks.yml
