@@ -24,7 +24,7 @@ spec:
     # group — the CRD takes bare strings, so composite roles are not expressible.
     # `Login` and `library-<name>` are Kavita's own vocabulary: with SyncUserSettings on,
     # it applies them from the kavita_roles claim, so a new library needs a new role here
-    # and in entitlements.json. It matches `admin` to its Admin role case-insensitively.
+    # and in entitlements.conf. It matches `admin` to its Admin role case-insensitively.
     roles: [user, admin, Login, library-Manga]
     auth:
       method: client-secret
