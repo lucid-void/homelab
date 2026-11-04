@@ -65,12 +65,26 @@ write it: the manifest looks like it names the client and does nothing. The clie
 is `metadata.name`.
 
 `KeycloakOIDCClient` is `v2alpha1` and exposes no protocol mappers and no client
-attributes. Anything outside its handful of fields is a console click. `client.roles`
-takes bare strings only — no descriptions, no composites.
+attributes. `client.roles` takes bare strings only — no descriptions, no composites.
 
-**Groups, group membership and group→role mappings are deliberately manual.** No CRD
-expresses them, nor does one express the flow overrides below. This section is the only
-record — git has none.
+**The `keycloak-entitlements` Job owns everything the CRD cannot express**
+(`kubernetes/apps/keycloak/entitlements/`): role mappers, groups, group→role mappings and
+browser-flow gates, all from `entitlements.conf`. It re-runs about hourly, repairs drift
+and reports every change to Gotify. OpenTofu's Keycloak provider was rejected for the same
+reason as for clients: a second apply-by-hand loop would not repair drift on its own.
+
+**Group membership is deliberately not in git.** The Keycloak group is where a person's
+access is set. The Job only adds `initialMembers` to a group it has just created, so
+removing someone in the console sticks, and a realm rebuild restores the structure but not
+who belonged where.
+
+**The Job needs two roles granted by hand, once.** It authenticates as the
+`keycloak-operator` service account, whose `manage-clients` covers mappers. Groups need
+`manage-users` and gates need `manage-realm`, both on the `homelab-realm` client: master
+realm → Clients → `keycloak-operator` → Service accounts roles → Assign role → filter by
+clients. Until then those parts log `blocked` and are skipped without failing the Job, and
+a new gate is never bound if its groups could not be created first. Nothing in-cluster can
+make this grant: `keycloak-initial-admin` holds `temp-admin`, which no longer exists.
 
 ## Per-service entitlement
 
@@ -83,9 +97,11 @@ takes bare strings, so composite roles are not expressible and the group carries
 |---|---|---|
 | gitea, immich, paperless, freshrss, kavita, romm, openwebui, proxmox | `user` | `admin` |
 | grafana | `viewer` | `editor`, `admin` |
+| crosswatch (admin-only) | `admin` | — |
 
-Groups mirror it: `/<service>/user`, `/<service>/admin` (and `/grafana/editor`). The
-parent group holds no roles — children inherit from parents, not siblings.
+Groups mirror it: `/<service>/user`, `/<service>/admin` (and `/grafana/editor`), except
+that CrossWatch only has `/crosswatch/admin`. Parent groups hold no roles, with one
+leftover: `/jellyfin` carries `user`. Children inherit from parents, not siblings.
 
 **Keycloak has no "only users with a role may use this client" setting.** Enforcement is
 a per-client browser-flow override, `browser-<service>`, ending in a CONDITIONAL
@@ -123,10 +139,14 @@ from another client never reaches `forms`, so a gate placed there is bypassed by
 the case it exists to stop. Verified: with a live session and the role removed, the
 gated client still answers *Access denied*.
 
-Setting an execution's requirement **resets its priority**, so build the whole flow
-first, set every requirement, and only then fix the order with
-`raise-priority`/`lower-priority`. Ordering within a CONDITIONAL sub-flow is cosmetic —
-Keycloak evaluates its conditions before its actions regardless of position.
+**The gate must sort after authentication, so every level gets an explicit priority.** A
+PUT that omits `priority` resets it to 0, and raising or lowering a step does not separate
+a tie. Nine of the ten hand-built flows ended with every priority at 0 and were ordered by
+whatever row order Postgres returned; `browser-openwebui`'s gate row sat before its
+authenticate row. A gate that runs first has no user to check, so expect it to be skipped
+rather than to deny. The Job sets 10, 20, 30… and assigns them from the last sibling back,
+so the order is right at every intermediate state. Ordering within a CONDITIONAL sub-flow
+is cosmetic: Keycloak evaluates its conditions before its actions regardless of position.
 
 `kcadm.sh` cannot be used for any of this from inside the pod: the image has no
 `curl`, `awk`, `jq` or `python3`, and `kcadm get --fields` silently omits nested objects
@@ -236,8 +256,9 @@ next restart, which can be days later.
 - **The Service is `keycloak-service`** (`<cr-name>-service`) — that is what the
   HTTPRoute targets.
 - **The initial admin is generated** into `keycloak-initial-admin` on first boot against
-  an empty database; it is not in git. `spec.bootstrapAdmin` could point at a
-  SealedSecret if a known-in-advance recovery credential is wanted.
+  an empty database; it is not in git. That account (`temp-admin`) has since been replaced
+  by `admin`, so the Secret no longer logs in to anything. `spec.bootstrapAdmin` could
+  point at a SealedSecret if a known-in-advance recovery credential is wanted.
 - The operator's default requests/limits (1700Mi/2Gi per instance) are overridden. Note
   that there is no metrics-server, so do not resize from Goldilocks.
 

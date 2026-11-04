@@ -229,6 +229,8 @@ ensure_app_token "jellyfin"         "Jellyfin server and plugin events"     medi
 ensure_app_token "security-scanner" "Trivy weekly security report"          security    gotify-secret        GOTIFY_TOKEN
 ensure_app_token "falco"            "Falco runtime security alerts"         security    falco-gotify-secret  GOTIFY_TOKEN
 ensure_app_token "gatus"            "Gatus health monitoring alerts"        monitoring  gatus-gotify-secret  GOTIFY_TOKEN
+ensure_app_token "keycloak-entitlements" "Keycloak entitlement changes"     keycloak    gotify-secret        GOTIFY_TOKEN
+ensure_app_token "sso-audit"        "SSO role and login gate mismatches"    postgres    sso-audit-gotify-secret GOTIFY_TOKEN
 ensure_app_token "alertmanager"     "AlertManager firing rule notifications" monitoring gotify-secret        GOTIFY_TOKEN
 
 # Flux notification-controller Provider (flux-notifications) auths to Gotify with

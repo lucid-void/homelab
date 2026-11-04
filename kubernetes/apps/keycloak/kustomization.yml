@@ -8,3 +8,4 @@ resources:
   - ./keycloak/ks.yml
   - ./realm/ks.yml
   - ./clients/ks.yml
+  - ./entitlements/ks.yml
