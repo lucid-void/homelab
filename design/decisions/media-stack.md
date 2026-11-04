@@ -48,6 +48,13 @@ non-optional `envFrom` — the pod waits in `CreateContainerConfigError` until t
 SealedSecrets controller unseals it, then self-heals. `reloader.stakater.com/auto` restarts
 Kavita on credential rotation.
 
+**Kavita roles follow the `kavita_roles` claim on every login**, through
+`syncUserSettings=true` and `rolesClaim=kavita_roles`. It reads its own vocabulary:
+`Login`, `admin` (matched case-insensitively) and `library-<name>`, granted by the
+`/kavita/*` groups in `entitlements.conf`. With sync on, the `default*` settings below no
+longer apply, so **a new library needs a new `library-<name>` role** on the client and in
+those groups, or non-admins cannot see it. The bootstrap admin is never synced.
+
 OIDC account provisioning is a DB setting, not appsettings.json/env —
 `provisionAccounts`/`requireVerifiedEmail`/`defaultRoles`/`defaultLibraries` default
 off/empty. `kavita-bootstrap` configures them via `POST /api/settings`:

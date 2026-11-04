@@ -174,6 +174,7 @@ client's roles into one list, and `admin` on one app reads as `admin` on all of 
 | Grafana | `role_attribute_path`, strict | Login refused |
 | Immich | `roleClaim` in `immich-oidc-config` | Role left as it is |
 | Jellyfin | SSO plugin `RoleClaim`, `AdminRoles` | See `jellyfin.md` |
+| Kavita | `syncUserSettings`, `rolesClaim` (`design/decisions/media-stack.md`) | New account refused; existing account loses its roles |
 | Open WebUI | `ENABLE_OAUTH_ROLE_MANAGEMENT`, `OAUTH_ROLES_CLAIM` | Role left as it is |
 | Paperless | `PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM`, `..._SYNC_SUPERUSER_GROUP` | **Superuser removed** |
 | RomM | `OIDC_CLAIM_ROLES`, `OIDC_ROLE_ADMIN`, `OIDC_ROLE_VIEWER` | Role left as it is |
