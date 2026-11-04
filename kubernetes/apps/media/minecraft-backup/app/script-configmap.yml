@@ -27,7 +27,7 @@ data:
         notify_gotify "Backup: minecraft ✓" "Completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
       else
         local tail_log
-        tail_log=$(tail -10 "$LOG" 2>/dev/null | awk '{gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s\\n", $0}')
+        tail_log=$(tail -10 "$LOG" 2>/dev/null | awk '{gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); gsub(/[[:cntrl:]]/, " "); printf "%s\\n", $0}')
         notify_gotify "Backup: minecraft ✗" "Exit ${exit_code} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n${tail_log}" 8
       fi
     }
@@ -48,9 +48,14 @@ data:
     du -sh /backups/* 2>/dev/null || true
 
     # Init restic repo on Filen if this is the first run
-    if ! restic cat config &>/dev/null; then
+    # rc=10 is the only "repo is missing" answer; a Filen blip must not read as one.
+    repo_rc=0
+    restic cat config >/dev/null || repo_rc=$?
+    if [[ ${repo_rc} -eq 10 ]]; then
       echo "[backup] Initialising new restic repository on Filen..."
       restic init
+    elif [[ ${repo_rc} -ne 0 ]]; then
+      exit "${repo_rc}"
     fi
 
     # Clear a stale lock left by a job killed mid-run (OOM, node reboot, deadline).

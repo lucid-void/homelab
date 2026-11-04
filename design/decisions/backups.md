@@ -116,6 +116,14 @@ Gotify notifications are priority 5 on success, 8 on failure. The token is in
   into the Gotify message, which is what makes a failure triageable without kubectl.
   `notify_gotify` ends in `>/dev/null || true`, so a failed notification leaves no trace
   in the job log and the backup fails silently.
+- **Keep `gsub(/[[:cntrl:]]/, " ")` in that awk** — a raw control character is invalid
+  JSON, so Gotify rejects the whole message and `|| true` hides it. `minecraft-backup`'s
+  `du -sh` inventory puts tabs in the log tail, so every early failure there lost its ✗
+  (observed 2026-11-04: the only trace was `KubeJobFailed`).
+- **Only init a repo on `restic cat config` rc=10** — that is the "does not exist" code
+  (restic 0.17+); 12 is a wrong password and 1 is anything else, including a Filen blip.
+  The old `&>/dev/null` plus init on any failure hid the real error and reported
+  `config file already exists` instead (obsidian 2026-09-27, minecraft 2026-11-04).
 - **Leave `backoffLimit: 0` / `restartPolicy: Never` alone** — Job backoff is
   ~10s/20s/40s while the real-world failure (a node reboot) lasts minutes, so retries
   would not help and would only re-enter the scale-down/scale-up cycle. The daily cadence
