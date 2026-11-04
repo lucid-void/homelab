@@ -319,6 +319,10 @@ spec:
 
 Then wire it into `kubernetes/apps/keycloak/clients/app/kustomization.yml`.
 
+The sealed `myapp-client-secret` must carry the label
+`operator.keycloak.org/kind: KeycloakOIDCClient` in `spec.template.metadata.labels`, or the
+operator refuses to read it and the client never reconciles.
+
 **A new client is open to every realm user until you gate it.** Declaring `roles:` above
 grants nothing and denies nothing — it only makes the roles assignable. Add the client to
 `kubernetes/apps/keycloak/entitlements/app/entitlements.conf`, and the
