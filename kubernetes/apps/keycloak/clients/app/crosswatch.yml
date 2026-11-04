@@ -21,8 +21,8 @@ spec:
       - https://crosswatch.blackcats.cc/api/app-auth/oidc/callback
     webOrigins:
       - https://crosswatch.blackcats.cc
-    # `user` is the entitlement gate, matching every other client in this realm.
-    roles: [user]
+    # CrossWatch is admin-only, so `admin` is both its only role and its login gate.
+    roles: [admin]
     auth:
       method: client-secret
       secretRef:

@@ -1,0 +1,67 @@
+{
+  "realm": "homelab",
+  "claimCheckUser": "void",
+  "clients": {
+    "crosswatch": {
+      "gate": "admin",
+      "groups": { "admin": ["admin"] },
+      "initialMembers": { "admin": ["void"] }
+    },
+    "freshrss": {
+      "gate": "user",
+      "groups": { "user": ["user"], "admin": ["user", "admin"] }
+    },
+    "gitea": {
+      "gate": "user",
+      "claim": "gitea_roles",
+      "groups": { "user": ["user"], "admin": ["user", "admin"] }
+    },
+    "grafana": {
+      "gate": "viewer",
+      "claim": "grafana_roles",
+      "groups": {
+        "user": ["viewer"],
+        "editor": ["viewer", "editor"],
+        "admin": ["viewer", "admin"]
+      }
+    },
+    "immich": {
+      "gate": "user",
+      "claim": "immich_roles",
+      "groups": { "user": ["user"], "admin": ["user", "admin"] }
+    },
+    "jellyfin": {
+      "gate": "user",
+      "claim": "jellyfin_roles",
+      "groups": { "user": ["user"], "admin": ["user", "admin"] }
+    },
+    "kavita": {
+      "gate": "user",
+      "claim": "kavita_roles",
+      "groups": {
+        "user": ["user", "Login", "library-Manga"],
+        "admin": ["user", "admin", "Login", "library-Manga"]
+      }
+    },
+    "openwebui": {
+      "gate": "user",
+      "claim": "openwebui_roles",
+      "groups": { "user": ["user"], "admin": ["user", "admin"] }
+    },
+    "paperless": {
+      "gate": "user",
+      "claim": "paperless_roles",
+      "groups": { "user": ["user"], "admin": ["user", "admin"] }
+    },
+    "proxmox": {
+      "gate": "user",
+      "claim": "proxmox_roles",
+      "groups": { "user": ["user"], "admin": ["user", "admin"] }
+    },
+    "romm": {
+      "gate": "user",
+      "claim": "romm_roles",
+      "groups": { "user": ["user"], "admin": ["user", "admin"] }
+    }
+  }
+}
