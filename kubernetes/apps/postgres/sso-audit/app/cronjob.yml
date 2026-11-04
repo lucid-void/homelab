@@ -1,0 +1,75 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sso-audit
+  namespace: postgres
+  annotations:
+    # deliberate: the TTL always wins for a daily job, and the history limits remain a
+    # cap. Same reasoning as postgres-backup.
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see comment"
+spec:
+  schedule: "15 7 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+          containers:
+            - name: audit
+              image: ghcr.io/lucid-void/backup-tools:v1.1.0
+              command: ["/bin/bash", "/scripts/audit.sh"]
+              env:
+                - name: PGHOST
+                  value: postgres-ro.postgres.svc.cluster.local
+                - name: PGPORT
+                  value: "5432"
+                - name: PGUSER
+                  value: postgres
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-superuser
+                      key: password
+                - name: GOTIFY_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: sso-audit-gotify-secret
+                      key: GOTIFY_TOKEN
+                      optional: true
+              securityContext:
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+                # bash writes here-strings to a temp file on the root filesystem's /tmp.
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  memory: 32Mi
+                  cpu: 25m
+                limits:
+                  memory: 128Mi
+          volumes:
+            - name: script
+              configMap:
+                name: sso-audit-script
+                defaultMode: 0555
+            - name: tmp
+              emptyDir: {}

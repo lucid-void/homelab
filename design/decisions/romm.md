@@ -22,11 +22,14 @@ consumed via **optional** `envFrom` — absent means OIDC off (local admin via t
 first-run wizard), present means OIDC on (Reloader restarts on rotation). No bootstrap
 Job needed.
 
-**RomM matches OIDC logins on the `email` claim and stores no subject**, which makes it
-the one app that survived the Zitadel→Keycloak cutover without re-linking. The same
-design means roles cannot come from the IdP: `users.role` and `permission_group_id` are
-local columns with no OIDC mapping, so an account's privileges are managed in RomM and
-nowhere else.
+**An account with no stored subject links on the `email` claim**, which makes RomM the one
+app that survived the Zitadel→Keycloak cutover without re-linking. Once linked it holds
+`oidc_issuer` and `oidc_sub`.
+
+**`users.role` follows the `romm_roles` claim on every login:** `admin` gives admin and
+`user` gives user. RomM has one non-admin kind, so `OIDC_ROLE_VIEWER` and
+`OIDC_ROLE_EDITOR` mean the same thing, and it refuses a token that carries the claim with
+no matching role. `permission_group_id` is still managed in RomM.
 
 ## Rules
 

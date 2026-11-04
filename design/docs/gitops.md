@@ -293,7 +293,7 @@ spec:
 
 ### 8. Register the OIDC client — and gate it
 
-Only for a service behind SSO. Two halves, and **only the first is expressible in git**:
+Only for a service behind SSO. Two halves, both in git. First the client:
 
 ```yaml
 # kubernetes/apps/keycloak/clients/app/myapp.yml
@@ -319,14 +319,25 @@ spec:
 
 Then wire it into `kubernetes/apps/keycloak/clients/app/kustomization.yml`.
 
-**A new client is open to every realm user until you gate it by hand.** Declaring
-`roles:` above grants nothing and denies nothing — it only makes the roles assignable.
-Entitlement is enforced by a per-client `browser-myapp` authentication flow plus a
-`authenticationFlowBindingOverrides` binding on the client, and **no CRD expresses
-either**, nor group membership, nor group→role mapping. Create them in the Keycloak
-console and record the layout in `design/decisions/keycloak.md`; skipping this ships a
-service that any realm account can log into. The same gap means a realm rebuild loses
-every entitlement — see `design/TODO.md`.
+**A new client is open to every realm user until you gate it.** Declaring `roles:` above
+grants nothing and denies nothing — it only makes the roles assignable. Add the client to
+`kubernetes/apps/keycloak/entitlements/app/entitlements.conf`, and the
+`keycloak-entitlements` Job creates its groups, its `browser-myapp` gate and, if you name a
+`claim`, its role mapper:
+
+```json
+"myapp": {
+  "gate": "user",
+  "claim": "myapp_roles",
+  "groups": { "user": ["user"], "admin": ["user", "admin"] }
+}
+```
+
+Every group must carry the `gate` role. If the app can read a role, point it at the claim
+so it re-applies the role at each login — see `design/decisions/keycloak.md`. Who belongs in
+each group is set in the Keycloak console, not in git; `initialMembers` only seeds a group
+the Job has just created. Skipping this step ships a service any realm account can log into,
+which `sso-audit` then reports.
 
 ### 9. Register a Gatus check
 

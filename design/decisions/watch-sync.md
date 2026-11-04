@@ -33,8 +33,8 @@ sync in this design — there is no Trakt leg and no chain.
 PVC holds a single JSON document that two replicas would interleave writes into and
 corrupt). Config on an `nfs-client` PVC (`crosswatch-config`, 2Gi). Web UI on container
 port 8787, exposed at `https://crosswatch.blackcats.cc` via `HTTPRoute`, behind Keycloak
-OIDC (client `crosswatch`, `user` role — see
-`kubernetes/apps/keycloak/clients/app/crosswatch.yml`).
+OIDC (client `crosswatch`, admin-only: the login gate requires the `admin` role, granted by
+`/crosswatch/admin` — see `kubernetes/apps/keycloak/entitlements/app/entitlements.conf`).
 
 **OIDC settings, entered in the CrossWatch UI** (Settings → Authentication) and stored
 in `config.json` under `app_auth.oidc` — UI-only state, so this is its only record:
