@@ -27,9 +27,9 @@ already in the database — existing links do not follow a rename.
 
 **Paperless superuser follows the `paperless_roles` claim on every login**, through
 `PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM` and `..._SYNC_SUPERUSER_GROUP: admin`. Group
-sync itself stays off: Paperless is admin-only here, so `/paperless/admin` is the only group
-anyone needs. A login whose token lacks the claim loses superuser, so the mapper must exist
-first. The local admin account has no social link and is not touched.
+sync itself stays off: Paperless is admin-only here, and its login gate requires the `admin`
+role, so `/paperless/admin` is the only group that can log in. A login whose token lacks the
+claim loses superuser, so the mapper must exist first. The local admin account has no social link and is not touched.
 
 **FreshRSS cannot read a role.** `is_admin` lives in `data/users/<name>/config.php` and is
 set in the FreshRSS UI.

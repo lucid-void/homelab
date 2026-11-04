@@ -95,13 +95,14 @@ takes bare strings, so composite roles are not expressible and the group carries
 
 | Client | Base role (the gate) | Additional |
 |---|---|---|
-| gitea, immich, paperless, freshrss, kavita, romm, openwebui, proxmox | `user` | `admin` |
+| gitea, immich, freshrss, kavita, romm, openwebui, proxmox | `user` | `admin` |
 | grafana | `viewer` | `editor`, `admin` |
-| crosswatch (admin-only) | `admin` | — |
+| crosswatch, paperless (admin-only) | `admin` | — |
 
 Groups mirror it: `/<service>/user`, `/<service>/admin` (and `/grafana/editor`), except
-that CrossWatch only has `/crosswatch/admin`. Parent groups hold no roles, with one
-leftover: `/jellyfin` carries `user`. Children inherit from parents, not siblings.
+that CrossWatch only has `/crosswatch/admin`. `/paperless/user` still exists, but its members
+are refused at login. Parent groups hold no roles, with one leftover: `/jellyfin` carries
+`user`. Children inherit from parents, not siblings.
 
 **Keycloak has no "only users with a role may use this client" setting.** Enforcement is
 a per-client browser-flow override, `browser-<service>`, ending in a CONDITIONAL
