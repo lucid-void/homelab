@@ -27,7 +27,7 @@ data:
         notify_gotify "Backup: postgres ✓" "Completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
       else
         local tail_log
-        tail_log=$(tail -10 "$LOG" 2>/dev/null | awk '{gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s\\n", $0}')
+        tail_log=$(tail -10 "$LOG" 2>/dev/null | awk '{gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); gsub(/[[:cntrl:]]/, " "); printf "%s\\n", $0}')
         notify_gotify "Backup: postgres ✗" "Exit ${exit_code} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n${tail_log}" 8
       fi
     }
@@ -48,7 +48,15 @@ data:
     done < /config/databases
 
     # Init restic repo on Filen if this is the first run
-    restic cat config &>/dev/null || restic init
+    # rc=10 is the only "repo is missing" answer; a Filen blip must not read as one.
+    repo_rc=0
+    restic cat config >/dev/null || repo_rc=$?
+    if [[ ${repo_rc} -eq 10 ]]; then
+      echo "[postgres-backup] Initialising new restic repository on Filen..."
+      restic init
+    elif [[ ${repo_rc} -ne 0 ]]; then
+      exit "${repo_rc}"
+    fi
 
     # Clear a stale lock left by a job killed mid-run (OOM, node reboot, deadline).
     # restic only auto-expires a lock it can prove is dead, which needs the lock's

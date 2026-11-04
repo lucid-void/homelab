@@ -284,7 +284,7 @@ class News:
     @staticmethod
     def _link(item):
         e = lambda t: htmllib.escape(t, quote=True)
-        return f'<a href="{e(item["url"])}">{e(item["title"])}</a> · <i>{e(", ".join(item["topics"]))}</i>'
+        return f'<a href="{e(item["url"])}">{e(item["title"])}</a>'
 
     def _pick(self, pending):
         """Indexes to show: per tier up to its quota, cycling through the groups (best score, newest first)."""
@@ -306,7 +306,7 @@ class News:
         return chosen
 
     def _digest_text(self, pending):
-        """(message text in HTML, items left for the next digest)."""
+        """(message text in HTML, items to keep for the next digest: none)."""
         if self.profile is None:
             return self._digest_text_plain(pending)
         chosen, size = [], 0
@@ -324,11 +324,11 @@ class News:
                 current = tier
             lines.append(line)
         shown = {i for i, _ in chosen}
-        left = [item for i, item in enumerate(pending) if i not in shown]
-        if left:
-            lines.append(f"\n+{len(left)} more in the next digest")
+        skipped = len(pending) - len(shown)
+        if skipped:  # a digest is the news since the last one: what did not fit is dropped, not carried
+            lines.append(f"\n{skipped} more skipped")
         n = len(chosen)
-        return f"📰 <b>News digest</b> · {n} item{'s' if n != 1 else ''}\n\n" + "\n".join(lines), left
+        return f"📰 <b>News digest</b> · {n} item{'s' if n != 1 else ''}\n\n" + "\n".join(lines), []
 
     def _digest_text_plain(self, pending):
         lines, size, used = [], 0, 0
