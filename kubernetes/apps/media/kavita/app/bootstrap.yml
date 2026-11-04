@@ -82,6 +82,9 @@ spec:
                         | .oidcConfig.defaultAgeRestriction=-1
                         | .oidcConfig.defaultIncludeUnknowns=true
                         | .oidcConfig.defaultLibraries=$libs
+                        | .oidcConfig.syncUserSettings=true
+                        | .oidcConfig.rolesClaim="kavita_roles"
+                        | .oidcConfig.rolesPrefix=""
                         | .oidcConfig.secret=$s' \
                     | curl -s -o /dev/null -w 'OIDC provisioning -> %{http_code}\n' \
                         -X POST "$BASE/api/settings" -H "Authorization: Bearer $TOKEN" \
