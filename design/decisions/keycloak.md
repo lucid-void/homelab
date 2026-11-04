@@ -69,7 +69,7 @@ attributes. `client.roles` takes bare strings only — no descriptions, no compo
 
 **The `keycloak-entitlements` Job owns everything the CRD cannot express**
 (`kubernetes/apps/keycloak/entitlements/`): role mappers, groups, group→role mappings and
-browser-flow gates, all from `entitlements.json`. It re-runs about hourly, repairs drift
+browser-flow gates, all from `entitlements.conf`. It re-runs about hourly, repairs drift
 and reports every change to Gotify. OpenTofu's Keycloak provider was rejected for the same
 reason as for clients: a second apply-by-hand loop would not repair drift on its own.
 
