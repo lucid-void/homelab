@@ -130,6 +130,8 @@ on the class. The core needs no change.
   whose FreshRSS category is a group's category matches that group with no keywords and no Clef
   call. Elsewhere whole-word keywords decide; `scoped_keywords` (Signal, Matrix, Pixel, Thread,
   Matter, Renovate, Atmosphere and similar) only count inside the group's categories.
+  "Zephyr" is deliberately not a keyword: it matches the whole Zephyr RTOS project, not just ZMK,
+  and ZMK posts name "ZMK".
 - **FreshRSS category names are part of the config.** `categories` in the profile must equal the
   OPML category names; a renamed category silently stops matching. At startup the bot logs profile
   categories with no subscribed feed (`warn_unused_categories`, from `FreshRSS.labels()`).
@@ -140,7 +142,7 @@ on the class. The core needs no change.
   Steel Ball Run) gets one extra one-question Clef call first, unless the text has an allow term
   such as "patch notes". Ruled-out products are dropped without any call.
 - **Delivery.** 0.7 or more goes to the 08:00/18:00 digest, grouped by tier with a quota per tier (10 / 8 / 4),
-  each tier cycling through its groups; what does not fit is dropped (footer "N more skipped"), not carried, so a digest is the news since the last one. Sent as HTML (linked titles, no previews). Tier 3 items that are delivered (Clef must also say "major") and that Clef judges time-sensitive are sent at once: they are queued
+  each tier cycling through its groups; what does not fit is dropped (footer "N more skipped"), not carried, so a digest is the news since the last one. Sent as HTML: one `• linked title` line per item under a tier header, no group tag, no link previews. Alerts use the same format (`⏰ linked title`). Tier 3 items that are delivered (Clef must also say "major") and that Clef judges time-sensitive are sent at once: they are queued
   in `news.json` (`alerts`, at most 50) and retried every 30 s until Telegram accepts them; a
   failed send keeps them queued.
 - **A new profile `version` re-seeds the module** like a first run (new `since`; `ot=now` keeps the backlog
