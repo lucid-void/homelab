@@ -4,9 +4,14 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Planned
 
-- **NUT Pi (`nut-server`, 172.16.20.7) integrations.** The grouped shutdown is half live
-  (Pi + Talos done; Synology/Proxmox clients and the plug-pull test pending, see
-  `design/decisions/ups.md`). Then: a NUT exporter + VMRule alerts (on battery, FSD,
+- **Replace the UPS.** The Eaton Ellipse PRO 850 lasts seconds at real load, so a power cut still
+  hard-crashes everything. Requirements and the post-install test are in `design/decisions/ups.md`.
+- **Rotate the Sonarr Postgres password.** Sonarr prints it in its startup log, and it landed in an
+  agent transcript on 2026-11-08.
+- **ZeroTier VM (.23) stayed down after both 2026-11-08 restarts.** Find out why it doesn't start
+  with the Proxmox host.
+- **NUT Pi (`nut-server`, 172.16.20.7) integrations.** The grouped shutdown is configured
+  end to end (`design/decisions/ups.md`). Still to do: a NUT exporter + VMRule alerts (on battery, FSD,
   a client missing from `ups-cluster`), Gatus/Homepage entries, a UniFi DHCP reservation and
   DNS name, and rotating the Pi's root password (it was shared in an agent session).
 - **Ignore stale news articles.** Skip articles published more than 3 days ago (needs the
