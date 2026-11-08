@@ -52,6 +52,14 @@ replaces it. Target codec is HEVC: no evidence the Living Room TV decodes AV1.
   `/Media/Series_done`, `/Media/Movies`), the filter above, x265 `slow` with the CRF chosen in
   the test encode, all streams mapped, then `tdarr-swap.sh <original> <output>`, with the
   item failed on a non-zero exit.
+- **`ffprobe` is not on the node's PATH** — only `ffmpeg` is (`/usr/local/bin`). The swap script
+  reads `FFMPEG`/`FFPROBE`, set on the node to Tdarr's bundled binaries.
+- **The swap script treats a `und` language tag as no tag.** mp4 tags untagged audio `und`
+  while the mkv output carries none, so a strict comparison rejected every mp4 source.
+- **Tdarr 3.x has authentication on by default.** The node (`apiKey`, SealedSecret
+  `media/tdarr-api`) and the exporter (`TDARR_API_KEY`, `monitoring/tdarr-exporter-api`) share one
+  key created in the UI under Tools -> API Keys; the first person to open the UI becomes admin,
+  so create the account right after a fresh install. Rotating the key means resealing both.
 - After a swap, Sonarr/Radarr need a manual rescan for items whose source was `.mp4` (the
   output is `.mkv`), or they mark the episode missing.
 

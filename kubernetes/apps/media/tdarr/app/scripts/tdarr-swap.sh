@@ -41,12 +41,13 @@ awk -v a="$dur_o" -v b="$dur_n" -v t="$DURATION_TOLERANCE" \
   'BEGIN { d = a - b; if (d < 0) d = -d; exit !(d <= t) }' \
   || verify_fail "duration $dur_n s vs original $dur_o s (tolerance $DURATION_TOLERANCE s)"
 
+# mp4 tags untagged audio 'und'; the mkv output carries no tag. Same thing.
 for kind in a s; do
   n_o=$(probe "$orig" "$kind" stream=index | wc -l)
   n_n=$(probe "$out" "$kind" stream=index | wc -l)
   [ "$n_o" -eq "$n_n" ] || verify_fail "'$kind' stream count $n_n, original has $n_o"
-  l_o=$(probe "$orig" "$kind" stream_tags=language | tr '\n' ',')
-  l_n=$(probe "$out" "$kind" stream_tags=language | tr '\n' ',')
+  l_o=$(probe "$orig" "$kind" stream_tags=language | sed 's/^und$//' | tr '\n' ',')
+  l_n=$(probe "$out" "$kind" stream_tags=language | sed 's/^und$//' | tr '\n' ',')
   [ "$l_o" = "$l_n" ] || verify_fail "'$kind' languages '$l_n', original '$l_o'"
 done
 
