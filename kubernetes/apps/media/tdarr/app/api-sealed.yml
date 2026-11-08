@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: tdarr-api
+  namespace: media
+spec:
+  encryptedData:
+    apiKey: AgAg6/9LMadMIDPxFaKwJP52a8EPNpT5XubUOdDAM9eRusPEzh/Cjbqcu2CrNx82K66EtcTq+VeQEuhmajJdsNLVGwqx5PPR2GQ/piud2KQ4nam12B4t1l/bBtjjkjbhZwF3L3QtXwBikuydTMcibr4gXu4Mlcf2sFFCaolOweRyIJgDZ5fCm/byaEJdQL5rb1SjhfCa8fLOpmRzlv8TDgd8Q01gsw8R0HoAcX0o9GNOEJTtcfumBPLS5f0v2iKHa7EcA2TN523Bs1+2zEPoh88BV3Pzrh3BTTodIMGYbWvaey7sny9TNlW8YqYDGiY0LowlRQDXbKGFyDvBD45Km06s4NDYaRjBZ1l/LmeJrZiCpglm+9weBuVUbCND/heG6zwrg8REeuKgtJKEsw2KJ+ZPSJW6/roNn3iSFFh/GbWYd/w31+7WPAs1a3kut5u/L38+qzeTwsp6cvjsJXnI9oK8srQv6ximQDmcGTiqDICVEw2LjkJN02r8DRBPQNP8x4cJ+a2EWv9JWq/MphfjUyIhufpYi1Mrnbw3bu3JddehO3Bf1fGYbhN/3gonnZxQYMDHRt+Ixz5WuBa21xVWZHUBNvMIoOjxGni9U9Jd3bhc/aQsvfNSBGhyHC6La/sjrvCm1JSMwX03OQyASDYELl7shGAo1jh3kw7Vm3SIctkAuM62z9onM5V3+SO3UkBj/24X8n3ZOiBYMDe4TdCkJA==
+  template:
+    metadata:
+      name: tdarr-api
+      namespace: media

@@ -97,6 +97,12 @@ spec:
               transcodegpuWorkers: "0"
               healthcheckcpuWorkers: "1"
               healthcheckgpuWorkers: "0"
+            # Tdarr 3.x has auth on by default; the node needs the key created in
+            # the UI (Tools -> API Keys). Non-optional on purpose: app-template
+            # strips `optional: true`.
+            envFrom:
+              - secretRef:
+                  name: tdarr-api
             probes:
               liveness:
                 enabled: false
