@@ -97,6 +97,10 @@ spec:
               transcodegpuWorkers: "0"
               healthcheckcpuWorkers: "1"
               healthcheckgpuWorkers: "0"
+              # tdarr-swap.sh needs ffprobe, which is not on PATH in this image;
+              # use the binaries Tdarr itself bundles.
+              FFMPEG: /app/Tdarr_Node/assets/app/ffmpeg/linux_x64/ffmpeg
+              FFPROBE: /app/Tdarr_Node/assets/app/ffmpeg/linux_x64/ffprobe
             # Tdarr 3.x has auth on by default; the node needs the key created in
             # the UI (Tools -> API Keys). Non-optional on purpose: app-template
             # strips `optional: true`.
