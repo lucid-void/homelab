@@ -216,5 +216,5 @@ A side benefit: CloudNativePG 1.31 removes in-tree Barman Cloud support, and thi
 | Synology path | Kubernetes use |
 |---|---|
 | `/volume2/kubernetes.nfs/` | democratic-csi parent share — one subdirectory per PVC |
-| `/volume2/Media/` | Static `media-nfs` PVC for all media services — holds `Series/`, `Movies/`, `Downloads/`, `Photos/`, `Manga/` |
+| `/volume2/Media/` | Static `media-nfs` PVC for all media services — holds `Series/`, `Series_done/`, `Movies/`, `Downloads/`, `Photos/`, `Manga/`. The Tdarr server and node mount it read-write; originals they replace are parked in `.tdarr-trash/` at the share root (not a library) for 14 days — see `design/decisions/tdarr.md` |
 | `/volume2/backups/keys/` | Sealed Secrets key backup, SOPS age key backup |

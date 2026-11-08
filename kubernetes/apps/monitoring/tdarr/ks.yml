@@ -1,0 +1,25 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app tdarr-monitoring
+  namespace: flux-system
+spec:
+  targetNamespace: monitoring
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  # Needs the VictoriaMetrics operator CRDs (VMServiceScrape / VMRule) from
+  # vm-stack. The tdarr app itself is deliberately NOT a dependency: the
+  # scrape finds nothing until it exists, which is correct, and it keeps the
+  # alert rules from being blocked by an app that is down.
+  dependsOn:
+    - name: vm-stack
+  path: ./kubernetes/apps/monitoring/tdarr/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: false
+  interval: 30m
+  timeout: 5m

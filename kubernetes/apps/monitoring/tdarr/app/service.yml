@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tdarr-exporter
+  namespace: monitoring
+  labels:
+    monitoring.blackcats.cc/scrape: tdarr
+spec:
+  selector:
+    app: tdarr-exporter
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: metrics

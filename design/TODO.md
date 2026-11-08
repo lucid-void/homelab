@@ -181,19 +181,9 @@ Open work only. A finished item is deleted, not struck through.
   plus its `browser-karakeep` flow gate, and a restic backup CronJob. Auto-tagging runs
   against the existing LiteLLM endpoint (`llm.blackcats.cc`) over its OpenAI-compatible
   API rather than a hosted provider.
-- Tdarr deployment — library-wide transcode automation over `media-nfs`, to bound the
-  uncapped `/volume2/Media` growth recorded above. Not yet built. Splits into a server
-  (config PVC on `nfs-client`, web UI, HTTPRoute) and one or more worker nodes that do
-  the encoding; workers need `media-nfs` mounted **read-write**, unlike Plex and
-  Jellyfin which mount it `readOnly`. Two constraints decide whether it is worth it:
-  - **CPU-only.** The DGX Spark is not a k8s node and no Talos node has a GPU, so every
-    encode competes with the cluster for the same six P-cores. Workers want a hard CPU
-    limit and an off-hours schedule, and must not run while Plex or Jellyfin is
-    transcoding.
-  - **It replaces originals, and the media library has no backup.** Every restic repo
-    covers app config and databases; `/volume2/Media` is in none of them, so a bad
-    transcode policy is unrecoverable. Keep Tdarr's health-check and original-retention
-    settings on until a policy has been proven against a throwaway copy.
+- Tdarr: manifests built, see `design/decisions/tdarr.md`. Still to do after deploy: the test-encode
+  phase, creating the libraries and flow in the UI, the pilot and the full run. Open: the 3–6 Mbps
+  H.264 band (about 714 GB) is outside the v1 filter.
 - nftables host firewall on the Talos nodes (default-deny inbound, SSH/node_exporter/
   Promtail allowlist, per-host overrides) — not yet implemented on k8s nodes.
 - **youtube-queue: auto-delete watched videos.** Today watched videos are deleted by

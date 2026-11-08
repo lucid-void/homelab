@@ -1,0 +1,30 @@
+---
+# Tdarr alerts. Route through Alertmanager -> am-gotify-bridge -> Gotify,
+# same path as the minecraft rules.
+#
+# Queue/error rules are added after the exporter has run against the live
+# server and its real series and `status` label values have been read
+# (design/decisions/tdarr.md); availability rules need only kube-state-metrics.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: tdarr
+  namespace: monitoring
+spec:
+  groups:
+    - name: tdarr-availability
+      rules:
+        - alert: TdarrServerDown
+          expr: kube_deployment_status_replicas_available{namespace="media", deployment="tdarr-server"} == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Tdarr server has no available replica
+        - alert: TdarrNodeDown
+          expr: kube_deployment_status_replicas_available{namespace="media", deployment="tdarr-node"} == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Tdarr node has no available replica

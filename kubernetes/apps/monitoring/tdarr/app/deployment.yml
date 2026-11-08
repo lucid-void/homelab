@@ -1,0 +1,44 @@
+---
+# Third-party exporter (github.com/homeylab/tdarr-exporter); Tdarr has no native
+# Prometheus endpoint. Config is env-only: TDARR_URL, PROMETHEUS_PORT (9090),
+# PROMETHEUS_PATH (/metrics).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tdarr-exporter
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tdarr-exporter
+  template:
+    metadata:
+      labels:
+        app: tdarr-exporter
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exporter
+          image: docker.io/homeylab/tdarr-exporter:3.1.0
+          env:
+            - name: TDARR_URL
+              value: http://tdarr.media.svc.cluster.local:8265
+          ports:
+            - name: metrics
+              containerPort: 9090
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
