@@ -58,9 +58,9 @@ The Pi boots whenever it has power. Synology: "Restart automatically when power 
 fixed". Proxmox: BIOS "Restore on AC power loss = Power On", plus a start-on-boot delay so the Talos
 VMs don't start before NFS is served.
 
-**Status:** the Pi and the Talos side are done. **Still pending:** the Synology and Proxmox
-clients, the BIOS setting, the boot delay, and the end-to-end plug-pull test. Until those are done,
-a power cut shuts down only the cluster cleanly.
+**Status:** the Pi and the Talos side are done. **Done:** the Synology and Proxmox NUT clients (2026-11-08).
+**Still pending:** the Proxmox BIOS setting, confirming the boot delay, the group-1 drain fix
+(the drain can outlast the 360 s wait), and the end-to-end plug-pull test.
 
 ## Rules
 
@@ -77,6 +77,12 @@ a power cut shuts down only the cluster cleanly.
   (it would cycle with nut-server's `After=nut-driver.target`).
 - **Put the timer script in a systemd service, never directly in `CMDSCRIPT`** — upssched runs as
   `nut`, which can't read `/root/nut-credentials.txt` or run `upsmon -c fsd`.
+- **Create `/run/nut` on Proxmox yourself** — the PVE `nut-client` install lacks
+  `nut-common-tmpfiles.conf`, so `/etc/tmpfiles.d/nut-local.conf` (`d /run/nut 0770 root nut -`)
+  creates it. Without it upsmon can't write its PID file.
+- **`ERR ACCESS-DENIED` in a client's upsmon log means a wrong password.** upsd logs only
+  successful logins, so the Pi shows nothing. Copy the password from the Pi with
+  `sed -n 's/^upsmon-remote=//p' /root/nut-credentials.txt` rather than retyping it.
 - **Keep `upsmon-remote`'s password in sync** with `NUT_UPSMON_PASSWORD` in
   `kubernetes/talos/talenv.sops.yaml` (and Proxmox's `upsmon.conf`). Passwords on the Pi:
   `/root/nut-credentials.txt`.
