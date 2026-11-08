@@ -5,6 +5,7 @@ resources:
   - ./pvc.yml
   - ./helmrelease.yml
   - ./route.yml
+  - ./api-sealed.yml
   - ./purge-cronjob.yml
 generatorOptions:
   disableNameSuffixHash: true
