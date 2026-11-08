@@ -1,0 +1,178 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tdarr
+  namespace: media
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      server:
+        replicas: 1
+        containers:
+          app:
+            image:
+              repository: ghcr.io/haveagitgat/tdarr
+              tag: "3.06.00"
+            env:
+              TZ: Europe/Brussels
+              PUID: "2202"
+              PGID: "2200"
+              UMASK: "002"
+              serverIP: 0.0.0.0
+              serverPort: "8266"
+              webUIPort: "8265"
+              internalNode: "false"
+              inContainer: "true"
+              ffmpegVersion: "7"
+              nodeName: tdarr-server
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 8265
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+                  failureThreshold: 10
+              readiness: *probes
+            resources:
+              requests:
+                memory: 512Mi
+                cpu: 100m
+              limits:
+                memory: 2Gi
+      node:
+        replicas: 1
+        annotations:
+          reloader.stakater.com/auto: "true"
+        pod:
+          # llm-1 is tainted workload=llm. Same pin and toleration as
+          # kubernetes/apps/ai/llama-swap/app/helmrelease.yml.
+          nodeSelector:
+            kubernetes.io/hostname: llm-1
+          tolerations:
+            - key: workload
+              operator: Equal
+              value: llm
+              effect: NoSchedule
+        containers:
+          app:
+            image:
+              repository: ghcr.io/haveagitgat/tdarr_node
+              tag: "3.06.00"
+            env:
+              TZ: Europe/Brussels
+              PUID: "2202"
+              PGID: "2200"
+              UMASK: "002"
+              nodeName: llm-1
+              serverIP: tdarr.media.svc.cluster.local
+              serverPort: "8266"
+              inContainer: "true"
+              ffmpegVersion: "7"
+              nodeType: mapped
+              # Never start encoding on its own. Resumed by hand in the UI.
+              startPaused: "true"
+              # One CPU encode at a time. No GPU workers: x265 on CPU by design.
+              transcodecpuWorkers: "1"
+              transcodegpuWorkers: "0"
+              healthcheckcpuWorkers: "1"
+              healthcheckgpuWorkers: "0"
+            probes:
+              liveness:
+                enabled: false
+              readiness:
+                enabled: false
+              startup:
+                enabled: false
+            resources:
+              requests:
+                memory: 2Gi
+                cpu: 500m
+              limits:
+                memory: 8Gi
+                # Capped at 6 of llm-1's 8 vCPU so llama.cpp and Clef keep headroom.
+                cpu: "6"
+
+    service:
+      # Single service key `app`, so the Service is named after the release
+      # (`tdarr`): the HTTPRoute backend and the node's serverIP both use it.
+      app:
+        controller: server
+        ports:
+          http:
+            port: 8265
+          server:
+            port: 8266
+
+    persistence:
+      config:
+        existingClaim: tdarr-config
+        advancedMounts:
+          server:
+            app:
+              - path: /app/configs
+                subPath: configs
+              - path: /app/server
+                subPath: server
+              - path: /app/logs
+                subPath: logs
+      media-server:
+        # Same mount as sonarr/radarr: read-write.
+        existingClaim: media-nfs
+        advancedMounts:
+          server:
+            app:
+              - path: /Media
+      media-node:
+        existingClaim: media-nfs
+        advancedMounts:
+          node:
+            app:
+              - path: /Media
+      scripts:
+        type: configMap
+        name: tdarr-scripts
+        defaultMode: 0755
+        advancedMounts:
+          node:
+            app:
+              - path: /scripts
+                readOnly: true
+      cache:
+        type: emptyDir
+        advancedMounts:
+          node:
+            app:
+              - path: /temp
+      node-configs:
+        type: emptyDir
+        advancedMounts:
+          node:
+            app:
+              - path: /app/configs
+      node-logs:
+        type: emptyDir
+        advancedMounts:
+          node:
+            app:
+              - path: /app/logs

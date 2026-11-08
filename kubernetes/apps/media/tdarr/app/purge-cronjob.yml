@@ -1,0 +1,61 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tdarr-trash-purge
+  namespace: media
+  annotations:
+    # deliberate: same TTL + history pairing as youtube-queue and
+    # minecraft-backup — the TTL clears a lone failed Job so KubeJobFailed
+    # doesn't re-fire forever.
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see comment"
+spec:
+  schedule: "23 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 1800
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 2202
+            runAsGroup: 2200
+            seccompProfile:
+              type: RuntimeDefault
+          volumes:
+            - name: media
+              persistentVolumeClaim:
+                claimName: media-nfs
+          containers:
+            - name: purge
+              image: docker.io/library/busybox:1.37.0
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  T=/Media/.tdarr-trash
+                  [ -d "$T" ] || { echo "no trash yet"; exit 0; }
+                  # mtime = when the swap moved the original here (it touches it).
+                  find "$T" -type f -mtime +14 -print -delete
+                  find "$T" -mindepth 1 -type d -empty -print -delete
+              volumeMounts:
+                - name: media
+                  mountPath: /Media
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 64Mi
