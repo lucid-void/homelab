@@ -23,7 +23,7 @@ the cluster first, then power everything back on and let it **recover with no ma
 
 ## What is on the UPS
 
-Eaton Ellipse PRO 850 (USB to the Pi), about 17 min runtime at 25% load, measured 2026-11-06.
+Eaton Ellipse PRO 850 (USB to the Pi), about 17 min runtime at 25% load by the UPS's own estimate on 2026-11-06. That was never measured; in practice it lasted seconds at that load (`design/decisions/ups.md`).
 Its outlets **cannot be switched individually** (`outlet.*.switchable: no`). The UPS can only
 cut its whole output (`shutdown.return`, `ups.delay.shutdown` = 20 s, `ups.delay.start` = 30 s).
 

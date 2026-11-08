@@ -8,7 +8,8 @@ An Eaton Ellipse PRO 850 is connected over USB to a Raspberry Pi 4 (`nut-server`
 The Pi runs NUT in `netserver` mode. It powers the UniFi switch, the Synology, the Proxmox host and
 itself. **The Pi config is hand-managed.** A redacted copy lives in `infra/nut-pi/` (same paths as
 on the Pi), so re-copy it there after changing it on the Pi. The passwords are only on the Pi, in
-`/root/nut-credentials.txt`. The original Debian configs are in `/etc/nut/*.orig`; the
+`/root/nut-credentials.txt`. Logs persist across power loss (`/var/log/journal`, capped at 200 MB).
+The original Debian configs are in `/etc/nut/*.orig`; the
 pre-groups state is in `/etc/nut.bak-2026-11-07/`.
 
 The UPS's outlets **cannot be switched individually** (`outlet.*.switchable: no`). The only power
@@ -63,11 +64,41 @@ The Pi boots whenever it has power. Synology: "Restart automatically when power 
 fixed". Proxmox: BIOS "Restore on AC power loss = Power On", plus a start-on-boot delay so the Talos
 VMs don't start before NFS is served.
 
-**Status:** the Pi and the Talos side are done. **Done:** the Synology and Proxmox NUT clients (2026-11-08).
-**Still pending:** the Proxmox BIOS setting, confirming the boot delay, and the end-to-end plug-pull test.
+**Status (2026-11-08):** the Pi, the Talos nodes, the Synology and Proxmox clients, the BIOS
+setting and the boot delay are all done. **The current UPS can't carry the load, so none of this
+protects anything until it is replaced.** The end-to-end plug-pull test is still open.
+
+### What the 2026-11-08 tests showed
+
+| Test | Load | Result |
+|---|---|---|
+| Mains pulled, everything connected | about 137 W reported | Output cut after about 10 s; a second try lasted 15–20 s |
+| Mains pulled, only the Pi and switch | about 36 W | Held for the full 136 s until mains was restored |
+| Forced shutdown of the 4 Talos nodes from the Pi (mains on) | n/a | All 4 off in about 75 s, no drain stall |
+
+- **The first cut was a hard power loss, not the shutdown sequence.** The Pi's root filesystem
+  needed journal recovery at the next boot, and the script's 120 s timer could not have fired yet.
+- **The UPS's cause isn't isolated.** The battery was recently replaced. No fault log, battery
+  voltage, self-test or energy-saving setting is reachable through NUT or the LCD.
+- **Everything recovered unattended after the hard cut:** etcd kept quorum, CNPG came back healthy,
+  and all Deployments and StatefulSets returned to ready. Boot load peaked at about 195 W.
+- **Sonarr and Radarr can start before Postgres and hang** at "waiting for user intervention". Their
+  liveness probes restart them, which takes several minutes.
+- **`nut-client` disconnects about 2 s before a node stops answering ping**, so 0 clients on
+  `ups-cluster` is a good signal that the nodes are going down. It doesn't show every pod stopped.
+
+### Replacing the UPS
+
+- Handle at least the 195 W boot peak, with more than 9 min of real runtime at that load. The
+  sequence needs about 7 min worst case on top of the 2 min grace period, and batteries age.
+- Pure sine wave output on battery, and USB with NUT support.
+- Update `vendorid`, `productid` and `serial` in `/etc/nut/ups.conf`. Keep the name `ups`.
+- Run the plug-pull test with the real load before trusting it.
 
 ## Rules
 
+- **Never trust a UPS's reported runtime or charge** — this one read 14–17 min and 98% and lasted
+  seconds under real load. Both are estimates; only a plug-pull at the real load proves runtime.
 - **Never rename `ups` and never change `monuser`/`secret`** — Synology DSM hardcodes the UPS name
   `ups` and that login. Because the password is public, `/etc/nftables.conf` on the Pi allows
   TCP 3493 only from .2, .3, .11–.14 and localhost. Add any new NUT client's IP there.

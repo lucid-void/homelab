@@ -864,7 +864,8 @@ needed afterward.
 
 Then power off the Synology and do the hardware work.
 
-**On a power cut this happens by itself:** after 2 min on battery the NUT Pi (172.16.20.7)
+**On a power cut this is meant to happen by itself, but the current UPS can't carry the load, so
+for now expect a hard crash (see `design/decisions/ups.md`):** after 2 min on battery the NUT Pi (172.16.20.7)
 shuts down the cluster, then the Synology and Proxmox, then itself and the UPS output. See
 `design/decisions/ups.md`. For planned work that pulls the UPS's own mains plug, expect that
 sequence to run. For planned work on the Pi itself, the UPS is unmonitored: nothing shuts down
