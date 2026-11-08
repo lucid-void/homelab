@@ -309,7 +309,14 @@ talosctl apply-config \
   --nodes 172.16.20.11 \
   --file kubernetes/talos/clusterconfig/homelab-k8s-cp-1.yaml \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig
+
+# 5. Update talosctl on the NUT Pi (172.16.20.7) to the same version — it force-shuts
+#    the nodes on a power cut. Steps in design/decisions/ups.md.
 ```
+
+Roll llm-1 (`.14`) the same way. `talosctl upgrade --wait` can exit non-zero after a
+transient "staticPods not ready" even though the node comes up fine, so check
+`kubectl get nodes` and `talosctl etcd status` instead of trusting the exit code.
 
 **Before any upgrade:** run kubent to check for deprecated APIs:
 ```bash

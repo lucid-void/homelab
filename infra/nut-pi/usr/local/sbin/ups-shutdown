@@ -1,6 +1,7 @@
 #!/bin/bash
 # Grouped UPS shutdown. Design: Homelab repo, design/decisions/ups.md
-#   1. FSD on ups-cluster  -> Talos nodes (nut-client) power off
+#   1. talosctl shutdown --force on every node (no drain), then FSD on
+#      ups-cluster as the backup (nut-client: normal shutdown, drains)
 #   2. wait for 0 clients on ups-cluster (max GROUP1_TIMEOUT s)
 #   3. upsmon -c fsd       -> Synology + Proxmox, then this Pi, then killpower
 # Once started it always finishes, even if mains returns.
@@ -31,11 +32,39 @@ fsd_name() {  # $1 = NUT UPS name
   [ "${reply:-}" = "OK FSD-SET" ]
 }
 
+TALOS_NODES="${TALOS_NODES:-172.16.20.11 172.16.20.12 172.16.20.13 172.16.20.14}"
+TALOSCONFIG=/root/talos/talosconfig
+
+# Forced shutdown skips the cordon/drain, which the CNPG primary PDB would
+# stall for Talos's full 5 min DrainTimeout. One call per node, each its own
+# endpoint, in parallel, so a dead node can't hold up the others.
+force_shutdown_cluster() {
+  local ip
+  for ip in $TALOS_NODES; do
+    (
+      if out=$(timeout 30 /usr/local/bin/talosctl --talosconfig "$TALOSCONFIG" -e "$ip" -n "$ip" \
+                 shutdown --force --wait=false 2>&1); then
+        log "talosctl shutdown --force $ip: ok"
+      else
+        log "talosctl shutdown --force $ip: FAILED: $(echo "$out" | tail -1)"
+      fi
+    ) &
+  done
+  wait
+}
+
 clients() { upsc -c ups-cluster 2>/dev/null | grep -c . ; }
 
 if [ "$DRY_RUN" = 1 ]; then
+  log "would run talosctl shutdown --force on: $TALOS_NODES"
+  for ip in $TALOS_NODES; do
+    timeout 10 /usr/local/bin/talosctl --talosconfig "$TALOSCONFIG" -e "$ip" -n "$ip" version --short >/dev/null 2>&1 \
+      && log "dry run: Talos API reachable on $ip" || log "dry run: Talos API NOT reachable on $ip"
+  done
   log "would FSD ups-cluster"
 else
+  force_shutdown_cluster
+  sleep 15   # let the forced shutdowns start before the draining nut-client path is armed
   fsd_name ups-cluster || log "FSD ups-cluster failed, continuing (nodes still see LB later)"
 fi
 

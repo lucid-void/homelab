@@ -29,15 +29,20 @@ FSD ("forced shutdown") is raised per UPS name, so each name works as a shutdown
 1. On battery → `upssched` starts a **120 s** timer. Power back first → timer cancelled, nothing happens.
 2. Timer fires → `/usr/local/sbin/ups-sched-cmd` (runs as `nut`) touches
    `/run/nut/ups-shutdown.trigger` → `ups-shutdown.path` starts the root `ups-shutdown.service`.
-3. `/usr/local/sbin/ups-shutdown`: FSD on `ups-cluster`. Each node runs `/sbin/poweroff`, which
-   calls the Talos Shutdown API **without force**. That is the same as `talosctl shutdown` without
-   `--force`: the node **cordons, then drains** (up to 1 min for the cordon and up to 5 min for
-   evictions, `DrainTimeout`, after which Talos logs a warning and carries on). After that, pods get
-   SIGTERM + grace, volumes unmount, and etcd stops. There is no etcd member removal, so quorum forms
-   again on boot. `/sbin/poweroff` has no force option.
-   **The drain always stalls:** the `postgres-primary` PDB allows 0 disruptions, and
-   `gitea-valkey-cluster` drops to 0 after the first eviction. Expect about 6–7 min until the node
-   that holds them powers off.
+3. `/usr/local/sbin/ups-shutdown` runs **`talosctl shutdown --force`** on all 4 nodes in parallel
+   (one call per node, each its own endpoint, 30 s timeout each). Force skips the cordon/drain:
+   pods get SIGTERM + grace, volumes unmount, etcd stops. There is no etcd member removal, so
+   quorum forms again on boot. It uses the Talos API directly, so it works even when Kubernetes
+   is broken. Credential: `/root/talos/talosconfig` on the Pi, role **`os:operator`** only
+   (shutdown/reboot; can't read secrets or machine config), 10-year cert.
+   **15 s later, FSD on `ups-cluster` as the backup.** If a forced shutdown didn't start, that
+   node's `nut-client` runs `/sbin/poweroff`. That path calls the Shutdown API **without force**,
+   and `/sbin/poweroff` has no force option, so it cordons and drains: up to 1 min for the
+   cordon, plus up to 5 min of evictions (`DrainTimeout`). The `postgres-primary` PDB (0
+   disruptions) and `gitea-valkey-cluster` always stall that drain for the full 5 min.
+   **Why not a pod:** an in-cluster upsmon/talosctl would depend on Kubernetes being healthy
+   during the outage. **Why not removing the PDBs:** the CNPG primary PDB is by design, and
+   any future chart's PDB would silently bring the stall back.
 4. It polls `upsc -c ups-cluster` until there are 0 clients, for at most **360 s**, then moves on anyway.
 5. `upsmon -c fsd` → the Synology and Proxmox shut down → the Pi shuts down → Debian's
    `nutshutdown` hook sends killpower → the UPS cuts its output 20 s later and restores it when mains
@@ -59,8 +64,7 @@ fixed". Proxmox: BIOS "Restore on AC power loss = Power On", plus a start-on-boo
 VMs don't start before NFS is served.
 
 **Status:** the Pi and the Talos side are done. **Done:** the Synology and Proxmox NUT clients (2026-11-08).
-**Still pending:** the Proxmox BIOS setting, confirming the boot delay, the group-1 drain fix
-(the drain can outlast the 360 s wait), and the end-to-end plug-pull test.
+**Still pending:** the Proxmox BIOS setting, confirming the boot delay, and the end-to-end plug-pull test.
 
 ## Rules
 
@@ -83,6 +87,12 @@ VMs don't start before NFS is served.
 - **`ERR ACCESS-DENIED` in a client's upsmon log means a wrong password.** upsd logs only
   successful logins, so the Pi shows nothing. Copy the password from the Pi with
   `sed -n 's/^upsmon-remote=//p' /root/nut-credentials.txt` rather than retyping it.
+- **Update `talosctl` on the Pi with every Talos upgrade** — `/usr/local/bin/talosctl` must
+  match the cluster's Talos version (arm64 binary from the GitHub release, checked against
+  `sha256sum.txt`). A dry run (`DRY_RUN=1 …`) logs "Talos API reachable" per node.
+- **Never give the Pi's talosconfig more than `os:operator`** — make it with
+  `talosctl config new --roles os:operator --crt-ttl 87600h`. A single cert can't be revoked,
+  so if the Pi is compromised, rotating the Talos CA (`talosctl rotate-ca`) is the only way to kill it.
 - **Keep `upsmon-remote`'s password in sync** with `NUT_UPSMON_PASSWORD` in
   `kubernetes/talos/talenv.sops.yaml` (and Proxmox's `upsmon.conf`). Passwords on the Pi:
   `/root/nut-credentials.txt`.
@@ -94,7 +104,8 @@ VMs don't start before NFS is served.
 upsc -l                          # ups, ups-cluster
 upsc -c ups-cluster              # .11 .12 .13 .14
 upsc -c ups                      # ::1 (Pi), .2 (Synology), .3 (Proxmox)
-DRY_RUN=1 GROUP1_TIMEOUT=10 /usr/local/sbin/ups-shutdown ups-shutdown   # logs only
+DRY_RUN=1 GROUP1_TIMEOUT=10 /usr/local/sbin/ups-shutdown ups-shutdown   # logs only, checks Talos API
+systemctl is-active ups-shutdown.path   # must be active, or nothing shuts down
 journalctl -t ups-shutdown
 
 # a node
