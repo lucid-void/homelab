@@ -1,0 +1,16 @@
+[admin]
+  password = <see /root/nut-credentials.txt>
+  actions = SET FSD
+  instcmds = ALL
+
+[upsmon-local]
+  password = <see /root/nut-credentials.txt>
+  upsmon primary
+
+[upsmon-remote]
+  password = <see /root/nut-credentials.txt>
+  upsmon secondary
+
+[monuser]
+  password = secret
+  upsmon secondary

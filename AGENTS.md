@@ -98,6 +98,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | Proxmox OIDC                                          | design/decisions/proxmox-oidc.md      |
 | the LLM stack                                         | design/decisions/llm.md               |
 | service inventory, hostnames, auth model              | design/docs/services.md               |
+| UPS, NUT Pi, power-loss shutdown order                | design/decisions/ups.md               |
 | topology, nodes, IP plan, Netbird, `talconfig.yaml`    | design/architecture.md                |
 | bootstrap, upgrades, restore, recovery, VM provisioning (Packer, OpenTofu) | design/runbook.md — 46 KB, jump to the one `##` section, never read it whole |
 | open work, known gaps                                 | design/TODO.md                        |
