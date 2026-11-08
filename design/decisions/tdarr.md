@@ -21,7 +21,9 @@ the flow, the test encode and the pilot are runtime work still to do (`design/TO
   Checks: HEVC video, duration within 1 s, same audio and subtitle stream counts and languages,
   a clean full decode, output smaller than the source. The original is renamed into
   `/Media/.tdarr-trash/<relative path>` and touched; the output takes its path (`.mkv`).
-- **`tdarr-trash-purge`** CronJob (daily 04:23) deletes trash files older than 14 days by mtime.
+- **`tdarr-trash-purge`** CronJob (daily 04:23) deletes trash files older than 14 days by mtime, and
+  stale files (older than a day) in `/Media/.tdarr-staging`, where a flow puts a finished encode
+  before the swap. A crash or power cut can leave a half-written file there.
 - **Exporter** (`homeylab/tdarr-exporter`, Docker Hub) in `monitoring`, scraped every 60 s.
   Availability alerts exist; queue and error alerts are written after the live series names
   are known.
@@ -42,7 +44,9 @@ replaces it. Target codec is HEVC: no evidence the Living Room TV decodes AV1.
   root so Plex, Jellyfin and Tdarr never index it. Keep it on the same share and NFS mount,
   or the swap stops being an atomic rename (the script refuses a cross-filesystem swap).
 - **Never raise the node's CPU limit above 6.** llama.cpp and Clef run on the same 8 vCPU.
-- **Never remove `startPaused`.** A restart must not resume a multi-day encode unattended.
+- **`startPaused` stays `true` until the pilot has passed.** A restart must not resume an
+  untested policy unattended. For the full run (weeks of encoding) set it to `false` so the queue
+  resumes by itself after a clean UPS shutdown and reboot; an encode in flight restarts from zero.
 - **The trash purge ages files by mtime**, so the swap must `touch` the original when it moves
   it (rename keeps the old mtime). Removing the `touch` makes the purge delete originals at
   once.
