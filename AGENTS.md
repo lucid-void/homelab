@@ -88,6 +88,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | YouTube → Jellyfin downloads, ytdl-sub              | design/decisions/youtube-queue.md     |
 | watch history sync between Plex and Jellyfin, CrossWatch | design/decisions/watch-sync.md        |
 | sonarr/radarr/prowlarr/sabnzbd/seerr/suwayomi/kavita  | design/decisions/media-stack.md       |
+| Tdarr, transcoding, the `.tdarr-trash` directory, shrinking the media library | design/decisions/tdarr.md |
 | Minecraft servers, Velocity proxy, world data         | design/decisions/minecraft.md         |
 | RomM                                                  | design/decisions/romm.md              |
 | Homebox                                               | design/decisions/homebox.md           |
