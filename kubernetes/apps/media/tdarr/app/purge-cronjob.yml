@@ -41,10 +41,19 @@ spec:
                 - |
                   set -eu
                   T=/Media/.tdarr-trash
-                  [ -d "$T" ] || { echo "no trash yet"; exit 0; }
-                  # mtime = when the swap moved the original here (it touches it).
-                  find "$T" -type f -mtime +14 -print -delete
-                  find "$T" -mindepth 1 -type d -empty -print -delete
+                  S=/Media/.tdarr-staging
+                  if [ -d "$T" ]; then
+                    # mtime = when the swap moved the original here (it touches it).
+                    find "$T" -type f -mtime +14 -print -delete
+                    find "$T" -mindepth 1 -type d -empty -print -delete
+                  else
+                    echo "no trash yet"
+                  fi
+                  # Half-written encodes left by a crash or power cut. A finished
+                  # encode is swapped in within minutes, so a day-old file is stale.
+                  if [ -d "$S" ]; then
+                    find "$S" -type f -mmin +1440 -print -delete
+                  fi
               volumeMounts:
                 - name: media
                   mountPath: /Media
