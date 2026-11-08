@@ -6,8 +6,10 @@
 |---|---|---|
 | Synology RS1219+ | 172.16.20.2 | NFS storage (Btrfs /volume2) |
 | Proxmox host | 172.16.20.3 | Hypervisor (Intel Core Ultra 5 235HX / Arrow Lake-HX) |
-| DGX Spark | 172.16.20.4 | GPU workstation (WOL-managed) |
-| `.5–.9` | reserved | Future physical devices |
+| jetkvm1 | 172.16.20.5 | JetKVM IP-KVM |
+| jetkvm2 | 172.16.20.6 | JetKVM IP-KVM |
+| rpi NUT server | 172.16.20.7 | Raspberry Pi — UPS monitoring (NUT server) |
+| `.4`, `.8–.9` | reserved | Future physical devices |
 | cp-1 | 172.16.20.11 | Talos control plane + workloads |
 | cp-2 | 172.16.20.12 | Talos control plane + workloads |
 | cp-3 | 172.16.20.13 | Talos control plane + workloads |
