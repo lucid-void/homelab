@@ -52,6 +52,39 @@ kubectl scale sts <name> -n <ns> --replicas=<n>
 Note the `Retain` policy also means every deleted PVC leaves a `Released` PV behind.
 These accumulate and are never reclaimed automatically.
 
+### Cleaning up `Released` PVs: never go by PV name
+
+Because the share path is derived from namespace+PVC name, **several `Released` PVs and
+a live `Bound` PV can all point at the same directory** — each delete/recreate cycle of
+the same PVC mints another PV object over the same data. In the 2026-09-21 cleanup, 18
+of 21 `Released` PVs shared a directory with a *currently mounted* volume (six
+`gitea-valkey` members, `vm-stack-grafana`, `postgres-2`). Deleting those directories
+would have destroyed live data.
+
+So the two halves of the cleanup have different safety rules:
+
+- **Deleting the PV object is always safe.** The StorageClass is `Retain`, so
+  Kubernetes never calls `DeleteVolume` and the directory is untouched.
+- **Deleting the directory requires a cross-reference by `share` path**, not by PV name
+  or by claim name:
+
+```bash
+kubectl get pv -o json | jq -r '
+  .items[] | select(.spec.csi.volumeAttributes.share) |
+  "\(.spec.csi.volumeAttributes.share)\t\(.status.phase)"' | sort | uniq -c
+```
+
+Only a path whose every row is `Released` is safe to remove. Also confirm no
+`VolumeAttachment` references the PV and that no PVC of that name still exists.
+
+To inspect or remove a directory, use the `csi-driver` container of the
+`democratic-csi-nfs-controller` pod — it already has the parent share mounted at
+`/mnt/kubernetes.nfs`, so no throwaway pod is needed:
+
+```bash
+kubectl exec -n democratic-csi <controller-pod> -c csi-driver -- ls /mnt/kubernetes.nfs/v
+```
+
 ### Usage
 
 ```yaml

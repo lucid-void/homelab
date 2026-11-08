@@ -38,7 +38,9 @@ Repo task runner: `justfile`.
 ```
 172.16.20.2    Synology RS1219+     NFS only (/volume2)
 172.16.20.3    Proxmox host         hypervisor (LVM-thin), hosts the Talos VMs
-172.16.20.4    DGX Spark            GPU box, WOL, not a k8s node
+172.16.20.5    jetkvm1              JetKVM (IP-KVM)
+172.16.20.6    jetkvm2              JetKVM (IP-KVM)
+172.16.20.7    rpi NUT server       Raspberry Pi, UPS monitoring (NUT)
 172.16.20.10   API VIP              kube-apiserver endpoint
 172.16.20.11/.12/.13  cp-1/2/3      Talos control plane, schedulable
 172.16.20.14   llm-1                Talos worker, tainted workload=llm

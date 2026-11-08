@@ -99,6 +99,30 @@ below.
   the cost is that `curl`ing the SSO redirect is part of finishing a restart, not an
   optional check. The command is in `jellyfin-ui.md`.
 
+## Local vs remote clients
+
+Jellyfin decides local/remote from the client IP it sees, so the Gateway path decides
+what it can tell apart. These settings are **runtime state on the config PVC**
+(Dashboard → Networking, `network.xml`) — git owns none of it, so a PVC rebuild means
+redoing them by hand.
+
+- **Known proxies: `10.244.0.0/16`.** Without it Jellyfin ignores `X-Forwarded-For` and
+  every client shows as the Cilium Envoy pod IP, so all of them count as remote. With it,
+  LAN clients appear under their real address.
+- **LAN networks: `172.16.0.0/16`** (unchanged). LAN clients land inside it.
+- **Netbird clients still show a `10.244.x.x` address**: the node advertising the
+  `172.16.20.0/24` route masquerades them, so the real `100.80.x.x` peer address never
+  reaches Jellyfin. That is fine here — `10.244.0.0/16` is outside LAN networks, so it
+  classifies as remote, which is what the bitrate cap needs. It does mean individual
+  Netbird peers can't be told apart in the logs. Fixing that needs masquerade off on the
+  Netbird route plus a UDM return route to `100.80.0.0/16`; not done.
+- In-cluster callers also arrive as `10.244.x.x` and count as remote. They don't stream,
+  so the cap doesn't touch them.
+- **Never widen LAN networks to include `10.244.0.0/16`** — it is what marks Netbird
+  traffic as remote.
+- The remote cap is Dashboard → Playback → Streaming → *Internet streaming bitrate limit*.
+- Jellyfin never writes "local" or "remote" in a log line; classify by source IP.
+
 ## Client-side stack
 
 Plugins and the theme are **runtime state on the config PVC** — git owns none of it and a

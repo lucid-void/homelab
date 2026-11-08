@@ -12,11 +12,6 @@ locals {
       ip_last    = 3
       dns_records= []
     }
-    dgx = {
-      ip_last    = 4
-      dns_records= ["ollama", "vllm", "openwebui", "langfuse", "qdrant", "searxng"]
-    }
-    
   }
 }
 
