@@ -6,8 +6,10 @@
 
 An Eaton Ellipse PRO 850 is connected over USB to a Raspberry Pi 4 (`nut-server`, 172.16.20.7, Debian).
 The Pi runs NUT in `netserver` mode. It powers the UniFi switch, the Synology, the Proxmox host and
-itself. **The Pi config is hand-managed, not in git.** This file is its record. The original
-Debian configs are in `/etc/nut/*.orig`; the pre-groups state is in `/etc/nut.bak-2026-11-07/`.
+itself. **The Pi config is hand-managed.** A redacted copy lives in `infra/nut-pi/` (same paths as
+on the Pi), so re-copy it there after changing it on the Pi. The passwords are only on the Pi, in
+`/root/nut-credentials.txt`. The original Debian configs are in `/etc/nut/*.orig`; the
+pre-groups state is in `/etc/nut.bak-2026-11-07/`.
 
 The UPS's outlets **cannot be switched individually** (`outlet.*.switchable: no`). The only power
 control is cutting the whole output (`shutdown.return`, 20 s delay, 30 s restart delay).
@@ -27,9 +29,15 @@ FSD ("forced shutdown") is raised per UPS name, so each name works as a shutdown
 1. On battery → `upssched` starts a **120 s** timer. Power back first → timer cancelled, nothing happens.
 2. Timer fires → `/usr/local/sbin/ups-sched-cmd` (runs as `nut`) touches
    `/run/nut/ups-shutdown.trigger` → `ups-shutdown.path` starts the root `ups-shutdown.service`.
-3. `/usr/local/sbin/ups-shutdown`: FSD on `ups-cluster`. Each node runs `/sbin/poweroff`, which is
-   the same graceful path as `talosctl shutdown`: pods get SIGTERM + grace, volumes unmount, etcd
-   stops. There is no etcd member removal, so quorum forms again on boot.
+3. `/usr/local/sbin/ups-shutdown`: FSD on `ups-cluster`. Each node runs `/sbin/poweroff`, which
+   calls the Talos Shutdown API **without force**. That is the same as `talosctl shutdown` without
+   `--force`: the node **cordons, then drains** (up to 1 min for the cordon and up to 5 min for
+   evictions, `DrainTimeout`, after which Talos logs a warning and carries on). After that, pods get
+   SIGTERM + grace, volumes unmount, and etcd stops. There is no etcd member removal, so quorum forms
+   again on boot. `/sbin/poweroff` has no force option.
+   **The drain always stalls:** the `postgres-primary` PDB allows 0 disruptions, and
+   `gitea-valkey-cluster` drops to 0 after the first eviction. Expect about 6–7 min until the node
+   that holds them powers off.
 4. It polls `upsc -c ups-cluster` until there are 0 clients, for at most **360 s**, then moves on anyway.
 5. `upsmon -c fsd` → the Synology and Proxmox shut down → the Pi shuts down → Debian's
    `nutshutdown` hook sends killpower → the UPS cuts its output 20 s later and restores it when mains
@@ -49,6 +57,10 @@ that goes before the cluster would take Postgres's disk away mid-write.
 The Pi boots whenever it has power. Synology: "Restart automatically when power supply issue is
 fixed". Proxmox: BIOS "Restore on AC power loss = Power On", plus a start-on-boot delay so the Talos
 VMs don't start before NFS is served.
+
+**Status:** the Pi and the Talos side are done. **Still pending:** the Synology and Proxmox
+clients, the BIOS setting, the boot delay, and the end-to-end plug-pull test. Until those are done,
+a power cut shuts down only the cluster cleanly.
 
 ## Rules
 

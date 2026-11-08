@@ -4,8 +4,9 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Planned
 
-- **NUT Pi (`nut-server`, 172.16.20.7) integrations.** The grouped shutdown is live
-  (`design/decisions/ups.md`). Still to do: a NUT exporter + VMRule alerts (on battery, FSD,
+- **NUT Pi (`nut-server`, 172.16.20.7) integrations.** The grouped shutdown is half live
+  (Pi + Talos done; Synology/Proxmox clients and the plug-pull test pending, see
+  `design/decisions/ups.md`). Then: a NUT exporter + VMRule alerts (on battery, FSD,
   a client missing from `ups-cluster`), Gatus/Homepage entries, a UniFi DHCP reservation and
   DNS name, and rotating the Pi's root password (it was shared in an agent session).
 - **Ignore stale news articles.** Skip articles published more than 3 days ago (needs the
