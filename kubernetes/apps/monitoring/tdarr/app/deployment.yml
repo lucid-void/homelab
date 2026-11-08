@@ -28,6 +28,11 @@ spec:
           env:
             - name: TDARR_URL
               value: http://tdarr.media.svc.cluster.local:8265
+            - name: TDARR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tdarr-exporter-api
+                  key: TDARR_API_KEY
           ports:
             - name: metrics
               containerPort: 9090

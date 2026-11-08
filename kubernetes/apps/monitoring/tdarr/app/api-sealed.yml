@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: tdarr-exporter-api
+  namespace: monitoring
+spec:
+  encryptedData:
+    TDARR_API_KEY: AgCc7ao7EsFkVbQ2/egrw6lQaRTbAFqDUL8I2+uByL0//0jV0Ezy/Hjr6HP6KTqP1UxQqplaoYLhVx/dRPnGtjS1SgRbS6Ha50dojrtf7Ad7/8O+TGVweg7Nsg4r1B+78Kgsmzar6w8bjinTp1kcsWay0WD2Q+IrD9TXKl937obgPjhIond1mMpCbOdPp2eVKobo5qBOp3LSa7MWVGGVz+gaZYBYiF9ksWLsLtzBL+4q1eSov8p3xKRFnxMLCgCPILUgtvkwuSzjX14smOo5IU5BhESE8QpyGvcNtRazOAnOGvn0uVFZdEWCKTnPBh8M4mYI1bIm3JQf9dk7u9mGvNYuqcqNw/L63fnWOtGW6pHnQcEmUaVXOi4zDb9IzmgB9116ECc1d1W+q8c+quGLs/HlMI5MQt+hGSK3nARfOHfnPGPGAtKXjjVYGawamjW/slqKleWkxqcq61OiA05TYqUG5nHfKdUJCsC3SxCBE1qQ7u4RfocpE7YX+3wlP5Gq5hKuEchLlEKw9D+eqs9EDhxH3DhdRUxJiPlKeZ5zXgXhkDiREzBKZEP3J7Sef8e9hTneDLiLat59NWIvKoVkg58lYC/0c/DRjEvzxWq9z7DVRpB+5FDyQAt+CKkvxKQ51uBG6gwJ/sFtt3DGPMJN4D1z57HrO5V0uE4rDab+kN5nhLqXifpEYVO+/PwRTYKjIFqJzrKNxDoWS967QTKloQ==
+  template:
+    metadata:
+      name: tdarr-exporter-api
+      namespace: monitoring
