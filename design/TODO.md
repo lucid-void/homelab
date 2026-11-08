@@ -4,6 +4,10 @@ Open work only. A finished item is deleted, not struck through.
 
 ## Planned
 
+- **NUT Pi (`nut-server`, 172.16.20.7) integrations.** The grouped shutdown is live
+  (`design/decisions/ups.md`). Still to do: a NUT exporter + VMRule alerts (on battery, FSD,
+  a client missing from `ups-cluster`), Gatus/Homepage entries, a UniFi DHCP reservation and
+  DNS name, and rotating the Pi's root password (it was shared in an agent session).
 - **Ignore stale news articles.** Skip articles published more than 3 days ago (needs the
   `published` field from the FreshRSS API; old Steam patch notes still get through today).
 - **Rotate the RapidAPI (AeroDataBox) key.** It was pasted into an agent transcript on

@@ -839,10 +839,10 @@ Synology `kubernetes.nfs` share), so this order lets Postgres checkpoint cleanly
 is still mounted.
 
 ```bash
-# Halts all three CPs concurrently: stops pods (SIGTERM + grace),
+# Halts all four nodes concurrently: stops pods (SIGTERM + grace),
 # unmounts volumes, flushes + stops etcd, powers off the VM.
 mise exec -- talosctl shutdown \
-  --nodes 172.16.20.11,172.16.20.12,172.16.20.13 \
+  --nodes 172.16.20.11,172.16.20.12,172.16.20.13,172.16.20.14 \
   --talosconfig kubernetes/talos/clusterconfig/talosconfig
 ```
 
@@ -856,6 +856,12 @@ needed afterward.
   `kubernetes/talos/` first.
 
 Then power off the Synology and do the hardware work.
+
+**On a power cut this happens by itself:** after 2 min on battery the NUT Pi (172.16.20.7)
+shuts down the cluster, then the Synology and Proxmox, then itself and the UPS output. See
+`design/decisions/ups.md`. For planned work that pulls the UPS's own mains plug, expect that
+sequence to run. For planned work on the Pi itself, the UPS is unmonitored: nothing shuts down
+cleanly if mains fails meanwhile.
 
 ### Start back up
 
