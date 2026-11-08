@@ -49,7 +49,7 @@ Declared in `talconfig.yaml` under each node's
 | `siderolabs/qemu-guest-agent` | Proxmox VM management (clean shutdown, snapshots) |
 | `siderolabs/lldpd` | LLDP neighbour discovery for switch port mapping |
 | `siderolabs/netbird` | WireGuard mesh VPN — remote access without port forwarding |
-| `siderolabs/nut-client` | UPS monitoring (disabled — no UPS yet) |
+| `siderolabs/nut-client` | UPS shutdown group 1 — watches `ups-cluster@172.16.20.7`, powers off on FSD (`design/decisions/ups.md`) |
 | `siderolabs/i915` | Intel iGPU driver — **cp-2 only**, for Jellyfin Quick Sync (`design/decisions/jellyfin.md`) |
 
 ---

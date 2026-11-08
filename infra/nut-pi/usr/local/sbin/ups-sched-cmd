@@ -1,0 +1,6 @@
+#!/bin/sh
+# Called by upssched (as user nut) with the timer name as $1.
+logger -t ups-shutdown "upssched event: $1"
+case "$1" in
+  ups-shutdown) touch /run/nut/ups-shutdown.trigger ;;
+esac

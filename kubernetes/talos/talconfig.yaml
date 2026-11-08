@@ -64,6 +64,18 @@ patches:
     name: netbird
     environment:
       - NB_SETUP_KEY=${NB_SETUP_KEY}
+  - |-
+    # UPS group 1: on FSD of ups-cluster (raised by the Pi 2 min into a power
+    # cut) every node powers off cleanly, before the Synology goes down.
+    # See design/decisions/ups.md.
+    apiVersion: v1alpha1
+    kind: ExtensionServiceConfig
+    name: nut-client
+    configFiles:
+      - content: |-
+          MONITOR ups-cluster@172.16.20.7 1 upsmon-remote ${NUT_UPSMON_PASSWORD} secondary
+          SHUTDOWNCMD "/sbin/poweroff"
+        mountPath: /usr/local/etc/nut/upsmon.conf
 
 controlPlane:
   patches:
@@ -111,7 +123,7 @@ nodes:
           officialExtensions:
             - siderolabs/lldpd
             - siderolabs/netbird
-            # - siderolabs/nut-client  # NUT client is disabled on CPs to avoid potential issues with power management during cluster upgrades (e.g. if a CP reboots before draining, it could cause a brief outage)
+            - siderolabs/nut-client
             - siderolabs/qemu-guest-agent
     networkInterfaces:
       - interface: ens18
@@ -143,7 +155,7 @@ nodes:
           officialExtensions:
             - siderolabs/lldpd
             - siderolabs/netbird
-            # - siderolabs/nut-client
+            - siderolabs/nut-client
             - siderolabs/qemu-guest-agent
             # Intel iGPU driver for Jellyfin Quick Sync — cp-2 ONLY, matching
             # the hostpci passthrough in infra/terraform/kubernetes.tf (only
@@ -179,7 +191,7 @@ nodes:
           officialExtensions:
             - siderolabs/lldpd
             - siderolabs/netbird
-            # - siderolabs/nut-client
+            - siderolabs/nut-client
             - siderolabs/qemu-guest-agent
     networkInterfaces:
       - interface: ens18
@@ -227,7 +239,7 @@ nodes:
           officialExtensions:
             - siderolabs/lldpd
             - siderolabs/netbird
-            # - siderolabs/nut-client
+            - siderolabs/nut-client
             - siderolabs/qemu-guest-agent
     networkInterfaces:
       - interface: ens18

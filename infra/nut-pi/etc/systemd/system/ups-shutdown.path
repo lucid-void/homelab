@@ -1,0 +1,9 @@
+[Unit]
+Description=Start the grouped UPS shutdown when upssched fires
+
+[Path]
+PathExists=/run/nut/ups-shutdown.trigger
+Unit=ups-shutdown.service
+
+[Install]
+WantedBy=multi-user.target

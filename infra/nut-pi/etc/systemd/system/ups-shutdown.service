@@ -1,0 +1,6 @@
+[Unit]
+Description=Grouped UPS shutdown (cluster -> Synology/Proxmox -> Pi/UPS)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ups-shutdown ups-shutdown
