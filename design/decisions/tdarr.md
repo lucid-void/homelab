@@ -36,6 +36,14 @@ Target: H.264, 720p/1080p, video bitrate 6 Mbps and up, over 5 minutes, in `Seri
 6 TB; the savings estimate (1.8–2.4 TB at 30–40%) is an assumption until the test encode
 replaces it. Target codec is HEVC: no evidence the Living Room TV decodes AV1.
 
+## Test results (2026-11-08)
+
+Five 5-minute clips at CRF 21, 10-bit, `slow`: 56-83% smaller, SSIM 0.97-0.99 (the 21 Mbps
+Blu-ray movie scored lowest, 0.967, so over-15 Mbps sources are the risk; consider a lower CRF
+there). Speed was 0.4-1.0x realtime on the node's 6 CPUs, so the 6-9 Mbps band alone is
+roughly two months of continuous encoding. The flow was then run end to end on two copies in a
+throwaway library: 365 MB -> 63 MB and 273 MB -> 95 MB, originals parked in the trash.
+
 ## Rules
 
 - **Never use Tdarr's "replace original" step.** `/volume2/Media` has no backup; the swap
@@ -51,19 +59,23 @@ replaces it. Target codec is HEVC: no evidence the Living Room TV decodes AV1.
   it (rename keeps the old mtime). Removing the `touch` makes the purge delete originals at
   once.
 - **Pin both Tdarr images to the same tag**, full version, never `latest`.
-- **Libraries and the flow live in Tdarr's own database**, not git. Rebuild them from the
-  list in this file if the config PVC is lost: three libraries (`/Media/Series`,
-  `/Media/Series_done`, `/Media/Movies`), the filter above, x265 `slow` with the CRF chosen in
-  the test encode, all streams mapped, then `tdarr-swap.sh <original> <output>`, with the
-  item failed on a non-zero exit.
-- **`ffprobe` is not on the node's PATH** — only `ffmpeg` is (`/usr/local/bin`). The swap script
-  reads `FFMPEG`/`FFPROBE`, set on the node to Tdarr's bundled binaries.
-- **The swap script treats a `und` language tag as no tag.** mp4 tags untagged audio `und`
-  while the mkv output carries none, so a strict comparison rejected every mp4 source.
-- **Tdarr 3.x has authentication on by default.** The node (`apiKey`, SealedSecret
-  `media/tdarr-api`) and the exporter (`TDARR_API_KEY`, `monitoring/tdarr-exporter-api`) share one
-  key created in the UI under Tools -> API Keys; the first person to open the UI becomes admin,
-  so create the account right after a fresh install. Rotating the key means resealing both.
+- **Libraries and the flow live in Tdarr's own database**, not git. The flow is exported as
+  `design/decisions/tdarr-flow.json` (13 nodes). To rebuild it after losing the config PVC, POST it
+  to `/api/v2/cruddb` with `{"data":{"collection":"FlowsJSONDB","mode":"insert","docID":"h264-to-hevc-slow","obj":<file>}}`
+  and the node's `apiKey` in an `x-api-key` header. Libraries are created in the UI (three:
+  `/Media/Series`, `/Media/Series_done`, `/Media/Movies`, cache `/temp`, folder watch off, flow
+  selected). The flow is: codec is h264 -> resolution 720p or 1080p -> video bitrate 6000 kbps and up
+  -> begin command -> 10-bit -> `libx265` preset `slow` CRF 21, hardware encoding off -> cap x265
+  pools at 6 -> mkv -> execute -> copy to `/Media/.tdarr-staging` (keeping the relative path, as the
+  working file) -> `Run CLI` `/scripts/tdarr-swap.sh "<original>" "<staged>"` -> working file back to
+  the original. A non-zero exit from the script fails the item as a transcode error.
+- **Tdarr's `/api/v2/poll-worker-limits` is a long-poll.** The node logging `Worker limit polling
+  failed ... ETIMEDOUT` every ~30 s is normal, not a network fault.
+- **Directories Tdarr's worker (uid 2202) cannot write make the swap refuse.** Never create a
+  library or test folder as root (`kubectl exec` runs as root); chown it to `2202:2200`. A refused
+  swap leaves the original untouched and shows as `Transcode: Error` in Tdarr.
+- **The node's ffmpeg has no libvmaf.** Judge quality with SSIM/PSNR (`ssim` and `psnr` filters), or
+  by eye, not VMAF.
 - After a swap, Sonarr/Radarr need a manual rescan for items whose source was `.mp4` (the
   output is `.mkv`), or they mark the episode missing.
 
