@@ -150,6 +150,11 @@ scope and nothing else.
   produce duplicate alerts for one condition. Real per-directory size needs `du` run
   inside the pod — see
   `kubernetes/apps/media/minecraft/app/world-size-configmap.yml` for the pattern.
+- **Keep Grafana's memory limit well above its working set.** The chart sets `GOMEMLIMIT` to
+  about 90% of the limit by itself. With the limit at 512Mi and a p90 of 440 MiB, opening a large
+  dashboard reached that target, pegged several cores in garbage collection for minutes, failed
+  the health check and ended in an OOM kill. The symptoms read as a storage fault, including
+  `database is locked` from SQLite, so check `lastState` and working set first.
 
 ## Verify
 
