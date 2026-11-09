@@ -1,0 +1,286 @@
+{
+  "_id": "h264-to-hevc-slow",
+  "name": "H.264 to HEVC (x265 slow, CRF 21, verified swap)",
+  "description": "720p/1080p H.264 at 6 Mbps and up -> x265 slow CRF 21 10-bit mkv, staged, verified and swapped by /scripts/tdarr-swap.sh. See design/decisions/tdarr.md.",
+  "tags": "",
+  "flowPlugins": [
+    {
+      "name": "Input File",
+      "sourceRepo": "Community",
+      "pluginName": "inputFile",
+      "version": "1.0.0",
+      "id": "in",
+      "position": {
+        "x": 400,
+        "y": 0
+      }
+    },
+    {
+      "name": "Is H.264",
+      "sourceRepo": "Community",
+      "pluginName": "checkVideoCodec",
+      "version": "1.0.0",
+      "id": "codec",
+      "position": {
+        "x": 400,
+        "y": 100
+      },
+      "inputsDB": {
+        "codec": "h264"
+      }
+    },
+    {
+      "name": "Resolution",
+      "sourceRepo": "Community",
+      "pluginName": "checkVideoResolution",
+      "version": "1.0.0",
+      "id": "res",
+      "position": {
+        "x": 400,
+        "y": 200
+      }
+    },
+    {
+      "name": "Bitrate 6 Mbps and up",
+      "sourceRepo": "Community",
+      "pluginName": "checkVideoBitrate",
+      "version": "1.0.0",
+      "id": "br",
+      "position": {
+        "x": 400,
+        "y": 300
+      },
+      "inputsDB": {
+        "unit": "kbps",
+        "greaterThan": "6000",
+        "lessThan": "200000"
+      }
+    },
+    {
+      "name": "Begin Command",
+      "sourceRepo": "Community",
+      "pluginName": "ffmpegCommandStart",
+      "version": "1.0.0",
+      "id": "start",
+      "position": {
+        "x": 400,
+        "y": 400
+      }
+    },
+    {
+      "name": "Set 10 Bit Video",
+      "sourceRepo": "Community",
+      "pluginName": "ffmpegCommand10BitVideo",
+      "version": "1.0.0",
+      "id": "b10",
+      "position": {
+        "x": 400,
+        "y": 500
+      }
+    },
+    {
+      "name": "Set Video Encoder x265",
+      "sourceRepo": "Community",
+      "pluginName": "ffmpegCommandSetVideoEncoder",
+      "version": "1.0.0",
+      "id": "enc",
+      "position": {
+        "x": 400,
+        "y": 600
+      },
+      "inputsDB": {
+        "outputCodec": "hevc",
+        "ffmpegPresetEnabled": "true",
+        "ffmpegPreset": "slow",
+        "ffmpegQualityEnabled": "true",
+        "ffmpegQuality": "21",
+        "hardwareEncoding": "false",
+        "hardwareType": "auto",
+        "hardwareDecoding": "false",
+        "forceEncoding": "true"
+      }
+    },
+    {
+      "name": "Cap x265 threads",
+      "sourceRepo": "Community",
+      "pluginName": "ffmpegCommandCustomArguments",
+      "version": "1.0.0",
+      "id": "args",
+      "position": {
+        "x": 400,
+        "y": 700
+      },
+      "inputsDB": {
+        "inputArguments": "",
+        "outputArguments": "-x265-params pools=6:log-level=error"
+      }
+    },
+    {
+      "name": "Set Container mkv",
+      "sourceRepo": "Community",
+      "pluginName": "ffmpegCommandSetContainer",
+      "version": "1.0.0",
+      "id": "cont",
+      "position": {
+        "x": 400,
+        "y": 800
+      },
+      "inputsDB": {
+        "container": "mkv",
+        "forceConform": "false"
+      }
+    },
+    {
+      "name": "Execute",
+      "sourceRepo": "Community",
+      "pluginName": "ffmpegCommandExecute",
+      "version": "1.0.0",
+      "id": "exec",
+      "position": {
+        "x": 400,
+        "y": 900
+      }
+    },
+    {
+      "name": "Stage next to the library",
+      "sourceRepo": "Community",
+      "pluginName": "copyToDirectory",
+      "version": "1.0.0",
+      "id": "stage",
+      "position": {
+        "x": 400,
+        "y": 1000
+      },
+      "inputsDB": {
+        "outputDirectory": "/Media/.tdarr-staging",
+        "keepRelativePath": "true",
+        "makeWorkingFile": "true"
+      }
+    },
+    {
+      "name": "Verify and swap",
+      "sourceRepo": "Community",
+      "pluginName": "runCli",
+      "version": "1.0.0",
+      "id": "swap",
+      "position": {
+        "x": 400,
+        "y": 1100
+      },
+      "inputsDB": {
+        "useCustomCliPath": "true",
+        "customCliPath": "/scripts/tdarr-swap.sh",
+        "doesCommandCreateOutputFile": "false",
+        "cliArguments": "\"{{{args.originalLibraryFile._id}}}\" \"{{{args.inputFileObj._id}}}\"",
+        "outputFileBecomesWorkingFile": "false"
+      }
+    },
+    {
+      "name": "Working file is the swapped file",
+      "sourceRepo": "Community",
+      "pluginName": "setWorkingFile",
+      "version": "1.0.0",
+      "id": "wf",
+      "position": {
+        "x": 400,
+        "y": 1200
+      },
+      "inputsDB": {
+        "source": "originalFile"
+      }
+    }
+  ],
+  "flowEdges": [
+    {
+      "source": "in",
+      "sourceHandle": "1",
+      "target": "codec",
+      "targetHandle": null,
+      "id": "in-1-codec"
+    },
+    {
+      "source": "codec",
+      "sourceHandle": "1",
+      "target": "res",
+      "targetHandle": null,
+      "id": "codec-1-res"
+    },
+    {
+      "source": "res",
+      "sourceHandle": "3",
+      "target": "br",
+      "targetHandle": null,
+      "id": "res-3-br"
+    },
+    {
+      "source": "res",
+      "sourceHandle": "4",
+      "target": "br",
+      "targetHandle": null,
+      "id": "res-4-br"
+    },
+    {
+      "source": "br",
+      "sourceHandle": "1",
+      "target": "start",
+      "targetHandle": null,
+      "id": "br-1-start"
+    },
+    {
+      "source": "start",
+      "sourceHandle": "1",
+      "target": "b10",
+      "targetHandle": null,
+      "id": "start-1-b10"
+    },
+    {
+      "source": "b10",
+      "sourceHandle": "1",
+      "target": "enc",
+      "targetHandle": null,
+      "id": "b10-1-enc"
+    },
+    {
+      "source": "enc",
+      "sourceHandle": "1",
+      "target": "args",
+      "targetHandle": null,
+      "id": "enc-1-args"
+    },
+    {
+      "source": "args",
+      "sourceHandle": "1",
+      "target": "cont",
+      "targetHandle": null,
+      "id": "args-1-cont"
+    },
+    {
+      "source": "cont",
+      "sourceHandle": "1",
+      "target": "exec",
+      "targetHandle": null,
+      "id": "cont-1-exec"
+    },
+    {
+      "source": "exec",
+      "sourceHandle": "1",
+      "target": "stage",
+      "targetHandle": null,
+      "id": "exec-1-stage"
+    },
+    {
+      "source": "stage",
+      "sourceHandle": "1",
+      "target": "swap",
+      "targetHandle": null,
+      "id": "stage-1-swap"
+    },
+    {
+      "source": "swap",
+      "sourceHandle": "1",
+      "target": "wf",
+      "targetHandle": null,
+      "id": "swap-1-wf"
+    }
+  ]
+}
