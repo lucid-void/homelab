@@ -14,6 +14,13 @@ Open work only. A finished item is deleted, not struck through.
   end to end (`design/decisions/ups.md`). Still to do: a NUT exporter + VMRule alerts (on battery, FSD,
   a client missing from `ups-cluster`), Gatus/Homepage entries, a UniFi DHCP reservation and
   DNS name, and rotating the Pi's root password (it was shared in an agent session).
+- **Public DNS records are wrong for two services.** `pi.blackcats.cc` is `172.16.20.1` in
+  Cloudflare (`ip_last = 1` in `infra/terraform/external.tf`; the Pi is `.7`). `matcha` and
+  `vanilla.blackcats.cc` have no public record despite the external-dns annotation. The LAN
+  resolvers mask both; Netbird clients still get them wrong.
+- **Find what makes Plex run out of memory overnight.** OOM-killed about every 28 minutes
+  between 00:25 and 04:25 UTC at the old 4Gi limit; raised to 8Gi on 2026-11-09 without
+  establishing the cause. If kills continue, find the job.
 - **Ignore stale news articles.** Skip articles published more than 3 days ago (needs the
   `published` field from the FreshRSS API; old Steam patch notes still get through today).
 - **Rotate the RapidAPI (AeroDataBox) key.** It was pasted into an agent transcript on
@@ -168,8 +175,8 @@ Open work only. A finished item is deleted, not struck through.
   verification. Decide explicitly: accept the risk, or move to digest pinning plus
   Kyverno/cosign `verifyImages` for the custom `ghcr.io/lucid-void/*` images at
   minimum.
-- UDM SE is a single point of failure for DNS as well as gateway/DHCP/ad-blocking — no
-  secondary resolver for `*.blackcats.cc`.
+- UDM SE is still a single point of failure for the gateway and DHCP. DNS no longer depends
+  on it (`design/decisions/dns.md`).
 - No documented Synology-loss recovery path (rebuild, re-export shares, re-mount PVs,
   restore from Filen).
 - No Keycloak break-glass / account-recovery runbook. Jellyfin's local admin is the

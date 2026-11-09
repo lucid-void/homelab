@@ -33,6 +33,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | Service | Namespace | Kind | Auth | Notes |
 |---|---|---|---|---|
 | CNPG cluster `postgres` | postgres | Cluster (CNPG) | Per-DB roles | 2 instances (1 primary + 1 replica); custom image with pgvector + VectorChord (Immich vector search on VectorChord); connects via `postgres-rw.postgres.svc.cluster.local:5432` |
+| CNPG cluster `blocky-logs` | network | Cluster (CNPG) | Owner + read-only `grafana_ro` | 1 instance; Blocky's 14-day query log only; LAN LoadBalancer `172.16.20.54:5432` for the Pi (`design/decisions/dns.md`) |
 | postgres-backup | postgres | CronJob | — | Daily 03:30; dumps all k8s DBs; restic → rclone-filen |
 
 ---
@@ -58,6 +59,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | gotify-telegram | monitoring | Deployment | — | — | Python WebSocket bridge: Gotify `/stream` → Telegram Bot API; priority colours: 🔴 ≥8, 🟡 ≥5, 🟢 <5 |
 | flight-tracker | monitoring | Deployment | — | — | Single-user Telegram bot: `/track LH123 2026-10-05`, alerts on gate/terminal/time/status changes from AeroDataBox (free plan, ~200 calls/month). No route; reuses `telegram-secret`, answers only the owner's chat. State on an `nfs-client` PVC. Also triages Gotify messages with Clef and sends a FreshRSS news digest |
 | am-gotify-bridge | monitoring | Deployment | — | — | Python HTTP bridge: AlertManager webhook → Gotify; listens :5000; reads `gotify-secret`; priority 8 firing / 5 resolved |
+| dns-monitoring | monitoring | Kustomization | — | — | Scrapes both Blocky resolvers; Grafana dashboards `Blocky` and `Blocky query`; `Blocky Logs` datasource |
 | Gatus | monitoring | HelmRelease | `gatus.blackcats.cc` | **none** | HTTP/HTTPS health checks + cert expiry for all services. Not on SSO — it has never had an OIDC client or secret |
 | VictoriaMetrics Stack | monitoring | HelmRelease | — | — | `victoria-metrics-k8s-stack` v0.76.0; includes VMSingle (30Gi openebs-hostpath), VMAgent, VMAlert, AlertManager, Grafana, kube-state-metrics, node-exporter |
 | Grafana | monitoring | HelmRelease (subchart) | `grafana.blackcats.cc` | Keycloak OIDC | Dashboards for VictoriaMetrics data; credentials from the sealed `grafana-oidc-secret`. Role comes from a JMESPath `role_attribute_path` over the flat `grafana_roles` claim (client roles `admin`/`editor`/`viewer`), strict, so a login whose role cannot be read is refused |

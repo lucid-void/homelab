@@ -256,6 +256,8 @@ Manifests: `kubernetes/apps/cert-manager/`, `kubernetes/apps/gateway/shared-gate
 
 The Cloudflare API token is stored as `cloudflare-api-token` Secret in `cert-manager` namespace (SealedSecret).
 
+cert-manager checks DNS-01 propagation directly against `1.1.1.1` and `9.9.9.9` (`--dns01-recursive-nameservers-only`), because the LAN resolvers return nothing for TXT under `blackcats.cc`.
+
 ### DNS (external-dns)
 
 external-dns watches `HTTPRoute`, `GRPCRoute` and `Service` resources and creates Cloudflare A records. DNS creation is **opt-in**:
@@ -282,6 +284,12 @@ Because the annotation-filter applies to every source, adding `service` did not 
 No Cloudflare proxy. External access requires Netbird VPN.
 
 Manifests: `kubernetes/apps/network/external-dns/`
+
+### LAN resolution (Blocky)
+
+Cloudflare is the public copy of these records. On the LAN, clients ask two Blocky resolvers, `172.16.20.7` (NUT Pi) and `172.16.20.53` (cluster), which answer `*.blackcats.cc` themselves, so local names keep working with no internet and the Pi keeps working with no cluster. Talos nodes use the Pi, then the UDM.
+
+The Blocky config holds a static wildcard to the Gateway plus the names not behind it, so adding an HTTPRoute needs no LAN DNS change. A new name that is **not** behind the Gateway needs a mapping in `blocky.conf`. Rules and limits: `design/decisions/dns.md`.
 
 ### Adding a Route
 

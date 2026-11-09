@@ -63,6 +63,7 @@ Declared in `talconfig.yaml` under each node's
 | Compute platform | Talos Linux k8s cluster, FluxCD GitOps. 3 control planes `cp-1/2/3` (`.11`–`.13`, schedulable), API VIP `.10`, Gateway VIP `.50`. No dedicated workers. |
 | Internet exposure | Cloudflare DNS used only for valid TLS certs (DNS-01); all A records → internal IPs; no port forwarding on UDM SE; remote access requires Netbird VPN. No Cloudflare proxy. |
 | Netbird / ZeroTier | Netbird = primary remote-access VPN, runs as a Talos extension on every node (`wt0`, isolated from k8s networking). ZeroTier = gaming with friends only, on a separate VM outside the cluster (plain compose). |
+| LAN DNS | Two Blocky resolvers, cluster (`.53`) and NUT Pi (`.7`), from one config in git; DHCP hands out both. `*.blackcats.cc` answers locally with no internet. Nodes use the Pi, then the UDM, never `.53`. See `design/decisions/dns.md`. |
 | Cloudflare API tokens | One token per consumer (external-dns, cert-manager, Proxmox), Zone→DNS→Edit on blackcats.cc only; isolated for independent revocation. |
 | NFS / Postgres traffic | Cleartext on internal VLAN — accepted risk; private network, VPN-gated. |
 
@@ -107,7 +108,8 @@ See `design/docs/networking.md` for the full reference. Summary:
 - **Ingress:** Cilium Gateway API — single `shared` Gateway at `172.16.20.50` (L2
   announcement)
 - **TLS:** cert-manager, wildcard `*.blackcats.cc` via Let's Encrypt DNS-01/Cloudflare
-- **DNS:** external-dns, opt-in annotation per HTTPRoute/GRPCRoute
+- **DNS:** external-dns publishes to Cloudflare, opt-in annotation per HTTPRoute/GRPCRoute;
+  the LAN resolves through Blocky (`design/decisions/dns.md`)
 - **Netbird VPN** runs as a Talos extension on every node, adding a `wt0` interface at
   `100.80.x.x/16`. Three guards in `talconfig.yaml` stop those IPs polluting Kubernetes
   networking: etcd `advertisedSubnets`/`listenSubnets`, kubelet

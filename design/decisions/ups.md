@@ -5,7 +5,7 @@
 ## Current state
 
 An Eaton Ellipse PRO 850 is connected over USB to a Raspberry Pi 4 (`nut-server`, 172.16.20.7, Debian).
-The Pi runs NUT in `netserver` mode. It powers the UniFi switch, the Synology, the Proxmox host and
+The Pi also runs the LAN's out-of-cluster DNS resolver, capped at 256 MB so it can't starve the shutdown (`design/decisions/dns.md`). The Pi runs NUT in `netserver` mode. It powers the UniFi switch, the Synology, the Proxmox host and
 itself. **The Pi config is hand-managed.** A redacted copy lives in `infra/nut-pi/` (same paths as
 on the Pi), so re-copy it there after changing it on the Pi. The passwords are only on the Pi, in
 `/root/nut-credentials.txt`. Logs persist across power loss (`/var/log/journal`, capped at 200 MB).
