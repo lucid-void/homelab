@@ -16,8 +16,8 @@
 | llm-1 | 172.16.20.14 | Talos worker — LLM inference only, tainted `workload=llm:NoSchedule` |
 | k8s API VIP | 172.16.20.10 | API server endpoint (floats via leader election) |
 | Gateway VIP | 172.16.20.50 | Cilium L2 announcement — `shared` Gateway |
-| Pool-B VIPs | 172.16.20.51–.52 | Cilium L2 announcement — direct LoadBalancer services (.51 Plex, .52 Velocity proxy) |
-| UDM SE | 172.16.20.254 | Gateway, DHCP, DNS resolver, ad blocking — local overrides for `*.blackcats.cc`, upstream resolver `1.1.1.1` |
+| Pool-B VIPs | 172.16.20.51–.54 | Cilium L2 announcement — direct LoadBalancer services (.51 Plex, .52 Velocity proxy, .53 Blocky DNS, .54 Blocky query log DB) |
+| UDM SE | 172.16.20.254 | Gateway, DHCP. Hands out the two Blocky resolvers (`design/decisions/dns.md`); has no local DNS records of its own, upstream `1.1.1.1` |
 
 **Pod CIDR:** `10.244.0.0/16`
 **Service CIDR:** `10.96.0.0/12`
@@ -65,7 +65,7 @@ Two `CiliumLoadBalancerIPPool` resources + one `CiliumL2AnnouncementPolicy` (man
 | Pool | IP | Selector |
 |---|---|---|
 | `pool-a` | 172.16.20.50 | `gateway.networking.k8s.io/gateway-name: shared` |
-| `pool-b` | 172.16.20.51–172.16.20.52 | `lbpool: pool-b` |
+| `pool-b` | 172.16.20.51–172.16.20.54 | `lbpool: pool-b` |
 
 The L2 announcement policy applies to all Linux nodes on interfaces matching `^ens[0-9]+`. ARP responses are handled by whichever node is elected; if that node goes down, another takes over.
 
@@ -77,6 +77,8 @@ pool-a is exclusively for the `shared` Gateway. pool-b is for any other `LoadBal
 |---|---|---|---|
 | `media/plex` (`plex-direct`) | 172.16.20.51 | 32400 | Plex `ADVERTISE_IP` hardcodes it |
 | `media/minecraft-proxy` (Velocity) | 172.16.20.52 | 25565 | matcha/vanilla A records via external-dns |
+| `network/blocky` | 172.16.20.53 | 53 TCP+UDP | DHCP hands it to every client; `externalTrafficPolicy: Local` for real client IPs |
+| `network/blocky-logs-lan` | 172.16.20.54 | 5432 | The Pi's query log connection |
 
 ### Never share one pool-b IP between Services
 

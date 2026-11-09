@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Keeps the Pi's Blocky identical to what git says: the config is the same file the
+# cluster mounts, and the version is the image tag in the cluster's HelmRelease.
+#
+# A new config or version is validated before it is installed, and rolled back if
+# Blocky doesn't answer afterwards. If GitHub is unreachable nothing changes.
+#
+# Also restarts Blocky once the log database is back if it started without it,
+# because Blocky only connects its query log at startup.
+set -euo pipefail
+
+BASE_URL="${BLOCKY_BASE_URL:-https://raw.githubusercontent.com/lucid-void/Homelab/main}"
+ROOT="${BLOCKY_ROOT:-}"
+HEALTH_PORT="${BLOCKY_HEALTH_PORT:-53}"
+APP_PATH=kubernetes/apps/network/blocky/app
+OPT="$ROOT/opt/blocky"
+ETC="$ROOT/etc/blocky"
+
+# Port 4000 is an unauthenticated API, so never run without the firewall on it.
+if ! nft list table inet blocky >/dev/null 2>&1; then
+  echo "blocky-sync: nftables table 'blocky' is missing, re-run install.sh" >&2
+  exit 1
+fi
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+curl -fsS --max-time 60 --retry 2 -o "$work/blocky.conf" "$BASE_URL/$APP_PATH/blocky.conf"
+curl -fsS --max-time 60 --retry 2 -o "$work/helmrelease.yml" "$BASE_URL/$APP_PATH/helmrelease.yml"
+
+version=$(grep -A1 'repository: ghcr.io/0xerr0r/blocky' "$work/helmrelease.yml" \
+  | sed -nE 's/^[[:space:]]*tag:[[:space:]]*"?([^"]+)"?[[:space:]]*$/\1/p')
+if ! [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "blocky-sync: could not read a version from the HelmRelease (got '$version')" >&2
+  exit 1
+fi
+
+case "$(uname -m)" in
+  aarch64) arch=arm64 ;;
+  x86_64) arch=x86_64 ;;
+  *) echo "blocky-sync: unsupported architecture $(uname -m)" >&2; exit 1 ;;
+esac
+
+new_bin="$OPT/$version/blocky"
+if [[ ! -x "$new_bin" ]]; then
+  tarball="blocky_${version}_Linux_${arch}.tar.gz"
+  release="https://github.com/0xERR0R/blocky/releases/download/$version"
+  curl -fsSL --max-time 300 --retry 2 -o "$work/$tarball" "$release/$tarball"
+  curl -fsSL --max-time 60 --retry 2 -o "$work/checksums" "$release/blocky_checksums.txt"
+  (cd "$work" && grep " $tarball\$" checksums | sha256sum -c --status -)
+  tar -xzf "$work/$tarball" -C "$work" blocky
+  mkdir -p "$OPT/$version"
+  install -m 0755 "$work/blocky" "$new_bin"
+fi
+
+cp "$work/blocky.conf" "$work/config.yml"
+"$new_bin" validate --config "$work/config.yml" >/dev/null
+
+mkdir -p "$ETC"
+old_bin=$(readlink "$OPT/current" 2>/dev/null || true)
+if [[ "$old_bin" == "$OPT/$version" ]] && cmp -s "$work/config.yml" "$ETC/config.yml"; then
+  invocation=$(systemctl show -p InvocationID --value blocky.service)
+  if journalctl -q "_SYSTEMD_INVOCATION_ID=$invocation" 2>/dev/null | grep -q 'using console as fallback'; then
+    target=$(sed -nE 's#^.*@([^:/]+):([0-9]+)/.*$#\1/\2#p' "$ETC/querylog-dsn")
+    if [[ -n "$target" ]] && timeout 3 bash -c "</dev/tcp/$target" 2>/dev/null; then
+      echo "blocky-sync: log database is back, restarting Blocky to reconnect"
+      systemctl restart blocky.service
+    fi
+  fi
+  exit 0
+fi
+
+had_config=false
+if [[ -f "$ETC/config.yml" ]]; then
+  cp -p "$ETC/config.yml" "$work/config.prev"
+  had_config=true
+fi
+
+install -m 0644 "$work/config.yml" "$ETC/config.yml"
+ln -sfn "$OPT/$version" "$OPT/current"
+systemctl restart blocky.service
+
+healthy() {
+  local i
+  for i in $(seq 1 15); do
+    "$OPT/current/blocky" healthcheck --port "$HEALTH_PORT" >/dev/null 2>&1 && return 0
+    timeout 1 tail -f /dev/null || true
+  done
+  return 1
+}
+
+if healthy; then
+  echo "blocky-sync: running $version with the config from main"
+  exit 0
+fi
+
+echo "blocky-sync: $version did not answer after restart, rolling back" >&2
+if [[ -n "$old_bin" && "$had_config" == true ]]; then
+  install -m 0644 "$work/config.prev" "$ETC/config.yml"
+  ln -sfn "$old_bin" "$OPT/current"
+  systemctl restart blocky.service
+fi
+exit 1

@@ -1,0 +1,17 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./helmrelease.yml
+  - ./logs-cluster.yml
+  - ./blocky-logs-app-sealed.yml
+  - ./blocky-logs-dsn-sealed.yml
+  - ./blocky-logs-init-sql-sealed.yml
+# No hash suffix: Reloader rolls the pods when this ConfigMap changes, and a fixed
+# name keeps the HelmRelease from needing a kustomizeconfig rewrite.
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: blocky-config
+    files:
+      - ./blocky.conf

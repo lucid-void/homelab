@@ -1,0 +1,159 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: blocky
+  namespace: network
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      app:
+        replicas: 2
+        # A config that fails to start leaves the old pods answering. Don't add
+        # `unavailable: 0`: the chart drops a zero, and the 25% default already
+        # rounds down to no unavailable pods at 2 replicas.
+        strategy: RollingUpdate
+        rollingUpdate:
+          surge: 1
+        annotations:
+          reloader.stakater.com/auto: "true"
+        pod:
+          labels:
+            monitoring.blackcats.cc/scrape: blocky
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 100
+            fsGroup: 100
+            seccompProfile:
+              type: RuntimeDefault
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: blocky
+        initContainers:
+          # Blocky only connects its query log at startup, so after a full cluster
+          # boot it has to wait for the database or it logs nothing until restarted.
+          # Capped, because the Pi answers meanwhile and DNS must not depend on this.
+          wait-for-logs-db:
+            image:
+              repository: docker.io/library/busybox
+              tag: "1.37.0"
+            command:
+              - sh
+              - -c
+              - timeout 180 sh -c 'until nc -z -w 2 blocky-logs-rw.network.svc 5432; do sleep 2; done' || echo "log database unreachable, starting without query logging"
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: ["ALL"]
+            resources:
+              requests:
+                cpu: 5m
+                memory: 8Mi
+              limits:
+                memory: 32Mi
+        containers:
+          app:
+            ports:
+              - name: http
+                containerPort: 4000
+                protocol: TCP
+            image:
+              # blocky-sync on the Pi reads this tag, so one Renovate bump moves
+              # both resolvers. Keep repository and tag on adjacent lines.
+              repository: ghcr.io/0xerr0r/blocky
+              tag: "v0.35.0"
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: ["ALL"]
+                add: ["NET_BIND_SERVICE"]
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /metrics
+                    port: 4000
+                  periodSeconds: 10
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+              readiness: *probes
+            resources:
+              # Measured at 62 MiB with the current 225k-domain list; the limit
+              # leaves room for the second copy held during a list refresh.
+              requests:
+                cpu: 20m
+                memory: 128Mi
+              limits:
+                memory: 256Mi
+
+    service:
+      app:
+        controller: app
+        type: LoadBalancer
+        # Local keeps the real client IP, which the per-device dashboards need.
+        # Safe with L2 announcements on Cilium 1.20: a node with no live local pod
+        # stops announcing (pkg/l2announcer), despite what Cilium's docs still say.
+        externalTrafficPolicy: Local
+        labels:
+          lbpool: pool-b
+        annotations:
+          # DHCP hands this address to every client, so it can never move. Own
+          # address only: see kube-system/cilium/config/cilium-l2.yml. Port 4000
+          # stays off this Service because Blocky's HTTP API has no auth.
+          lbipam.cilium.io/ips: "172.16.20.53"
+        ports:
+          dns-udp:
+            port: 53
+            protocol: UDP
+          dns-tcp:
+            port: 53
+            protocol: TCP
+
+    persistence:
+      config:
+        type: configMap
+        name: blocky-config
+        advancedMounts:
+          app:
+            app:
+              - path: /app/config.yml
+                subPath: blocky.conf
+                readOnly: true
+      querylog-dsn:
+        type: secret
+        name: blocky-logs-dsn
+        advancedMounts:
+          app:
+            app:
+              - path: /etc/blocky/querylog-dsn
+                subPath: dsn
+                readOnly: true
+      lists:
+        type: emptyDir
+        globalMounts:
+          - path: /var/cache/blocky/lists

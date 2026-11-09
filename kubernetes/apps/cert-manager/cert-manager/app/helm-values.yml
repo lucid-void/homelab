@@ -2,6 +2,13 @@
 crds:
   enabled: true
 
+# The cluster's resolvers answer *.blackcats.cc locally and return nothing for TXT
+# under it, so the DNS-01 self-check has to ask public DNS directly.
+# See design/decisions/dns.md.
+extraArgs:
+  - --dns01-recursive-nameservers-only
+  - --dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53
+
 # Resource requests. Sized from a 30d VictoriaMetrics window (p90 / peak MiB).
 # All three cert-manager containers previously ran with no requests at all,
 # leaving them BestEffort and first to be evicted under node pressure.

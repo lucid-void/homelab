@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: blocky-logs-init-sql
+  namespace: network
+spec:
+  encryptedData:
+    init.sql: AgBgSMXzoSwUOlnKiu7up4NxK+uvuP0iVDVrsj3yDy+CSH9qZJhd/NhcXJAiPVHmBE28h0rOHvY15Guv8EV00tpwHANni7rh3cx6xBNqv1eNS/3Gtx53D/lpjQy2+uoyUpoFJRpN6sSRfjI5p+t/Ja9V1ddVTJtcY69mbUMWyaCKHZIeCD7AUhLOgsoD0ML0dQWtYIhtAJX2w+Gv1i/SP+K+1iNcuaAtXM2/8B96Mdfn/TapIBdrPjxAR6NlBKPfqrGwzP82o3pR6OdmwbJRlDtViM5FracgyFsmd2Z/9GxihyRGrXrL/pHuLDoi8qEIPoVqbS+inHgjWXBfnpw7Z5anq9dwIt0CIeD+qna04LHKYSJyC68y2W895fsFe5J1qy8E8ILoyrwaGYpV7g7pR2UXQ5v+PlZK09OBYaHnhCySzwpgtFVqqRLpCzcOBquL3GEnKk5szt72lCiSjYrVV7GygFPmebHOPU7Q1AMvexYEzksxQN82LEI9A9jDdlao6T1eYorv37Jx4jvEHXKmbJ5t7FeFZMI0do5WVoRxbYAWULRhr8ELgX69+Q4dgSFP978/3bmKaBeOqXXpLBFE/6AM/jn2kEoKU5rNsdgNirbBMbGapkKWOK7E4kk4MMr3VvcXnys2pKJ7/AVAQZZhmUXeldwZ33bhWqmVnT+egSCQ66azc74QoZ0uqto5k5dQWJgt37ia6LjCzC8r4jcmv9HJIr1pQtcsNzSNCb8A/ULL+JrDdSbRcC+5qi8cRMpurLyJNPyFi+KeA5cgrOVDLH7oxaSY2KK1QjkcPHNT7DSByIBxGuEhI7+/7mUf5T8O2PWbYFjqzX15t6xFSiTEI1+XpU8beL4y3GBzC50SJRWYBuSndLf3EwcjnoK7ek7s+Xt8IUE+Vk2QC2ixDOIRYNkQEsVz73SgPOtg+mkai97/nOMcVuhJM1swVKQ=
+  template:
+    metadata:
+      name: blocky-logs-init-sql
+      namespace: network

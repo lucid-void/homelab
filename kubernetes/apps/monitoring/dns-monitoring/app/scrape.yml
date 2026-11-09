@@ -1,0 +1,33 @@
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: blocky
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - network
+  selector:
+    matchLabels:
+      monitoring.blackcats.cc/scrape: blocky
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 60s
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMStaticScrape
+metadata:
+  name: blocky-pi
+  namespace: monitoring
+spec:
+  jobName: blocky-pi
+  targetEndpoints:
+    - targets:
+        - 172.16.20.7:4000
+      labels:
+        instance: blocky-pi
+      scheme: http
+      path: /metrics
+      interval: 60s

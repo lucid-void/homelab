@@ -73,6 +73,34 @@ data:
         conditions:
           - "[CONNECTED] == true"
 
+      # Both resolvers, asked directly. Clients fall back silently when one dies,
+      # so nothing else would notice the Pi being down until the cluster was too.
+      - name: DNS (Pi)
+        group: infrastructure
+        url: "172.16.20.7"
+        interval: 1m
+        dns:
+          query-name: jellyfin.blackcats.cc
+          query-type: A
+        conditions:
+          - "[DNS_RCODE] == NOERROR"
+          - "[BODY] == 172.16.20.50"
+        alerts:
+          - type: gotify
+
+      - name: DNS (cluster)
+        group: infrastructure
+        url: "172.16.20.53"
+        interval: 1m
+        dns:
+          query-name: jellyfin.blackcats.cc
+          query-type: A
+        conditions:
+          - "[DNS_RCODE] == NOERROR"
+          - "[BODY] == 172.16.20.50"
+        alerts:
+          - type: gotify
+
       - name: Goldilocks
         group: infrastructure
         url: https://goldilocks.blackcats.cc

@@ -1,0 +1,48 @@
+---
+# Query history only. Separate from the shared cluster because the Pi has to reach
+# it over the LAN, and that must not mean exposing the database behind SSO.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: blocky-logs
+spec:
+  instances: 1
+  enableSuperuserAccess: false
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ClusterImageCatalog
+    name: postgres-cnpg-immich
+    major: 17
+  bootstrap:
+    initdb:
+      database: blocky
+      owner: blocky
+      secret:
+        name: blocky-logs-app
+      # Creates Grafana's read-only role. Runs once, at first bootstrap only.
+      postInitApplicationSQLRefs:
+        secretRefs:
+          - name: blocky-logs-init-sql
+            key: init.sql
+  managed:
+    services:
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: blocky-logs-lan
+              labels:
+                lbpool: pool-b
+              annotations:
+                lbipam.cilium.io/ips: "172.16.20.54"
+            spec:
+              type: LoadBalancer
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  storage:
+    size: 10Gi
+    storageClass: nfs-client

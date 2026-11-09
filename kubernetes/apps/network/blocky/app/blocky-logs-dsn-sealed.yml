@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: blocky-logs-dsn
+  namespace: network
+spec:
+  encryptedData:
+    dsn: AgDEmkyQ6y3M3u+4FQxFqMTo6d2elHQklISGcj5z3xNRPLaN2DpkbGKRt1z/drK44xXth/iYI6rcFKh4JARrKQQ84f9YvIuvNtnFoQTnfp3KziB9+ggCJAgMhi1aeencSFUGUJgAh+0ncWZS59S6t3E8lWTdJLupWd1rzgvFQJzHMQUO1p3wZrLjlHaNRys/mPabfOAKqW8/PnPpFztQCmhU+fT6LXRQg/y7NxnCzxKl75/sdMjkjGLFQEjK3udkI+f9328ZRclp2Tu2YELVM09aHJyfEOKGypBboMskbWyQdgdnfrY058AWnTXU+a8wgdBGBuwbYbz7/kyZIPuFHjJKc58cYdI4SVS90GsElPJXR4aYGUSefQe/x+dWOYq8P3m69zAOPWAKZzYCOA4eqe60XCu673Wkoqp0hVKSLG3sz/S/C8aQ/x/1qspVymxqy1gEOf2DcSQ8OevhtBiDif39V7BFjG/Q9fQePKWwwziKydTNdNt/FAGxnRAsTiS25AU3zCQsdinxjRkOUINnjmI0kQPjE0ZWAnorfAZuoJyP4apIQtCPtGwlrRTrZgY9ygGnolatXT3ZDIz4nv9u6W5SzD5bvvjLAnrudV6IaNLX0A+PTJnPWy352r6vaPHYHeMvLr5Qg8Z2s7jWu/Gw5XWtreexOY80Aaa3SQuSWtUuOWvqw7BBHiyn3IsGMcXyoOOYZBY4bs+jHT8ByKzUDUs9+sLhU14Cf6XYi1AVe9CExaxyOOMpYrwQhY+W1UCd9BPvCrhooFuZonTremWbr96iuIOkcNuCh3kp84uEWzmpHvXep4cCS2bQqImhus10tqtuUbJfkb07UeUcGyOlf28ydQdssMk3tdnH+yQ3T2DxI/rHm5TTTJyjDBt9
+  template:
+    metadata:
+      name: blocky-logs-dsn
+      namespace: network

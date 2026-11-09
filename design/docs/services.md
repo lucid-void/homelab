@@ -21,6 +21,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | OpenEBS | openebs | HelmRelease | — | — | `openebs-hostpath` StorageClass; LocalPV at `/var/openebs/local` |
 | cert-manager | cert-manager | HelmRelease | — | — | ClusterIssuer `letsencrypt-production` (DNS-01/Cloudflare) |
 | external-dns | network | HelmRelease | — | — | `gateway-httproute` + `gateway-grpcroute` sources; opt-in annotation |
+| blocky | network | HelmRelease | — | — | LAN DNS + ad blocking on `172.16.20.53:53`; second instance on the Pi (`design/decisions/dns.md`) |
 | Shared Gateway | gateway | Gateway (Cilium) | `*.blackcats.cc` → 172.16.20.50 | — | Single HTTPS Gateway; wildcard cert `shared-tls` |
 | VPA | goldilocks | HelmRelease | — | — | Recommender-only mode (no mutation/admission) |
 | Goldilocks | goldilocks | HelmRelease | `goldilocks.blackcats.cc` | **none** | VPA recommendation dashboard; monitors all namespaces except system ones. Not on SSO — it has never had an OIDC client or secret |
