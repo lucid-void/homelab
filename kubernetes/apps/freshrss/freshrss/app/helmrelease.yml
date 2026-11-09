@@ -104,11 +104,12 @@ spec:
                   failureThreshold: 5
               readiness: *probes
             resources:
+              # 30d p90 188 MiB, peak 500 MiB, OOM-killed at the old 512Mi limit.
               requests:
-                memory: 128Mi
+                memory: 192Mi
                 cpu: 25m
               limits:
-                memory: 512Mi
+                memory: 1Gi
 
     service:
       app:

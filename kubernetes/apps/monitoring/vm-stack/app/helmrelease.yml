@@ -36,12 +36,14 @@ spec:
           resources:
             requests:
               storage: 30Gi
+        # 30d p90 1286 MiB (part page cache), peak 1489 MiB. Long-range queries were
+        # enough to OOM-kill it at the old 1500Mi limit.
         resources:
           requests:
-            memory: 512Mi
+            memory: 1300Mi
             cpu: 100m
           limits:
-            memory: 1500Mi
+            memory: 3Gi
 
     # VMCluster not needed — single-node is sufficient for homelab
     vmcluster:

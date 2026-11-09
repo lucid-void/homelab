@@ -55,7 +55,10 @@ spec:
                 memory: 1Gi
                 cpu: 100m
               limits:
-                memory: 4Gi
+                # Was 4Gi: OOM-killed about every 28 min overnight (00:25-04:25 UTC),
+                # at least 199 kills in 30 days. Peak was capped by the limit, so this
+                # is an estimate. If kills continue, find the overnight job instead.
+                memory: 8Gi
 
     service:
       app:
