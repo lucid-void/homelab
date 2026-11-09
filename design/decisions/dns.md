@@ -48,6 +48,9 @@ but logs nothing until restarted:
 - **Cluster:** an initContainer waits up to 3 minutes for the database first.
 - **Pi:** `blocky-sync` restarts Blocky once the database is reachable again.
 
+On a brand-new database, two pods starting together can race creating the table, and the
+loser falls back too (`duplicate key` in its log). `kubectl rollout restart` clears it.
+
 A database that dies after Blocky has connected is harmless: DNS is unaffected, those
 queries are lost, and logging resumes on its own.
 
@@ -99,6 +102,12 @@ queries are lost, and logging resumes on its own.
   start, and the Pi refuses or rolls back a config that fails validation. A valid but wrong
   config, such as a bad mapping, applies to both.
 
+## Hand-managed on the Pi
+
+- `/etc/blocky/querylog-dsn`: the database login, written once (see Verify)
+- `/etc/resolv.conf` stays on public DNS, never only the Pi itself: `blocky-sync` needs DNS
+  that works when Blocky doesn't
+
 ## Hand-managed in UniFi
 
 Not in git, so a UDM reset means redoing these:
@@ -123,8 +132,8 @@ mise exec -- talosctl -n 172.16.20.11 get resolverstatus
 # the Pi is on the version and config from main
 journalctl -u blocky-sync.service -n 20
 
-# real client names in the metrics, not node IPs
-curl -s http://172.16.20.7:4000/metrics | grep blocky_query_total   # from a cluster node only
+# real client names, not node IPs: run in Grafana against VictoriaMetrics
+# sum by (client) (blocky_query_total)
 
 # give the Pi its query log credentials (once, after the cluster side is up)
 mise exec -- kubectl get secret blocky-logs-dsn -n network -o jsonpath='{.data.dsn}' | base64 -d \

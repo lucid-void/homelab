@@ -58,6 +58,12 @@ confirm the bridge supports 9000 before changing anything here.
   CRD deletes it from the cluster. 1.6.1 only *adds* (`xbackends`), but a future bump
   may not.
 
+- **`externalTrafficPolicy: Local` works with L2 announcements on 1.20, despite the docs.**
+  Cilium's L2 page still calls them incompatible, but `pkg/l2announcer` withdraws the
+  announcement on any node with no live local backend. `network/blocky` relies on this for real
+  client IPs. Expect one brief gap while the announcement moves during a rollout. Re-check
+  that code before a Cilium major upgrade.
+
 ## Verify
 
 ```bash

@@ -9,6 +9,11 @@ replica), chart `cloudnative-pg`. It is configured
 `primaryUpdateStrategy: unsupervised` + `primaryUpdateMethod: restart`, and
 `ENABLE_INSTANCE_MANAGER_IN_PLACE_UPDATES` is unset (default `false`).
 
+A second, single-instance cluster, `blocky-logs` in `network`, holds only Blocky's query log.
+It is separate because the NUT Pi reaches it over the LAN at `172.16.20.54:5432`, which must
+not expose the database behind SSO. It isn't backed up and needs no managed roles
+(`design/decisions/dns.md`). Everything below describes the shared cluster.
+
 **Backups are logical dumps only.** There is **no** `ScheduledBackup`/`Backup`/
 `barmanObjectStore` — no WAL archiving, no PITR. The only DB backup is the
 `postgres-backup` CronJob (03:30) doing `pg_dump` off the read replica. Consequence:
