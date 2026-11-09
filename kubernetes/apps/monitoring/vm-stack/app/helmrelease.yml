@@ -184,12 +184,15 @@ spec:
           auto_login: "false"
       service:
         port: 3000
+      # Sized from a 30d window: p90 440 MiB, peak at the old 512Mi limit. At that
+      # limit, opening a large dashboard hit GOMEMLIMIT, pegged the CPU in garbage
+      # collection, and ended in an OOM kill.
       resources:
         requests:
-          memory: 256Mi
+          memory: 512Mi
           cpu: 50m
         limits:
-          memory: 512Mi
+          memory: 1Gi
       # The two dashboard/datasource sidecars are separate containers from
       # grafana itself and inherit nothing from the block above -- they ran with
       # no requests at all. One `sidecar.resources` covers both.
