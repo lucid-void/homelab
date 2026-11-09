@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./namespace.yml
   - ./external-dns/ks.yml
+  - ./blocky/ks.yml

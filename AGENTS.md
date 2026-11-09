@@ -48,7 +48,9 @@ Repo task runner: `justfile`.
 172.16.20.50   Gateway VIP          pool-a, shared Gateway ingress (Cilium L2)
 172.16.20.51   pool-b               Plex direct/GDM LB — must not drift to .52
 172.16.20.52   pool-b               minecraft-proxy / Velocity LB
-172.16.20.254  UDM SE               gateway + DNS resolver + ad blocking
+172.16.20.53   pool-b               Blocky DNS (cluster); the Pi at .7 is the second resolver
+172.16.20.54   pool-b               Blocky query log Postgres, for the Pi
+172.16.20.254  UDM SE               gateway + DHCP
 ```
 
 Netbird (`wt0`, `100.80.x.x/16`) runs as a Talos extension on every node, not on a VM.
@@ -68,6 +70,7 @@ Proxmox CPU: Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E), a Minisforum MS-02
 | a pod stuck Running or at `Status: Error`, zero logs, `backoffLimit` never fires, exit 99 | design/decisions/jobs-and-scripts.md |
 | Flux Kustomizations, Flux version pins, `force: true` re-runs | design/decisions/flux.md        |
 | HTTPRoute, DNS, certs, Gateway API                    | design/docs/networking.md             |
+| Blocky, ad blocking, LAN resolvers, per-device DNS dashboards, node `nameservers` | design/decisions/dns.md |
 | Cilium config, MTU, ALPN, TCPRoute                    | design/decisions/cilium-gateway.md    |
 | Postgres, CNPG, DB passwords, Reflector               | design/decisions/cnpg.md              |
 | PVCs, storage classes, NFS, Synology shares, `extraMounts` | design/docs/storage.md           |

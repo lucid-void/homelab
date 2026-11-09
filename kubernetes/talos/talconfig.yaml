@@ -117,6 +117,9 @@ nodes:
           apiServer:
             extraArgs:
               advertise-address: 172.16.20.11
+    nameservers: &nodeNameservers
+      - 172.16.20.7
+      - 172.16.20.254
     schematic:
       customization:
         systemExtensions:
@@ -133,8 +136,6 @@ nodes:
           - network: 0.0.0.0/0
             gateway: 172.16.20.254
         dhcp: false
-        nameservers:
-          - 172.16.20.254
         vip:
           ip: 172.16.20.10              # shared API VIP — held by whichever CP wins leader election
 
@@ -149,6 +150,7 @@ nodes:
           apiServer:
             extraArgs:
               advertise-address: 172.16.20.12
+    nameservers: *nodeNameservers
     schematic:
       customization:
         systemExtensions:
@@ -169,8 +171,6 @@ nodes:
           - network: 0.0.0.0/0
             gateway: 172.16.20.254
         dhcp: false
-        nameservers:
-          - 172.16.20.254
         vip:
           ip: 172.16.20.10
 
@@ -185,6 +185,7 @@ nodes:
           apiServer:
             extraArgs:
               advertise-address: 172.16.20.13
+    nameservers: *nodeNameservers
     schematic:
       customization:
         systemExtensions:
@@ -201,8 +202,6 @@ nodes:
           - network: 0.0.0.0/0
             gateway: 172.16.20.254
         dhcp: false
-        nameservers:
-          - 172.16.20.254
         vip:
           ip: 172.16.20.10
 
@@ -225,14 +224,13 @@ nodes:
                 - key: workload
                   value: llm
                   effect: NoSchedule
-    # NOTE: node-level, NOT under networkInterfaces[] where the cp-1/2/3 blocks
-    # below put it. talhelper's `Device` schema has no `nameservers` key and
-    # genconfig drops unknown keys instead of erroring, so the interface-level
-    # setting is a silent no-op — verified on the live cluster, where cp-1's
-    # ResolverStatus reads ["1.1.1.1","8.8.8.8"] rather than the UDM SE.
-    # Do not "tidy" this by moving it into the interface block.
-    nameservers:
-      - 172.16.20.254
+    # NOTE: node-level on every node, NOT under networkInterfaces[]. talhelper's
+    # `Device` schema has no `nameservers` key and genconfig drops unknown keys
+    # instead of erroring, so the interface-level setting is a silent no-op; the
+    # control planes ran on Talos's default 1.1.1.1/8.8.8.8 because of it.
+    # Never add the in-cluster resolver (172.16.20.53) here: nodes need DNS to
+    # start the cluster that serves it. See design/decisions/dns.md.
+    nameservers: *nodeNameservers
     schematic:
       customization:
         systemExtensions:

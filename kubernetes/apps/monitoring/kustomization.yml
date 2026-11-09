@@ -13,6 +13,7 @@ resources:
   - ./vm-stack/ks.yml
   - ./proxmox-monitoring/ks.yml
   - ./minecraft-monitoring/ks.yml
+  - ./dns-monitoring/ks.yml
   - ./ai-monitoring/ks.yml
   - ./kromgo/ks.yml
   - ./tdarr/ks.yml

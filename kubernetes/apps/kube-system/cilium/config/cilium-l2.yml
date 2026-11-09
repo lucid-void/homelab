@@ -44,6 +44,8 @@ spec:
 # migrate between Services on reconcile.
 #   172.16.20.51  media/plex-direct  (Plex ADVERTISE_IP hardcodes this)
 #   172.16.20.52  media/minecraft-proxy  (matcha/vanilla A records, external-dns)
+#   172.16.20.53  network/blocky  (handed to every client by DHCP)
+#   172.16.20.54  network/blocky-logs-lan  (the Pi's query log connection)
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
 metadata:
@@ -51,7 +53,7 @@ metadata:
 spec:
   blocks:
     - start: "172.16.20.51"
-      stop: "172.16.20.52"
+      stop: "172.16.20.54"
   serviceSelector:
     matchLabels:
       lbpool: pool-b

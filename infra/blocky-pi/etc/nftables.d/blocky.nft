@@ -1,0 +1,14 @@
+# Blocky's metrics share a port with an API that has no auth and can switch blocking
+# off, so only the cluster nodes (vmagent's source address) may reach it.
+table inet blocky {
+  set metrics_clients {
+    type ipv4_addr
+    elements = { 172.16.20.11, 172.16.20.12, 172.16.20.13, 172.16.20.14 }
+  }
+  chain input {
+    type filter hook input priority 0; policy accept;
+    iifname "lo" accept
+    tcp dport 4000 ip saddr @metrics_clients accept
+    tcp dport 4000 drop
+  }
+}

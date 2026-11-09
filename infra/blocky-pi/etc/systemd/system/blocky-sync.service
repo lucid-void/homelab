@@ -1,0 +1,8 @@
+[Unit]
+Description=Sync Blocky version and config from git
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/blocky-sync

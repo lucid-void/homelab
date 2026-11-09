@@ -1,0 +1,15 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: grafana-datasource-blocky-logs
+  namespace: monitoring
+spec:
+  encryptedData:
+    blocky-logs.yaml: AgC8iHMlqX/LPca1EHnPuMJzXTdrguyGZhGrVGyQWS0TX570+MRx4GQAYNy16SUo6CF2rV1qoNv+Cbcmw5k8PqTblLEDOrsk0Wsz6esHkbdpB6DDQ39F0L1IngHhWaZEFmYPMCOJUdlwgB+aFYG0YY9EsURHNHmmHO2aUwIikLiADuqtComzIlsqFMLFaaWgaUFi5MZlHrsekjZaPwTtAeq7QHB1e5zPb3CJBgo7ZVI7AwHhi9MywY3hKZ94G+tL7l1/G8lfl/ZAFj41nOYSK37sCHY8Up+WgMzo+m+OS5o6DVvOhpZQv5pVsmHqfveiT54acdSSeW2UvpHODWvo/nsQIx77Hu7ctDIb8Nlgvl8EnFyk31weLrOgLZcLVxHJIcIfvRNGUbeAzx7+kXquy+hWEAZ+qZfHPvT56d389t74uQH9UtzQIWy4hpSjDHwSZonwFJuLdlJ4japVXXmpAk5kSaGooFEdASK7EEiscV0D26LREUyXW4ssCRAWIzJtFokS4WUo/Cr1PFn3nQfmCv9M+iJfbPLLfkOvbhLVstqVvfc+n1anVipzgDlxvF2LNI08+joHc4NiH+YbRr05EKhKYma1zcNcqjT7Nn4yREm1zATz4G4+RVRZMLQ8SkZwkeaSJZE0XWk8fXG27DvGDiVSIF+AsdiwldcYTwFoW8wN8OKD5HKgL6+RlaEEmm9zasTtG9SuuOKLUF3eZPs9y1DuwiMShRa8qq9Nf7yf7LLy9cr9vnCj0ocNCHd2C8Bjnkh45/sASH/I0fMDpOtla2Fvzr42RBoNSR6Wq4G3/QuSrWpZWDLIPUobIBNQocvi/E+Vph3lX+Lu0Q+VwfnSlft5dSIkR0sbS3BRnoCS8aQaCs3D0cSjWLEU6FHv9BstXryJL1vf2CfV2nIRBBE9uZNPrvMwO9JU2pzrMEsuOvVI+LqpX7Qbs+Ty4jNdeuQ6RbCylbvQ7A1TiCfPf/ptlyEgWq2yDFGyJM1FU0s3MJs2JBaVixrL71WKAiM6Yn7Xs0ZJxgCPutDC0e7rSM/f8qWGNdPIGWpIm9HRhoaU2i8BZywzB1cgvFu/KhoS5G1LeACxGiZ6Y5CBj1KfozTnOruIaIqTVNWbcbzXSqsLGX3XaC0F3tkPNUr8SvAZ04FejUIgnPJ6GQ==
+  template:
+    metadata:
+      labels:
+        grafana_datasource: "1"
+      name: grafana-datasource-blocky-logs
+      namespace: monitoring
