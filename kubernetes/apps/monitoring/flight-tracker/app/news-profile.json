@@ -31,6 +31,11 @@
     "max_candidates": 3,
     "question": "Is this article part of the same news story as this other headline: \"{title}\"?"
   },
+  "routine_updates": {
+    "title_regex": "^Driver-update - ",
+    "at": 0.5,
+    "question": "Does this driver release fix a serious problem, such as data loss, hardware damage or wear, a security vulnerability or system-wide crashes, rather than only adding game support, performance improvements or routine fixes?"
+  },
   "skip_release_feeds": true,
   "pure_feed_pattern": "github\\.com/[^/]+/[^/]+/(releases|tags)",
   "groups": {
