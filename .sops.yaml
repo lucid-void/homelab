@@ -1,5 +1,5 @@
 creation_rules:
-  # Ansible secrets — encrypted YAML files
+  # Talos secrets — encrypted YAML files (kubernetes/talos/*.sops.yaml)
   - path_regex: .*\.sops\.ya?ml$
     age: >-
       ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINn7GfUFiuXjafDckqYBRRe873ZGK5hIWVYFKuAXGvYM,

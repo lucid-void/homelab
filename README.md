@@ -15,14 +15,14 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 | Ingress | Cilium Gateway API (`HTTPRoute`/`GRPCRoute`; no `Ingress` objects) |
 | CSI | democratic-csi → Synology NFS (RWX, default) + static NFS PVs |
 | Local storage | OpenEBS hostpath (SQLite-hostile workloads) |
-| Databases | CloudNativePG — one shared cluster, per-app databases |
+| Databases | CloudNativePG — one shared cluster, per-app databases (plus a dedicated `blocky-logs` cluster for the DNS query log) |
 | Secrets | Sealed Secrets in-cluster; SOPS + age for Talos secrets |
 | GitOps | FluxCD |
 | TLS | cert-manager + Let's Encrypt DNS-01 (Cloudflare) |
 | Identity | Keycloak — the OIDC provider for every service on SSO |
 | Runtime security | Falco + Trivy Operator + kubent (weekly) |
 | Backups | Per-app CronJobs → restic → rclone → Filen (offsite) |
-| DNS | UDM SE (local override for `*.blackcats.cc`) + external-dns to Cloudflare |
+| DNS | Two Blocky resolvers — cluster (`172.16.20.53`) and the Raspberry Pi (`172.16.20.7`) — answer `*.blackcats.cc` locally and block ads; external-dns publishes to Cloudflare |
 | Remote access | Netbird (primary VPN on every node); ZeroTier (gaming, outside cluster) |
 | VM provisioning | Packer (Debian + Talos templates) + OpenTofu |
 | CI / CD | GitHub Actions (image builds → GHCR, manifest + security scans) + Renovate |
@@ -67,12 +67,12 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 - **Falco** — runtime security, `security` namespace (privileged PSA)
 - **Trivy Operator** — CVE + config audit scanning
 
-### De-Google
-- **freshrss, immich, gitea, paperless** — the `degoog` stack
+### Search
+- **Degoog** — `degoog.blackcats.cc`, self-hosted search engine aggregator
 
 ### AI / LLM
 - **llama-swap** — Qwen3.6-35B-A3B Q8_0 on dedicated tainted `llm-1`, ClusterIP `llama-swap:8080`
-- **LiteLLM** — `llm.blackcats.cc`, router with virtual keys (`local-smart`, `local-fast`)
+- **LiteLLM** — `llm.blackcats.cc`, router with per-client virtual keys; model names `local-smart`, `local-fast`
 - **Open WebUI** — `chat.blackcats.cc`, Keycloak OIDC
 
 ### VPN
@@ -93,10 +93,12 @@ Homelab/
 │   └── images/              # custom container images (built in CI, pushed to GHCR)
 ├── infra/
 │   ├── packer/              # Debian + Talos VM templates
-│   └── terraform/           # VM + DNS provisioning (OpenTofu)
+│   ├── terraform/           # VM + DNS provisioning (OpenTofu)
+│   ├── nut-pi/              # redacted copy of the Raspberry Pi's NUT (UPS) config — hand-managed on the Pi
+│   └── blocky-pi/           # Blocky DNS resolver on the same Pi: install.sh, systemd units, blocky-sync
 ├── .github/workflows/       # CI: image builds, manifest + security scans
 ├── design/                  # design specs, runbook, decisions (operator-only)
-├── INSTALLATION.md          # cluster bootstrap procedure (Phase 1 → live cluster)
+├── INSTALLATION.md          # stub — bootstrap procedure lives in design/runbook.md
 ├── justfile                 # task runner
 └── README.md                # this file
 ```
@@ -105,7 +107,7 @@ Homelab/
 
 ## Where to Find Things
 
-- **Bootstrap a fresh cluster** → [INSTALLATION.md](INSTALLATION.md)
+- **Bootstrap a fresh cluster** → [design/runbook.md](design/runbook.md) ("Bootstrap — New Cluster from Zero")
 - **Architecture, decisions, runbook** → [design/](design/)
 - **Per-application detail** → [design/docs/services.md](design/docs/services.md)
 - **Adding a new service end-to-end** → [design/docs/gitops.md](design/docs/gitops.md)
@@ -118,15 +120,16 @@ Homelab/
 
 ## Prerequisites
 
-Kubernetes tooling (`kubectl`, `flux`, `kubeseal`, `talosctl`, `talhelper`, `helm`,
-`helmfile`, `kubeconform`) is managed via [mise](https://mise.jdx.dev/). After cloning:
+All tooling is managed via [mise](https://mise.jdx.dev/) (`mise.toml`) — the Kubernetes
+side (`kubectl`, `flux`, `kubeseal`, `talosctl`, `talhelper`, `helm`, `helmfile`,
+`kubeconform`) and the IaC side (`packer`, `opentofu`, `tflint`, `sops`, `age`, `just`).
+After cloning:
 
 ```bash
 mise install
 ```
 
-For the IaC side, install `packer`, `opentofu`, `sops`, `age`, and `just`
-through your package manager.
+The tools are not put on `PATH`; run them as `mise exec -- <tool>`.
 
 ---
 
@@ -138,6 +141,7 @@ image tags.
 | Workflow | Trigger | Job |
 |---|---|---|
 | `manifest-scan.yml` | PR touching `kubernetes/**` | kubeconform (hard gate) + kube-linter (delta gate) |
+| `image-scan.yml` | PR touching `kubernetes/**` | grype + osv-scanner on every changed image; fails on a net increase in Critical/High CVEs (any Critical for a new image) |
 | `backup-tools.yml` | push to `kubernetes/images/backup-tools/**` | build + push image → GHCR |
 | `postgres-cnpg-immich.yml` | push to `kubernetes/images/postgres-cnpg-immich/**` | build + push image → GHCR |
 
