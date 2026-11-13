@@ -1,5 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./recovery.key)",
+      "Read(./**/*-secret.yml)",
+      "Read(./kubernetes/flux/vars/cluster-secrets.yml)",
+      "Read(./infra/terraform/terraform.tfstate*)",
+      "Read(./kubernetes/talos/clusterconfig/**)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

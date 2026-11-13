@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 # Claude Code PreToolUse hook (Write|Edit): on a manifest edit under
-# kubernetes/, inject the design doc(s) that govern that path as
+# kubernetes/, NAME the design doc(s) that govern that path as
 # additionalContext. Testing showed this lands alongside the tool result, not
 # before the model decides to call Write — so it can't prevent a first edit
 # made without the doc; it's a corrective, landing in time for the next turn
 # (and every edit after the first to that path in the session).
 #
 # The portable mechanism that actually gates the first edit is the AGENTS.md
-# routing table, which every harness reads before deciding what to write;
+# routing list, which every harness reads before deciding what to write;
 # this hook is Claude Code's belt-and-braces backstop on top of it.
+#
+# POINTERS, NOT CONTENT — this hook used to inline the whole doc. That paid
+# for every doc twice: the routing list had usually made the agent read it
+# already, and the hook cannot know that. Docs here run 1-22 KB and one path
+# can match three, so a single edit cost up to ~4,000 tokens of duplicate
+# context. It now emits one line per doc (~30 tokens) and leaves the reading —
+# and the choice of which section — to the agent.
 #
 # DELIVERY CONTRACT — verified against the installed Claude Code binary
 # (~/.local/share/claude/versions/2.1.238). For PreToolUse the binary's own
@@ -17,27 +24,16 @@
 # is a JSON object on stdout carrying
 #   {"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":...}}
 # which the binary's PreToolUse schema accepts and documents as "Text injected
-# into model context". Printing the doc as plain text — which this hook did
-# until 2026-09-19 — delivers nothing at all.
+# into model context". Printing plain text delivers nothing at all.
 #
-# BUDGET — the docs this routes to are 5-9 KB each and a path can match three
-# of them, so a naive injector costs ~2,000 tokens per Write/Edit and, being
-# stateless, re-pays that on every edit of the same file. Two guards:
-#   1. per-session dedupe: a doc is inlined at most once per session_id, so N
-#      edits to one manifest cost the docs once, not N times;
-#   2. a per-injection byte cap: past MAX_INLINE_BYTES the remaining docs are
-#      named by path instead of inlined, and stay unrecorded so a later edit
-#      can still inline them.
+# DEDUPE — a doc is named at most once per session_id, so N edits under one
+# service cost its pointers once, not N times.
 #
 # SAFETY — this runs before every Write and Edit. Every failure mode must be
 # "produce nothing, exit 0": never a nonzero exit (2 would BLOCK the tool
 # call), never stderr noise, and above all never malformed JSON — partial or
 # unparseable output is worse than silence.
 set -uo pipefail
-
-# Budget for one injection's inlined doc bytes (~3,000 tokens). The first
-# matched doc is always inlined even if it alone exceeds this.
-MAX_INLINE_BYTES=12000
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)" || exit 0
 [[ -n "$REPO" ]] || exit 0
@@ -58,8 +54,8 @@ DOCS="$("$REPO/.agents/scripts/route-context.sh" "$FILE_PATH" 2>/dev/null)" || e
 
 # --- per-session dedupe state -------------------------------------------
 # session_id comes from the hook's own stdin JSON. A missing or unparseable
-# one degrades to "inject anyway, record nothing" rather than failing: a
-# duplicate injection is a cost, a swallowed one is a correctness bug.
+# one degrades to "name them anyway, record nothing" rather than failing: a
+# duplicate pointer is a small cost, a swallowed one is a correctness bug.
 SESSION_ID=$(printf '%s' "$INPUT" | grep -o '"session_id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/^[^:]*:[[:space:]]*"//; s/"$//')
 SESSION_ID="${SESSION_ID//[^A-Za-z0-9_-]/}"
 
@@ -73,77 +69,47 @@ if [[ -n "$SESSION_ID" ]]; then
   fi
 fi
 
-already_injected() {
+already_named() {
   [[ -n "$STATE_FILE" ]] || return 1
   grep -qxF "$1" "$STATE_FILE" 2>/dev/null
 }
 
 # --- build the payload ---------------------------------------------------
-PAYLOAD="$(mktemp "${TMPDIR:-/tmp}/inject-context.XXXXXX" 2>/dev/null)" || exit 0
-trap 'rm -f "$PAYLOAD"' EXIT
-
-INLINED=()
-DEFERRED=()
-BYTES=0
-
+NAMED=()
 while IFS= read -r doc; do
   [[ -z "$doc" ]] && continue
   [[ -f "$REPO/$doc" ]] || continue
-  already_injected "$doc" && continue
-
-  SIZE=$(wc -c < "$REPO/$doc" 2>/dev/null) || SIZE=0
-  if (( ${#INLINED[@]} > 0 && BYTES + SIZE > MAX_INLINE_BYTES )); then
-    DEFERRED+=("$doc")
-    continue
-  fi
-
-  {
-    printf '=== required reading before editing %s: %s ===\n' "$FILE_PATH" "$doc"
-    cat "$REPO/$doc"
-    printf '\n'
-  } >> "$PAYLOAD" 2>/dev/null || exit 0
-
-  INLINED+=("$doc")
-  BYTES=$(( BYTES + SIZE ))
+  already_named "$doc" && continue
+  NAMED+=("$doc")
 done <<< "$DOCS"
 
-# Everything already seen this session: say nothing at all.
-if (( ${#INLINED[@]} == 0 && ${#DEFERRED[@]} == 0 )); then
-  exit 0
-fi
+# Everything already named this session: say nothing at all.
+(( ${#NAMED[@]} == 0 )) && exit 0
 
-if (( ${#DEFERRED[@]} > 0 )); then
-  {
-    printf 'Also governs %s, not inlined here (injection byte budget) — read if relevant:\n' "$FILE_PATH"
-    printf '  %s\n' "${DEFERRED[@]}"
-  } >> "$PAYLOAD" 2>/dev/null || exit 0
-fi
-
-[[ -s "$PAYLOAD" ]] || exit 0
+PAYLOAD="$FILE_PATH is governed by the design doc(s) below. If you have not read one this session, read it before your next edit here — its Contents list first when it has one, then only the section you need:"
+for doc in "${NAMED[@]}"; do
+  PAYLOAD+=$'\n'"  $doc"
+done
 
 # --- emit ---------------------------------------------------------------
-# The docs carry backticks, double quotes, backslashes and newlines, so the
-# string MUST be escaped by a real JSON encoder. jq preferred, python3 as
-# fallback; with neither, stay silent rather than hand-roll escaping.
+# The path can carry characters that need escaping, so the string MUST be
+# encoded by a real JSON encoder. jq preferred, python3 as fallback; with
+# neither, stay silent rather than hand-roll escaping.
 OUT=""
 if command -v jq >/dev/null 2>&1; then
-  OUT=$(jq -n --rawfile c "$PAYLOAD" \
+  OUT=$(jq -n --arg c "$PAYLOAD" \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$c}}' 2>/dev/null) || OUT=""
 elif command -v python3 >/dev/null 2>&1; then
   OUT=$(PAYLOAD="$PAYLOAD" python3 -c 'import json,os,sys
-with open(os.environ["PAYLOAD"], encoding="utf-8", errors="replace") as f:
-    c = f.read()
-sys.stdout.write(json.dumps({"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":c}}))' 2>/dev/null) || OUT=""
+sys.stdout.write(json.dumps({"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":os.environ["PAYLOAD"]}}))' 2>/dev/null) || OUT=""
 fi
 
 [[ -z "$OUT" ]] && exit 0
 
 printf '%s\n' "$OUT"
 
-# Record only what was actually inlined. A deferred doc stays unrecorded so
-# the next edit that routes to it can still inline it.
-if [[ -n "$STATE_FILE" ]] && (( ${#INLINED[@]} > 0 )); then
-  printf '%s\n' "${INLINED[@]}" >> "$STATE_FILE" 2>/dev/null
+if [[ -n "$STATE_FILE" ]]; then
+  printf '%s\n' "${NAMED[@]}" >> "$STATE_FILE" 2>/dev/null
 fi
 
 exit 0

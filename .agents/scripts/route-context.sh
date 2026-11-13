@@ -14,7 +14,7 @@
 # "any manifest carrying an image tag") and can't be matched by path alone
 # without parsing YAML; those are approximated by filename convention where
 # the repo's naming is consistent (helmrelease*.yml, *job.yml) and otherwise
-# left uncovered — see task-10-report.md for the full list of exclusions.
+# left uncovered.
 set -euo pipefail
 
 P="${1:-}"
@@ -46,7 +46,7 @@ emit() {
 # (they keep their own decision files) — checked separately from the big
 # case below because extglob's !(...) negation isn't segment-bounded: it
 # would also swallow "plex/app/foo.yml" as "not literally plex" and wrongly
-# fire (caught in testing; see task-10-report.md).
+# fire (caught in testing).
 #
 # This exclusion list is spelled out to the exact same directory names
 # claimed by name further down (minecraft.md's three, plus minecraft-events/
@@ -74,6 +74,16 @@ case "$P" in
                                           emit design/decisions/minecraft.md ;;&
   kubernetes/apps/media/minecraft/app/world-size-configmap.yml|kubernetes/apps/media/minecraft-events/*)
                                           emit design/decisions/minecraft-monitoring.md ;;&
+  # jellyfin, tdarr, youtube-queue and crosswatch also stay under the
+  # media-stack.md catch-all above: its shared media-NFS / app-template
+  # conventions apply to them as well.
+  kubernetes/apps/media/jellyfin/*|kubernetes/apps/keycloak/clients/app/jellyfin.yml)
+                                          emit design/decisions/jellyfin.md ;;&
+  kubernetes/apps/media/tdarr/*|kubernetes/apps/monitoring/tdarr/*)
+                                          emit design/decisions/tdarr.md ;;&
+  kubernetes/apps/media/youtube-queue/*) emit design/decisions/youtube-queue.md ;;&
+  kubernetes/apps/media/crosswatch/*|kubernetes/apps/keycloak/clients/app/crosswatch.yml)
+                                          emit design/decisions/watch-sync.md ;;&
 
   # --- single-service app namespaces ---
   kubernetes/apps/gitea/*)               emit design/decisions/gitea.md ;;&
@@ -121,6 +131,9 @@ case "$P" in
   kubernetes/apps/monitoring/gotify-bootstrap/app/bootstrap.sh) emit design/decisions/changedetection.md ;;&
   kubernetes/apps/monitoring/gotify/*|kubernetes/apps/monitoring/gotify-bootstrap/*|kubernetes/apps/monitoring/gotify-telegram/*)
                                           emit design/decisions/gotify.md ;;&
+  kubernetes/apps/monitoring/flight-tracker/*)
+    emit design/decisions/flight-tracker.md
+    emit design/decisions/gotify.md ;;&
 
   # --- monitoring (repo-wide claim; more specific monitoring subdirs above
   #     still add their own file via the shared ;;& fallthrough) ---
@@ -133,6 +146,20 @@ case "$P" in
   kubernetes/talos/talconfig.yaml)
     emit design/decisions/cilium-gateway.md
     emit design/architecture.md ;;&
+
+  # --- dns (blocky) ---
+  kubernetes/apps/network/blocky/*|kubernetes/apps/monitoring/dns-monitoring/*)
+                                          emit design/decisions/dns.md ;;&
+  kubernetes/talos/talconfig.yaml)       emit design/decisions/dns.md ;;&
+
+  # --- design/docs/: storage, secrets, networking (no "Read before editing"
+  #     header of their own; paths follow AGENTS.md's routing list) ---
+  kubernetes/apps/democratic-csi/*|kubernetes/apps/openebs/*|kubernetes/apps/media/media-nfs/*)
+                                          emit design/docs/storage.md ;;&
+  kubernetes/apps/kube-system/sealed-secrets/*|*-sealed.yml|*.sealed.yml)
+                                          emit design/docs/secrets.md ;;&
+  kubernetes/apps/cert-manager/*|kubernetes/apps/network/external-dns/*)
+                                          emit design/docs/networking.md ;;&
 
   # --- flux ---
   kubernetes/flux/*)                     emit design/decisions/flux.md ;;&
