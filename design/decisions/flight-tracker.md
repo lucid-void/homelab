@@ -162,6 +162,18 @@ on the class. The core needs no change.
   ordinary articles 5 passed, 4 of them real outages. Known misses: a terse title ("Elevated
   errors on claude.ai" 0.40, the Dutch "Claude heeft storing" 0.75) and a milestone release
   ("llama.cpp v1.0" 0.21), which still reach the digest through their tier.
+- **Driver download posts need a "serious" yes** (`routine_updates` in the profile). Tweakers
+  titles starting `Driver-update - ` match Investing through "AMD" or "Nvidia", and Clef calls
+  any changelog substantive, so every driver release was delivered. A title matching
+  `title_regex` that also matched a group now gets one one-question call on title and summary
+  first (about 6.5 s). Under `at` (0.5) it is dropped as `routine update` with no further
+  calls, whatever its headline score would be; at or above, normal scoring follows. Posts that
+  match no group and release feeds are not asked. Measured on the two real posts: the Adrenalin
+  release that stopped constant SSD writes 0.88 to 0.91, a game-support GeForce release 0.02.
+  On made-up summaries: security fixes 0.96, a hotfix for overheating cards 0.91, game support
+  or small fixes 0.02. Tweakers' separate news article on a driver bug has an ordinary title
+  and is not gated. `Software-update - ` posts are not covered. Without the section nothing
+  changes.
 - **One line per story** (`same_story` in the profile). When an article is delivered, one Clef
   call compares its title with at most 3 queued titles (one per story, those sharing the most
   significant words; no shared word, no call) and it joins the best story at 0.5 or more. The

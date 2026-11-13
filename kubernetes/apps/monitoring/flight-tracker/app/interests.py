@@ -123,6 +123,18 @@ def _same_story(raw):
             "max": _count(section.get("max_candidates"), "same_story.max_candidates")}
 
 
+def _routine_updates(raw):
+    """The optional `routine_updates` section: titles that are only news when Clef calls the update serious."""
+    if "routine_updates" not in raw:
+        return None
+    section = _section(raw, "routine_updates")
+    question = section.get("question")
+    if not isinstance(question, str) or not question.strip():
+        raise ProfileError("routine_updates.question must be a non-empty string")
+    return {"rx": _regex(section.get("title_regex"), "routine_updates.title_regex"),
+            "at": _num(section.get("at"), "routine_updates.at"), "question": question}
+
+
 def compile_profile(raw):
     if not isinstance(raw, dict):
         raise ProfileError("the profile must be a JSON object")
@@ -188,6 +200,7 @@ def compile_profile(raw):
                                            "build_noise.unless_keywords", required=False)),
         "headlines": _headlines(raw),
         "same_story": _same_story(raw),
+        "routine_updates": _routine_updates(raw),
     }
 
 
@@ -278,6 +291,11 @@ def assess(profile, article, clef):
     group, pure = match
     if profile["ruled_rx"] is not None and profile["ruled_rx"].search(article["title"]):
         return _verdict(group, reason="ruled out")
+    routine = profile["routine_updates"]
+    if routine is not None and not pure and routine["rx"].search(article["title"]):
+        # e.g. a driver download post: a keyword match alone would deliver every one of them
+        if clef.noul(state, {"serious": routine["question"]})["serious"] + 1e-9 < routine["at"]:
+            return _verdict(group, reason="routine update")
     tier, adjust, yes_at, q = group["tier"], profile["adjust"], profile["yes_at"], profile["questions"]
     score = profile["tiers"][tier]
     text = _text(article)
