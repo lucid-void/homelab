@@ -114,12 +114,19 @@ on the class. The core needs no change.
   also seeds anything newer as seen without scoring it. A poll with neither a profile nor topics marks articles seen too; only articles that arrive while something exists to match can match.
   The FreshRSS client raises on a response whose `items` is not a list, so a malformed first
   response cannot seed an empty seen-list.
-- **A poll scores at most 40 articles.** Extra `/topics` are scored at most 3 per Clef call (about
-  7 s per call, measured on headline-only input; summaries add time), so an article with 10
-  extra topics is 4 calls; profile scoring asks at most 3 questions per call (the spoiler check
-  is a separate one-question call). News uses its own 60 s Clef client; triage uses a 15 s one. The rest wait
-  for the next poll. A Clef failure on any call leaves that article unseen so nothing is lost.
-  Pending matches for topics unfollowed since are dropped at digest time.
+- **A poll scores at most 40 articles, and every one of them costs a Clef call.** The headline
+  scan (below) asks 3 questions on the title of every article, matched or not: about 8 s. A
+  full poll is therefore about 6 minutes of Clef before any tier scoring, and up to 9 when most
+  articles match (measured: 32 articles, 22 delivered, 61 calls, 7 minutes); the rest wait for
+  the next poll. Extra `/topics` are scored at most 3 per Clef call, so an article with 10 extra
+  topics is 4 calls; profile scoring asks at most 3 questions per call (the spoiler check is a
+  separate one-question call). News uses its own 60 s Clef client; triage uses a 15 s one. A
+  Clef failure on any call leaves that article unseen so nothing is lost. Pending matches for
+  topics unfollowed since are dropped at digest time.
+- **Clef time is questions x text length.** Measured: 3 questions on a title about 8 s, 2 about
+  6 s, 3 questions with a 600-character summary 20 to 25 s. That is why the headline scan and
+  the same-story check send the title only (`summary: ""`); adding the summary to either would
+  push a full poll past 15 minutes.
 - **News is scored from `news-profile.json`**, not from `/topics`. The file holds the 14 groups in 3
   tiers, keywords, ruled-out products, spoiler topics, paywalled domains, the `0.7` delivery
   threshold and the exact Clef question wording, so tuning is a JSON edit (Reloader restarts the
@@ -141,8 +148,34 @@ on the class. The core needs no change.
   builds x0.5 unless the text mentions Vulkan, Intel Arc or SYCL. A spoiler topic (Expedition 33,
   Steel Ball Run) gets one extra one-question Clef call first, unless the text has an allow term
   such as "patch notes". Ruled-out products are dropped without any call.
-- **Delivery.** 0.7 or more goes to the 08:00/18:00 digest, grouped by tier with a quota per tier (10 / 8 / 4),
-  each tier cycling through its groups; what does not fit is dropped (footer "N more skipped"), not carried, so a digest is the news since the last one. Sent as HTML: one `• linked title` line per item under a tier header, no group tag, no link previews. Alerts use the same format (`⏰ linked title`). Tier 3 items that are delivered (Clef must also say "major") and that Clef judges time-sensitive are sent at once: they are queued
+- **Headlines are scored for every feed, not only for profile matches** (`headlines` in the
+  profile). Three questions (`tech`, `world`, `stir`) are asked on the title; importance is the
+  highest answer. At `at` (0.6) or more the article is a headline: it is delivered even when it
+  matches no group (stored with tier 0 and no group) or scores under 0.7 in its tier. Ruled-out
+  products and spoilers still drop it, and immediate alerts still need the tier rule. Release
+  feeds and `skip_categories` are not scanned; `T2 Investing/career` is skipped because one
+  forum there posts about 170 items a day. Without the section nothing changes.
+- **The headline wording is calibrated, change it with a test run.** On real titles: a CEO
+  resigning 0.91 to 0.95, a head of state impeached 0.82 to 0.91, a ceasefire 0.88, a big-name
+  statement 0.71 to 0.83; a driver update 0.02, a deadly building collapse 0.39 (the `world`
+  question says "rather than a local accident" for this; without it that scored 0.81). Of 54
+  ordinary articles 5 passed, 4 of them real outages. Known misses: a terse title ("Elevated
+  errors on claude.ai" 0.40, the Dutch "Claude heeft storing" 0.75) and a milestone release
+  ("llama.cpp v1.0" 0.21), which still reach the digest through their tier.
+- **One line per story** (`same_story` in the profile). When an article is delivered, one Clef
+  call compares its title with at most 3 queued titles (one per story, those sharing the most
+  significant words; no shared word, no call) and it joins the best story at 0.5 or more. The
+  digest prints the most important article of a story and `(+N)` for the rest. A story takes
+  the best tier of its members. Follow-ups of a long saga partly join the first article; that
+  is accepted. A story is only compared with what is queued, so it can lead two digests in a
+  row with new articles.
+- **Delivery.** 0.7 or more, or a headline, goes to the 08:00/18:00 digest. `🚨 Headlines` comes
+  first: the 5 most important stories. Then the tiers with a quota each (10 / 8 / 4), each tier
+  cycling through its groups to pick and printing the pick most important first. A headline
+  that does not fit the top section falls back to its tier; one that matched no group is
+  skipped. What does not fit is dropped (footer "N more skipped"), not carried, so a digest is
+  the news since the last one. Sent as HTML: one `• linked title` line per story under a
+  section header, no group tag, no link previews. Alerts use the same format (`⏰ linked title`). Tier 3 items that are delivered (Clef must also say "major") and that Clef judges time-sensitive are sent at once: they are queued
   in `news.json` (`alerts`, at most 50) and retried every 30 s until Telegram accepts them; a
   failed send keeps them queued.
 - **A new profile `version` re-seeds the module** like a first run (new `since`; `ot=now` keeps the backlog
@@ -158,8 +191,9 @@ on the class. The core needs no change.
 - **A failed digest send is retried, not lost.** `Telegram.send` returns True/False;
   `maybe_digest` puts the pending matches and the previous slot back when it returns False, so
   the next loop pass (about 30 s) tries again.
-- **Article text is untrusted.** A crafted article can fool the classifier into a false match; the
-  result is a wrong line in a digest, nothing more.
+- **Article text is untrusted.** A crafted article can fool the classifier into a false match or
+  a false headline, and a queued title is pasted into the same-story question of a later
+  article; the result is a wrong or merged line in a digest, nothing more.
 - **Topics are stored per chat id** in `/data/news.json`, but the core still answers only
   `TELEGRAM_CHAT_ID`, so there is one list today. Multi-user needs the core to pass the chat id to
   commands.

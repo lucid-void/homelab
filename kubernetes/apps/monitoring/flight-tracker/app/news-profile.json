@@ -14,6 +14,23 @@
     "paywalled": 0.5,
     "build_noise": 0.5
   },
+  "headlines": {
+    "at": 0.6,
+    "max": 5,
+    "skip_categories": [
+      "T2 Investing/career"
+    ],
+    "questions": {
+      "tech": "Is this a rare, high-impact event in the technology industry, such as a leadership change at a major company, an acquisition, a serious security breach, a wide outage or a milestone release years in the making, rather than a routine update?",
+      "world": "Is this historic world news that will lead international front pages for days, such as a head of state being removed or impeached, a war starting or ending or a government falling, rather than a local accident, a crime or routine politics?",
+      "stir": "Is this about a controversial or widely discussed statement or decision by the leader of a major technology company?"
+    }
+  },
+  "same_story": {
+    "at": 0.5,
+    "max_candidates": 3,
+    "question": "Is this article part of the same news story as this other headline: \"{title}\"?"
+  },
   "skip_release_feeds": true,
   "pure_feed_pattern": "github\\.com/[^/]+/[^/]+/(releases|tags)",
   "groups": {

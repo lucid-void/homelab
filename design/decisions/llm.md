@@ -118,9 +118,11 @@ Telegram bot (`design/decisions/flight-tracker.md`).
   `llama-swap` becomes an eviction candidate like Clef. The prompt cache fills over days:
   re-check decode speed and the working set after a few days of chat use, not only at rollout.
 - **CPU is shared: `llama-swap` uses 6+2 threads and Clef 6 on the node's 8 vCPUs.** A news poll
-  keeps Clef busy for minutes, so check decode speed DURING a poll; lower `CLEF_THREADS` if
-  chat suffers.
-- **Clef takes one request at a time (~4 s for one question, ~7 s for three).** The bot's
+  keeps Clef busy for minutes (the headline scan calls it once per new article, about an hour
+  of CPU a day in total), so check decode speed DURING a poll; lower `CLEF_THREADS` if chat
+  suffers.
+- **Clef takes one request at a time (~4 s for one question, ~7 s for three on a title; a
+  600-character summary triples that).** The bot's
   triage timeout is 15 s and fails open (with a cooldown after an error), so a news scoring run
   can make triage forward a message it would have dropped — extra noise, never a lost message.
 - **After changing the pinned weights revision, delete the old snapshot directory on the
