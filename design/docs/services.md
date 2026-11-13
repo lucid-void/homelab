@@ -3,6 +3,17 @@
 All services are managed by FluxCD via HelmReleases or raw manifests in `kubernetes/apps/`.
 Every service is reachable only on the internal network or via Netbird VPN.
 
+**Contents** — read this list, then only the section you need:
+
+- Infrastructure / Platform
+- Databases
+- Auth
+- Monitoring & Alerting
+- Security
+- Applications
+- Media
+- OIDC Callback URIs (non-obvious)
+
 ## Infrastructure / Platform
 
 | Service | Namespace | Kind | Hostname | Auth | Notes |

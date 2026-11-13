@@ -8,6 +8,27 @@ run on 2026-09-21. The server deployment is `design/decisions/jellyfin.md`.
 Sections, Media Bar, Jellyfin Enhanced, Intro Skipper, Trakt, Webhook. **No theme** —
 Custom CSS is unset.
 
+**Contents** — read this list, then only the section you need:
+
+- Plugins
+  - Repositories to add
+  - Install order matters
+  - The plugins
+  - KefinTweaks — considered and rejected
+  - Version coupling is the standing hazard
+  - The SSO plugin is a fork, and it is on the auth path
+- Settings
+  - Configure them over the API, not by clicking
+  - Enabling Home Screen Sections requires a restart
+  - What is set
+  - Media Bar's `-1` means "use the built-in default"
+  - Wiring Sonarr and Radarr without leaking cluster-internal URLs
+  - Plugins auto-update, deliberately
+  - Webhook → Gotify
+- Theme
+  - Install it inline, not as an `@import`
+  - Gotchas
+
 ## Plugins
 
 Almost nothing here is from the official catalogue — the same class of unowned state as

@@ -1,19 +1,37 @@
 # Networking
 
+**Contents** — read this list, then only the section you need:
+
+- IP Plan
+- Cilium
+  - LoadBalancer IP Pools
+  - Never share one pool-b IP between Services
+  - Netbird IP Isolation
+- Gateway API
+  - CRD Installation
+  - Version constraint — pinned to 1.6.x
+  - Hierarchy
+  - TLS (cert-manager)
+  - DNS (external-dns)
+  - LAN resolution (Blocky)
+  - Adding a Route
+- Internet Exposure
+
 ## IP Plan
 
 | Host | IP | Role |
 |---|---|---|
 | Synology RS1219+ | 172.16.20.2 | NFS storage (Btrfs /volume2) |
-| Proxmox host | 172.16.20.3 | Hypervisor (Intel Core Ultra 5 235HX / Arrow Lake-HX) |
+| Proxmox host | 172.16.20.3 | Hypervisor, LVM-thin, hosts the Talos VMs. Minisforum MS-02 Ultra — NOT an MS-A2, despite the `pve-msa2` hostname. Intel Core Ultra 5 235HX (Arrow Lake-HX, 6P+8E, no AVX-512): 6 P-cores is why llama.cpp runs `--threads 6`, no AVX-512 is why the immich pgvector image needs an explicit `OPTFLAGS` |
 | jetkvm1 | 172.16.20.5 | JetKVM IP-KVM |
 | jetkvm2 | 172.16.20.6 | JetKVM IP-KVM |
-| rpi NUT server | 172.16.20.7 | Raspberry Pi — UPS monitoring (NUT server) |
+| rpi NUT server | 172.16.20.7 | Raspberry Pi — UPS monitoring (NUT server), second Blocky DNS resolver |
 | `.4`, `.8–.9` | reserved | Future physical devices |
 | cp-1 | 172.16.20.11 | Talos control plane + workloads |
 | cp-2 | 172.16.20.12 | Talos control plane + workloads |
 | cp-3 | 172.16.20.13 | Talos control plane + workloads |
 | llm-1 | 172.16.20.14 | Talos worker — LLM inference only, tainted `workload=llm:NoSchedule` |
+| ZeroTier VM | 172.16.20.23 | Plain compose, outside the cluster — gaming only |
 | k8s API VIP | 172.16.20.10 | API server endpoint (floats via leader election) |
 | Gateway VIP | 172.16.20.50 | Cilium L2 announcement — `shared` Gateway |
 | Pool-B VIPs | 172.16.20.51–.54 | Cilium L2 announcement — direct LoadBalancer services (.51 Plex, .52 Velocity proxy, .53 Blocky DNS, .54 Blocky query log DB) |

@@ -1,9 +1,33 @@
 # TODO
 
-Open work only. A finished item is deleted, not struck through.
+Open work only. A finished item is deleted, not struck through. Grep this file for your
+topic rather than reading it whole; owner-only items are at the top.
 
 ## Planned
 
+- **CRITICAL — needs the owner. Put the recovery keys somewhere that survives losing the rack.**
+  The Sealed Secrets controller key backup and the SOPS age key copy both sit on the Synology
+  (`/volume2/backups/keys/`); the only other copies are `recovery.key` on the workstation and a
+  paper copy of the age key. The restic and rclone credentials for Filen exist in git only as
+  SealedSecrets. Lose the Synology and the workstation together and the offsite backups cannot
+  be decrypted. To do: store the Sealed Secrets key, the age key, and each restic password and
+  rclone config in a password manager or a second offsite location; then record where in
+  `design/docs/secrets.md`, including whether the age key has a passphrase and how
+  `/mnt/backups` is mounted on the workstation (the runbook's restore commands depend on it).
+- **CRITICAL — needs the owner. Restore-test one backup end to end.** No application snapshot
+  and no etcd snapshot has ever been restored. Pick one app (Immich is the highest value),
+  restore into a clean PVC and a fresh CNPG database, and write the procedure that worked into
+  `design/runbook.md` — today it only restores to a scratch directory. The etcd path
+  (`talosctl bootstrap --recover-from`) is equally unexercised.
+- **CRITICAL — needs the owner. The gitignored `*-secret.yml` plaintext files are the only
+  source for re-sealing, and they are on one workstation.** If the controller key is lost,
+  every SealedSecret has to be re-sealed from plaintext; some sealed files have no plaintext
+  beside them at all (`design/docs/secrets.md`). Decide where the plaintext lives (password
+  manager, or SOPS-encrypted in git), then write the re-seal procedure in `design/runbook.md`.
+- **Needs the owner. Back up the OpenTofu state or move it to a remote backend.** It is the
+  local gitignored `infra/terraform/terraform.tfstate`; the `backend "pg"` block in
+  `infra/terraform/provider.tf` is commented out. Losing it means importing the existing VMs
+  and DNS records by hand.
 - **Replace the UPS.** The Eaton Ellipse PRO 850 lasts seconds at real load, so a power cut still
   hard-crashes everything. Requirements and the post-install test are in `design/decisions/ups.md`.
 - **Rotate the Sonarr Postgres password.** Sonarr prints it in its startup log, and it landed in an
@@ -124,10 +148,6 @@ Open work only. A finished item is deleted, not struck through.
   so the service isn't down for maintenance that never touches the live PVC. A SIGKILL
   (OOM, node reboot) mid-run skips the trap entirely and would leave immich-server
   stuck at 0 replicas indefinitely — not yet observed, but undefended.
-- No backup has ever been restore-tested end-to-end. Pick one app (Immich highest
-  value), restore into a clean PVC + fresh CNPG database, document the procedure in
-  design/runbook.md. The etcd snapshot restore (`talosctl bootstrap --recover-from`) is
-  the same story — never exercised.
 - No confirmed alert path for a stuck `cert-manager` `Certificate` (`Ready: False`) or
   for a backup failing while Gotify itself is down (`gotify-secret` is wired
   `optional: true` so jobs run before bootstrap). Confirm existing coverage or add a
@@ -183,9 +203,6 @@ Open work only. A finished item is deleted, not struck through.
   only local-auth fallback that is meant to stay (its SSO plugin is a fork sitting on
   the auth path). Every other app is fully gated on Keycloak SSO with no documented
   path if the realm admin is locked out.
-- SOPS age key protection is undocumented — no record of where the single key lives,
-  whether it has a passphrase, or whether an off-Synology copy exists. It decrypts
-  Talos secrets and the Sealed Secrets controller key backup.
 - Sealed Secrets key rotation procedure is undocumented (rotation itself is
   intentionally disabled). Write the "if forced by compromise" procedure without
   performing it.
@@ -201,8 +218,9 @@ Open work only. A finished item is deleted, not struck through.
 - Tdarr: manifests built, see `design/decisions/tdarr.md`. Still to do after deploy: the test-encode
   phase, creating the libraries and flow in the UI, the pilot and the full run. Open: the 3–6 Mbps
   H.264 band (about 714 GB) is outside the v1 filter.
-- nftables host firewall on the Talos nodes (default-deny inbound, SSH/node_exporter/
-  Promtail allowlist, per-host overrides) — not yet implemented on k8s nodes.
+- Host firewall on the Talos nodes (default-deny inbound with an allowlist) — not yet
+  implemented. Talos has no SSH and no nftables config of its own to edit, so this means
+  `NetworkRuleConfig` documents in `talconfig.yaml`.
 - **youtube-queue: auto-delete watched videos.** Today watched videos are deleted by
   hand in Jellyfin. Next step: a small CronJob that asks the Jellyfin API for played
   items under `/YouTube` older than N days and deletes them. Needs a Jellyfin API key
@@ -220,7 +238,7 @@ Open work only. A finished item is deleted, not struck through.
 ## Accepted gaps
 
 - NFS and intra-cluster Postgres traffic run cleartext on the internal VLAN — accepted
-  risk; private network, VPN-gated (see `AGENTS.md` key decisions).
+  risk; private network, VPN-gated (see `design/architecture.md` → Key decisions).
 - 64 single-replica Deployments, 2 PDBs, and `postgres-primary` allows 0 disruptions —
   a Talos rolling upgrade blocks on it and takes most services down as it proceeds.
   Reasonable homelab trade-off; design/runbook.md's upgrade section should state it

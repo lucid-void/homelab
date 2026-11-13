@@ -2,14 +2,17 @@
 
 ## Overview
 
-Two secret systems coexist:
+Two secret systems coexist, plus one substitution mechanism built on the first:
 
 | System | Scope | Stored in git? | Use case |
 |---|---|---|---|
 | **Sealed Secrets** | Kubernetes app secrets | Yes (encrypted) | All application secrets in `kubernetes/apps/` |
-| **SOPS + age** | Talos machine secrets | Yes (encrypted) | `kubernetes/talos/talsecret.sops.yaml` only |
+| **SOPS + age** | Talos, OpenTofu and Packer secrets | Yes (encrypted) | `kubernetes/talos/talsecret.sops.yaml`, `kubernetes/talos/talenv.sops.yaml`, `infra/terraform/secrets.sops.tfvars`, `infra/packer/credentials.sops.pkr.hcl` |
+| **Flux `substituteFrom`** | The Cloudflare API token | Placeholder only | Two raw `Secret` manifests filled from the sealed `cluster-secrets` — see below |
 
-SOPS is **not** used for Kubernetes application secrets — only for Talos. All k8s app secrets are SealedSecrets.
+SOPS is **not** used for Kubernetes application secrets — only for Talos, OpenTofu and
+Packer (rules in `.sops.yaml`, wired up in the `justfile`). All k8s app secrets are
+SealedSecrets.
 
 ---
 
@@ -58,7 +61,35 @@ FluxCD picks up the commit → Sealed Secrets controller decrypts → `Secret` i
 ### File Naming Convention
 
 - Sealed files: `*-sealed.yml` (e.g. `app-sealed.yml`, `rclone-sealed.yml`, `masterkey-sealed.yml`)
+- Two bootstrap files use `.sealed.yml` instead:
+  `kubernetes/bootstrap/flux/github-deploy-key.sealed.yml` and
+  `kubernetes/flux/vars/cluster-secrets.sealed.yml`
 - Plaintext templates: `*-secret.yml` — these are gitignored templates, never committed
+  (the two `cloudflare-secret.yml` files below are the deliberate exception)
+
+**The plaintext files are not a backup.** The gitignored `*-secret.yml` files exist only
+on the workstation, nothing in this repo backs them up, and they are the only source for
+re-sealing if the controller key is lost. Some sealed files have no plaintext sibling at
+all: 16 of the 80 tracked `*-sealed.yml` files had no `<same-prefix>-secret.yml` beside
+them when counted on 2026-11-13. Those values exist only as ciphertext in git and as
+live Secrets in the cluster.
+
+### Flux Variable Substitution (`cluster-secrets`)
+
+The third mechanism. `kubernetes/flux/vars/cluster-secrets.sealed.yml` is a SealedSecret
+that unseals to the `cluster-secrets` Secret in `flux-system`. Flux Kustomizations list
+it under `postBuild.substituteFrom`, so `${SECRET_...}` placeholders in their manifests
+are filled at apply time.
+
+Two tracked raw `kind: Secret` manifests rely on it, and they are the only sanctioned
+raw Secrets in the repo:
+
+- `kubernetes/apps/cert-manager/cert-manager/config/cloudflare-secret.yml`
+- `kubernetes/apps/network/external-dns/app/cloudflare-secret.yml`
+
+Their only value is the `${SECRET_CLOUDFLARE_API_TOKEN}` placeholder — no secret
+material is in the file. Both names match the `*-secret.yml` gitignore pattern but are
+tracked deliberately, so a new file of that shape needs `git add -f` and a reason.
 
 ### Namespace Scoping
 
@@ -79,7 +110,10 @@ git commit -m "feat(k8s): refresh sealed-secrets public cert"
 git push
 ```
 
-All existing SealedSecrets in git will be re-sealed using the new key during recovery (see `design/runbook.md`).
+Normal recovery never reaches this point: it restores the **old** controller key from
+backup (below), so every SealedSecret in git still decrypts and nothing is re-sealed. If
+that key is lost, every SealedSecret must be re-sealed by hand from plaintext against
+the new cert. No procedure for that is written — tracked in `design/TODO.md`.
 
 ### Backing Up the Controller Key
 
@@ -97,8 +131,21 @@ sops -e /tmp/ss-key.yaml > /mnt/backups/keys/sealed-secrets-key.sops.yaml
 shred -u /tmp/ss-key.yaml
 ```
 
-Single age key covers all SOPS secrets (Talos + this backup); the recovery key also
-lives on the Synology at `tank/backups/keys/` plus an offline paper copy.
+`/mnt/backups` is the workstation's mount of the Synology `backups` share, so the file
+lands in `/volume2/backups/keys/` on the NAS. How that mount is set up is not documented
+yet.
+
+A single age key covers all SOPS secrets (Talos, OpenTofu, Packer and this backup). It
+lives in three places: the local `recovery.key` named by `SOPS_AGE_KEY_FILE` in
+`mise.toml`, a copy on the Synology at `/volume2/backups/keys/`, and an offline paper
+copy.
+
+**Risk: the Synology and the workstation are the whole key chain.** The controller key
+backup and the age key copy both sit on the Synology. The restic and rclone credentials
+for the Filen offsite backups exist in git only as SealedSecrets. Lose the Synology and
+the workstation together and the offsite backups cannot be decrypted — only the paper
+copy of the age key survives, and it decrypts nothing without the key backup file.
+Tracked in `design/TODO.md`.
 
 ### Restoring the Key on Cluster Recreate
 
@@ -225,8 +272,8 @@ Backup CronJobs (`immich-backup`, `paperless-backup`, etc.) need three secrets p
 
 | Secret name | Contents | Source |
 |---|---|---|
-| `rclone-sealed` | rclone config with Filen credentials | SealedSecret |
-| `restic-sealed` | `RESTIC_PASSWORD` | SealedSecret |
+| `rclone-secret` | rclone config with Filen credentials | SealedSecret (`rclone-sealed.yml`) |
+| `restic-secret` | `RESTIC_PASSWORD`, `RESTIC_REPOSITORY` | SealedSecret (`restic-sealed.yml`) |
 | `gotify-secret` | `GOTIFY_TOKEN` | Written by `gotify-bootstrap` Job (not a SealedSecret) |
 
 `gotify-secret` is **not** a SealedSecret — `gotify-bootstrap` creates the Gotify app
@@ -247,5 +294,9 @@ sops -e -i talsecret.sops.yaml
 ```
 
 The Netbird setup key lives in `talos/talenv.sops.yaml` and is injected into `talconfig.yaml` via talhelper environment substitution. It is not embedded in plaintext in `talconfig.yaml`.
+
+The same age key encrypts the OpenTofu variables (`infra/terraform/secrets.sops.tfvars`)
+and the Packer credentials (`infra/packer/credentials.sops.pkr.hcl`); the `justfile`
+recipes decrypt them on the fly.
 
 The SOPS age key is the root of the trust chain: age key → decrypt sealed-secrets backup → restore cluster.

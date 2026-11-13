@@ -2,6 +2,13 @@
 
 **Read before editing:** `kubernetes/apps/monitoring/flight-tracker/`
 
+**Contents** — read this list, then only the section you need:
+
+- Current state
+- Layout and modules
+- Rules
+- Verify
+
 ## Current state
 
 Single-user Telegram bot in `monitoring`. You send `/track LH123 2026-10-05`; it polls
