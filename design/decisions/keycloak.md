@@ -2,6 +2,18 @@
 
 **Read before editing:** `kubernetes/apps/keycloak/`
 
+**Contents** — read this list, then only the section you need:
+
+- Current state
+- Client provisioning
+- Per-service entitlement
+- Role claims — how `admin` reaches an app
+- Account re-linking — the cost of changing IdP
+- Realm mail
+- Rules
+- Other gotchas
+- Verify
+
 ## Current state
 
 Keycloak at `sso.blackcats.cc` is the identity provider for every application on SSO.
