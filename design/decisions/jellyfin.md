@@ -2,6 +2,18 @@
 
 **Read before editing:** `kubernetes/apps/media/jellyfin/`, `kubernetes/apps/keycloak/clients/app/jellyfin.yml`
 
+**Contents** — read this list, then only the section you need:
+
+- Why it exists
+- Current state
+- Rules
+- Local vs remote clients
+- Client-side stack
+- Keycloak wiring
+- The SSO plugin fails closed, twice
+- Seerr
+- Verify
+
 ## Why it exists
 
 A second, fully independent media server beside Plex — not a cold spare. It serves the

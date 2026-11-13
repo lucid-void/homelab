@@ -1,5 +1,32 @@
 # GitOps — FluxCD
 
+**Contents** — read this list, then only the section you need:
+
+- Overview
+- Repository Layout
+- Flux Reconciliation Model
+  - Entry Points
+  - Kustomization Tree
+  - Kustomization Naming Convention
+  - targetNamespace
+  - Variable Substitution
+- Helm Repositories
+- HelmRelease Conventions
+  - app-template Service/Deployment Naming
+- Adding a New Application
+  - 1. Create the namespace directory
+  - 2. namespace.yml
+  - 3. ks.yml
+  - 4. Wire into namespace kustomization
+  - 5. No root wiring needed
+  - 6. Create Sealed Secrets (if needed)
+  - 7. Create HTTPRoute
+  - 8. Register the OIDC client — and gate it
+  - 9. Register a Gatus check
+  - 10. Add a Homepage tile
+  - 11. Push and watch
+- Drift Detection and Validation
+
 ## Overview
 
 FluxCD continuously reconciles cluster state from the `kubernetes/` directory in the mono-repo.
@@ -16,16 +43,17 @@ kubernetes/
 │       └── github-deploy-key.sealed.yml
 ├── flux/
 │   ├── config/
+│   │   ├── kustomization.yml
 │   │   ├── cluster.yml           # GitRepository + root cluster Kustomization
 │   │   └── flux.yml              # flux-system Kustomization
 │   ├── apps.yml                  # Root apps Kustomization → kubernetes/apps/
 │   ├── repositories/
 │   │   ├── helm/                 # HelmRepository sources (one file per chart registry)
-│   │   ├── git/                  # GitRepository sources (gateway-api)
-│   │   └── oci/                  # OCI repository sources (k8s-cleaner)
+│   │   ├── git/                  # GitRepository sources (gateway-api, keycloak-operator)
+│   │   └── oci/                  # OCI repository sources — empty (`resources: []`)
 │   ├── vars/
 │   │   ├── cluster-settings.yml  # ConfigMap: CLUSTER_NAME, CLUSTER_DOMAIN
-│   │   └── cluster-secrets.sealed.yml  # SealedSecret: SECRET_CLOUDFLARE_EMAIL, etc.
+│   │   └── cluster-secrets.sealed.yml  # SealedSecret: SECRET_CLOUDFLARE_API_TOKEN, SECRET_CLOUDFLARE_EMAIL
 │   └── pub-cert.pem              # Sealed Secrets public cert (safe to commit)
 ├── apps/
 │   ├── <namespace>/
@@ -35,9 +63,13 @@ kubernetes/
 │   │       ├── ks.yml            # Flux Kustomization (dependsOn, path, targetNamespace)
 │   │       └── app/              # Actual manifests: HelmRelease, SealedSecret, PVC, HTTPRoute, …
 │   └── …
+├── images/                       # Dockerfiles for custom images, built by GitHub Actions
+│   ├── backup-tools/
+│   └── postgres-cnpg-immich/
 └── talos/
     ├── talconfig.yaml            # Node definitions, cluster settings, extensions
     ├── talsecret.sops.yaml       # Cluster PKI + join tokens (SOPS-encrypted)
+    ├── talenv.sops.yaml          # talhelper env substitutions, e.g. the Netbird setup key (SOPS-encrypted)
     └── clusterconfig/            # Generated per-node configs (gitignored)
 ```
 
@@ -111,6 +143,7 @@ Variables are substituted in all manifests via `postBuild.substituteFrom`:
 | `${CLUSTER_NAME}` | `cluster-settings` ConfigMap | `homelab-k8s` |
 | `${CLUSTER_DOMAIN}` | `cluster-settings` ConfigMap | `blackcats.cc` |
 | `${SECRET_CLOUDFLARE_EMAIL}` | `cluster-secrets` SealedSecret | Cloudflare account email |
+| `${SECRET_CLOUDFLARE_API_TOKEN}` | `cluster-secrets` SealedSecret | Cloudflare API token — fills the two raw `cloudflare-secret.yml` manifests (`design/docs/secrets.md`) |
 
 `cluster-secrets` is `optional: true` — reconciliation proceeds even if the secret is absent.
 
@@ -138,7 +171,8 @@ Then add it to `kubernetes/flux/repositories/helm/kustomization.yml`.
 
 ## HelmRelease Conventions
 
-- Chart version: pin to minor semver (e.g. `version: "3.7.*"`) or exact
+- Chart version: pin an exact version and let Renovate raise the bump. Every HelmRelease
+  does this except `reflector`, which floats on a major wildcard
 - `valuesFrom`: use for secrets that must come from a Secret rather than inline values
 - `postRenderers`: avoid unless absolutely necessary
 - `crds: CreateReplace` — use for charts that ship CRDs
@@ -155,7 +189,7 @@ spec:
   chart:
     spec:
       chart: app-template
-      version: 3.7.*
+      version: "<copy from an existing app-template HelmRelease>"
       sourceRef:
         kind: HelmRepository
         name: bjw-s
@@ -444,116 +478,8 @@ removes `non-existent-service-account` false positives. kube-linter cannot rende
 `HelmRelease` CRs, so app-template workloads are never covered by this gate; it sees
 only the raw Deployments/Jobs/CronJobs.
 
-### Image pinning and mutable upstream tags
-
-Images are pinned to a minor semver or an exact tag. The trap is that some
-registries publish a tag that *looks* like an exact version but is re-pointed on
-every rebuild.
-
-**linuxserver.io is the case that bit us.** `lscr.io/linuxserver/plex:1.43.3`
-is mutable — lscr rebuilds the image every few days (base-image and mod
-refreshes) and moves the short tag each time, while the upstream Plex version
-stays `1.43.3`. Two gates fail together, both silently:
-
-- **Renovate reports no update.** The string in git is already the newest
-  `X.Y.Z`, so there is genuinely nothing to bump. This is correct behaviour —
-  do not go looking for a broken Renovate config.
-- **`image-scan` never runs.** No file changes, so no PR, so no CVE diff.
-
-And the cluster does not move either: `imagePullPolicy` defaults to
-`IfNotPresent` (the tag is not `:latest`), so the node serves the digest it
-cached the first time. **Restarting the pod does not re-pull.** Only the tag
-string changing forces a new pull.
-
-A short tag and `latest` resolving to the same index digest is how you confirm the
-short tag is mutable:
-
-```bash
-TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:linuxserver/plex:pull&service=ghcr.io" | jq -r .token)
-curl -sI -H "Authorization: Bearer $TOKEN" \
-  -H "Accept: application/vnd.oci.image.index.v1+json" \
-  https://ghcr.io/v2/linuxserver/plex/manifests/1.43.3 | grep -i docker-content-digest
-```
-
-Compare that against what is actually running — the resolved digest, not the tag:
-
-```bash
-kubectl -n media get pod -l app.kubernetes.io/name=plex \
-  -o jsonpath='{.items[0].status.containerStatuses[0].imageID}'
-```
-
-The fix is to pin the **full** lscr tag, which is immutable, and teach Renovate
-to order those tags. `.github/renovate.json` carries four `regex:` versioning
-rules because the shapes differ:
-
-| Images | Shape | Example |
-|---|---|---|
-| plex | 4-part + upstream git hash + `ls` | `1.43.3.10896-cb3ebc72d-ls321` |
-| sonarr, radarr, prowlarr, kavita | 4-part + `ls` (kavita has a leading `v`) | `4.0.19.2979-ls322`, `v0.9.0.2-ls121` |
-| sabnzbd | 3-part + `ls` | `5.1.2-ls270` |
-| jellyfin | 2-part + Ubuntu base + `ls`, no separator | `12.1ubu2604-ls50` |
-
-The jellyfin rule matches the `ubu####` segment but does not capture it — it tracks the
-Ubuntu base, not Jellyfin, so capturing it would read a jump to `ubu2610` as an upstream
-release.
-
-All four share `groupName: linuxserver` so the churn arrives as one PR — lscr
-rebuilds often enough that six separate PR streams would exhaust
-`prConcurrentLimit: 6` and crowd out everything else.
-
-**A regex that fails to parse a tag puts you straight back to "no update
-available", with no error anywhere.** If lscr changes a tag shape, or a new lscr
-image is added without a matching rule, the silence looks identical to "already
-current". Re-validate by checking that every pinned tag still parses and that the
-rule selects the newest tag in the registry.
-
-### Image vulnerability scanning
-
-`.github/workflows/image-scan.yml` scans every container image a PR changes, so
-Renovate bumps carry a CVE diff. Required status check: `Image Scans Passed`.
-
-**Gate:** with a baseline (a tag bump), a PR fails only if the *net* Critical or
-High count **increases**. An upgrade that introduces some CVEs while fixing more
-passes — the introduced ones are still listed in the PR comment. With no baseline
-(new image, or the old tag no longer pulls) any Critical fails.
-
-Both scanners run on each image: **grype** (Anchore) and **osv-scanner** (Google).
-Results are posted as a single PR comment with before/after/delta tables and
-collapsible introduced/fixed CVE lists. Raw scanner JSON is uploaded as a
-30-day artifact.
-
-Logic lives in `.github/scripts/`, not inline in the workflow:
-
-| Script | Role |
-|---|---|
-| `extract-images.py` | Pairs old/new image refs across the diff |
-| `scan-report.py` | Normalises both scanners, computes the delta, renders the comment |
-
-Two things make this repo-specific and are easy to get wrong if the workflow is
-ever rewritten:
-
-- **Renovate usually does not change a whole image reference.** The bjw-s
-  app-template and Helm-values form splits the image across two lines, so a bump
-  shows up as a lone `tag:` line with `repository:` sitting on an unchanged
-  context line. Grepping the diff's `+`/`-` hunks for `image:` misses these
-  entirely. `extract-images.py` instead extracts the full image set from the base
-  and head versions of each changed file and diffs those sets.
-- **osv-scanner v2 removed severity labels.** v1 exposed
-  `database_specific.severity` as `CRITICAL`/`HIGH`; in v2 that field is always
-  null and severity is only available as a CVSS base score on
-  `groups[].max_severity`. Any filter keyed off the v1 field silently counts zero
-  for every image — a dead gate that still reports green. `scan-report.py` bands
-  the CVSS score instead. grype's `matches[].vulnerability.severity` is unaffected.
-
-Helm chart coordinates (`chart:` + `version:`, OCIRepository `url:`) are
-deliberately not scanned — they are chart artifacts, not runnable images.
-
-Test the extractor against a real PR without pushing:
-
-```bash
-git fetch origin <renovate-branch>
-python3 .github/scripts/extract-images.py --base origin/main --head origin/<renovate-branch>
-```
+Image pinning, the lscr tag trap and the `image-scan` CVE gate are in
+`design/decisions/images.md`.
 
 Flux reconciles every 10–30 min. To force immediate reconciliation:
 

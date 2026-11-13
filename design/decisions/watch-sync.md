@@ -3,6 +3,16 @@
 **Read before editing:** `kubernetes/apps/media/crosswatch/`,
 `kubernetes/apps/keycloak/clients/app/crosswatch.yml`
 
+**Contents** — read this list, then only the section you need:
+
+- Why it exists
+- Current state
+- Rules
+- Credentials — currently incomplete
+- Migrating Trakt history
+- The Trakt watchlist was not migrated
+- Verify
+
 ## Why it exists
 
 Watch history should converge across Plex and Jellyfin, so watching an episode on

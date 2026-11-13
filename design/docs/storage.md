@@ -13,7 +13,7 @@
 
 **Provisioner:** `org.democratic-csi.nfs-client`
 
-The controller mounts the Synology parent NFS share (`172.16.20.2:/volume2/kubernetes.nfs`) at startup via a `postStart` lifecycle hook. For each PVC, it creates a subdirectory under that share. No Synology REST API is needed.
+The controller mounts the Synology parent NFS share (`synology.blackcats.cc:/volume2/Kubernetes`, mounted in the controller at `/mnt/kubernetes.nfs`) at startup via a `postStart` lifecycle hook. For each PVC, it creates a subdirectory under that share. No Synology REST API is needed.
 
 **Controller requirements:** `hostNetwork: true`, `hostIPC: true`, `SYS_ADMIN`, `privileged: true`.
 The `democratic-csi` namespace has `pod-security.kubernetes.io/enforce: privileged` to permit this.
@@ -248,6 +248,6 @@ A side benefit: CloudNativePG 1.31 removes in-tree Barman Cloud support, and thi
 
 | Synology path | Kubernetes use |
 |---|---|
-| `/volume2/kubernetes.nfs/` | democratic-csi parent share — one subdirectory per PVC |
+| `/volume2/Kubernetes/` | democratic-csi parent share — one subdirectory per PVC, under `v/` |
 | `/volume2/Media/` | Static `media-nfs` PVC for all media services — holds `Series/`, `Series_done/`, `Movies/`, `Downloads/`, `Photos/`, `Manga/`. The Tdarr server and node mount it read-write; originals they replace are parked in `.tdarr-trash/` at the share root (not a library) for 14 days — see `design/decisions/tdarr.md` |
 | `/volume2/backups/keys/` | Sealed Secrets key backup, SOPS age key backup |
