@@ -8,7 +8,6 @@ _default:
 # Initialize IAC backends
 init:
     cd infra/packer && packer init config.pkr.hcl
-    cd ..
     cd infra/terraform && sops exec-env secrets.sops.tfvars 'tofu init -upgrade'
 
 # ── Packer ────────────────────────────────────────────────────────────────────
@@ -47,7 +46,7 @@ destroy:
 
 # ── Linting ───────────────────────────────────────────────────────────────────
 
-# Run all linters (Packer, TFLint)
+# Run all linters (packer validate on both templates, TFLint)
 lint: validate-template lint-tf
 
 lint-tf:

@@ -2,7 +2,7 @@
 
 Operational procedures for the `homelab-k8s` Kubernetes cluster.
 
-**This file is ~46 KB. Jump to the one `##`/`###` section you need — it is written to be
+**This file is large. Jump to the one `##`/`###` section you need — it is written to be
 read a section at a time, never front to back.**
 
 ## Contents
@@ -25,14 +25,21 @@ read a section at a time, never front to back.**
 
 ## Prerequisites (one-time, workstation)
 
-Every tool below is pinned in `mise.toml` and is **not** on `PATH` — there is nothing to
-install and no `brew` on this workstation. Invoke each one through mise:
+Every tool below is managed by mise (`mise.toml`) and is **not** on `PATH` — there is
+nothing to install and no `brew` on this workstation. Nothing is pinned yet: every entry
+in `mise.toml` currently floats on `latest`, so check versions before relying on them —
+`talosctl` in particular should match `talosVersion` in `kubernetes/talos/talconfig.yaml`.
+Invoke each one through mise:
 
 ```bash
-mise install                      # once, to materialise the pinned versions
+mise install                      # once, to materialise the tools
 mise exec -- talosctl version
-mise exec -- kubectl|flux|kubeseal|talhelper|helm|kubeconform|sops|age
+mise exec -- kubectl|flux|kubeseal|talhelper|helm|helmfile|kubeconform|sops|age
 ```
+
+Commands in this runbook are mostly written bare for readability (`talosctl`, `kubectl`,
+`helmfile`, `talhelper`, `sops`, `kubeseal`, `flux`, …); each must be prefixed with
+`mise exec --` (or run inside `mise exec -- $SHELL`).
 
 ---
 
@@ -98,9 +105,24 @@ VMs boot into maintenance mode. Talos API reachable on port 50000 (unauthenticat
 
 ### Phase 6 — Apply Talos machine configs
 
+Apply each node's config at its own address — the static DHCP leases from Phase 5 mean
+the nodes already hold these IPs on first boot:
+
 ```bash
 talosctl apply-config \
-  --nodes 172.16.20.102 --endpoints 172.16.20.102 --insecure \
+  --nodes 172.16.20.11 --endpoints 172.16.20.11 --insecure \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-cp-1.yaml
+
+talosctl apply-config \
+  --nodes 172.16.20.12 --endpoints 172.16.20.12 --insecure \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-cp-2.yaml
+
+talosctl apply-config \
+  --nodes 172.16.20.13 --endpoints 172.16.20.13 --insecure \
+  --file kubernetes/talos/clusterconfig/homelab-k8s-cp-3.yaml
+
+talosctl apply-config \
+  --nodes 172.16.20.14 --endpoints 172.16.20.14 --insecure \
   --file kubernetes/talos/clusterconfig/homelab-k8s-llm-1.yaml
 ```
 
@@ -143,6 +165,10 @@ kubectl get nodes   # STATUS: NotReady — expected (no CNI yet)
 ```bash
 sops -d /mnt/backups/keys/sealed-secrets-key.sops.yaml | kubectl apply -f -
 ```
+
+`/mnt/backups` is the workstation's mount of the Synology `backups` share
+(`/volume2/backups` on the NAS); how that mount is set up is not documented yet (tracked
+in `design/TODO.md`).
 
 **New cluster (fresh install):** skip the above.
 
@@ -880,7 +906,7 @@ The VM resource (`infra/terraform/kubernetes.tf`) does not set `on_boot`, and th
 
 | What you powered off | Restart |
 |---|---|
-| VMs only (Proxmox host stayed up) | Stay off — start manually: `qm start 2020 2021 2022`, or Proxmox UI |
+| VMs only (Proxmox host stayed up) | Stay off — start manually: `qm start 2020 2021 2022 2014`, or Proxmox UI |
 | The whole Proxmox host | VMs autostart with the host → Talos boots → etcd quorum recovers → kubelet → Flux reconciles |
 
 **Bring the NAS up before the cluster.** Proxmox can't sequence its VM startup against the
@@ -979,8 +1005,8 @@ the directory is re-adopted; deleting that PV object is optional housekeeping.
 With 3 CPs, losing one keeps etcd quorum. Cluster continues running throughout.
 
 ```bash
-# 1. Reprovision via Tofu
-just apply
+# 1. Reprovision via Tofu (review the plan before applying)
+just plan && just apply
 
 # 2. Apply Talos config to rebuilt node (--insecure: no PKI on fresh VM)
 talosctl apply-config \
@@ -993,13 +1019,15 @@ kubectl get nodes --watch   # NotReady → Ready
 
 ### Recreate all control planes (full cluster wipe)
 
-Only if all three CPs are lost simultaneously.
+Only if all three CPs are lost simultaneously. The `llm-1` worker is reprovisioned and
+configured by the same `just plan && just apply` / `talhelper apply` steps, and rejoins as
+a worker once the control plane is up.
 
 ```bash
-# 1. Reprovision all three VMs
-just apply
+# 1. Reprovision all four VMs — cp-1/2/3 and llm-1 (review the plan before applying)
+just plan && just apply
 
-# 2. Apply configs to all nodes
+# 2. Apply configs to all nodes (the three CPs and llm-1)
 talhelper apply
 
 # 3. Re-bootstrap etcd (ONE node only)
@@ -1052,7 +1080,8 @@ restic restore <snapshot-id> --target /tmp/etcd-restore
 # → /tmp/etcd-restore/tmp/etcd.snap
 
 # 2. Reprovision the VMs and apply Talos configs, but DO NOT run talosctl bootstrap
-just apply
+#    (review the plan before applying)
+just plan && just apply
 talhelper apply
 
 # 3. Bootstrap the single node directly from the snapshot instead
@@ -1083,12 +1112,16 @@ Restore reads the repo directly and touches nothing in the cluster, so it is saf
 run against a live system as long as you restore to a scratch `--target`.
 
 ```bash
+# Find the backup-tools tag the backup CronJobs currently use, and substitute it
+# for <tag> below (use the one in the manifest of the app you are restoring).
+grep -rho 'backup-tools:[^" ]*' kubernetes/apps | sort -u
+
 # Run inside a throwaway pod that already has the repo credentials mounted.
 # Swap the namespace/secret names for the app you want (repo = one per job).
 mise exec -- kubectl run restic-restore -n paperless --rm -it --restart=Never \
-  --image=ghcr.io/lucid-void/backup-tools:v1.0.2 \
+  --image=ghcr.io/lucid-void/backup-tools:<tag> \
   --overrides='{"spec":{"securityContext":{"runAsUser":65534,"fsGroup":65534},
-    "containers":[{"name":"r","image":"ghcr.io/lucid-void/backup-tools:v1.0.2",
+    "containers":[{"name":"r","image":"ghcr.io/lucid-void/backup-tools:<tag>",
     "stdin":true,"tty":true,"command":["/bin/bash"],
     "envFrom":[{"secretRef":{"name":"restic-secret"}}],
     "env":[{"name":"RCLONE_CONFIG","value":"/rclone-config/rclone.conf"},
