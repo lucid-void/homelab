@@ -208,6 +208,127 @@ class AssessTests(unittest.TestCase):
         self.assertEqual(c.calls, [["marketing"]])
 
 
+HEADLINES = {"at": 0.5, "max": 2, "skip_categories": ["T2 Forum"], "questions": {"tech": "H1?", "world": "H2?"}}
+SAME_STORY = {"at": 0.5, "max_candidates": 3, "question": "Same as {title}?"}
+
+
+class HeadlineTests(unittest.TestCase):
+    def setUp(self):
+        self.p = make(headlines=HEADLINES)
+
+    def run_assess(self, a, clef_obj=None):
+        c = clef_obj or FakeClef()
+        return interests.assess(self.p, a, c), c
+
+    def test_without_the_section_nothing_changes(self):
+        v = interests.assess(make(), article("Cilium 1.20 adds things"), FakeClef(h_tech=0.9))
+        self.assertEqual((v["headline"], v["importance"]), (False, 0.0))
+
+    def test_an_unmatched_article_is_asked_only_the_headline_questions(self):
+        v, c = self.run_assess(article("President removed from office"), FakeClef(h_world=0.9))
+        self.assertEqual(c.calls, [["h_tech", "h_world"]])
+        self.assertEqual((v["deliver"], v["headline"], v["importance"], v["tier"], v["group"]),
+                         (True, True, 0.9, None, None))
+
+    def test_the_headline_questions_see_the_title_alone(self):
+        states = []
+
+        class Recording(FakeClef):
+            def noul(self, state, questions):
+                states.append(state)
+                return super().noul(state, questions)
+        interests.assess(self.p, article("President removed", summary="long text"), Recording())
+        interests.assess(self.p, article("Cilium 1.20", summary="long text"), Recording())
+        self.assertEqual(states, [{"title": "President removed", "summary": ""},
+                                  {"title": "Cilium 1.20", "summary": "long text"},
+                                  {"title": "Cilium 1.20", "summary": ""}])
+
+    def test_an_unmatched_article_below_the_bar_is_not_delivered(self):
+        v, _ = self.run_assess(article("Celebrity news"), FakeClef(h_world=0.4))
+        self.assertEqual((v["deliver"], v["headline"], v["reason"]), (False, False, "no match"))
+
+    def test_the_bar_is_inclusive(self):
+        v, _ = self.run_assess(article("Celebrity news"), FakeClef(h_tech=0.5))
+        self.assertTrue(v["headline"])
+
+    def test_unmatched_articles_in_a_skipped_category_or_a_release_feed_are_not_asked(self):
+        for a in (article("Which fund?", categories=["T2 Forum"]),
+                  article("v9", site="https://github.com/org/repo/releases", categories=["Other"])):
+            v, c = self.run_assess(a, FakeClef(h_world=0.9))
+            self.assertEqual((v["deliver"], c.calls), (False, []))
+
+    def test_a_matched_article_gets_the_headline_questions_in_a_second_call(self):
+        v, c = self.run_assess(article("Cilium 1.20 adds things"), FakeClef(h_tech=0.3))
+        self.assertEqual(c.calls, [["marketing"], ["h_tech", "h_world"]])
+        self.assertEqual((v["deliver"], v["headline"], v["importance"], v["tier"]), (True, False, 0.3, 1))
+
+    def test_a_headline_is_delivered_even_when_the_tier_rules_would_drop_it(self):
+        not_substantive = article("GrapheneOS founder steps down", categories=["T2 Privacy"])
+        v, _ = self.run_assess(not_substantive, FakeClef(h_tech=0.8))
+        self.assertEqual((v["deliver"], v["headline"], v["score"], v["tier"]), (True, True, 0.6, 2))
+        marketing = article("Cilium acquired", url="https://ft.com/x")
+        v, _ = self.run_assess(marketing, FakeClef(h_tech=0.8, marketing=0.9))
+        self.assertEqual((v["deliver"], v["headline"]), (True, True))
+
+    def test_a_tier3_headline_does_not_alert_on_its_own(self):
+        v, c = self.run_assess(article("FOSDEM cancelled", categories=["T3 Other"]), FakeClef(h_world=0.9))
+        self.assertEqual(c.calls, [["major", "marketing", "time_sensitive"], ["h_tech", "h_world"]])
+        self.assertEqual((v["deliver"], v["headline"], v["alert"]), (True, True, False))
+
+    def test_ruled_out_and_spoilers_still_win_over_a_headline(self):
+        v, c = self.run_assess(article("TrueNAS and Proxmox"), FakeClef(h_tech=0.9))
+        self.assertEqual((v["deliver"], c.calls), (False, []))
+        v, _ = self.run_assess(article("Expedition 33 ending explained", categories=["T2 Gaming"]),
+                               FakeClef(spoiler=0.9, h_tech=0.9))
+        self.assertEqual((v["deliver"], v["reason"]), (False, "spoiler"))
+
+    def test_pure_release_feeds_still_skip_clef(self):
+        a = article("v1.2.3", site="https://github.com/org/repo/releases", categories=["T1 Homelab"])
+        v, c = self.run_assess(a, FakeClef(h_tech=0.9))
+        self.assertEqual((v["deliver"], v["headline"], c.calls), (True, False, []))
+
+    def test_each_kind_of_damage_is_a_profile_error(self):
+        cases = [
+            {**HEADLINES, "at": "high"}, {**HEADLINES, "max": 0}, {**HEADLINES, "max": 1.5}, {**HEADLINES, "max": True},
+            {**HEADLINES, "questions": {}}, {**HEADLINES, "questions": {"tech": ""}}, {**HEADLINES, "questions": ["x"]},
+            {**HEADLINES, "skip_categories": "T2 Forum"}, [], "on",
+        ]
+        for i, section in enumerate(cases):
+            with self.subTest(case=i), self.assertRaises(interests.ProfileError):
+                make(headlines=section)
+
+    def test_skip_categories_may_be_omitted(self):
+        section = {k: v for k, v in HEADLINES.items() if k != "skip_categories"}
+        self.assertEqual(make(headlines=section)["headlines"]["skip"], set())
+
+
+class SameStoryTests(unittest.TestCase):
+    def test_story_words_drop_feed_tags_stop_words_and_punctuation(self):
+        self.assertEqual(interests.story_words("[AINews] Jensen Huang resigns after 33 years leading NVIDIA!"),
+                         {"jensen", "huang", "resigns", "years", "leading", "nvidia"})
+        self.assertEqual(interests.story_words("llama.cpp v1.0 is here"), {"llama.cpp", "v1.0"})
+        self.assertEqual(interests.story_words("Claude heeft storing: gebruikers hebben moeite"),
+                         {"claude", "storing", "gebruikers", "moeite"})
+
+    def test_candidates_are_the_titles_sharing_most_words_newest_first_on_ties(self):
+        titles = ["Jensen Huang resigns", "Proxmox 9 released", "Huang out at Nvidia", "Jensen Huang resigns as CEO"]
+        self.assertEqual(interests.story_candidates("Nvidia: Jensen Huang resigns", titles, 2), [3, 0])
+        self.assertEqual(interests.story_candidates("Nvidia: Jensen Huang resigns", titles, 5), [3, 0, 2])
+        self.assertEqual(interests.story_candidates("Something else entirely", titles, 3), [])
+
+    def test_the_section_compiles_and_is_optional(self):
+        self.assertIsNone(make()["same_story"])
+        s = make(same_story=SAME_STORY)["same_story"]
+        self.assertEqual((s["at"], s["max"], s["question"]), (0.5, 3, "Same as {title}?"))
+
+    def test_each_kind_of_damage_is_a_profile_error(self):
+        cases = [{**SAME_STORY, "at": None}, {**SAME_STORY, "max_candidates": 0}, {**SAME_STORY, "max_candidates": "3"},
+                 {**SAME_STORY, "question": "no placeholder"}, {**SAME_STORY, "question": 3}, []]
+        for i, section in enumerate(cases):
+            with self.subTest(case=i), self.assertRaises(interests.ProfileError):
+                make(same_story=section)
+
+
 class HelperTests(unittest.TestCase):
     def test_group_lines_keep_profile_order(self):
         self.assertEqual(interests.group_lines(make())[:2], [("Homelab", 1), ("Local AI", 1)])

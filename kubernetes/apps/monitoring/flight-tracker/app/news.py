@@ -16,7 +16,7 @@ UTC = timezone.utc
 POLL_SECONDS = 1800
 LOOP_SECONDS = 30
 TOPICS_PER_CALL = 3     # topics scored per Clef call: about 7 s per call on CPU
-MAX_PER_POLL = 40       # an article with 10 topics is 4 calls, so a poll stays within minutes
+MAX_PER_POLL = 40       # every article costs a headline call (about 8 s), so a full poll is 6 to 9 minutes
 MAX_TOPICS = 10
 MAX_TOPIC_LEN = 80
 MAX_SEEN = 5000
@@ -25,7 +25,8 @@ DIGEST_MAX_CHARS = 3500
 TIER_QUOTA = {1: 10, 2: 8, 3: 4}   # items per digest; each tier cycles through its groups
 MAX_ALERTS = 50
 CUSTOM_SCORE = 0.8      # an extra /topics match counts as a Tier 2 article that passed the threshold
-TIER_TITLES = {1: "🔥 Core", 2: "📰 Regular", 3: "🧭 Situational"}
+HEADLINES = 0           # section and tier number of big news; an item with tier 0 matched no profile group
+TIER_TITLES = {HEADLINES: "🚨 Headlines", 1: "🔥 Core", 2: "📰 Regular", 3: "🧭 Situational"}
 THRESHOLD = 0.5
 USAGE = "Usage: /topics [add <topic> | rm <topic or number>]"
 
@@ -161,14 +162,18 @@ class News:
                 self.failing = False
                 return True
             seen = set(self.state["seen"])
+            queued = list(self.state["pending"])
         fresh = [a for a in articles if a["id"] not in seen]
         if not topics and self.profile is None:  # nothing to match against; do not hold these back
             self._finish(fresh, [])
             return True
+        same = self.profile["same_story"] if self.profile is not None else None
         scored, matches, alerts = [], [], []
         for article in fresh[:MAX_PER_POLL]:
             try:
                 item, is_alert = self._score(article, topics)
+                if item is not None and not is_alert and same is not None:
+                    item["story"] = self._story(article, queued + matches, same)
             except ClefError as e:
                 self._fail(f"clef unavailable ({e}), articles stay unseen")
                 break
@@ -190,7 +195,11 @@ class News:
         hit = self._custom_hits(article, topics)
         base = {"id": article["id"], "title": article["title"], "url": article["url"]}
         if verdict is not None:
-            return ({**base, "topics": [verdict["group"]] + hit, "tier": verdict["tier"],
+            rank = {"importance": verdict["importance"], "headline": verdict["headline"]}
+            if verdict["group"] is None:  # big news outside every profile group
+                return ({**base, **rank, "topics": hit, "tier": 2 if hit else HEADLINES,
+                         "score": CUSTOM_SCORE if hit else 0.0, "group": None, "custom": hit}, False)
+            return ({**base, **rank, "topics": [verdict["group"]] + hit, "tier": verdict["tier"],
                      "score": verdict["score"], "group": verdict["group"], "custom": hit}, verdict["alert"])
         if not hit:
             return None, False
@@ -206,6 +215,25 @@ class News:
             probs = self.clef.noul(state, {f"t{i}": f"Is this article about: {t}?" for i, t in chunk})
             hit += [t for i, t in chunk if probs[f"t{i}"] >= THRESHOLD]
         return hit
+
+    def _story(self, article, queued, same):
+        """The story id for a new item: that of a queued item Clef says is the same story, else its own id.
+        One call, one question per candidate story; candidates are the queued titles sharing most words."""
+        picks, stories = [], set()
+        for i in interests.story_candidates(article["title"], [q["title"] for q in queued], len(queued)):
+            story = queued[i].get("story", queued[i]["id"])
+            if story not in stories:
+                stories.add(story)
+                picks.append((queued[i]["title"], story))
+            if len(picks) == same["max"]:
+                break
+        if not picks:
+            return article["id"]
+        probs = self.clef.noul({"title": article["title"], "summary": ""},  # titles on both sides: a fast call
+                               {f"same{n}": same["question"].replace(interests.TITLE_SLOT, title)
+                                for n, (title, _) in enumerate(picks)})
+        best = max(range(len(picks)), key=lambda n: probs[f"same{n}"])
+        return picks[best][1] if probs[f"same{best}"] >= same["at"] else article["id"]
 
     def _fail(self, text):
         if not self.failing:
@@ -258,7 +286,8 @@ class News:
                 if (self.profile is not None and self.profile["skip_release_feeds"]
                         and self.profile["pure_rx"].search(item.get("url") or "")):
                     continue  # queued before release feeds were skipped
-                if "tier" in item and item.get("group") is not None:  # a profile match: nothing to unfollow
+                if "tier" in item and (item.get("group") is not None or item.get("headline")):
+                    # a profile match or a headline: nothing to unfollow
                     pending.append(item)
                     continue
                 names = item.get("custom", item["topics"]) if "tier" in item else item["topics"]
@@ -286,49 +315,68 @@ class News:
         e = lambda t: htmllib.escape(t, quote=True)
         return f'<a href="{e(item["url"])}">{e(item["title"])}</a>'
 
+    @staticmethod
+    def _stories(pending):
+        """One entry per story: the lead (most important article), how many articles, and the best of each."""
+        members = {}
+        for i, item in enumerate(pending):
+            members.setdefault(item.get("story", item["id"]), []).append(i)
+        stories = []
+        for indexes in members.values():
+            lead = max(indexes, key=lambda i: (pending[i].get("importance", 0.0),
+                                                pending[i].get("score", CUSTOM_SCORE), -i))
+            tiers = [t for t in (pending[i].get("tier", 2) for i in indexes) if t != HEADLINES]
+            stories.append({
+                "lead": lead, "count": len(indexes), "tier": min(tiers) if tiers else HEADLINES,
+                "headline": any(pending[i].get("headline") for i in indexes),
+                "importance": pending[lead].get("importance", 0.0),
+                "score": max(pending[i].get("score", CUSTOM_SCORE) for i in indexes),
+                "group": pending[lead].get("group") or tuple(pending[lead]["topics"])})
+        return stories
+
     def _pick(self, pending):
-        """Indexes to show: per tier up to its quota, cycling through the groups (best score, newest first)."""
-        chosen = []
+        """(section, story) to show. Headlines first, the most important up to the profile's cap; then per tier
+        up to its quota, cycling through the groups, most important first (then best score, then newest)."""
+        stories = self._stories(pending)
+        order = lambda s: (-s["importance"], -s["score"], -s["lead"])
+        cap = self.profile["headlines"]["max"] if self.profile["headlines"] is not None else 0
+        top = sorted((s for s in stories if s["headline"]), key=order)[:cap]
+        chosen = [(HEADLINES, s) for s in top]
         for tier in (1, 2, 3):
             buckets = {}
-            for i in sorted((i for i, it in enumerate(pending) if it.get("tier", 2) == tier),
-                            key=lambda i: (-pending[i].get("score", CUSTOM_SCORE), -i)):
-                buckets.setdefault(pending[i].get("group") or tuple(pending[i]["topics"]), []).append(i)
-            queues, taken = list(buckets.values()), 0
-            while queues and taken < TIER_QUOTA[tier]:
+            for s in sorted((s for s in stories if s["tier"] == tier and s not in top), key=order):
+                buckets.setdefault(s["group"], []).append(s)
+            queues, taken = list(buckets.values()), []
+            while queues and len(taken) < TIER_QUOTA[tier]:
                 for q in list(queues):
-                    if taken >= TIER_QUOTA[tier]:
+                    if len(taken) >= TIER_QUOTA[tier]:
                         break
-                    chosen.append(q.pop(0))
-                    taken += 1
+                    taken.append(q.pop(0))
                     if not q:
                         queues.remove(q)
-        return chosen
+            chosen += [(tier, s) for s in sorted(taken, key=order)]
+        return chosen, len(stories)
 
     def _digest_text(self, pending):
         """(message text in HTML, items to keep for the next digest: none)."""
         if self.profile is None:
             return self._digest_text_plain(pending)
-        chosen, size = [], 0
-        for i in self._pick(pending):
-            line = f"• {self._link(pending[i])}"
-            if chosen and size + len(line) > DIGEST_MAX_CHARS:
+        picked, total = self._pick(pending)
+        lines, size, current, shown = [], 0, None, 0
+        for section, story in picked:
+            more = f" (+{story['count'] - 1})" if story["count"] > 1 else ""  # other articles on the same story
+            line = f"• {self._link(pending[story['lead']])}{more}"
+            if shown and size + len(line) > DIGEST_MAX_CHARS:
                 break
-            chosen.append((i, line))
-            size += len(line) + 1
-        lines, current = [], None
-        for i, line in chosen:
-            tier = pending[i].get("tier", 2)
-            if tier != current:
-                lines.append(("" if not lines else "\n") + f"<b>{TIER_TITLES[tier]}</b>")
-                current = tier
+            if section != current:
+                lines.append(("" if not lines else "\n") + f"<b>{TIER_TITLES[section]}</b>")
+                current = section
             lines.append(line)
-        shown = {i for i, _ in chosen}
-        skipped = len(pending) - len(shown)
-        if skipped:  # a digest is the news since the last one: what did not fit is dropped, not carried
-            lines.append(f"\n{skipped} more skipped")
-        n = len(chosen)
-        return f"📰 <b>News digest</b> · {n} item{'s' if n != 1 else ''}\n\n" + "\n".join(lines), []
+            size += len(line) + 1
+            shown += 1
+        if total > shown:  # a digest is the news since the last one: what did not fit is dropped, not carried
+            lines.append(f"\n{total - shown} more skipped")
+        return f"📰 <b>News digest</b> · {shown} item{'s' if shown != 1 else ''}\n\n" + "\n".join(lines), []
 
     def _digest_text_plain(self, pending):
         lines, size, used = [], 0, 0

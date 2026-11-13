@@ -46,6 +46,26 @@ class NewsProfileFileTests(unittest.TestCase):
     def test_every_group_category_exists_in_the_opml_import(self):
         self.assertEqual(interests.missing_categories(self.p, OPML_CATEGORIES), [])
 
+    def test_headlines_scan_every_category_except_the_forum_and_filings_one(self):
+        h = self.p["headlines"]
+        self.assertEqual((h["at"], h["max"], sorted(h["questions"])), (0.6, 5, ["h_stir", "h_tech", "h_world"]))
+        self.assertTrue(h["skip"] <= OPML_CATEGORIES)  # a renamed category would silently be scanned again
+        asked = []
+
+        class Big(Quiet):
+            def noul(self, state, questions):
+                asked.append(state)
+                return {q: 0.9 if q == "h_world" else 0.1 for q in questions}
+        world = interests.assess(self.p, art("President removed from office", ["T3 events/travel/other"]), Big())
+        forum = interests.assess(self.p, art("Which index fund should I pick?", ["T2 Investing/career"]), Big())
+        self.assertEqual((world["deliver"], world["headline"], world["group"]), (True, True, None))
+        self.assertEqual((forum["deliver"], len(asked)), (False, 1))
+
+    def test_same_story_question_has_room_for_the_other_title(self):
+        s = self.p["same_story"]
+        self.assertEqual((s["at"], s["max"]), (0.5, 3))
+        self.assertIn('"{title}"', s["question"])
+
     def test_homonyms_do_not_match_outside_their_category(self):
         for title in ("Signal analyzer, 10 Gbps USB logic analyzer", "Pixel art fish tank for an LED matrix",
                       "Thread loose in NVIDIA whitepaper", "What matter most to AI resilience"):

@@ -395,9 +395,10 @@ class DigestTests(unittest.TestCase):
         self.assertTrue(all(isinstance(x, str) for x in h.news.help))
 
 
-def profile_for_tests(version=3):
+def profile_for_tests(version=3, **extra):
     raw = copy.deepcopy(test_interests.RAW)
     raw["version"] = version
+    raw.update(copy.deepcopy(extra))
     return interests.compile_profile(raw)
 
 
@@ -406,8 +407,10 @@ def part(n, title, categories=(), site="", url=None, summary=""):
 
 
 class ProfileHarness(Harness):
+    extra = {}
+
     def __init__(self, version=3, **answers):
-        self.profile = profile_for_tests(version)
+        self.profile = profile_for_tests(version, **self.extra)
         self._answers = answers
         super().__init__()
 
@@ -644,6 +647,138 @@ class ProfileDigestTests(unittest.TestCase):
         self.assertFalse(h.news.maybe_digest())
         self.assertEqual(h.state()["pending"], [])
         self.assertEqual(len(h.sent), 0)
+
+
+class HeadlineHarness(ProfileHarness):
+    extra = {"headlines": test_interests.HEADLINES, "same_story": test_interests.SAME_STORY}  # at most 2 headlines
+
+
+class NoSameStory(ProfileClef):
+    """A Clef that fails only on same-story questions."""
+
+    def noul(self, state, questions):
+        if any(q.startswith("same") for q in questions):
+            raise clef.ClefError("OSError")
+        return super().noul(state, questions)
+
+
+class HeadlineTests(unittest.TestCase):
+    def digest(self, h, items):
+        h.news.maybe_digest()
+        h.now = T0 + timedelta(hours=1)
+        h.news.state["pending"] = items
+        self.assertTrue(h.news.maybe_digest())
+        return h.sent[-1]
+
+    def item(self, n, tier, importance=0.0, headline=False, story=None, group="G", score=1.0):
+        return {"id": f"p{n}", "title": f"title {n}", "url": f"https://x/{n}", "topics": [group] if group else [],
+                "tier": tier, "score": score, "group": group, "custom": [], "importance": importance,
+                "headline": headline, "story": story or f"p{n}"}
+
+    def test_an_unmatched_headline_is_queued_without_a_group(self):
+        h = HeadlineHarness(h_world=0.9).started()
+        h.poll([part(2, "President removed from office")])
+        [item] = h.state()["pending"]
+        self.assertEqual((item["headline"], item["importance"], item["tier"], item["group"], item["topics"], item["story"]),
+                         (True, 0.9, 0, None, [], "a2"))
+
+    def test_a_matched_article_keeps_its_tier_and_records_importance(self):
+        h = HeadlineHarness(h_tech=0.3).started()
+        h.poll([part(2, "Cilium 1.20", ["T1 Homelab"])])
+        [item] = h.state()["pending"]
+        self.assertEqual((item["headline"], item["importance"], item["tier"], item["group"]), (False, 0.3, 1, "Homelab"))
+
+    def test_headlines_come_first_and_each_tier_is_ordered_by_importance(self):
+        h = HeadlineHarness().started()
+        text = self.digest(h, [self.item(1, 1, 0.1), self.item(2, 2, 0.8, headline=True, score=0.6),
+                               self.item(3, 0, 0.9, headline=True, group=None), self.item(4, 1, 0.4)])
+        order = [text.index(x) for x in ("Headlines", "title 3", "title 2", "Core", "title 4", "title 1")]
+        self.assertEqual(order, sorted(order))
+        self.assertNotIn("Regular", text)
+        self.assertIn("4 items", text)
+
+    def test_headlines_past_the_cap_fall_back_to_their_tier_or_are_skipped(self):
+        h = HeadlineHarness().started()
+        text = self.digest(h, [self.item(1, 1, 0.6, headline=True), self.item(2, 0, 0.7, headline=True, group=None),
+                               self.item(3, 0, 0.9, headline=True, group=None), self.item(4, 2, 0.8, headline=True)])
+        order = [text.index(x) for x in ("Headlines", "title 3", "title 4", "Core", "title 1", "1 more skipped")]
+        self.assertEqual(order, sorted(order))
+        self.assertNotIn("title 2", text)
+
+    def test_a_profile_without_headlines_has_no_headline_section(self):
+        h = ProfileHarness().started()
+        text = self.digest(h, [self.item(1, 1, 0.9, headline=True)])
+        self.assertNotIn("Headlines", text)
+        self.assertIn("title 1", text)
+
+    def test_a_second_article_on_the_same_story_joins_it(self):
+        h = HeadlineHarness(same0=0.9).started()
+        h.poll([part(2, "Cilium 2.0 released", ["T1 Homelab"])])
+        self.assertEqual(len(h.clef.calls), 2)  # scoring and importance; nothing pending, so no same-story question
+        h.poll([part(3, "Cilium 2.0 is out", ["T1 Homelab"])])
+        self.assertEqual([i["story"] for i in h.state()["pending"]], ["a2", "a2"])
+        state, questions = h.clef.calls[-1]
+        self.assertEqual((state, questions), ({"title": "Cilium 2.0 is out", "summary": ""},
+                                              {"same0": "Same as Cilium 2.0 released?"}))
+
+    def test_two_articles_in_one_poll_are_compared_too(self):
+        h = HeadlineHarness(same0=0.9).started()
+        h.poll([part(2, "Cilium 2.0 released", ["T1 Homelab"]), part(3, "Cilium 2.0 is out", ["T1 Homelab"])])
+        self.assertEqual([i["story"] for i in h.state()["pending"]], ["a2", "a2"])
+
+    def test_a_no_from_clef_or_no_shared_word_starts_a_new_story(self):
+        h = HeadlineHarness(same0=0.2).started()
+        h.poll([part(2, "Cilium 2.0 released", ["T1 Homelab"])])
+        h.poll([part(3, "Cilium conference dates", ["T1 Homelab"])])
+        calls = len(h.clef.calls)
+        h.poll([part(4, "Proxmox 9 ships", ["T1 Homelab"])])
+        self.assertEqual([i["story"] for i in h.state()["pending"]], ["a2", "a3", "a4"])
+        self.assertEqual(len(h.clef.calls), calls + 2)  # the Proxmox title shares no word: no same-story call
+
+    def test_one_candidate_per_story_is_asked(self):
+        h = HeadlineHarness().started()
+        h.news.state["pending"] = [{**self.item(1, 1, story="s"), "title": "Cilium 2.0 released"},
+                                   {**self.item(2, 1, story="s"), "title": "Cilium 2.0 is out"},
+                                   {**self.item(3, 1), "title": "Cilium conference dates"}]
+        h.poll([part(4, "Cilium 2.0 lands", ["T1 Homelab"])])
+        _, questions = h.clef.calls[-1]
+        self.assertEqual(questions, {"same0": "Same as Cilium 2.0 is out?", "same1": "Same as Cilium conference dates?"})
+
+    def test_a_clef_failure_on_the_same_story_question_leaves_the_article_unseen(self):
+        h = HeadlineHarness().started()
+        h.poll([part(2, "Cilium 2.0 released", ["T1 Homelab"])])
+        h.news.clef = NoSameStory()
+        self.assertFalse(h.poll([part(3, "Cilium 2.0 is out", ["T1 Homelab"])]))
+        st = h.state()
+        self.assertEqual((len(st["pending"]), "a3" in st["seen"]), (1, False))
+
+    def test_a_story_is_one_line_led_by_its_most_important_article(self):
+        h = HeadlineHarness().started()
+        text = self.digest(h, [self.item(1, 1, 0.2, story="s"), self.item(2, 1, 0.6, story="s"),
+                               self.item(3, 1, 0.1, story="s"), self.item(4, 1, 0.3)])
+        self.assertIn("title 2</a> (+2)", text)
+        self.assertNotIn("title 1", text)
+        self.assertNotIn("title 3", text)
+        self.assertLess(text.index("title 2"), text.index("title 4"))
+        self.assertIn("2 items", text)
+        self.assertNotIn("skipped", text)
+
+    def test_a_story_takes_the_best_tier_and_the_headline_of_its_articles(self):
+        h = HeadlineHarness().started()
+        text = self.digest(h, [self.item(1, 2, 0.4, story="s", score=0.8), self.item(2, 1, 0.2, story="s"),
+                               self.item(3, 0, 0.9, headline=True, story="t", group=None),
+                               self.item(4, 3, 0.95, story="t", score=0.8)])
+        order = [text.index(x) for x in ("Headlines", "title 4</a> (+1)", "Core", "title 1</a> (+1)")]
+        self.assertEqual(order, sorted(order))
+        self.assertNotIn("Regular", text)
+        self.assertNotIn("Situational", text)
+
+    def test_items_queued_before_the_upgrade_still_render(self):
+        h = HeadlineHarness().started()
+        old = {"id": "p1", "title": "title 1", "url": "https://x/1", "topics": ["G"], "tier": 1, "score": 1.0,
+               "group": "G", "custom": []}
+        text = self.digest(h, [old, self.item(2, 1, 0.5)])
+        self.assertLess(text.index("title 2"), text.index("title 1"))
 
 
 if __name__ == "__main__":
