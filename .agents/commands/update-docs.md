@@ -17,8 +17,8 @@ Run this after making changes to kubernetes manifests, or to audit documentation
 | `kubernetes/apps/democratic-csi/`, `kubernetes/apps/openebs/` | `design/docs/storage.md` |
 | `kubernetes/talos/talconfig.yaml` | `design/architecture.md` |
 | `kubernetes/flux/` | `design/docs/gitops.md`, `design/decisions/flux.md` |
-| A service listed in the `AGENTS.md` routing table | its `design/decisions/<topic>.md` row |
-| Any new service namespace | `design/docs/services.md` **and** a new routing row in `AGENTS.md` (see below) |
+| A service listed in the `AGENTS.md` routing list | its `design/decisions/<topic>.md` row |
+| Any new service namespace | `design/docs/services.md` **and** a new routing line in `AGENTS.md` (see below) |
 | Any new key decision or gotcha | see "Where a new fact goes" below |
 
 ## Process
@@ -77,7 +77,7 @@ Never add a gotcha's body to `AGENTS.md` — see "Where a new fact goes" below.
    without a reason has nowhere for a reader to check it, so it gets mis-applied or
    half-applied — which is exactly how the `apk`-as-non-root rule reached `main` naming
    only one of the two settings it needs.
-3. A new terminal doc → one row in the `AGENTS.md` routing table. Never a second index.
+3. A new terminal doc → one line in the `AGENTS.md` routing list. Never a second index.
 
 `AGENTS.md` has a hard budget of 2,500 tokens. Check before committing:
 
@@ -91,7 +91,7 @@ number: the manifest is the source of truth. Versions belong here only as a
 constraint, a known-bad minimum, or a recorded incident.
 
 A `design/decisions/*.md` file over 8,192 bytes should be split, and the
-`AGENTS.md` routing table updated to reach both halves — a row points at a
+`AGENTS.md` routing list updated to reach both halves — a row points at a
 file, it never carries the body.
 
 Adding a new service means adding its routing row in the same change, not later.

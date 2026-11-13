@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 # Validate one kubernetes manifest against upstream + CRD schemas.
 # Usage: .agents/scripts/validate-manifests.sh <file>
-# Exits 0 if valid, not a kubernetes manifest, or the schema could not be
-# fetched; non-zero only on a genuine schema violation.
+# Takes ONE file — loop over files to check more than one.
+# Exits 0 if valid, not a kubernetes manifest, or not validated; non-zero only
+# on a genuine schema violation (2 on a missing argument).
+# A run that could not validate prints one "SKIPPED: <reason>" line to stderr
+# and still exits 0: a directory argument, mise not installed, or a schema
+# that could not be fetched/decoded. Silent exit 0 is reserved for "valid" and
+# for the ordinary not-a-manifest cases (missing path, outside kubernetes/, no
+# `kind:`) — the PostToolUse hook runs this on every edit, so those stay quiet.
 set -uo pipefail
 
 FILE="${1:-}"
 [[ -z "$FILE" ]] && { echo "usage: $0 <file>" >&2; exit 2; }
+[[ -d "$FILE" ]] && { echo "SKIPPED: $FILE is a directory, nothing validated — pass one file at a time" >&2; exit 0; }
 [[ ! -f "$FILE" ]] && exit 0
 case "$FILE" in
   */kubernetes/*.yml|*/kubernetes/*.yaml|kubernetes/*.yml|kubernetes/*.yaml) ;;
   *) exit 0 ;;
 esac
-command -v mise >/dev/null 2>&1 || exit 0
-
 # Not every YAML file under kubernetes/ is a Kubernetes manifest — Helm values
 # files, kustomizeconfig.yml, helmfile.yml, talconfig.yaml, and SOPS-encrypted
 # Talos files all live there but carry no `kind:`. kubeconform correctly
@@ -21,6 +26,8 @@ command -v mise >/dev/null 2>&1 || exit 0
 # defect is the bug, not the file. Skip anything with no top-level `kind:` in
 # any document (a multi-doc file only needs one document to carry it).
 grep -qE '^kind:[[:space:]]*[A-Za-z]' "$FILE" || exit 0
+
+command -v mise >/dev/null 2>&1 || { echo "SKIPPED: mise not found, $FILE not validated" >&2; exit 0; }
 
 # CRD schemas are fetched unauthenticated from raw.githubusercontent.com, once
 # per CRD kind per run. Cache them on disk so a session's repeated edits cost
@@ -60,7 +67,7 @@ RESIDUAL=$(printf '%s\n' "$OUT" \
   | grep -v 'failed downloading schema' \
   | grep -Ev 'failed validation: (invalid character|unexpected EOF|EOF$)' \
   | tr -d '[:space:]')
-[[ -z "$RESIDUAL" ]] && exit 0
+[[ -z "$RESIDUAL" ]] && { echo "SKIPPED: schema download or cache decode failed, $FILE not validated" >&2; exit 0; }
 
 printf '%s\n' "$OUT" >&2
 exit "$RC"
