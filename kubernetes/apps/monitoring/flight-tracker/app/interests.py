@@ -12,6 +12,18 @@ from urllib.parse import urlsplit
 TIER_KEYS = ("1", "2", "3")
 ADJUST_KEYS = ("marketing", "substantive", "major", "paywalled", "build_noise")
 QUESTION_KEYS = ("marketing", "substantive", "major", "time_sensitive", "spoiler")
+HEADLINE_PREFIX = "h_"  # keeps headline question ids apart from QUESTION_KEYS in a shared Clef call
+TITLE_SLOT = "{title}"
+FEED_TAG_RX = re.compile(r"^\s*\[[^\]]{1,30}\]\s*")
+WORD_RX = re.compile(r"[^\W_](?:[\w.+#-]*[^\W_])?")
+# Words that say nothing about which story a title is on (English and Dutch); a pre-filter only, Clef decides.
+STOP_WORDS = frozenset("""
+a about after all also and another any are been before being but can for from had has have having here how into its
+just more most new not now our out over says than that the their them then there these they this those through was
+were what when where which while who why will with you your
+aan als bij dan dat deze die dit door een geen had heb hebben heeft het hij hoe hun kan maar meer met naar niet nog
+ook over tot uit van voor waar was wat wie wordt zijn zich
+""".split())
 
 
 class ProfileError(Exception):
@@ -79,6 +91,38 @@ def _flag(value, name):
     return value
 
 
+def _count(value, where):
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ProfileError(f"{where} must be a whole number of at least 1")
+    return value
+
+
+def _headlines(raw):
+    """The optional `headlines` section: questions asked about every article, matched or not."""
+    if "headlines" not in raw:
+        return None
+    section = _section(raw, "headlines")
+    questions = section.get("questions")
+    if not isinstance(questions, dict) or not questions or not all(
+            isinstance(k, str) and k and isinstance(v, str) and v.strip() for k, v in questions.items()):
+        raise ProfileError("headlines.questions must be a non-empty object of question texts")
+    return {"at": _num(section.get("at"), "headlines.at"), "max": _count(section.get("max"), "headlines.max"),
+            "skip": set(_strings(section.get("skip_categories", []), "headlines.skip_categories", required=False)),
+            "questions": {HEADLINE_PREFIX + k: v for k, v in questions.items()}}
+
+
+def _same_story(raw):
+    """The optional `same_story` section: collapses several articles on one story into one digest line."""
+    if "same_story" not in raw:
+        return None
+    section = _section(raw, "same_story")
+    question = section.get("question")
+    if not isinstance(question, str) or TITLE_SLOT not in question:
+        raise ProfileError(f"same_story.question must be a string containing {TITLE_SLOT}")
+    return {"at": _num(section.get("at"), "same_story.at"), "question": question,
+            "max": _count(section.get("max_candidates"), "same_story.max_candidates")}
+
+
 def compile_profile(raw):
     if not isinstance(raw, dict):
         raise ProfileError("the profile must be a JSON object")
@@ -142,6 +186,8 @@ def compile_profile(raw):
         "noise_rx": _regex(noise.get("title_regex"), "build_noise.title_regex"),
         "noise_unless_rx": _words(_strings(noise.get("unless_keywords", []),
                                            "build_noise.unless_keywords", required=False)),
+        "headlines": _headlines(raw),
+        "same_story": _same_story(raw),
     }
 
 
@@ -177,9 +223,33 @@ def match_group(profile, article):
     return best
 
 
-def _verdict(group, score=0.0, deliver=False, alert=False, reason=""):
+def _verdict(group, score=0.0, deliver=False, alert=False, reason="", importance=0.0, headline=False):
     return {"deliver": deliver, "alert": alert, "score": round(score, 3), "reason": reason,
-            "tier": group["tier"] if group else None, "group": group["title"] if group else None}
+            "tier": group["tier"] if group else None, "group": group["title"] if group else None,
+            "importance": round(importance, 3), "headline": headline}
+
+
+def story_words(title):
+    """The words of a title that can tell two stories apart: lowercased, no feed tag, no stop words."""
+    words = WORD_RX.findall(FEED_TAG_RX.sub("", title).lower())
+    return {w for w in words if len(w) >= 3 and not w.isdigit() and w not in STOP_WORDS}
+
+
+def story_candidates(title, titles, limit):
+    """Indexes into `titles` that share a word with `title`: most shared words first, then newest (last) first."""
+    words = story_words(title)
+    shared = [(len(words & story_words(t)), i) for i, t in enumerate(titles)]
+    return [i for n, i in sorted(shared, key=lambda x: (-x[0], -x[1])) if n][:limit]
+
+
+def _importance(headlines, article, clef):
+    """How big the news is, 0-1: the highest answer to the headline questions; 0.0 when headlines are off.
+    Asked on the title alone, in a call of its own: Clef's time grows with questions x text, so a summary
+    would triple it, and this runs for every article of every feed."""
+    if headlines is None:
+        return 0.0
+    answers = clef.noul({"title": article["title"], "summary": ""}, headlines["questions"])
+    return max(answers[q] for q in headlines["questions"])
 
 
 def _host_matches(url, domains):
@@ -192,24 +262,31 @@ def _host_matches(url, domains):
 
 def assess(profile, article, clef):
     """Score one article. ClefError raised by `clef.noul` propagates (the caller retries later)."""
-    if profile["skip_release_feeds"] and profile["pure_rx"].search(article.get("site") or ""):
+    headlines = profile["headlines"]
+    is_release = bool(profile["pure_rx"].search(article.get("site") or ""))
+    if profile["skip_release_feeds"] and is_release:
         return _verdict(None, reason="release feed")  # tags are not news
+    state = {"title": article["title"], "summary": article["summary"]}
     match = match_group(profile, article)
     if match is None:
-        return _verdict(None, reason="no match")
+        if headlines is None or is_release or set(article.get("categories") or []) & headlines["skip"]:
+            return _verdict(None, reason="no match")
+        importance = _importance(headlines, article, clef)
+        if importance + 1e-9 >= headlines["at"]:  # big news outside every group still reaches the digest
+            return _verdict(None, deliver=True, reason="headline", importance=importance, headline=True)
+        return _verdict(None, reason="no match", importance=importance)
     group, pure = match
     if profile["ruled_rx"] is not None and profile["ruled_rx"].search(article["title"]):
         return _verdict(group, reason="ruled out")
     tier, adjust, yes_at, q = group["tier"], profile["adjust"], profile["yes_at"], profile["questions"]
     score = profile["tiers"][tier]
     text = _text(article)
-    state = {"title": article["title"], "summary": article["summary"]}
     if pure and tier == 2:  # a release feed is substantive by nature
         score += adjust["substantive"]
     if profile["noise_rx"].search(article["title"]) and not (
             profile["noise_unless_rx"] is not None and profile["noise_unless_rx"].search(text)):
         score *= adjust["build_noise"]
-    time_sensitive = False
+    time_sensitive, importance = False, 0.0
     if not pure:
         spoiler_topic = profile["spoiler_rx"] is not None and profile["spoiler_rx"].search(text)
         allowed = profile["allow_rx"] is not None and profile["allow_rx"].search(text)
@@ -230,8 +307,12 @@ def assess(profile, article, clef):
         if tier == 3 and answers["major"] >= yes_at:
             score += adjust["major"]
         time_sensitive = tier == 3 and answers["time_sensitive"] >= yes_at
+        importance = _importance(headlines, article, clef)
     if _host_matches(article.get("url"), profile["paywalled"]):
         score *= adjust["paywalled"]
-    deliver = score + 1e-9 >= profile["deliver_min"]
-    return _verdict(group, score, deliver=deliver, alert=deliver and time_sensitive,
-                    reason="delivered" if deliver else "below threshold")
+    passed = score + 1e-9 >= profile["deliver_min"]
+    headline = headlines is not None and not pure and importance + 1e-9 >= headlines["at"]
+    deliver = passed or headline  # a headline is delivered whatever its tier score; alerts keep the tier rule
+    return _verdict(group, score, deliver=deliver, alert=passed and time_sensitive,
+                    reason="delivered" if passed else "headline" if headline else "below threshold",
+                    importance=importance, headline=headline)
