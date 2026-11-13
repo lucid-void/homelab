@@ -329,6 +329,78 @@ class SameStoryTests(unittest.TestCase):
                 make(same_story=section)
 
 
+ROUTINE = {"title_regex": "^Driver-update - ", "at": 0.5, "question": "Serious?"}
+
+
+class RoutineUpdateTests(unittest.TestCase):
+    def setUp(self):
+        self.p = make(routine_updates=ROUTINE)
+
+    def run_assess(self, a, clef_obj=None):
+        c = clef_obj or FakeClef()
+        return interests.assess(self.p, a, c), c
+
+    def test_the_section_compiles_and_is_optional(self):
+        self.assertIsNone(make()["routine_updates"])
+        r = self.p["routine_updates"]
+        self.assertEqual((r["at"], r["question"]), (0.5, "Serious?"))
+
+    def test_a_routine_update_is_dropped_after_one_question(self):
+        v, c = self.run_assess(article("Driver-update - Cilium NIC driver 1.2"))
+        self.assertEqual((v["deliver"], v["reason"], v["group"]), (False, "routine update", "Homelab"))
+        self.assertEqual(c.calls, [["serious"]])
+
+    def test_a_serious_update_goes_on_to_normal_scoring(self):
+        v, c = self.run_assess(article("Driver-update - Cilium NIC driver 1.2"), FakeClef(serious=0.9))
+        self.assertEqual((v["deliver"], v["score"], v["reason"]), (True, 1.0, "delivered"))
+        self.assertEqual(c.calls, [["serious"], ["marketing"]])
+
+    def test_the_bar_is_inclusive(self):
+        v, _ = self.run_assess(article("Driver-update - Cilium NIC driver 1.2"), FakeClef(serious=0.5))
+        self.assertTrue(v["deliver"])
+
+    def test_the_question_sees_the_title_and_the_summary(self):
+        states = []
+
+        class Recording(FakeClef):
+            def noul(self, state, questions):
+                states.append(state)
+                return super().noul(state, questions)
+        interests.assess(self.p, article("Driver-update - Cilium NIC driver", summary="fixes SSD wear"), Recording())
+        self.assertEqual(states, [{"title": "Driver-update - Cilium NIC driver", "summary": "fixes SSD wear"}])
+
+    def test_other_titles_are_not_asked(self):
+        _, c = self.run_assess(article("Cilium driver-update - what changed"))
+        self.assertEqual(c.calls, [["marketing"]])
+
+    def test_an_update_matching_no_group_is_not_asked(self):
+        v, c = self.run_assess(article("Driver-update - Some printer driver 3"))
+        self.assertEqual((v["deliver"], v["reason"], c.calls), (False, "no match", []))
+
+    def test_a_ruled_out_update_is_dropped_without_asking(self):
+        v, c = self.run_assess(article("Driver-update - TrueNAS Proxmox driver"), FakeClef(serious=0.9))
+        self.assertEqual((v["reason"], c.calls), ("ruled out", []))
+
+    def test_a_routine_update_is_dropped_even_when_it_would_be_a_headline(self):
+        p = make(routine_updates=ROUTINE, headlines=HEADLINES)
+        c = FakeClef(h_tech=0.9)
+        v = interests.assess(p, article("Driver-update - Cilium NIC driver 1.2"), c)
+        self.assertEqual((v["deliver"], v["headline"], c.calls), (False, False, [["serious"]]))
+
+    def test_pure_release_feeds_still_skip_clef(self):
+        a = article("Driver-update - v1.2.3", site="https://github.com/org/repo/releases", categories=["T1 Homelab"])
+        v, c = self.run_assess(a)
+        self.assertEqual((v["deliver"], c.calls), (True, []))
+
+    def test_each_kind_of_damage_is_a_profile_error(self):
+        cases = [{**ROUTINE, "title_regex": "["}, {**ROUTINE, "title_regex": ""}, {**ROUTINE, "at": "high"},
+                 {**ROUTINE, "question": ""}, {**ROUTINE, "question": 3},
+                 {k: v for k, v in ROUTINE.items() if k != "at"}, [], "on"]
+        for i, section in enumerate(cases):
+            with self.subTest(case=i), self.assertRaises(interests.ProfileError):
+                make(routine_updates=section)
+
+
 class HelperTests(unittest.TestCase):
     def test_group_lines_keep_profile_order(self):
         self.assertEqual(interests.group_lines(make())[:2], [("Homelab", 1), ("Local AI", 1)])

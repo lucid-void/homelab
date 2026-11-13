@@ -102,6 +102,27 @@ class NewsProfileFileTests(unittest.TestCase):
         self.assertNotEqual(patch["reason"], "spoiler")
         self.assertEqual(plot["reason"], "spoiler")
 
+    def test_driver_posts_are_delivered_only_when_clef_calls_them_serious(self):
+        class Serious(Quiet):
+            def noul(self, state, questions):
+                return {q: 0.9 if q in ("serious", "substantive") else 0.1 for q in questions}
+        # Both real Tweakers titles; they match Investing through "AMD" and "Nvidia".
+        amd = art("Driver-update - AMD Radeon Software Adrenalin Edition 26.11.1 Optional", ["T2 Shopping/hardware"])
+        nvidia = art("Driver-update - GeForce Game Ready Driver 621.24 WHQL", ["T2 Shopping/hardware"],
+                     summary="Nvidia heeft nieuwe stabiele GeForce-drivers uitgebracht.")
+        for a in (amd, nvidia):
+            with self.subTest(title=a["title"]):
+                routine = self.verdict(a)
+                self.assertEqual((routine["deliver"], routine["reason"]), (False, "routine update"))
+                self.assertTrue(interests.assess(self.p, a, Serious())["deliver"])
+
+    def test_only_driver_download_posts_are_treated_as_routine_updates(self):
+        rx = self.p["routine_updates"]["rx"]
+        for title in ("AMD lost gpu-driverbug op die veel onnodige ssd-schrijfacties opleverde",
+                      "Software-update - OPNsense 26.7.9", "Linux 7.5 To Upstream Driver For New Glanda GPU"):
+            with self.subTest(title=title):
+                self.assertIsNone(rx.search(title))
+
     def test_renovate_and_atmosphere_are_common_words_outside_their_categories(self):
         m1 = interests.match_group(self.p, art("Renovate your kitchen this winter", ["Core already in OPML"]))
         self.assertIsNone(m1)
