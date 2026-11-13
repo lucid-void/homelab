@@ -5,7 +5,9 @@
 ## Current state
 
 FluxCD reconciles everything under `kubernetes/apps/`. Every `Kustomization` object
-lives in `flux-system` and runs with `wait: true`.
+lives in `flux-system`. Only some set `wait: true` — 44 of the 98 in `ks.yml` files when
+counted on 2026-11-13, mostly operators and infrastructure; the other 54, most app
+Kustomizations among them, do not, and none sets `healthChecks`.
 
 Flux's own version is pinned in **two** files that must be bumped together:
 
@@ -27,11 +29,14 @@ Notification-controller has no namespace wildcard
 ([nc#784](https://github.com/fluxcd/notification-controller/issues/784)), so coverage is
 two layers:
 
-- `Kustomization` / * / `flux-system` — gapless backstop. Every Kustomization is in
-  `flux-system` and waits, so any failure (including a broken HelmRelease) trips its
-  parent; new namespaces are covered automatically.
-- `HelmRelease` / * / `<ns>` — enumerated per app namespace, for fast and specific
-  alerts.
+- `Kustomization` / * / `flux-system` — catches every build and apply failure, in any
+  namespace, because every Kustomization is in `flux-system`. It is **not** a gapless
+  backstop for HelmReleases: only a Kustomization with `wait: true` goes NotReady when a
+  HelmRelease it applied fails to install. Without `wait: true` the HelmRelease object
+  applies cleanly, the parent reports Ready, and this layer stays silent.
+- `HelmRelease` / * / `<ns>` — enumerated per namespace in
+  `flux-notifications/app/alert.yml`. For a HelmRelease under a Kustomization without
+  `wait: true` this is the **only** layer that reports a failed install or upgrade.
 
 The generic payload carries no `priority`, so these land at Gotify priority 0 (still
 forwarded to Telegram).
@@ -87,8 +92,9 @@ forwarded to Telegram).
 - **After adding a new app token to `gotify-bootstrap`, update the echo log at the end
   of the job script** — otherwise the run under-reports what it provisioned.
 - **A HelmRelease in a new namespace needs its own eventSource on the `Alert`** —
-  non-fatal if forgotten (the `flux-system` backstop still catches it), but the alert
-  is then slow and unspecific.
+  mandatory when its Kustomization lacks `wait: true`: nothing else reports a failed
+  install, so a forgotten entry means a silent failure. With `wait: true` the
+  `flux-system` layer still catches it, but slowly and without naming the release.
 
 ## Verify
 
