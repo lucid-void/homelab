@@ -162,9 +162,18 @@ topic rather than reading it whole; owner-only items are at the top.
   fit a flat single-subnet topology better and `kubeProxyReplacement` is already on. Do
   it deliberately (the cluster's only network) and re-verify the pool-b LoadBalancer
   paths (Plex `172.16.20.51`, Velocity `172.16.20.52`) after each step.
-- CNPG has no WAL archiving or PITR — only the nightly `pg_dump` via `postgres-backup`.
-  Add `backup.barmanObjectStore` to the `Cluster` spec once an S3-compatible target
-  (e.g. MinIO) exists.
+- CNPG has no WAL archiving or PITR — only the nightly `pg_dump` via `postgres-backup`,
+  so up to 24 h of writes are lost on a restore. Add it with the Barman Cloud **plugin**
+  (in-tree `barmanObjectStore` is removed in CNPG 1.31). Needs the owner first: pick an
+  S3-compatible target that is not the Synology the data already lives on (Cloudflare R2's
+  free tier is 10 GB; check the cluster's size against it). Then: the `plugin-barman-cloud`
+  chart beside the operator, a sealed credentials Secret, an `ObjectStore` with a
+  `retentionPolicy`, a `plugins` entry on the `Cluster` (`isWALArchiver: true`), and a
+  `ScheduledBackup` (`method: plugin`; its cron has a leading seconds field). Worked
+  reference: `apps/infisical/` in github.com/jakehulberg/homelab. Enabling archiving rolls
+  the pods; if the old primary hangs in Terminating on `wal archive plugin is not
+  available`, force-deleting that pod is safe. Finish with a restore into a new `Cluster`
+  — an untested PITR is not a backup.
 - No tested Postgres major-version upgrade procedure for the shared CNPG cluster (7 app
   databases must stay schema-compatible simultaneously).
 - Immich is pinned to `v2.7.5` (kysely migrations, fragile `oauthId` re-linking after

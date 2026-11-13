@@ -983,8 +983,9 @@ Same trap as the Gitea valkey rebuild; see `design/docs/storage.md`.
 The first join attempt may `Error` if the primary crashes mid-basebackup — the Job
 retries on its own. At ~500 MB the basebackup takes seconds, so it completes even
 between crashes of a sick primary. Once the replica is Ready the cluster reaches
-`Cluster in healthy state` and CNPG immediately performs the deferred primary update
-(`Primary instance is being restarted without a switchover`).
+`Cluster in healthy state` and CNPG immediately performs the deferred primary update —
+with `primaryUpdateMethod: switchover` that is a switchover to the fresh replica, so the
+primary may now be the other pod.
 
 Verify before cleaning up, then reclaim the space:
 

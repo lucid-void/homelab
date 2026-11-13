@@ -13,6 +13,9 @@
   "prCreation": "immediate",
   "schedule": ["every weekend"],
 
+  "minimumReleaseAge": "3 days",
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
+
   "flux": {
     "managerFilePatterns": [
       "/kubernetes/.+\\.ya?ml$/"
