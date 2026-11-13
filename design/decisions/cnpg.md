@@ -6,8 +6,8 @@
 
 One shared CNPG cluster, `postgres` in the `postgres` namespace (primary + one read
 replica), chart `cloudnative-pg`. It is configured
-`primaryUpdateStrategy: unsupervised` + `primaryUpdateMethod: restart`, and
-`ENABLE_INSTANCE_MANAGER_IN_PLACE_UPDATES` is unset (default `false`).
+`primaryUpdateStrategy: unsupervised` (the default) + `primaryUpdateMethod: switchover`,
+and `ENABLE_INSTANCE_MANAGER_IN_PLACE_UPDATES` is unset (default `false`).
 
 A second, single-instance cluster, `blocky-logs` in `network`, holds only Blocky's query log.
 It is separate because the NUT Pi reaches it over the LAN at `172.16.20.54:5432`, which must
@@ -36,11 +36,18 @@ separate Secret consumed through `extraEnvFrom`.
 - **Leave `enableSuperuserAccess: true` on the shared cluster** — the backup CronJob
   dumps every database as `postgres`, and the immich extension job needs superuser to
   create its extensions; turning it off breaks both silently at the next run.
-- **Expect ~2–5 min of write interruption on any CNPG *minor* operator bump** — the
-  bump changes the instance manager, and with in-place updates off the operator does a
-  rolling update of the Postgres pods, replica first then primary. The primary restarts
-  in place (phase `Primary instance is being restarted without a switchover`) rather
-  than switching over.
+- **Expect a write interruption on any CNPG *minor* operator bump** — the bump changes
+  the instance manager, and with in-place updates off the operator does a rolling update
+  of the Postgres pods, replica first then primary. With `primaryUpdateMethod: switchover`
+  the updated replica is promoted before the old primary restarts, so writes stall only
+  for the switchover. The ~2–5 min outage measured earlier was under the old default,
+  `restart` (phase `Primary instance is being restarted without a switchover`); the
+  switchover path has not been timed yet.
+- **Keep `primaryUpdateMethod: switchover`, and never rely on which pod is primary** —
+  after every rolling update the primary is the other pod. Clients must use the
+  `postgres-rw` / `postgres-ro` Services, never `postgres-1` by name. With the replica
+  down there is nothing to promote, and CNPG falls back to restarting the primary in
+  place.
 - **Do not panic when Paperless CrashLoopBackOffs through an operator bump** — it exits
   1 and then self-recovers. Immich, gitea, freshrss, sonarr/radarr and romm
   reconnect without restarting.
