@@ -5,6 +5,10 @@ metadata:
   name: postgres
 spec:
   instances: 2
+  # Promote the replica first, then restart the old primary. The default (`restart`)
+  # restarts the primary in place and blocks writes until it is back; this DB gates
+  # all OIDC auth. See design/decisions/cnpg.md.
+  primaryUpdateMethod: switchover
   enableSuperuserAccess: true
   imageCatalogRef:
     apiGroup: postgresql.cnpg.io

@@ -93,6 +93,14 @@ image is added without a matching rule, the silence looks identical to "already
 current". Re-validate by checking that every pinned tag still parses and that the
 rule selects the newest tag in the registry.
 
+## Release age
+
+`minimumReleaseAge: "3 days"` holds every update until the release is three days old, so
+a yanked or hot-fixed release never reaches a PR. `minimumReleaseAgeBehaviour:
+timestamp-optional` goes with it: many registries publish no release timestamp, and the
+default (`timestamp-required`) would hold those updates forever with no error — the same
+silence as "already current".
+
 ## Image vulnerability scanning (CI)
 
 `.github/workflows/image-scan.yml` scans every container image a PR changes, so
