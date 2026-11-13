@@ -8,24 +8,23 @@
 # Flux has NO namespace wildcard for eventSources (notification-controller#784),
 # so cluster-wide coverage is built from two layers:
 #
-#   1. Kustomization / '*' / flux-system — the GAPLESS BACKSTOP. Every app in this
-#      repo is deployed by a Flux Kustomization object, and they ALL live in
-#      flux-system (ks.yml files set `namespace: flux-system` + `targetNamespace`).
-#      Each uses `wait: true`, so ANY app failure — including a broken HelmRelease
-#      in any namespace — eventually fails its parent Kustomization's health check
-#      and fires here. This one entry alone catches everything; new namespaces are
-#      covered automatically.
+#   1. Kustomization / '*' / flux-system — catches every build and apply failure.
+#      Every app in this repo is deployed by a Flux Kustomization object, and they
+#      ALL live in flux-system (ks.yml files set `namespace: flux-system` +
+#      `targetNamespace`). It is NOT a backstop for HelmReleases in general: only a
+#      Kustomization with `wait: true` goes NotReady when a HelmRelease it applied
+#      fails, and many app Kustomizations do not set it (design/decisions/flux.md).
 #
-#   2. HelmRelease / '*' / <namespace> — the FAST, SPECIFIC layer. HelmRelease
-#      objects live in their app namespaces (via targetNamespace), and the
-#      helm-controller emits errors ("upgrade retries exhausted", etc.) directly,
-#      without waiting for the parent Kustomization timeout. There is no namespace
+#   2. HelmRelease / '*' / <namespace> — HelmRelease objects live in their app
+#      namespaces (via targetNamespace), and the helm-controller emits errors
+#      ("upgrade retries exhausted", etc.) directly. There is no namespace
 #      wildcard, so each namespace that holds a HelmRelease is listed explicitly.
+#      For a HelmRelease under a Kustomization without `wait: true`, this is the
+#      ONLY layer that reports a failed install or upgrade.
 #
 # MAINTENANCE: when you add a HelmRelease in a NEW namespace, add a HelmRelease
-# entry below for faster/specific alerts. Forgetting is not catastrophic — layer 1
-# (the Kustomization backstop) still catches the failure, just via the slower
-# parent-Kustomization path. Grep: `grep -rl 'kind: HelmRelease' kubernetes/apps`.
+# entry below. Forgetting means a failed install there can alert nowhere.
+# Grep: `grep -rl 'kind: HelmRelease' kubernetes/apps`.
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Alert
 metadata:
@@ -36,14 +35,20 @@ spec:
     name: gotify
   eventSeverity: error
   eventSources:
-    # Layer 1 — gapless backstop (all Kustomization objects live in flux-system).
+    # Layer 1 — build/apply failures (all Kustomization objects live in flux-system).
     - kind: Kustomization
       name: "*"
       namespace: flux-system
     # Layer 2 — direct HelmRelease errors, one entry per namespace that has one.
     - kind: HelmRelease
       name: "*"
+      namespace: ai
+    - kind: HelmRelease
+      name: "*"
       namespace: cert-manager
+    - kind: HelmRelease
+      name: "*"
+      namespace: changedetection
     - kind: HelmRelease
       name: "*"
       namespace: cnpg-system
