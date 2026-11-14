@@ -218,6 +218,10 @@ ensure_app_token "paperless-backup" "Paperless backup job notifications"    pape
 ensure_app_token "gitea-backup"     "Gitea backup job notifications"        gitea       gotify-secret        GOTIFY_TOKEN
 ensure_app_token "obsidian-backup"  "Obsidian CouchDB backup notifications" obsidian    gotify-secret        GOTIFY_TOKEN
 ensure_app_token "minecraft-backup" "Minecraft backup job notifications"    media       gotify-secret        GOTIFY_TOKEN
+ensure_app_token "media-config-backup" "Media app config backup notifications" media media-config-backup-gotify-secret GOTIFY_TOKEN
+ensure_app_token "open-webui-backup" "Open WebUI backup job notifications"   ai          gotify-secret        GOTIFY_TOKEN
+ensure_app_token "freshrss-backup" "FreshRSS backup job notifications"     freshrss    gotify-secret        GOTIFY_TOKEN
+ensure_app_token "flight-tracker-backup" "Telegram bot state backup notifications" monitoring flight-tracker-backup-gotify-secret GOTIFY_TOKEN
 ensure_app_token "minecraft-events" "Minecraft player join/leave events"    media       minecraft-events-gotify-secret GOTIFY_TOKEN
 # Jellyfin's Webhook plugin cannot read a Secret — the token is pasted into its
 # plugin config on the config PVC. So this entry provisions the token, but a

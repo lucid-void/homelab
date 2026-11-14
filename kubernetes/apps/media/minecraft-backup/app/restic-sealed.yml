@@ -12,4 +12,12 @@ spec:
     metadata:
       name: restic-secret
       namespace: media
+      annotations:
+        # Mirrored by Reflector so the backup jobs in these namespaces share one Filen
+        # login and one restic password. Template metadata is not encrypted, so this
+        # needs no re-seal. See design/decisions/backups.md.
+        reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+        reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "ai,freshrss,monitoring"
+        reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+        reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "ai,freshrss,monitoring"
     type: Opaque

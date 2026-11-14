@@ -20,26 +20,12 @@
     "postgres/postgres-*": "postgres-backup dumps every database with pg_dump, without mounting the PVC",
     "paperless/protonmail-bridge-config": "recovery is a re-login",
     "paperless/paperless-consume": "transient inbox, emptied as documents are ingested",
-
-    "ai/open-webui-data": "UNDECIDED: tracked in design/TODO.md",
-    "degoog/degoog-data": "UNDECIDED: tracked in design/TODO.md",
-    "freshrss/freshrss-data": "UNDECIDED: tracked in design/TODO.md",
-    "gitea/gitea-shared-storage": "UNDECIDED: tracked in design/TODO.md",
-    "media/crosswatch-config": "UNDECIDED: tracked in design/TODO.md",
-    "media/kavita-config": "UNDECIDED: tracked in design/TODO.md",
-    "media/prowlarr-config": "UNDECIDED: tracked in design/TODO.md",
-    "media/radarr-config": "UNDECIDED: tracked in design/TODO.md",
-    "media/romm-config": "UNDECIDED: tracked in design/TODO.md",
-    "media/sabnzbd-config": "UNDECIDED: tracked in design/TODO.md",
-    "media/seerr-config": "UNDECIDED: tracked in design/TODO.md",
-    "media/sonarr-config": "UNDECIDED: tracked in design/TODO.md",
-    "media/suwayomi-config": "UNDECIDED: tracked in design/TODO.md",
-    "media/tdarr-config": "UNDECIDED: tracked in design/TODO.md",
-    "media/plex-config-local": "UNDECIDED: tracked in design/TODO.md",
-    "media/jellyfin-config-local": "UNDECIDED: tracked in design/TODO.md",
-    "monitoring/flight-tracker-data": "UNDECIDED: tracked in design/TODO.md",
-    "monitoring/gatus-data": "UNDECIDED: tracked in design/TODO.md",
-    "monitoring/gotify-data": "UNDECIDED: tracked in design/TODO.md",
-    "monitoring/vm-stack-grafana": "UNDECIDED: tracked in design/TODO.md"
+    "media/plex-config-local": "owner decision 2026-11-14: configured from git or quickly redone, not worth a backup (a lost node means a library re-scan)",
+    "media/jellyfin-config-local": "owner decision 2026-11-14: configured from git or quickly redone, not worth a backup (a lost node means a re-scan and redoing the plugins)",
+    "monitoring/gotify-data": "owner decision 2026-11-14: configured from git or quickly redone, not worth a backup (tokens are re-issued by gotify-bootstrap; message history is lost)",
+    "monitoring/gatus-data": "owner decision 2026-11-14: configured from git or quickly redone, not worth a backup (uptime history only)",
+    "monitoring/vm-stack-grafana": "owner decision 2026-11-14: configured from git or quickly redone, not worth a backup (dashboards ship from git)",
+    "degoog/degoog-data": "owner decision 2026-11-14: configured from git or quickly redone, not worth a backup (engines, plugins and themes)",
+    "gitea/gitea-data": "mounted by nothing: Gitea runs on gitea-shared-storage; pending deletion, see design/TODO.md"
   }
 }

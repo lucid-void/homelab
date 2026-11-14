@@ -79,12 +79,6 @@ topic rather than reading it whole; owner-only items are at the top.
   - The **Abyss theme** — no Custom CSS is set, so the UI is stock.
   - The local Jellyfin admin is the break-glass path for a forked SSO plugin on the auth
     path. It must keep a real password.
-- **Neither media server's config PVC is backed up.** `plex-config-local` (cp-1) and
-  `jellyfin-config-local` (cp-2) are `openebs-hostpath` volumes with no backup CronJob,
-  so each node's disk is a single point of loss for that server's library. Jellyfin on a
-  separate node bounds the blast radius to one library instead of both — it is not a
-  backup. Decide whether a restic job for the two config dirs is worth it, or accept that
-  a lost node means a re-scan.
 - **Seerr is pointed at Plex and cannot serve both.** It talks to one media server at a
   time, so Jellyfin users cannot request through it and Jellyfin Enhanced's Seerr
   integration has no account to act as. Decide which server owns requests.
@@ -139,15 +133,19 @@ topic rather than reading it whole; owner-only items are at the top.
 - Migrate the per-app backup CronJobs to VolSync — seven imperative restic scripts
   wearing GitOps clothes; VolSync's `ReplicationSource`/`ReplicationDestination` makes
   restore declarative and rehearsable, which also closes the next item.
-- **Needs the owner. Twenty PVCs have no backup job and no recorded reason.** `coverage-audit`
-  found them; each is exempted as `UNDECIDED` in
-  `kubernetes/apps/monitoring/coverage-audit/app/exemptions.json` so the audit stays quiet
-  (`grep UNDECIDED` on that file is the list). Decide per PVC: add a backup job, or replace
-  the reason with the real one. They are `open-webui-data`, `degoog-data`, `freshrss-data`,
-  `gitea-shared-storage`, ten media `*-config` volumes (crosswatch, kavita, prowlarr, radarr,
-  romm, sabnzbd, seerr, sonarr, suwayomi, tdarr), `flight-tracker-data`, `gatus-data`,
-  `gotify-data`, `vm-stack-grafana`, and the Plex and Jellyfin config PVCs (their own item
-  above).
+- **Needs the owner. Delete the unused `gitea-data` PVC, then the dead Helm value.** Gitea has
+  always run on the chart's default claim `gitea-shared-storage`; `persistence.existingClaim:
+  gitea-data` in the HelmRelease is a silent no-op and `gitea-data` (`gitea/app/pvc.yml`) is
+  mounted by nothing. Until 2026-11-14 `gitea-backup` backed up that unused volume, so the
+  Gitea restic repo held no repositories before then. To do: look inside `gitea-data` once
+  to confirm it holds nothing worth keeping, remove `pvc.yml`, the `existingClaim` line and
+  the `gitea/gitea-data` entry in `coverage-audit`'s `exemptions.json`. Do not repoint the
+  chart at `gitea-data`.
+- **Run each new backup job once and read its log.** `media-config-backup`,
+  `open-webui-backup`, `freshrss-backup` and `flight-tracker-backup` (added 2026-11-14) have
+  not completed a run yet. Watch for restic exit 3 (a file the job's uid cannot read) and
+  for the shared-secret mirror in `ai`, `freshrss` and `monitoring`
+  (`design/decisions/backups.md`).
 - **Build `restore-drill`: a weekly CronJob that proves a backup restores.** Each run picks
   one app in rotation, restores its latest restic snapshot from Filen into a scratch PVC and
   a throwaway CNPG database, checks the result (the dump loads, row and file counts are

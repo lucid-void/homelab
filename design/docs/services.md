@@ -69,6 +69,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | flux-notifications | monitoring | Provider + Alert | — | — | Flux notification-controller `Provider` (generic webhook → Gotify) + `Alert` at `eventSeverity: error`. Closes the "meta-hole": Flux itself can't fail silently. Watches `Kustomization` cluster-wide (all in flux-system — gapless backstop) + `HelmRelease` per app namespace. Token: `flux` app token in `monitoring/flux-gotify` (`headers: X-Gotify-Key`, written by gotify-bootstrap) |
 | gotify-telegram | monitoring | Deployment | — | — | Python WebSocket bridge: Gotify `/stream` → Telegram Bot API; priority colours: 🔴 ≥8, 🟡 ≥5, 🟢 <5 |
 | flight-tracker | monitoring | Deployment | — | — | Single-user Telegram bot: `/track LH123 2026-10-05`, alerts on gate/terminal/time/status changes from AeroDataBox (free plan, ~200 calls/month). No route; reuses `telegram-secret`, answers only the owner's chat. State on an `nfs-client` PVC. Also triages Gotify messages with Clef and sends a FreshRSS news digest |
+| flight-tracker-backup | monitoring | CronJob | — | — | Daily 06:15; the bot's state PVC, no downtime; restic → rclone-filen |
 | am-gotify-bridge | monitoring | Deployment | — | — | Python HTTP bridge: AlertManager webhook → Gotify; listens :5000; reads `gotify-secret`; priority 8 firing / 5 resolved |
 | dns-monitoring | monitoring | Kustomization | — | — | Scrapes both Blocky resolvers; Grafana dashboards `Blocky` and `Blocky query`; `Blocky Logs` datasource |
 | coverage-audit | monitoring | CronJob | — | — | Daily 07:30. Read-only: reports to Gotify any routed hostname with no Gatus check or Homepage tile, and any PVC with no backup job. Deliberate gaps are in its `exemptions.json`. See `design/decisions/monitoring.md` |
@@ -100,8 +101,9 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | Proton Mail Bridge | paperless | HelmRelease | — (ClusterIP `protonmail-bridge`: `:143` IMAP for Paperless, `:25` SMTP for Keycloak) | Proton account, entered once via CLI; state in the pod's vault | `openebs-hostpath` PVC (vault + gluon SQLite + message cache). Not backed up — recovery is a re-login |
 | Gitea | gitea | HelmRelease | `gitea.blackcats.cc` (HTTPS via HTTPRoute; git-over-SSH on `:22` via TCPRoute) | Keycloak OIDC (web); SSH keys (git) | `nfs-client` PVC (repos/LFS/attachments); CNPG Postgres; bundled `valkey-cluster` for cache/session/queue |
 | gitea-valkey-cluster | gitea | StatefulSet (chart dep) | — | — | Cache/session/queue backing Gitea. 3 primaries + 1 replica each (`nodes: 6`, `replicas: 1`); `valkey-data-*` `nfs-client` PVCs. Disposable data — recreate rather than repair |
-| gitea-backup | gitea | CronJob | — | — | Daily 05:00; Postgres dump + data PVC; restic → rclone-filen |
+| gitea-backup | gitea | CronJob | — | — | Daily 05:00; Postgres dump + the `gitea-shared-storage` PVC (the one Gitea really uses); restic → rclone-filen |
 | FreshRSS | freshrss | HelmRelease | `rss.blackcats.cc` | Keycloak OIDC (Apache mod_auth_openidc) | `nfs-client` PVC (config); CNPG Postgres |
+| freshrss-backup | freshrss | CronJob | — | — | Daily 06:00; `freshrss-data` PVC, no downtime; restic → rclone-filen |
 | Homebox | homebox | HelmRelease | `homebox.blackcats.cc` | Built-in | `nfs-client` PVC (SQLite data dir) |
 | homebox-backup | homebox | CronJob | — | — | Daily 02:00; SQLite data dir; restic → rclone-filen |
 | CouchDB (Obsidian LiveSync) | obsidian | HelmRelease | `obsidian.blackcats.cc` | **CouchDB HTTP Basic** (SealedSecret) — not on SSO | `couchdb-data` PVC (`openebs-hostpath`, RWO — shards + _users) |
@@ -112,6 +114,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | model-fetch | ai | Job | — | — | One-shot, on `llm-1`, writes the same node-local PVC llama-swap reads. Pins each GGUF's exact byte size; a mismatch fails the job rather than leaving a truncated file |
 | LiteLLM | ai | HelmRelease | `llm.blackcats.cc` | LiteLLM virtual keys (one per client), master key in `litellm-secret` | CNPG Postgres (`litellm`) for keys/budgets/spend. Memory limit **4Gi** — OOMKilled at 1Gi during the Prisma migration with no log output |
 | Open WebUI | ai | HelmRelease | `chat.blackcats.cc` | Keycloak OIDC | `open-webui-data` PVC (`nfs-client`, chroma vector store + uploads); CNPG Postgres (`openwebui`) for users/chats |
+| open-webui-backup | ai | CronJob | — | — | Daily 05:30; `open-webui-data` PVC, scales Open WebUI to 0; restic → rclone-filen |
 | Degoog | degoog | HelmRelease | `degoog.blackcats.cc` | — | Self-hosted search engine aggregator; `ghcr.io/degoog-org/degoog:0.18.0`; `nfs-client` PVC for engines/plugins/themes data |
 
 ---
@@ -141,6 +144,7 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 | minecraft-valkey | — (ClusterIP `:6379`) | `valkey/valkey` | none |
 | minecraft-events | — (no Service) | `ghcr.io/lucid-void/backup-tools` | none |
 | youtube-queue | — (hourly CronJob, no Service) | `ghcr.io/jmbannon/ytdl-sub` | `media-nfs` → `/Media/YouTube` + `emptyDir` scratch — downloads a public/unlisted YouTube playlist into Jellyfin; see `design/decisions/youtube-queue.md` |
+| media-config-backup | — (daily CronJob 04:30, no Service) | `ghcr.io/lucid-void/backup-tools` | The ten `*-config` PVCs of crosswatch, kavita, prowlarr, radarr, romm, sabnzbd, seerr, sonarr, suwayomi and tdarr, read-only; restic → rclone-filen |
 
 Sonarr and Radarr use CNPG Postgres, migrated from SQLite with pgloader. The one-shot
 migration Jobs were deleted once the migration was done — they ran
