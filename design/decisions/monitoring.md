@@ -74,15 +74,21 @@ sends nothing when there are no gaps. Deliberate gaps are listed with a reason i
 - **A stale exemption is itself a finding** — one that no longer excuses anything is
   reported until it is deleted, so adding the Gatus check or backup job means removing
   the exemption in the same change. Patterns are globs matched against the whole
-  hostname or `namespace/pvc`; an exemption with an empty reason is rejected.
+  hostname or `namespace/pvc`; an exemption with an empty reason is reported and
+  exempts nothing.
 - **An `UNDECIDED:` reason in `exemptions.json` is a backlog entry, not a decision** —
   it silences the audit for a gap nobody has ruled on. `design/TODO.md` tracks them.
 - **`coverage-audit`'s Flux Kustomization has no `targetNamespace`** — it owns a Role in
   `homepage` beside everything else in `monitoring`, and `targetNamespace` would move
   both into one namespace.
 - **A failed read fails the run rather than reporting gaps** — an API error, a missing
-  ConfigMap key or a malformed `exemptions.json` sends "Coverage audit failed" at
-  priority 8 and exits non-zero. It must never degrade into "everything is uncovered".
+  ConfigMap key, a config in which the regex finds no host at all, or a malformed
+  `exemptions.json` sends "Coverage audit failed" at priority 8 and exits non-zero. It
+  must never degrade into "everything is uncovered".
+- **Gaps that could not be delivered also fail the Job** — with Gotify down or
+  `coverage-audit-gotify-secret` missing (it is `optional: true`), a run that found gaps
+  exits non-zero so `KubeJobFailed` carries it. A clean run needs no token and stays
+  green.
 - **The Telegram bot's `/status` reads `ALERTS`, `kube_pod_status_phase`,
   `kube_deployment_status_replicas_unavailable` and `kube_cronjob_*` from VMSingle** —
   renaming or dropping those series (a kube-state-metrics or vmalert change) turns its lines

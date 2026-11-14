@@ -16,7 +16,7 @@
     "media/matcha-data": "the mc-backup sidecar snapshots the world into mc-backups, which minecraft-backup restics",
     "media/vanilla-data": "the mc-backup sidecar snapshots the world into mc-backups, which minecraft-backup restics",
     "monitoring/vmsingle-vm-stack-victoria-metrics-k8s-stack": "metrics history, not backed up by design",
-    "network/blocky-logs-1": "14-day DNS query log, disposable",
+    "network/blocky-logs-*": "14-day DNS query log, disposable",
     "postgres/postgres-*": "postgres-backup dumps every database with pg_dump, without mounting the PVC",
     "paperless/protonmail-bridge-config": "recovery is a re-login",
     "paperless/paperless-consume": "transient inbox, emptied as documents are ingested",

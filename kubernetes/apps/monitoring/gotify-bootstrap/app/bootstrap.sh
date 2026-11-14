@@ -232,7 +232,7 @@ ensure_app_token "gatus"            "Gatus health monitoring alerts"        moni
 ensure_app_token "keycloak-entitlements" "Keycloak entitlement changes"     keycloak    gotify-secret        GOTIFY_TOKEN
 ensure_app_token "sso-audit"        "SSO role and login gate mismatches"    postgres    sso-audit-gotify-secret GOTIFY_TOKEN
 ensure_app_token "coverage-audit"   "Services missing a health check, tile or backup" monitoring coverage-audit-gotify-secret GOTIFY_TOKEN
-ensure_app_token "alertmanager"    "AlertManager firing rule notifications" monitoring gotify-secret        GOTIFY_TOKEN
+ensure_app_token "alertmanager"     "AlertManager firing rule notifications" monitoring gotify-secret        GOTIFY_TOKEN
 
 # Flux notification-controller Provider (flux-notifications) auths to Gotify with
 # this header. Lives in `monitoring` (the Provider's own namespace — secretRef

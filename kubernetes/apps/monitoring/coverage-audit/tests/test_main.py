@@ -40,8 +40,11 @@ class Main(unittest.TestCase):
     def get(self, path):
         return self.responses[path]
 
+    delivered = True
+
     def send(self, title, message, priority):
         self.sent.append((title, message, priority))
+        return self.delivered
 
     def run_main(self, get=None):
         out = io.StringIO()
@@ -54,10 +57,25 @@ class Main(unittest.TestCase):
         self.assertEqual(self.sent, [])
 
     def test_gap_is_sent_at_priority_5(self):
-        self.responses[GATUS_CM] = {"data": {"config.yaml": "endpoints: []"}}
+        self.responses[GATUS_CM] = {"data": {"config.yaml": "  url: https://other.blackcats.cc\n"}}
         self.assertEqual(self.run_main(), 0)
         self.assertEqual(self.sent, [("Coverage audit: 1 gap(s)",
                                       "• no Gatus check: a.blackcats.cc (x/a)", 5)])
+
+    def test_undelivered_gaps_fail_the_job(self):
+        self.responses[GATUS_CM] = {"data": {"config.yaml": "  url: https://other.blackcats.cc\n"}}
+        self.delivered = False
+        self.assertEqual(self.run_main(), 1)
+
+    def test_config_with_no_recognisable_hosts_fails_instead_of_flagging_everything(self):
+        for path, key in ((GATUS_CM, "config.yaml"), (HOMEPAGE_CM, "services.yaml")):
+            with self.subTest(path=path):
+                saved = self.responses[path]
+                self.responses[path] = {"data": {key: "format: changed\n"}}
+                self.sent.clear()
+                self.assertEqual(self.run_main(), 1)
+                self.assertEqual([s[0] for s in self.sent], ["Coverage audit failed"])
+                self.responses[path] = saved
 
     def test_api_failure_is_not_reported_as_gaps(self):
         def boom(path):

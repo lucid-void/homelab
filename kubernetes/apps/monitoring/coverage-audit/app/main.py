@@ -32,18 +32,20 @@ def kube_get(path):
 
 
 def notify(title, message, priority):
+    """Returns whether Gotify accepted the message."""
     token = os.environ.get("GOTIFY_TOKEN", "")
     if not token:
         print("WARN: no GOTIFY_TOKEN; not notified", file=sys.stderr)
-        return
+        return False
     body = json.dumps({"title": title, "message": message, "priority": priority}).encode()
     req = urllib.request.Request(GOTIFY_URL, data=body, headers={
         "X-Gotify-Key": token, "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=15):
-            pass
-    except Exception as e:  # a lost notification must not change the exit code
+            return True
+    except Exception as e:
         print(f"WARN: Gotify notification failed: {e}", file=sys.stderr)
+        return False
 
 
 def collect(get=kube_get, exemptions_path=EXEMPTIONS_PATH):
@@ -56,6 +58,14 @@ def collect(get=kube_get, exemptions_path=EXEMPTIONS_PATH):
     # every service look uncovered.
     gatus = audit.config_hosts(get(GATUS_CM)["data"]["config.yaml"], "url")
     homepage = audit.config_hosts(get(HOMEPAGE_CM)["data"]["services.yaml"], "href")
+    # Same reasoning for a config the regex no longer recognises (a chart that renders
+    # the file differently): zero hosts means the read is broken, not that nothing is
+    # covered.
+    if hosts and not gatus:
+        raise ValueError("no `url:` hosts found in gatus-config; its format may have changed")
+    if hosts and not homepage:
+        raise ValueError("no `href:` hosts found in homepage services.yaml; its format may "
+                         "have changed")
     return audit.audit(hosts, gatus, homepage, pvcs, backed_up, exemptions)
 
 
@@ -73,9 +83,11 @@ def main(get=kube_get, send=notify, exemptions_path=EXEMPTIONS_PATH):
     print(f"Found {len(findings)} gap(s):")
     for line in findings:
         print(f"  {line}")
-    send(f"Coverage audit: {len(findings)} gap(s)",
-         "\n".join(f"• {line}" for line in findings), 5)
-    return 0
+    delivered = send(f"Coverage audit: {len(findings)} gap(s)",
+                     "\n".join(f"• {line}" for line in findings), 5)
+    # Gaps nobody was told about must not end as a green Job: the logs expire with the
+    # Job, and KubeJobFailed is the only other path to a human.
+    return 0 if delivered else 1
 
 
 if __name__ == "__main__":
