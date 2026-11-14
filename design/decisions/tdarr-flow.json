@@ -112,22 +112,7 @@
       },
       "inputsDB": {
         "inputArguments": "",
-        "outputArguments": "-x265-params pools=6:log-level=error"
-      }
-    },
-    {
-      "name": "Set Container mkv",
-      "sourceRepo": "Community",
-      "pluginName": "ffmpegCommandSetContainer",
-      "version": "1.0.0",
-      "id": "cont",
-      "position": {
-        "x": 400,
-        "y": 800
-      },
-      "inputsDB": {
-        "container": "mkv",
-        "forceConform": "false"
+        "outputArguments": "-x265-params pools=6:log-level=error -tag:v hvc1"
       }
     },
     {
@@ -158,7 +143,7 @@
       }
     },
     {
-      "name": "Verify and swap",
+      "name": "Verify and swap; the swapped file becomes the working file",
       "sourceRepo": "Community",
       "pluginName": "runCli",
       "version": "1.0.0",
@@ -170,23 +155,10 @@
       "inputsDB": {
         "useCustomCliPath": "true",
         "customCliPath": "/scripts/tdarr-swap.sh",
-        "doesCommandCreateOutputFile": "false",
+        "doesCommandCreateOutputFile": "true",
         "cliArguments": "\"{{{args.originalLibraryFile._id}}}\" \"{{{args.inputFileObj._id}}}\"",
-        "outputFileBecomesWorkingFile": "false"
-      }
-    },
-    {
-      "name": "Working file is the swapped file",
-      "sourceRepo": "Community",
-      "pluginName": "setWorkingFile",
-      "version": "1.0.0",
-      "id": "wf",
-      "position": {
-        "x": 400,
-        "y": 1200
-      },
-      "inputsDB": {
-        "source": "originalFile"
+        "outputFileBecomesWorkingFile": "true",
+        "userOutputFilePath": "{{{args.originalLibraryFile._id}}}"
       }
     }
   ],
@@ -248,20 +220,6 @@
       "id": "enc-1-args"
     },
     {
-      "source": "args",
-      "sourceHandle": "1",
-      "target": "cont",
-      "targetHandle": null,
-      "id": "args-1-cont"
-    },
-    {
-      "source": "cont",
-      "sourceHandle": "1",
-      "target": "exec",
-      "targetHandle": null,
-      "id": "cont-1-exec"
-    },
-    {
       "source": "exec",
       "sourceHandle": "1",
       "target": "stage",
@@ -276,11 +234,11 @@
       "id": "stage-1-swap"
     },
     {
-      "source": "swap",
+      "source": "args",
       "sourceHandle": "1",
-      "target": "wf",
+      "target": "exec",
       "targetHandle": null,
-      "id": "swap-1-wf"
+      "id": "args-exec"
     }
   ]
 }

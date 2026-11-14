@@ -134,7 +134,30 @@ mksrc "$T/p.mkv"; mkout "$T/p.mkv" "$T/p.out.mkv"
 exit_is "verify-only passes" 0 env VERIFY_ONLY=1 sh "$SWAP" "$T/p.mkv" "$T/p.out.mkv"
 check "verify-only: nothing moved" test -f "$T/p.out.mkv" -a -f "$T/p.mkv"
 
-# 18. usage
+# 18. mp4 source with mp4 output keeps its path (the flow keeps the container)
+mksrc "$T/q.mp4"; mkout "$T/q.mp4" "$T/q.out.mp4" -tag:v hvc1
+exit_is "mp4 -> mp4 exits 0" 0 sh "$SWAP" "$T/q.mp4" "$T/q.out.mp4"
+check "mp4 -> mp4: same path, now hevc" is_hevc "$T/q.mp4"
+
+# 19. refuse: HDR source (PQ), even with a valid output
+"$FFMPEG" -v error -y -f lavfi -i testsrc=d=6:s=640x360:r=24 -f lavfi -i sine=d=6 \
+  -c:v libx264 -pix_fmt yuv420p -crf 12 -x264-params colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc \
+  -c:a aac "$T/r.mkv"
+mkout "$T/r.mkv" "$T/r.out.mkv"
+exit_is "HDR source refused (20)" 20 sh "$SWAP" "$T/r.mkv" "$T/r.out.mkv"
+check "HDR: original untouched" test -f "$T/r.mkv"
+
+# 20. refuse: 2160p source
+"$FFMPEG" -v error -y -f lavfi -i testsrc=d=2:s=3840x2160:r=24 -f lavfi -i sine=d=2 \
+  -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 12 -c:a aac "$T/u.mkv"
+mkout "$T/u.mkv" "$T/u.out.mkv"
+exit_is "2160p source refused (20)" 20 sh "$SWAP" "$T/u.mkv" "$T/u.out.mkv"
+
+# 21. refuse: HEVC source (never re-encode HEVC)
+mksrc "$T/w.mkv"; mkout "$T/w.mkv" "$T/w.hevc.mkv"; mkout "$T/w.hevc.mkv" "$T/w.out.mkv"
+exit_is "HEVC source refused (20)" 20 sh "$SWAP" "$T/w.hevc.mkv" "$T/w.out.mkv"
+
+# 22. usage
 exit_is "no args exits 2" 2 sh "$SWAP"
 
 rm -rf "$T" "$TRASH_DIR/run-$$"
