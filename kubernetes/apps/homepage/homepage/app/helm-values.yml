@@ -72,6 +72,14 @@ config:
             href: https://kavita.blackcats.cc
             description: Manga reader
             icon: kavita.png
+        - Tdarr:
+            href: https://tdarr.blackcats.cc
+            description: Library transcoding
+            icon: tdarr.png
+        - CrossWatch:
+            href: https://crosswatch.blackcats.cc
+            description: Plex and Jellyfin watch-history sync
+            icon: mdi-sync
         - Immich:
             href: https://immich.blackcats.cc
             description: Photos

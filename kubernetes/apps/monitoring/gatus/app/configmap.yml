@@ -126,6 +126,15 @@ data:
       # forever. After a shared-tls renewal it reads the old expiry and goes
       # red while immich is healthy. The wildcard is covered by every other
       # endpoint below, so dropping it here loses no coverage.
+      # /api/health answers without a login and reports Grafana's own database state.
+      - name: Grafana
+        group: infrastructure
+        url: https://grafana.blackcats.cc/api/health
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
       - name: Immich
         group: apps
         url: https://immich.blackcats.cc/api/server/ping
@@ -329,6 +338,25 @@ data:
       # hostname on purpose: this exercises the whole path a player takes
       # (Cloudflare DNS → 172.16.20.52 → Velocity → backend), which the
       # in-cluster mc-monitor scrape deliberately bypasses.
+      # The server's own status endpoint; `/` is a static page that loads with the
+      # backend down.
+      - name: Tdarr
+        group: media
+        url: https://tdarr.blackcats.cc/api/v2/status
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
+      # `/` is a 302 to the SSO login; /api/health is the unauthenticated probe.
+      - name: CrossWatch
+        group: media
+        url: https://crosswatch.blackcats.cc/api/health
+        interval: 1m
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 720h"
+
       - name: Minecraft (matcha)
         group: media
         url: "tcp://matcha.blackcats.cc:25565"

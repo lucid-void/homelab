@@ -1,5 +1,45 @@
 {
-  "gatus": {},
-  "homepage": {},
-  "backup": {}
+  "gatus": {
+    "gatus.blackcats.cc": "Gatus cannot report its own outage"
+  },
+  "homepage": {
+    "home.blackcats.cc": "this is Homepage",
+    "kromgo.blackcats.cc": "badge JSON endpoint, no UI",
+    "obsidian.blackcats.cc": "CouchDB sync endpoint, no UI"
+  },
+  "backup": {
+    "ai/clef-data": "re-downloadable venv and weights",
+    "ai/llama-models": "re-downloadable weights",
+    "gitea/valkey-data-gitea-valkey-cluster-*": "disposable cache, recreate rather than repair",
+    "immich/immich-model-cache": "re-downloadable ML models",
+    "media/media-nfs": "the Synology media share itself, not app state",
+    "media/matcha-data": "the mc-backup sidecar snapshots the world into mc-backups, which minecraft-backup restics",
+    "media/vanilla-data": "the mc-backup sidecar snapshots the world into mc-backups, which minecraft-backup restics",
+    "monitoring/vmsingle-vm-stack-victoria-metrics-k8s-stack": "metrics history, not backed up by design",
+    "network/blocky-logs-1": "14-day DNS query log, disposable",
+    "postgres/postgres-*": "postgres-backup dumps every database with pg_dump, without mounting the PVC",
+    "paperless/protonmail-bridge-config": "recovery is a re-login",
+    "paperless/paperless-consume": "transient inbox, emptied as documents are ingested",
+
+    "ai/open-webui-data": "UNDECIDED: tracked in design/TODO.md",
+    "degoog/degoog-data": "UNDECIDED: tracked in design/TODO.md",
+    "freshrss/freshrss-data": "UNDECIDED: tracked in design/TODO.md",
+    "gitea/gitea-shared-storage": "UNDECIDED: tracked in design/TODO.md",
+    "media/crosswatch-config": "UNDECIDED: tracked in design/TODO.md",
+    "media/kavita-config": "UNDECIDED: tracked in design/TODO.md",
+    "media/prowlarr-config": "UNDECIDED: tracked in design/TODO.md",
+    "media/radarr-config": "UNDECIDED: tracked in design/TODO.md",
+    "media/romm-config": "UNDECIDED: tracked in design/TODO.md",
+    "media/sabnzbd-config": "UNDECIDED: tracked in design/TODO.md",
+    "media/seerr-config": "UNDECIDED: tracked in design/TODO.md",
+    "media/sonarr-config": "UNDECIDED: tracked in design/TODO.md",
+    "media/suwayomi-config": "UNDECIDED: tracked in design/TODO.md",
+    "media/tdarr-config": "UNDECIDED: tracked in design/TODO.md",
+    "media/plex-config-local": "UNDECIDED: tracked in design/TODO.md",
+    "media/jellyfin-config-local": "UNDECIDED: tracked in design/TODO.md",
+    "monitoring/flight-tracker-data": "UNDECIDED: tracked in design/TODO.md",
+    "monitoring/gatus-data": "UNDECIDED: tracked in design/TODO.md",
+    "monitoring/gotify-data": "UNDECIDED: tracked in design/TODO.md",
+    "monitoring/vm-stack-grafana": "UNDECIDED: tracked in design/TODO.md"
+  }
 }
