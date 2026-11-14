@@ -72,6 +72,14 @@ config:
             href: https://kavita.example.com
             description: Manga reader
             icon: kavita.png
+        - Tdarr:
+            href: https://tdarr.example.com
+            description: Library transcoding
+            icon: tdarr.png
+        - CrossWatch:
+            href: https://crosswatch.example.com
+            description: Plex and Jellyfin watch-history sync
+            icon: mdi-sync
         - Immich:
             href: https://immich.example.com
             description: Photos

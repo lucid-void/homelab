@@ -74,7 +74,7 @@ large file whole (`design/runbook.md` above all).
 - Sealed Secrets, OIDC bootstrap secrets: design/docs/secrets.md
 - HelmRelease values, app-template, Reloader: helm-charts.md
 - restic, rclone offsite copies, etcd snapshots, backup schedules: backups.md
-- VictoriaMetrics, Grafana, VMRule alert rules, Goldilocks, Gatus, kromgo README badges: monitoring.md
+- VictoriaMetrics, Grafana, VMRule alert rules, Goldilocks, Gatus, coverage-audit, kromgo README badges: monitoring.md
 - Minecraft metrics, mc-monitor, world-size alerts: minecraft-monitoring.md
 - Gotify, its app tokens, the Telegram alerts module: gotify.md
 - Telegram bot (core, modules, commands), flight tracker, AeroDataBox: flight-tracker.md

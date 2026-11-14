@@ -53,8 +53,36 @@ no-WAN-exposure property the README advertises stays true. Credentials live in t
 `kromgo-gist` sealed Secret (`GITHUB_TOKEN`, `GIST_ID`); the PAT carries the `gist`
 scope and nothing else.
 
+### coverage-audit — what is missing its standard wiring
+
+A daily CronJob (`monitoring/coverage-audit`, 07:30) that reads the live cluster and
+reports to Gotify every hostname on a `gateway/shared` HTTPRoute with no Gatus check or
+no Homepage tile, and every PVC no backup CronJob mounts. Read-only, stateless, and it
+sends nothing when there are no gaps. Deliberate gaps are listed with a reason in
+`kubernetes/apps/monitoring/coverage-audit/app/exemptions.json`. SSO is out of scope:
+`sso-audit` covers login gates (`design/decisions/keycloak.md`).
+
 ## Rules
 
+- **`coverage-audit` matches Gatus and Homepage by regex, not a YAML parse** — it looks
+  for `url: <scheme>://<host>` in `gatus-config` and `href: <scheme>://<host>` in the
+  `homepage` ConfigMap's `services.yaml`, one per line. A URL written any other way (a
+  multi-line scalar, a templated value) reads as "no check" and needs an exemption.
+- **"Backed up" means mounted by a CronJob with `backup` in its name** — a PVC protected
+  any other way (`pg_dump`, the Minecraft `mc-backup` sidecar) needs an exemption that
+  says how. A backup job named without `backup` covers nothing as far as the audit goes.
+- **A stale exemption is itself a finding** — one that no longer excuses anything is
+  reported until it is deleted, so adding the Gatus check or backup job means removing
+  the exemption in the same change. Patterns are globs matched against the whole
+  hostname or `namespace/pvc`; an exemption with an empty reason is rejected.
+- **An `UNDECIDED:` reason in `exemptions.json` is a backlog entry, not a decision** —
+  it silences the audit for a gap nobody has ruled on. `design/TODO.md` tracks them.
+- **`coverage-audit`'s Flux Kustomization has no `targetNamespace`** — it owns a Role in
+  `homepage` beside everything else in `monitoring`, and `targetNamespace` would move
+  both into one namespace.
+- **A failed read fails the run rather than reporting gaps** — an API error, a missing
+  ConfigMap key or a malformed `exemptions.json` sends "Coverage audit failed" at
+  priority 8 and exits non-zero. It must never degrade into "everything is uncovered".
 - **The Telegram bot's `/status` reads `ALERTS`, `kube_pod_status_phase`,
   `kube_deployment_status_replicas_unavailable` and `kube_cronjob_*` from VMSingle** —
   renaming or dropping those series (a kube-state-metrics or vmalert change) turns its lines
@@ -170,4 +198,9 @@ mise exec -- kubectl -n monitoring port-forward svc/kromgo 18080:8080 &
 curl -s "http://127.0.0.1:18080/badges/uptime?format=shields"
 mise exec -- kubectl -n monitoring create job --from=cronjob/kromgo-badge-push kromgo-badge-push-manual
 promtool check rules kubernetes/apps/monitoring/vm-stack/app/vmrules.yml
+
+# coverage-audit: unit tests, then a manual run of the CronJob
+python3 -m unittest discover -s kubernetes/apps/monitoring/coverage-audit/tests
+mise exec -- kubectl -n monitoring create job --from=cronjob/coverage-audit coverage-audit-manual
+mise exec -- kubectl -n monitoring logs job/coverage-audit-manual
 ```

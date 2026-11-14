@@ -379,8 +379,11 @@ which `sso-audit` then reports.
 
 ### 9. Register a Gatus check
 
-Every externally-reachable service gets one. Nothing else notices a service that is
-merely *down* — Flux only reports what it cannot *reconcile*, so a healthy HelmRelease
+Every externally-reachable service gets one. `coverage-audit` reports a route without
+one the next morning, and the same for a missing tile (step 10) or a PVC with no backup
+job; a deliberate skip goes in
+`kubernetes/apps/monitoring/coverage-audit/app/exemptions.json` with a reason. Nothing
+else notices a service that is merely *down* — Flux only reports what it cannot *reconcile*, so a healthy HelmRelease
 serving 503s is silent without this.
 
 Edit `kubernetes/apps/monitoring/gatus/app/configmap.yml` and add an endpoint to the

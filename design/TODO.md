@@ -139,6 +139,15 @@ topic rather than reading it whole; owner-only items are at the top.
 - Migrate the per-app backup CronJobs to VolSync — seven imperative restic scripts
   wearing GitOps clothes; VolSync's `ReplicationSource`/`ReplicationDestination` makes
   restore declarative and rehearsable, which also closes the next item.
+- **Needs the owner. Twenty PVCs have no backup job and no recorded reason.** `coverage-audit`
+  found them; each is exempted as `UNDECIDED` in
+  `kubernetes/apps/monitoring/coverage-audit/app/exemptions.json` so the audit stays quiet
+  (`grep UNDECIDED` on that file is the list). Decide per PVC: add a backup job, or replace
+  the reason with the real one. They are `open-webui-data`, `degoog-data`, `freshrss-data`,
+  `gitea-shared-storage`, ten media `*-config` volumes (crosswatch, kavita, prowlarr, radarr,
+  romm, sabnzbd, seerr, sonarr, suwayomi, tdarr), `flight-tracker-data`, `gatus-data`,
+  `gotify-data`, `vm-stack-grafana`, and the Plex and Jellyfin config PVCs (their own item
+  above).
 - **Build `restore-drill`: a weekly CronJob that proves a backup restores.** Each run picks
   one app in rotation, restores its latest restic snapshot from Filen into a scratch PVC and
   a throwaway CNPG database, checks the result (the dump loads, row and file counts are
