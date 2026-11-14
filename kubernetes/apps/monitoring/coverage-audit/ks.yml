@@ -1,0 +1,23 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app coverage-audit
+  namespace: flux-system
+spec:
+  # No targetNamespace, on purpose: this app has a Role in `homepage` beside everything
+  # else in `monitoring`, and targetNamespace would override both. Every resource
+  # carries its own namespace.
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: gotify-bootstrap   # writes coverage-audit-gotify-secret
+  path: ./kubernetes/apps/monitoring/coverage-audit/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: false
+  interval: 30m
+  timeout: 5m

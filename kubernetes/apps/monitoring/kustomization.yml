@@ -17,3 +17,4 @@ resources:
   - ./ai-monitoring/ks.yml
   - ./kromgo/ks.yml
   - ./tdarr/ks.yml
+  - ./coverage-audit/ks.yml
