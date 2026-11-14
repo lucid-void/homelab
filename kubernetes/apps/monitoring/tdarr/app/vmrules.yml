@@ -2,9 +2,10 @@
 # Tdarr alerts. Route through Alertmanager -> am-gotify-bridge -> Gotify,
 # same path as the minecraft rules.
 #
-# Queue/error rules are added after the exporter has run against the live
-# server and its real series and `status` label values have been read
-# (design/decisions/tdarr.md); availability rules need only kube-state-metrics.
+# Availability rules need only kube-state-metrics. Queue/error rules use the
+# homeylab/tdarr-exporter series: tdarr_library_transcodes{status} is a gauge
+# of items per status (error, queued, success, not required, ...), and
+# tdarr_node_paused is 1 while the node is paused in the UI.
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMRule
 metadata:
@@ -28,3 +29,30 @@ spec:
             severity: warning
           annotations:
             summary: Tdarr node has no available replica
+    - name: tdarr-queue
+      rules:
+        # A verify failure or refused swap exits non-zero and lands as status=error.
+        # The original is untouched; read the job report in the UI.
+        - alert: TdarrTranscodeFailed
+          expr: |
+            sum(tdarr_library_transcodes{status="error"})
+              - sum(tdarr_library_transcodes{status="error"} offset 1h) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "Tdarr: {{ $value }} new failed item(s) in the last hour (original kept)"
+        # Work is queued, the node is not paused, and nothing finished for 12 h.
+        # The longest single encode (a 3 h film at 0.4x realtime) is about 8 h.
+        - alert: TdarrQueueStalled
+          expr: |
+            sum(tdarr_library_transcodes{status="queued"}) > 0
+            and on() max(tdarr_node_paused) == 0
+            and on() (
+              sum(tdarr_library_transcodes{status=~"success|not required|error"})
+                - sum(tdarr_library_transcodes{status=~"success|not required|error"} offset 12h)
+            ) == 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: Tdarr has queued work but finished nothing in 12 h
