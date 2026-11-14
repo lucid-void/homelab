@@ -41,9 +41,9 @@
       }
     },
     {
-      "name": "Bitrate 6 Mbps and up",
+      "name": "Video bitrate 6 Mbps and up (with fallbacks)",
       "sourceRepo": "Community",
-      "pluginName": "checkVideoBitrate",
+      "pluginName": "customFunction",
       "version": "1.0.0",
       "id": "br",
       "position": {
@@ -51,9 +51,7 @@
         "y": 300
       },
       "inputsDB": {
-        "unit": "kbps",
-        "greaterThan": "6000",
-        "lessThan": "200000"
+        "code": "module.exports = async (args) => {\n  // Video bitrate >= 6 Mbps -> output 1 (encode), else output 2 (skip).\n  // mkv files muxed without stream statistics have no per-stream bitrate, so\n  // fall back to the container bitrate minus audio. Unknown -> skip, never fail.\n  const MIN = 6000000;\n  const f = args.inputFileObj || {};\n  const num = (x) => { const n = Number(x); return Number.isFinite(n) && n > 0 ? n : 0; };\n  const tagBps = (s) => num(s && s.tags && (s.tags.BPS || s.tags['BPS-eng']));\n  const mi = (f.mediaInfo && f.mediaInfo.track) || [];\n  const probe = f.ffProbeData || {};\n  const streams = probe.streams || [];\n  const fmt = probe.format || {};\n  const miVideo = mi.find((t) => String(t['@type']).toLowerCase() === 'video');\n  const fpVideo = streams.find((s) => s.codec_type === 'video');\n  let v = num(miVideo && miVideo.BitRate);\n  let how = 'mediainfo video stream';\n  if (!v) { v = num(fpVideo && fpVideo.bit_rate) || tagBps(fpVideo); how = 'ffprobe video stream'; }\n  if (!v) {\n    let total = num(fmt.bit_rate) || num(f.bit_rate);\n    const dur = num(fmt.duration) || num(f.duration);\n    if (!total && dur) total = (num(fmt.size) || num(f.file_size) * 1048576) * 8 / dur; // file_size is MiB\n    let audio = 0;\n    streams.filter((s) => s.codec_type === 'audio').forEach((s) => { audio += num(s.bit_rate) || tagBps(s); });\n    if (!audio) mi.filter((t) => String(t['@type']).toLowerCase() === 'audio').forEach((t) => { audio += num(t.BitRate); });\n    v = total > audio ? total - audio : 0;\n    how = `container ${Math.round(total / 1000)} kbps minus audio ${Math.round(audio / 1000)} kbps`;\n  }\n  const out = v >= MIN ? 1 : 2;\n  args.jobLog(`Video bitrate ${Math.round(v / 1000)} kbps (${how}): ${out === 1 ? 'encode' : 'skip, under 6 Mbps or unknown'}`);\n  return { outputFileObj: f, outputNumber: out, variables: args.variables };\n};\n"
       }
     },
     {

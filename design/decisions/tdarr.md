@@ -74,7 +74,7 @@ throwaway library: 365 MB -> 63 MB and 273 MB -> 95 MB, originals parked in the 
   to `/api/v2/cruddb` with `{"data":{"collection":"FlowsJSONDB","mode":"insert","docID":"h264-to-hevc-slow","obj":<file>}}`
   and the node's `apiKey` in an `x-api-key` header. Libraries are created in the UI (three:
   `/Media/Series`, `/Media/Series_done`, `/Media/Movies`, cache `/temp`, folder watch off, flow
-  selected). The flow is: codec is h264 -> resolution 720p or 1080p -> video bitrate 6000 kbps and up
+  selected). The flow is: codec is h264 -> resolution 720p or 1080p -> video bitrate 6 Mbps and up (a `customFunction`, see below)
   -> begin command -> 10-bit -> `libx265` preset `slow` CRF 21, hardware encoding off -> cap x265
   pools at 6, tag `hvc1` -> execute (container unchanged) -> copy to `/Media/.tdarr-staging` (keeping
   the relative path, as the working file) -> `Run CLI` `/scripts/tdarr-swap.sh "<original>" "<staged>"`,
@@ -88,6 +88,12 @@ throwaway library: 365 MB -> 63 MB and 273 MB -> 95 MB, originals parked in the 
 - **Keep the source container.** An mp4 source stays mp4: Sonarr/Radarr keep their path (no rescan),
   and `mov_text` subtitles and mp4 data streams cannot be copied into mkv. `hvc1` is what Apple
   devices need for HEVC in mp4, and is ignored by mkv. The libraries take only `mkv,mp4`.
+- **Never use the stock `checkVideoBitrate` plugin.** It reads only MediaInfo's per-stream video
+  bitrate and throws `Video bitrate not found` (a transcode error) on mkv files muxed without
+  stream statistics. The flow's `customFunction` tries MediaInfo, then ffprobe's stream `bit_rate`
+  or `BPS` tag, then the container bitrate minus audio (from ffprobe, else the file record's
+  `bit_rate`, else size over duration); a file with no usable bitrate is skipped, never failed.
+  The container fallback counts unknown audio as 0, so it can let a file slightly under 6 Mbps in.
 - **Tdarr's `/api/v2/poll-worker-limits` is a long-poll.** The node logging `Worker limit polling
   failed ... ETIMEDOUT` every ~30 s is normal, not a network fault.
 - **Directories Tdarr's worker (uid 2202) cannot write make the swap refuse.** Never create a
