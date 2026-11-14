@@ -1,0 +1,13 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./rbac.yml
+  - ./cronjob.yml
+configMapGenerator:
+  - name: coverage-audit-script
+    namespace: monitoring   # must match the CronJob's namespace or the hashed name is not propagated
+    files:
+      - audit.py
+      - main.py
+      - exemptions.json
