@@ -72,6 +72,11 @@ spec:
     valkey:
       enabled: false
 
+    # `existingClaim` is a silent no-op on this chart: the live pod mounts the chart's
+    # own default claim, `gitea-shared-storage`, and that is where the repositories
+    # are. `gitea-data` (pvc.yml) is mounted by nothing. Left as is on purpose — do NOT
+    # "fix" this to the chart's real key, that would repoint Gitea at the unused volume.
+    # gitea-backup backs up `gitea-shared-storage`. See design/TODO.md.
     persistence:
       enabled: true
       existingClaim: gitea-data

@@ -8,6 +8,7 @@ resources:
   - ./flux-notifications/ks.yml
   - ./gotify-telegram/ks.yml
   - ./flight-tracker/ks.yml
+  - ./flight-tracker-backup/ks.yml
   - ./gatus/ks.yml
   - ./am-gotify-bridge/ks.yml
   - ./vm-stack/ks.yml

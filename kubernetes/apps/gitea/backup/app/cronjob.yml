@@ -47,7 +47,7 @@ spec:
           volumes:
             - name: data
               persistentVolumeClaim:
-                claimName: gitea-data
+                claimName: gitea-shared-storage
                 readOnly: true
             - name: db-dump
               emptyDir: {}

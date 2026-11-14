@@ -8,3 +8,4 @@ resources:
   - ./clef/ks.yml
   - ./litellm/ks.yml
   - ./open-webui/ks.yml
+  - ./open-webui-backup/ks.yml

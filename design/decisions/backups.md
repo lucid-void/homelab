@@ -17,7 +17,11 @@ namespace running `ghcr.io/lucid-void/backup-tools`.
 | 03:00 | immich-backup | scale to 0 |
 | 03:30 | postgres-backup | none — reads the CNPG read replica |
 | 04:00 | paperless-backup | scale to 0 |
+| 04:30 | media-config-backup | scale to 0: crosswatch, kavita, prowlarr, sabnzbd, seerr, suwayomi — sonarr, radarr, romm and tdarr stay up |
 | 05:00 | gitea-backup | scale to 0 |
+| 05:30 | open-webui-backup | scale to 0 |
+| 06:00 | freshrss-backup | none — the database is in Postgres |
+| 06:15 | flight-tracker-backup | none — small JSON state files |
 | 07:00 | minecraft-backup | quiesced |
 
 Scale-down jobs go to 0 replicas via `trap cleanup EXIT`. homebox and gitea back up
@@ -48,8 +52,42 @@ Gotify notifications are priority 5 on success, 8 on failure. The token is in
 `gotify-secret`, managed by the `gotify-bootstrap` Job (not a SealedSecret), wired
 `optional: true` so jobs run before bootstrap completes.
 
+**Not backed up, by the owner's decision (2026-11-14):** anything configured from git or
+quickly redone — the Plex and Jellyfin config PVCs (a lost node means a re-scan), Gotify,
+Gatus, Grafana and Degoog. Every PVC without a backup job carries its reason in
+`kubernetes/apps/monitoring/coverage-audit/app/exemptions.json`, and `coverage-audit`
+reports any PVC that has neither (`design/decisions/monitoring.md`).
+
+`media-config-backup`, `open-webui-backup`, `freshrss-backup` and `flight-tracker-backup`
+share one generic script (each job's `script-configmap.yml` holds the same text), driven
+by `BACKUP_NAME`, `NAMESPACE` and `SCALE_DOWN`.
+
 ## Rules
 
+- **The four generic jobs share the `media` namespace's `restic-secret` and
+  `rclone-secret`** — Reflector mirrors both into `ai`, `freshrss` and `monitoring` from
+  annotations on the SealedSecret templates in `media/minecraft-backup/app/`. Their
+  repos therefore use the same restic password as `minecraft-backup`. Adding a namespace
+  means adding it to both annotation lists on both files; template metadata is not
+  encrypted, so no re-seal is needed.
+- **Never drop the `RESTIC_REPOSITORY` env override on a job that uses the shared
+  secret** — the secret's own `RESTIC_REPOSITORY` is the Minecraft repo, so without the
+  override the job would back up into it and `forget --group-by ''` would prune
+  Minecraft's snapshots. The generic script refuses to run unless the variable equals
+  `rclone:filen:backups/restic/$BACKUP_NAME`.
+- **`media-config-backup` copies sonarr, radarr, romm and tdarr while they run** — the
+  first three keep their database in Postgres, so the PVC is plain config and assets.
+  Tdarr's own database is on the PVC and is copied live, on purpose: stopping the server
+  nightly would interrupt transcodes that run for hours. Treat a restored Tdarr database
+  as possibly inconsistent and be ready to recreate libraries and flows.
+- **`media-config-backup` has no `podAffinity` and runs as `2202:2200`** — its ten apps
+  sit on different nodes, and the `nfs-client` CSIDriver has `attachRequired: false`, so
+  an RWO claim is not held to one node. The uid matches the media apps' `PUID`/`PGID`,
+  so files they write `0600` stay readable.
+- **`gitea-backup` mounts `gitea-shared-storage`, not `gitea-data`** — the HelmRelease's
+  `existingClaim: gitea-data` never took effect, and the job backed up that unused
+  volume until 2026-11-14. Snapshots in the Gitea repo older than that hold a database
+  dump but no repositories.
 - **Keep `--group-by ''` on every `forget`** — restic defaults to `--group-by host,paths`
   and every Job pod has a unique hostname, so each nightly snapshot forms a *group of
   one* that `--keep-daily 30` trivially keeps: retention deletes nothing and `--prune`

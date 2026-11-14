@@ -55,6 +55,11 @@ valid values are `keepUpdated`, `initialOnlyNoReset`, `initialOnlyRequireReset`)
 
 ## Rules
 
+- **Gitea's data is on `gitea-shared-storage`, not `gitea-data`** — `persistence.existingClaim`
+  in the HelmRelease is a silent no-op on this chart, so the pod mounts the chart's
+  default claim and `gitea-data` (`pvc.yml`) is mounted by nothing. Never "correct" the
+  value to the chart's real key: that repoints Gitea at the unused volume. `gitea-backup`
+  mounts `gitea-shared-storage`. Cleanup is tracked in `design/TODO.md`.
 - **Never declare `cache.ADAPTER`, `session.PROVIDER` or `queue.TYPE` while valkey is
   enabled** — the chart overwrites all three unconditionally, so a `memory`/`channel`
   value in git is not what the pod runs.

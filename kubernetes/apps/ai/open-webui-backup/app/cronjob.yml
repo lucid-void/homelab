@@ -1,0 +1,96 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: open-webui-backup
+  namespace: ai
+  annotations:
+    # deliberate: the TTL always wins for a daily job, and the history limits remain a
+    # cap. See design/decisions/backups.md.
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see comment"
+    # restic and rclone need a writable HOME for their cache
+    ignore-check.kube-linter.io/no-read-only-root-fs: "restic/rclone cache"
+spec:
+  schedule: "30 5 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 14400
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          serviceAccountName: open-webui-backup
+          restartPolicy: Never
+          # RWO + nfs-client: run on the app's node (design/decisions/backups.md).
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: open-webui
+                      app.kubernetes.io/component: app
+                  topologyKey: kubernetes.io/hostname
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+          volumes:
+            - name: open-webui-data
+              persistentVolumeClaim:
+                claimName: open-webui-data
+                readOnly: true
+            - name: rclone-config
+              secret:
+                secretName: rclone-secret
+                defaultMode: 0440
+            - name: script
+              configMap:
+                name: open-webui-backup-script
+                defaultMode: 0755
+          containers:
+            - name: backup
+              image: ghcr.io/lucid-void/backup-tools:v1.1.0
+              command: ["/bin/bash", "/scripts/backup.sh"]
+              envFrom:
+                - secretRef:
+                    name: restic-secret
+              env:
+                # Overrides the RESTIC_REPOSITORY inside restic-secret, which is the
+                # Minecraft repo: the secret is shared, the repository is not.
+                - name: RESTIC_REPOSITORY
+                  value: rclone:filen:backups/restic/open-webui-backup
+                - name: BACKUP_NAME
+                  value: open-webui-backup
+                - name: NAMESPACE
+                  value: ai
+                - name: SCALE_DOWN
+                  value: "open-webui"
+                - name: RCLONE_CONFIG
+                  value: /rclone-config/rclone.conf
+                - name: HOME
+                  value: /tmp
+                - name: GOTIFY_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gotify-secret
+                      key: GOTIFY_TOKEN
+                      optional: true
+              volumeMounts:
+                - name: open-webui-data
+                  mountPath: /data
+                  readOnly: true
+                - name: rclone-config
+                  mountPath: /rclone-config
+                  readOnly: true
+                - name: script
+                  mountPath: /scripts
+              resources:
+                requests:
+                  memory: 128Mi
+                  cpu: 50m
+                limits:
+                  memory: 512Mi
