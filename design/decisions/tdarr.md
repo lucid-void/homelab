@@ -10,8 +10,8 @@ the flow, the test encode and the pilot are runtime work still to do (`design/TO
 - **Server** in `media` (`bjw-s/app-template`): UI on 8265 behind `tdarr.blackcats.cc`,
   node port 8266 cluster-internal, config on a `tdarr-config` `nfs-client` PVC. No Keycloak
   gate — Tdarr has no OIDC, so reachability is the Gateway only.
-- **One node** pinned to **llm-1** (tolerates `workload=llm`), CPU x265 only, **starts paused**
-  (`startPaused`), one CPU encode worker, CPU request `500m` and limit `6`. llm-1 requests 6 of
+- **One node** pinned to **llm-1** (tolerates `workload=llm`), CPU x265 only, `startPaused: false`
+  (the queue resumes by itself after a restart), one CPU encode worker, CPU request `500m` and limit `6`. llm-1 requests 6 of
   its 8 CPUs already (llama-swap 4, Clef 2), so the low request lets them win contention. The
   node was chosen because llm-1 averaged 1.2% CPU (p95 3.7%, peak 9%) over 7 days.
 - **Mounts:** server and node both mount `media-nfs` read-write, like sonarr/radarr. The encode
@@ -61,9 +61,10 @@ throwaway library: 365 MB -> 63 MB and 273 MB -> 95 MB, originals parked in the 
   root so Plex, Jellyfin and Tdarr never index it. Keep it on the same share and NFS mount,
   or the swap stops being an atomic rename (the script refuses a cross-filesystem swap).
 - **Never raise the node's CPU limit above 6.** llama.cpp and Clef run on the same 8 vCPU.
-- **`startPaused` stays `true` until the pilot has passed.** A restart must not resume an
-  untested policy unattended. For the full run (weeks of encoding) set it to `false` so the queue
-  resumes by itself after a clean UPS shutdown and reboot; an encode in flight restarts from zero.
+- **Set `startPaused` back to `true` before changing the policy** (flow, CRF, filters), and test
+  the change on a throwaway library first. With `false` (the full run, since the pilot passed) the
+  queue resumes by itself after a clean UPS shutdown and reboot; an encode in flight restarts from
+  zero.
 - **The trash purge ages files by mtime**, so the swap must `touch` the original when it moves
   it (rename keeps the old mtime). Removing the `touch` makes the purge delete originals at
   once.

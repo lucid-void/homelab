@@ -90,8 +90,9 @@ spec:
               inContainer: "true"
               ffmpegVersion: "7"
               nodeType: mapped
-              # Never start encoding on its own. Resumed by hand in the UI.
-              startPaused: "true"
+              # Full run: resume by itself after a restart or a UPS shutdown.
+              # An encode in flight restarts from zero. Pause in the UI to stop.
+              startPaused: "false"
               # One CPU encode at a time. No GPU workers: x265 on CPU by design.
               transcodecpuWorkers: "1"
               transcodegpuWorkers: "0"
