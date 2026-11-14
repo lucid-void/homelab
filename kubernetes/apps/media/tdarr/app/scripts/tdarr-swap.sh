@@ -5,7 +5,8 @@
 #   VERIFY_ONLY=1 tdarr-swap.sh <original> <output>   check only, move nothing
 #
 # Exit: 0 swapped | 10 verify failed, nothing changed | 20 swap refused or
-#       failed, original restored | 2 usage.
+#       failed (including a 4K, HDR or Dolby Vision source), original
+#       untouched or restored | 2 usage.
 # See design/decisions/tdarr.md. Every path is quoted: library names contain
 # spaces and quotes.
 set -u
@@ -39,6 +40,22 @@ out=$2
 probe() { # probe <file> <select> <entries>
   "$FFPROBE" -v error -select_streams "$2" -show_entries "$3" -of csv=p=0 -- "$1"
 }
+
+# --- source guard -----------------------------------------------------------
+# Never touch 4K, HDR or Dolby Vision, whatever the flow filters let through:
+# those direct-play to the TV and are already HEVC. Only H.264 SDR up to 1080p.
+src=$(probe "$orig" v:0 stream=codec_name,height,color_transfer | tr ',' ' ') \
+  || swap_fail "ffprobe failed on original"
+set -- $src
+[ "${1:-}" = h264 ] || swap_fail "source codec is '${1:-}', only h264 is re-encoded"
+[ "${2:-0}" -le 1088 ] 2>/dev/null || swap_fail "source is ${2:-?}p, 4K is never re-encoded"
+case "${3:-}" in
+  smpte2084 | arib-std-b67) swap_fail "source is HDR (${3}), never re-encoded" ;;
+esac
+if "$FFPROBE" -v error -select_streams v -show_entries stream_side_data=side_data_type -of csv=p=0 -- "$orig" \
+  | grep -qi -e dovi -e "dolby vision"; then
+  swap_fail "source has Dolby Vision, never re-encoded"
+fi
 
 # --- verify ---------------------------------------------------------------
 codec=$(probe "$out" v:0 stream=codec_name) || verify_fail "ffprobe failed on output"
@@ -127,7 +144,9 @@ case "$orig" in
   "$MEDIA_ROOT"/*) rel=${orig#"$MEDIA_ROOT"/} ;;
   *) swap_fail "original is not under $MEDIA_ROOT" ;;
 esac
-dest="${orig%.*}.mkv"
+# The output keeps the source container in the flow, so dest is normally the
+# original path. A different extension still swaps, as long as nothing is there.
+dest="${orig%.*}.${out##*.}"
 if [ "$dest" != "$orig" ] && [ -e "$dest" ]; then
   swap_fail "$dest already exists"
 fi
