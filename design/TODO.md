@@ -139,6 +139,13 @@ topic rather than reading it whole; owner-only items are at the top.
 - Migrate the per-app backup CronJobs to VolSync — seven imperative restic scripts
   wearing GitOps clothes; VolSync's `ReplicationSource`/`ReplicationDestination` makes
   restore declarative and rehearsable, which also closes the next item.
+- **Build `restore-drill`: a weekly CronJob that proves a backup restores.** Each run picks
+  one app in rotation, restores its latest restic snapshot from Filen into a scratch PVC and
+  a throwaway CNPG database, checks the result (the dump loads, row and file counts are
+  sane, the snapshot is under 48 h old), posts pass or fail to Gotify, and tears everything
+  down. Start with Homebox (SQLite only), then add an app at a time; Immich is the highest
+  value and the hardest. It automates the restore test above, it does not replace doing
+  one by hand first. Not yet designed.
 - `immich-backup` still takes the deployment offline for the whole maintenance window,
   not just the backup — the cache PVC fix landed (`immich-backup-cache`, mounted at
   `/cache` via `RESTIC_CACHE_DIR`), which cut nightly downtime from ~136 min to
