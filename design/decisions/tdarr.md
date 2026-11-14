@@ -19,7 +19,15 @@ the flow, the test encode and the pilot are runtime work still to do (`design/TO
 - **`tdarr-swap.sh`** (ConfigMap `tdarr-scripts`, mounted at `/scripts` on the node) verifies an
   encode and swaps it in. Exit codes: 0 swapped, 10 verify failed, 20 swap refused, 2 usage.
   Checks: HEVC video, duration within 1 s, same audio and subtitle stream counts and languages,
-  a clean full decode, output smaller than the source. The original is renamed into
+  a clean full decode (`-xerror`), output smaller than the source. Playability is checked
+  automatically, so nobody has to watch outputs: per-stream packet counts within 0.1% of the
+  source (a dropped frame is a skip), no more timestamp gaps over 0.5 s than the source, audio
+  and video start offset unchanged (A/V sync), HEVC Main or Main 10 4:2:0 at level 5.1 or lower
+  (what the TV and iPad direct-play), and SSIM of at least 0.95 on five 10 s segments spread
+  across the file, seeking into both files. Real encodes measure SSIM 0.98-0.99, with identical
+  packet counts and zero gaps, so the floor catches broken output rather than taste.
+  `VERIFY_ONLY=1 tdarr-swap.sh <orig> <out>` runs the checks and moves nothing, which audits a
+  swapped file against its trashed original. The original is renamed into
   `/Media/.tdarr-trash/<relative path>` and touched; the output takes its path (`.mkv`).
 - **`tdarr-trash-purge`** CronJob (daily 04:23) deletes trash files older than 14 days by mtime, and
   stale files (older than a day) in `/Media/.tdarr-staging`, where a flow puts a finished encode

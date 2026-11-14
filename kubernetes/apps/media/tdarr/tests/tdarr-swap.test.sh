@@ -22,16 +22,21 @@ exit_is() { # exit_is <name> <want> <command...>
   "$@" >/dev/null 2>&1; g=$?
   if [ "$g" -eq "$w" ]; then ok "$n"; else bad "$n (want $w, got $g)"; fi
 }
+says() { # says <name> <pattern> <command...>: exits 10 and the message matches
+  n=$1; pat=$2; shift 2
+  m=$("$@" 2>&1); g=$?
+  if [ "$g" -eq 10 ] && printf '%s' "$m" | grep -q -- "$pat"; then ok "$n"; else bad "$n (exit $g: $m)"; fi
+}
 is_hevc() { [ "$("$FFPROBE" -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 -- "$1")" = hevc ]; }
 not_old() { [ -z "$(find "$1" -mtime +1)" ]; }
 
 mksrc() { # 6 s h264 + aac, big enough that hevc at crf 30 is smaller
   "$FFMPEG" -v error -y -f lavfi -i testsrc=d=6:s=640x360:r=24 -f lavfi -i sine=d=6 \
-    -c:v libx264 -crf 12 -c:a aac "$1"
+    -c:v libx264 -pix_fmt yuv420p -crf 12 -c:a aac "$1"
 }
 mkout() { # mkout <src> <out> [extra ffmpeg args...]
   s=$1; o=$2; shift 2
-  "$FFMPEG" -v error -y -i "$s" -c:v libx265 -crf 30 -c:a copy "$@" "$o"
+  "$FFMPEG" -v error -y -i "$s" -c:v libx265 -pix_fmt yuv420p10le -x265-params log-level=error -crf 30 -c:a copy "$@" "$o"
 }
 
 # 1. pass: mkv -> mkv, same name, original lands in trash with a fresh mtime
@@ -56,7 +61,7 @@ check "collision: c.mp4 untouched" test -f "$T/c.mp4"
 check "collision: existing c.mkv untouched" cmp -s "$T/c.mkv" "$T/c.out.mkv"
 
 # 4. reject: output still h264
-mksrc "$T/d.mkv"; "$FFMPEG" -v error -y -i "$T/d.mkv" -c:v libx264 -crf 30 -c:a copy "$T/d.out.mkv"
+mksrc "$T/d.mkv"; "$FFMPEG" -v error -y -i "$T/d.mkv" -c:v libx264 -pix_fmt yuv420p -crf 30 -c:a copy "$T/d.out.mkv"
 exit_is "h264 output exits 10" 10 sh "$SWAP" "$T/d.mkv" "$T/d.out.mkv"
 check "h264: original untouched" test -f "$T/d.mkv"
 
@@ -77,7 +82,7 @@ check "corrupt: original untouched" test -f "$T/g.mkv"
 
 # 8. reject: output larger than the source (lossless hevc)
 mksrc "$T/h.mkv"
-"$FFMPEG" -v error -y -i "$T/h.mkv" -c:v libx265 -x265-params lossless=1 -c:a copy "$T/h.out.mkv"
+"$FFMPEG" -v error -y -i "$T/h.mkv" -c:v libx265 -x265-params lossless=1:log-level=error -c:a copy "$T/h.out.mkv"
 exit_is "larger output exits 10" 10 sh "$SWAP" "$T/h.mkv" "$T/h.out.mkv"
 check "larger: original untouched" test -f "$T/h.mkv"
 
@@ -97,7 +102,39 @@ mksrc "$O/j.mkv"; mkout "$O/j.mkv" "$O/j.out.mkv"
 exit_is "outside MEDIA_ROOT exits 20" 20 sh "$SWAP" "$O/j.mkv" "$O/j.out.mkv"
 rm -rf "$O"
 
-# 12. usage
+# 12. reject: video frames dropped but audio intact, so the container duration still matches
+mksrc "$T/k.mkv"
+"$FFMPEG" -v error -y -i "$T/k.mkv" -vf "select='not(between(t,2,3))',setpts=N/24/TB" -fps_mode passthrough \
+  -c:v libx265 -pix_fmt yuv420p10le -x265-params log-level=error -crf 30 -c:a copy "$T/k.out.mkv"
+says "dropped frames rejected" "packets" sh "$SWAP" "$T/k.mkv" "$T/k.out.mkv"
+check "dropped: original untouched" test -f "$T/k.mkv"
+
+# 13. reject: same frame count, but a 0.8 s hole in the timestamps (a visible freeze)
+mksrc "$T/l.mkv"
+"$FFMPEG" -v error -y -i "$T/l.mkv" -vf "setpts='if(gte(N,72),PTS+0.8/TB,PTS)'" -fps_mode passthrough \
+  -c:v libx265 -pix_fmt yuv420p10le -x265-params log-level=error -crf 30 -c:a copy "$T/l.out.mkv"
+says "timestamp gap rejected" "gap" sh "$SWAP" "$T/l.mkv" "$T/l.out.mkv"
+
+# 14. reject: audio shifted against video
+mksrc "$T/m.mkv"
+"$FFMPEG" -v error -y -i "$T/m.mkv" -itsoffset 0.6 -i "$T/m.mkv" -map 0:v -map 1:a \
+  -c:v libx265 -pix_fmt yuv420p10le -x265-params log-level=error -crf 30 -c:a copy "$T/m.out.mkv"
+says "A/V offset rejected" "out of sync" sh "$SWAP" "$T/m.mkv" "$T/m.out.mkv"
+
+# 15. reject: wrong picture (heavy blur, everything else identical)
+mksrc "$T/n.mkv"; mkout "$T/n.mkv" "$T/n.out.mkv" -vf gblur=sigma=12
+says "wrong picture rejected" "SSIM" sh "$SWAP" "$T/n.mkv" "$T/n.out.mkv"
+
+# 16. reject: a profile a TV will not direct-play (4:4:4)
+mksrc "$T/o.mkv"; mkout "$T/o.mkv" "$T/o.out.mkv" -pix_fmt yuv444p10le
+says "4:4:4 profile rejected" "profile" sh "$SWAP" "$T/o.mkv" "$T/o.out.mkv"
+
+# 17. VERIFY_ONLY checks without moving anything
+mksrc "$T/p.mkv"; mkout "$T/p.mkv" "$T/p.out.mkv"
+exit_is "verify-only passes" 0 env VERIFY_ONLY=1 sh "$SWAP" "$T/p.mkv" "$T/p.out.mkv"
+check "verify-only: nothing moved" test -f "$T/p.out.mkv" -a -f "$T/p.mkv"
+
+# 18. usage
 exit_is "no args exits 2" 2 sh "$SWAP"
 
 rm -rf "$T" "$TRASH_DIR/run-$$"
