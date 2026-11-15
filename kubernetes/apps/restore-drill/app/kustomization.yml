@@ -8,6 +8,7 @@ resources:
   - ./mirrored-secrets.yml
   - ./cronjob-restore.yml
   - ./cronjob-sso.yml
+  - ./cronjob-immich.yml
 # The scripts are real files (tested by ../tests/) mounted through a generated
 # ConfigMap. The generated name carries a content hash, so a script edit rolls
 # into the next Job without anything being edited in place.
@@ -20,3 +21,5 @@ configMapGenerator:
       - scripts/load-sso.sh
       - scripts/fsck-gitea.sh
       - scripts/drive-sso.sh
+      - scripts/load-immich.sh
+      - scripts/drive-immich.sh
