@@ -119,14 +119,32 @@ lvl=$(probe "$out" v:0 stream=level)
 
 # Compare short segments spread across the file, seeking into both. This also
 # proves the output can be seeked, and catches wrong picture, drift and damage.
+# Frames are paired by number, not timestamp: the frame counts already match,
+# and timestamp pairing matches a frame with its neighbour whenever the two
+# files round timestamps differently (Mario, 2026-11-15: 0.94 by timestamp,
+# 0.98 by number). The two seeks can still land one frame apart (an mp4 output
+# can start its video a frame later), so a low score is retried with the
+# output one frame later, then earlier. A real defect fails all three.
+# ssim_at <start> <length> <output start>: SSIM Y of the segment.
+ssim_at() {
+  "$FFMPEG" -nostdin -v info -ss "$1" -t "$2" -i "$orig" -ss "$3" -t "$2" -i "$out" \
+    -lavfi '[0:v:0]setpts=N/(1000*TB),format=yuv420p10le[a];[1:v:0]setpts=N/(1000*TB),format=yuv420p10le[b];[a][b]ssim' \
+    -f null - 2>&1 | sed -n 's/.*SSIM Y:\([0-9.]*\).*/\1/p' | tail -1
+}
+ssim_ok() { [ -n "$1" ] && awk -v s="$1" -v m="$SSIM_MIN" 'BEGIN { exit !(s >= m) }'; }
+frame=$(probe "$orig" v:0 stream=r_frame_rate \
+  | awk -F/ '$1 > 0 { d = ($2 > 0 ? $2 : 1); printf "%.6f", d / $1; ok = 1 } END { if (!ok) print "0.041708" }')
 i=0
 while [ "$i" -lt "$SSIM_POINTS" ]; do
   at=$(awk -v d="$dur_o" -v i="$i" -v n="$SSIM_POINTS" -v w="$SSIM_SECONDS" \
     'BEGIN { if (w > d / 3) w = d / 3; t = d * (i + 0.5) / n - w / 2; if (t < 0) t = 0; printf "%.3f %.3f", t, w }')
   set -- $at
-  ssim=$("$FFMPEG" -nostdin -v info -ss "$1" -t "$2" -i "$orig" -ss "$1" -t "$2" -i "$out" \
-    -lavfi '[0:v:0]setpts=PTS-STARTPTS,format=yuv420p10le[a];[1:v:0]setpts=PTS-STARTPTS,format=yuv420p10le[b];[a][b]ssim' \
-    -f null - 2>&1 | sed -n 's/.*SSIM Y:\([0-9.]*\).*/\1/p' | tail -1)
+  ssim=$(ssim_at "$1" "$2" "$1")
+  for k in 1 -1; do
+    ssim_ok "$ssim" && break
+    s2=$(ssim_at "$1" "$2" "$(awk -v t="$1" -v k="$k" -v f="$frame" 'BEGIN { t += k * f; if (t < 0) t = 0; printf "%.6f", t }')")
+    [ -n "$s2" ] && { [ -z "$ssim" ] || awk -v a="$s2" -v b="$ssim" 'BEGIN { exit !(a > b) }'; } && ssim=$s2
+  done
   [ -n "$ssim" ] || verify_fail "could not measure similarity at ${1}s"
   awk -v s="$ssim" -v m="$SSIM_MIN" 'BEGIN { exit !(s >= m) }' \
     || verify_fail "picture at ${1}s differs from the original (SSIM $ssim, need $SSIM_MIN)"

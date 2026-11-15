@@ -157,7 +157,15 @@ exit_is "2160p source refused (20)" 20 sh "$SWAP" "$T/u.mkv" "$T/u.out.mkv"
 mksrc "$T/w.mkv"; mkout "$T/w.mkv" "$T/w.hevc.mkv"; mkout "$T/w.hevc.mkv" "$T/w.out.mkv"
 exit_is "HEVC source refused (20)" 20 sh "$SWAP" "$T/w.hevc.mkv" "$T/w.out.mkv"
 
-# 22. usage
+# 22. pass: every frame changes, 23.976 fps into mp4, so timestamps round
+# differently and the mp4 video starts a frame late. Pairing by timestamp
+# scored 0.78-0.87 here; by frame number, with a one-frame retry, 0.98.
+"$FFMPEG" -v error -y -f lavfi -i "life=s=640x360:r=24000/1001:mold=10:ratio=0.5:death_color=#202020:life_color=#e0e0e0,format=yuv420p" \
+  -f lavfi -i sine=d=30 -t 30 -c:v libx264 -crf 4 -c:a aac "$T/r.mkv"
+mkout "$T/r.mkv" "$T/r.out.mp4" -crf 24 -tag:v hvc1
+exit_is "timestamp rounding is not a wrong picture" 0 env VERIFY_ONLY=1 sh "$SWAP" "$T/r.mkv" "$T/r.out.mp4"
+
+# 23. usage
 exit_is "no args exits 2" 2 sh "$SWAP"
 
 rm -rf "$T" "$TRASH_DIR/run-$$"

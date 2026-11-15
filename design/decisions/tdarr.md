@@ -25,7 +25,11 @@ the flow, the test encode and the pilot are runtime work still to do (`design/TO
   and video start offset unchanged (A/V sync), HEVC Main or Main 10 4:2:0 at level 5.1 or lower
   (what the TV and iPad direct-play), and SSIM of at least 0.95 on five 10 s segments spread
   across the file, seeking into both files. Real encodes measure SSIM 0.98-0.99, with identical
-  packet counts and zero gaps, so the floor catches broken output rather than taste.
+  packet counts and zero gaps, so the floor catches broken output rather than taste. Frames are
+  paired by frame number, never by timestamp: two files that round timestamps differently pair a
+  frame with its neighbour, and a slow pan then scores about 0.94 on a perfect encode (Mario,
+  2026-11-15). A low segment is retried with the output one frame later, then earlier, because
+  the two seeks can land a frame apart (an mp4 output starts its video a frame late).
   `VERIFY_ONLY=1 tdarr-swap.sh <orig> <out>` runs the checks and moves nothing, which audits a
   swapped file against its trashed original. The original is renamed into
   `/Media/.tdarr-trash/<relative path>` and touched; the output takes its path. A source that is not H.264, is over 1088 lines, HDR (PQ/HLG)
