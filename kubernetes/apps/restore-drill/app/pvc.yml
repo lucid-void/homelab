@@ -1,0 +1,15 @@
+---
+# Scratch space that carries restored files from drill-restore to the boot jobs.
+# Wiped at the start of every restore and at the end of every drill. RWX so the
+# three pods are not tied to one node.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: restore-drill-scratch
+  namespace: restore-drill
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 30Gi

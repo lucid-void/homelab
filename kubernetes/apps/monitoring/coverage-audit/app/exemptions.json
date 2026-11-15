@@ -18,6 +18,7 @@
     "monitoring/vmsingle-vm-stack-victoria-metrics-k8s-stack": "metrics history, not backed up by design",
     "network/blocky-logs-*": "14-day DNS query log, disposable",
     "postgres/postgres-*": "postgres-backup dumps every database with pg_dump, without mounting the PVC",
+    "restore-drill/restore-drill-scratch": "scratch space for the restore drill, wiped every run",
     "paperless/protonmail-bridge-config": "recovery is a re-login",
     "paperless/paperless-consume": "transient inbox, emptied as documents are ingested",
     "media/plex-config-local": "owner decision 2026-11-14: configured from git or quickly redone, not worth a backup (a lost node means a library re-scan)",

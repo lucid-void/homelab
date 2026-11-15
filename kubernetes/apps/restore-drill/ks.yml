@@ -1,0 +1,21 @@
+---
+# No targetNamespace on purpose: every resource names its namespace explicitly.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app restore-drill
+  namespace: flux-system
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: sealed-secrets
+  path: ./kubernetes/apps/restore-drill/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: false
+  interval: 30m
+  timeout: 5m

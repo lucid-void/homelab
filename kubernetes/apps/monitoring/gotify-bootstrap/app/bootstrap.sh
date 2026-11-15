@@ -222,7 +222,8 @@ ensure_app_token "media-config-backup" "Media app config backup notifications" m
 ensure_app_token "open-webui-backup" "Open WebUI backup job notifications"   ai          gotify-secret        GOTIFY_TOKEN
 ensure_app_token "freshrss-backup" "FreshRSS backup job notifications"     freshrss    gotify-secret        GOTIFY_TOKEN
 ensure_app_token "flight-tracker-backup" "Telegram bot state backup notifications" monitoring flight-tracker-backup-gotify-secret GOTIFY_TOKEN
-ensure_app_token "minecraft-events" "Minecraft player join/leave events"    media       minecraft-events-gotify-secret GOTIFY_TOKEN
+ensure_app_token "restore-drill" "Restore drill results" restore-drill gotify-secret GOTIFY_TOKEN
+ensure_app_token "minecraft-events""Minecraft player join/leave events"    media       minecraft-events-gotify-secret GOTIFY_TOKEN
 # Jellyfin's Webhook plugin cannot read a Secret — the token is pasted into its
 # plugin config on the config PVC. So this entry provisions the token, but a
 # rotation here does NOT reach Jellyfin: it would keep posting a dead token and

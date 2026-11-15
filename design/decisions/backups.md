@@ -62,7 +62,39 @@ reports any PVC that has neither (`design/decisions/monitoring.md`).
 share one generic script (each job's `script-configmap.yml` holds the same text), driven
 by `BACKUP_NAME`, `NAMESPACE` and `SCALE_DOWN`.
 
+### Restore drill
+
+`kubernetes/apps/restore-drill/` — a weekly proof that the Keycloak, Gitea and Immich
+backups restore. Design: `docs/superpowers/specs/2026-11-14-restore-drill-design.md`.
+**Built so far: stage 1 only.** `drill-restore` (Saturday 10:00 UTC) wipes the
+`restore-drill-scratch` PVC, restores the Keycloak dump, the whole Gitea snapshot and
+Immich's dump plus a sample of about 200 originals, runs `restic check` on a 1/52 slice
+of each repo, and writes a `READY` marker. The boot stages that start the real apps on
+that data are not built yet, so nothing reports a pass.
+
+- **The drill namespace has no RBAC and mounts no production PVC**, and its network is
+  default-deny (`networkpolicy.yml`, the only `CiliumNetworkPolicy` objects in the repo).
+  Only `drill-restore` reaches the internet. Never add either to make something work.
+- **`restore.sh` is read-only by behaviour, not by credential** — Filen has no read-only
+  login. Every restic call goes through `r()`, which adds `--no-lock`; the script must
+  never call `backup`, `forget`, `prune`, `unlock` or `init`. `tests/test_restore.sh`
+  fails if it does.
+- **The drill's repo credentials are Reflector mirrors under their own names**
+  (`restic-gitea`, `restic-postgres`, `restic-immich`, `rclone-secret`), declared
+  value-less in `mirrored-secrets.yml` with a `reflects:` annotation, because all three
+  sources are called `restic-secret`. The sources allow it through
+  `reflection-allowed-namespaces: "restore-drill"` on their SealedSecret templates.
+- **Run the drill's tests in the image, not only locally**:
+  `docker run --rm -v "$PWD/kubernetes/apps/restore-drill:/w:ro" --entrypoint bash ghcr.io/lucid-void/backup-tools:<tag> -c 'bash /w/tests/test_lib.sh; bash /w/tests/test_restore.sh'`.
+  busybox differs from GNU where it hurts (see the awk rule below).
+
 ## Rules
+
+- **busybox awk does not double a backslash in `gsub(/\\/, "\\\\")`** — the failure
+  handler every backup script copies therefore emits invalid JSON whenever the last ten
+  log lines contain a backslash, and Gotify drops the ✗ message silently. Verified in
+  the image 2026-11-15. The drill's `fail_body` escapes with `jq -Rs` instead; the
+  backup scripts still use the awk form.
 
 - **The four generic jobs share the `media` namespace's `restic-secret` and
   `rclone-secret`** — Reflector mirrors both into `ai`, `freshrss` and `monitoring` from
