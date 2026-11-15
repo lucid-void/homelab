@@ -18,7 +18,7 @@ read a section at a time, never front to back.**
 - [Planned Maintenance Shutdown](#planned-maintenance-shutdown) — shut down, start back up
 - [Recovery Procedures](#recovery-procedures) — rebuild a CNPG replica, recreate one or
   all control planes, **restore etcd from a snapshot**, **restore an application backup
-  from a given date**, rebuild the paperless search index, etcd force-new-cluster
+  from a given date**, the restore drill failed, rebuild the paperless search index, etcd force-new-cluster
 - [Troubleshooting](#troubleshooting) — node not joining, Flux reconciliation failures,
   SealedSecret not decrypting, Cilium connectivity, CNPG pod stuck, stale
   VolumeAttachment, PVC stuck Terminating, `gotify-bootstrap` immutable field error
@@ -1147,8 +1147,10 @@ a single file to stdout — handy for piping a `.pgdump` straight into `pg_resto
 > from image v1.1.0 onward; older tags lack it), and its `find` is busybox (no
 > `-printf`, no `-readable`).
 
-> **Untested.** No application snapshot has been restore-tested end-to-end either
-> (TODO.md → Planned, "No backup has ever been restore-tested end-to-end").
+> **Untested in place.** The weekly restore drill restores Keycloak, Gitea and Immich
+> to scratch and boots them ("The restore drill failed" below); no application has
+> been restored **into production**, and no other app has been restore-tested at all
+> (TODO.md → Planned, "Restore-test one backup end to end").
 
 > **Obsidian/CouchDB restores have two extra constraints.** The snapshot holds CouchDB
 > *shard files*, not markdown — restoring produces a database, and the vault only comes
@@ -1156,6 +1158,48 @@ a single file to stdout — handy for piping a `.pgdump` straight into `pg_resto
 > the restored CouchDB must run with the **same `NODENAME` (`127.0.0.1`)** as the one
 > that wrote them; a different value reads as an empty database. Restore into
 > `/opt/couchdb/data` with couchdb scaled to 0, then scale back up.
+
+### The restore drill failed
+
+The weekly drill (`design/decisions/backups.md`, "Restore drill") reports to Gotify.
+Start from the title of the message; the body carries the last ten log lines.
+
+| Gotify title | Meaning | First step |
+|---|---|---|
+| `Restore drill: restore ✗` | Stage 1 could not pull from Filen, or the newest snapshot is over 48 h old | Check last night's backup of the app the log names; a stale snapshot means the **backup** is failing |
+| `Restore drill: sso ✗` | Keycloak or Gitea did not boot on the restored data, or the login / repository check failed | Read the body: `login stopped at:` names the page it got stuck on |
+| `Restore drill: immich ✗` | Immich did not boot, or a sampled photo does not match the database | Read the body: `checksum mismatch:` names the file |
+| `… stale — bump the image` | The drill's pinned image is older than production; nothing was tested | Raise the tag and the matching `*_IMAGE_VERSION` env in `cronjob-sso.yml` / `cronjob-immich.yml` |
+| alert `RestoreDrillNotPassing` / `RestoreDrillNeverPassed` | No ✓ for 9 days | `kubectl get cronjob,job -n restore-drill` — is it suspended, or failing before it can report? |
+
+Re-run by hand, in order — the boot jobs refuse to start unless `drill-restore` finished
+the same day, and `drill-immich` wipes the scratch volume when it ends:
+
+```bash
+mise exec -- kubectl -n restore-drill create job --from=cronjob/drill-restore drill-restore-manual
+mise exec -- kubectl -n restore-drill logs -f job/drill-restore-manual        # wait for "READY written"
+mise exec -- kubectl -n restore-drill create job --from=cronjob/drill-sso drill-sso-manual
+mise exec -- kubectl -n restore-drill logs -f job/drill-sso-manual -c driver
+mise exec -- kubectl -n restore-drill create job --from=cronjob/drill-immich drill-immich-manual
+mise exec -- kubectl -n restore-drill logs -f job/drill-immich-manual -c driver
+```
+
+Each app runs as its own container in the boot pod, so its log is one `-c` away:
+`-c keycloak`, `-c gitea`, `-c load-sso`, `-c fsck`, `-c immich-server`, `-c load-immich`,
+`-c postgres`. A boot pod that fails in an init container (`load-sso`, `load-immich`)
+never starts its driver; the loader reports to Gotify itself.
+
+Common causes that are **not** a broken backup:
+
+- **`login stopped at:` a Keycloak page** — the `restore-drill` user's password was
+  rotated, a required action was added to it, or it was removed from the Gitea `user`
+  group. The fix is in Keycloak, and the drill passes once a backup taken after the fix
+  is restored.
+- **`the drill-user Secret is missing`** — `drill-user-sealed.yml` is not in the
+  kustomization.
+- **`no restore from today`** — a boot job ran without `drill-restore` that day.
+- **Mirrored `restic-*` Secrets are empty** — Reflector's hourly resync has not run
+  since the namespace was created; wait for it.
 
 ### Rebuild the paperless search index
 

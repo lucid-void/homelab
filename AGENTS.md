@@ -73,7 +73,7 @@ large file whole (`design/runbook.md` above all).
 - PVCs, storage classes, NFS, Synology shares, `extraMounts`: design/docs/storage.md
 - Sealed Secrets, OIDC bootstrap secrets: design/docs/secrets.md
 - HelmRelease values, app-template, Reloader: helm-charts.md
-- restic, rclone offsite copies, etcd snapshots, backup schedules: backups.md
+- restic, rclone offsite copies, etcd snapshots, backup schedules, the weekly restore drill: backups.md
 - VictoriaMetrics, Grafana, VMRule alert rules, Goldilocks, Gatus, coverage-audit, kromgo README badges: monitoring.md
 - Minecraft metrics, mc-monitor, world-size alerts: minecraft-monitoring.md
 - Gotify, its app tokens, the Telegram alerts module: gotify.md

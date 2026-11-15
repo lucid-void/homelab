@@ -9,6 +9,7 @@ resources:
   - ./cronjob-restore.yml
   - ./cronjob-sso.yml
   - ./cronjob-immich.yml
+  - ./vmrule.yml
 # The scripts are real files (tested by ../tests/) mounted through a generated
 # ConfigMap. The generated name carries a content hash, so a script edit rolls
 # into the next Job without anything being edited in place.
