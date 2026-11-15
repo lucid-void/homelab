@@ -18,4 +18,5 @@ configMapGenerator:
       - scripts/lib.sh
       - scripts/restore.sh
       - scripts/load-sso.sh
+      - scripts/fsck-gitea.sh
       - scripts/drive-sso.sh

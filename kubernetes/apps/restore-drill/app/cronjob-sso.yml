@@ -63,6 +63,14 @@ spec:
               configMap:
                 name: drill-scripts
                 defaultMode: 0755
+            # The Keycloak account the drill logs in with (keys username,
+            # password). optional so the pod still starts and reports clearly
+            # if the SealedSecret has not been added yet.
+            - name: drill-user
+              secret:
+                secretName: drill-user
+                optional: true
+                defaultMode: 0440
             - name: tls
               emptyDir: {}
             - name: run
@@ -120,6 +128,33 @@ spec:
               resources:
                 requests: {cpu: 50m, memory: 64Mi}
                 limits: {memory: 256Mi}
+            # Counts the restored repositories and runs git fsck on the newest
+            # one. Here because this is the only drill image that has git.
+            - name: fsck
+              image: docker.gitea.com/gitea:1.27.0-rootless
+              command: ["/bin/sh", "/scripts/fsck-gitea.sh"]
+              env:
+                - name: HOME
+                  value: /tmp
+              volumeMounts:
+                - name: scratch
+                  mountPath: /data
+                  subPath: gitea/data
+                  readOnly: true
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+                - name: run
+                  mountPath: /run/drill
+                - name: tmp-gitea
+                  mountPath: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 50m, memory: 64Mi}
+                limits: {memory: 512Mi}
             # Throwaway Postgres: loopback only, trust auth, data on emptyDir.
             # Never the production cluster.
             - name: postgres
@@ -270,6 +305,12 @@ spec:
               env:
                 - name: HOME
                   value: /tmp
+                # Floors against a backup that restores cleanly but is empty.
+                # Raise to about half of what a passing run reports.
+                - name: MIN_KEYCLOAK_USERS
+                  value: "1"
+                - name: MIN_GITEA_REPOS
+                  value: "1"
                 - name: GOTIFY_TOKEN
                   valueFrom:
                     secretKeyRef:
@@ -288,6 +329,9 @@ spec:
                   readOnly: true
                 - name: run
                   mountPath: /run/drill
+                  readOnly: true
+                - name: drill-user
+                  mountPath: /secrets/drill-user
                   readOnly: true
                 - name: tmp-driver
                   mountPath: /tmp
