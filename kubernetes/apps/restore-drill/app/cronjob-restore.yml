@@ -1,0 +1,114 @@
+---
+# Stage 1 of the weekly restore drill: pull from Filen onto the scratch PVC.
+# The only drill pod with internet access (label drill/role: restore, see
+# networkpolicy.yml), and it runs no restored app. Saturday 10:00 UTC is outside
+# the nightly backup window, whose jobs run `restic unlock --remove-all`.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: drill-restore
+  namespace: restore-drill
+  annotations:
+    # deliberate: the TTL and the history limits are complementary — see
+    # design/decisions/backups.md.
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see design/decisions/backups.md"
+spec:
+  schedule: "0 10 * * 6"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 7200
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            drill/role: restore
+        spec:
+          serviceAccountName: restore-drill
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          # 1000:1000 is the uid Gitea and Keycloak run as in the boot jobs, so
+          # the restored files belong to the uid that will read them.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          volumes:
+            - name: scratch
+              persistentVolumeClaim:
+                claimName: restore-drill-scratch
+            - name: tmp
+              emptyDir: {}
+            - name: script
+              configMap:
+                name: drill-scripts
+                defaultMode: 0755
+            - name: rclone-config
+              secret:
+                secretName: rclone-secret
+                defaultMode: 0440
+            - name: restic-gitea
+              secret:
+                secretName: restic-gitea
+                defaultMode: 0440
+            - name: restic-postgres
+              secret:
+                secretName: restic-postgres
+                defaultMode: 0440
+            - name: restic-immich
+              secret:
+                secretName: restic-immich
+                defaultMode: 0440
+          containers:
+            - name: restore
+              image: ghcr.io/lucid-void/backup-tools:v1.1.0
+              command: ["/bin/bash", "/scripts/restore.sh"]
+              env:
+                - name: RCLONE_CONFIG
+                  value: /rclone-config/rclone.conf
+                # uid 1000 has no passwd entry; restic and rclone cache under HOME
+                - name: HOME
+                  value: /tmp
+                - name: GOTIFY_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gotify-secret
+                      key: GOTIFY_TOKEN
+                      optional: true
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+                - name: tmp
+                  mountPath: /tmp
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+                - name: rclone-config
+                  mountPath: /rclone-config
+                  readOnly: true
+                - name: restic-gitea
+                  mountPath: /secrets/gitea
+                  readOnly: true
+                - name: restic-postgres
+                  mountPath: /secrets/postgres
+                  readOnly: true
+                - name: restic-immich
+                  mountPath: /secrets/immich
+                  readOnly: true
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  memory: 2Gi

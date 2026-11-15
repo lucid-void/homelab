@@ -6,3 +6,13 @@ resources:
   - ./networkpolicy.yml
   - ./pvc.yml
   - ./mirrored-secrets.yml
+  - ./cronjob-restore.yml
+# The scripts are real files (tested by ../tests/) mounted through a generated
+# ConfigMap. The generated name carries a content hash, so a script edit rolls
+# into the next Job without anything being edited in place.
+configMapGenerator:
+  - name: drill-scripts
+    namespace: restore-drill
+    files:
+      - scripts/lib.sh
+      - scripts/restore.sh
