@@ -7,6 +7,7 @@ resources:
   - ./pvc.yml
   - ./mirrored-secrets.yml
   - ./cronjob-restore.yml
+  - ./cronjob-sso.yml
 # The scripts are real files (tested by ../tests/) mounted through a generated
 # ConfigMap. The generated name carries a content hash, so a script edit rolls
 # into the next Job without anything being edited in place.
@@ -16,3 +17,5 @@ configMapGenerator:
     files:
       - scripts/lib.sh
       - scripts/restore.sh
+      - scripts/load-sso.sh
+      - scripts/drive-sso.sh
