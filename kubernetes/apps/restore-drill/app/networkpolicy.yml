@@ -1,0 +1,74 @@
+---
+# The isolation boundary of the restore drill. A policy applies to a whole pod,
+# which is why restoring (needs the internet) and booting a restored app (must
+# reach nothing) are separate pods. See design/decisions/backups.md.
+#
+# Deny everything in and out for every pod in the namespace.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: default-deny
+  namespace: restore-drill
+spec:
+  endpointSelector: {}
+  ingress:
+    - {}
+  egress:
+    - {}
+---
+# drill-restore: DNS, Filen over HTTPS, and Gotify for the failure report.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: restore-egress
+  namespace: restore-drill
+spec:
+  endpointSelector:
+    matchLabels:
+      drill/role: restore
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+            app.kubernetes.io/name: gotify
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+---
+# Boot pods run restored copies of real apps: Gotify only. No DNS — everything
+# they talk to is on localhost, and Gotify's IP comes from the marker file.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: boot-egress
+  namespace: restore-drill
+spec:
+  endpointSelector:
+    matchLabels:
+      drill/role: boot
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+            app.kubernetes.io/name: gotify
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
