@@ -40,10 +40,17 @@ spec:
                     matchLabels:
                       app.kubernetes.io/name: gitea
                   topologyKey: kubernetes.io/hostname
+          # Runs as Gitea's own uid/gid, not the usual 65534: /data/gitea is mode
+          # 0700 owned by 1000, so as 65534 the snapshot silently lacked the whole
+          # config tree (app.ini and the keys Gitea encrypts its secrets with) and
+          # restic exited 3. The unreadable set is a directory tree, not one
+          # derived path, so there is nothing to --exclude. The mount stays
+          # read-only. See design/decisions/backups.md.
           securityContext:
             runAsNonRoot: true
-            runAsUser: 65534
-            fsGroup: 65534
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
           volumes:
             - name: data
               persistentVolumeClaim:
@@ -80,6 +87,10 @@ spec:
                   value: gitea
                 - name: RCLONE_CONFIG
                   value: /rclone-config/rclone.conf
+                # uid 1000 has no passwd entry in the image; restic and rclone
+                # need a writable HOME for their cache.
+                - name: HOME
+                  value: /tmp
               volumeMounts:
                 - name: data
                   mountPath: /data
