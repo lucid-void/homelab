@@ -88,6 +88,10 @@ by `BACKUP_NAME`, `NAMESPACE` and `SCALE_DOWN`.
   `existingClaim: gitea-data` never took effect, and the job backed up that unused
   volume until 2026-11-14. Snapshots in the Gitea repo older than that hold a database
   dump but no repositories.
+- **`gitea-backup` runs as `1000:1000`, Gitea's own uid** — `/data/gitea` is mode `0700`,
+  so as 65534 every snapshot lacked the config tree, including `app.ini` and the keys
+  Gitea encrypts its secrets with, and restic exited 3 (first real run, 2026-11-15).
+  Snapshots before the fix hold repositories at best, never `app.ini`.
 - **Keep `--group-by ''` on every `forget`** — restic defaults to `--group-by host,paths`
   and every Job pod has a unique hostname, so each nightly snapshot forms a *group of
   one* that `--keep-daily 30` trivially keeps: retention deletes nothing and `--prune`
@@ -124,7 +128,7 @@ by `BACKUP_NAME`, `NAMESPACE` and `SCALE_DOWN`.
   constrained anyway, while podAffinity on the app pod makes the job unschedulable
   whenever the app is already at 0 replicas — exactly the state a prior failed run
   leaves behind.
-- **Exclude derived data the app writes non-world-readable** — jobs run as uid 65534
+- **Exclude derived data the app writes non-world-readable** — most jobs run as uid 65534
   against read-only PVC mounts, so any file the app leaves unreadable fails the whole
   run: restic exits **3** ("snapshot saved, but at least one source file could not be
   read") and `set -e` aborts *after* the snapshot is written but *before*
