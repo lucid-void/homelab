@@ -12,4 +12,10 @@ spec:
     metadata:
       name: restic-secret
       namespace: postgres
+      annotations:
+        # Read by the restore drill (restore-drill namespace), which declares its own
+        # copy with a `reflects:` annotation. Template metadata is not encrypted, so
+        # this needs no re-seal. See design/decisions/backups.md.
+        reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+        reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "restore-drill"
     type: Opaque
