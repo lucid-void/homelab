@@ -4,10 +4,9 @@
 set -uo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-# shellcheck source=../app/scripts/lib.sh
-source "$HERE/../app/scripts/lib.sh" || { echo "FAIL: cannot source lib.sh"; exit 1; }
 # shellcheck source=harness.sh
 source "$HERE/harness.sh"
+source "$SCRIPTS/lib.sh" || { echo "FAIL: cannot source lib.sh"; exit 1; }
 
 test_check_subset() {
   eq "$(check_subset 1)" "1/52"
@@ -114,7 +113,7 @@ test_notify_gotify_never_fails_the_caller() {
   mkdir -p "$T/bin"
   printf '#!/usr/bin/env bash\nexit 22\n' > "$T/bin/curl"
   chmod +x "$T/bin/curl"
-  yes env GOTIFY_TOKEN=tok PATH="$T/bin:$PATH" bash -c "source '$HERE/../app/scripts/lib.sh'; notify_gotify 10.96.0.9 t m 8"
+  yes env GOTIFY_TOKEN=tok PATH="$T/bin:$PATH" bash -c "source '$SCRIPTS/lib.sh'; notify_gotify 10.96.0.9 t m 8"
 }
 
 run_tests

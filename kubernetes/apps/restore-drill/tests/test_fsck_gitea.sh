@@ -4,9 +4,9 @@
 set -uo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-SCRIPT="$HERE/../app/scripts/fsck-gitea.sh"
 # shellcheck source=harness.sh
 source "$HERE/harness.sh"
+SCRIPT="$SCRIPTS/fsck-gitea.sh"
 
 g() { git -c user.name=t -c user.email=t@example.invalid -c init.defaultBranch=main "$@" >/dev/null 2>&1; }
 

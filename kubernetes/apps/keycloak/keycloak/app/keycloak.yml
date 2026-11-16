@@ -37,7 +37,7 @@ spec:
   # Keycloak must be told the external scheme or it advertises http:// in the
   # OIDC discovery document and every redirect_uri breaks.
   hostname:
-    hostname: https://sso.blackcats.cc
+    hostname: https://sso.${CLUSTER_DOMAIN}
 
   # Keycloak itself speaks plain HTTP; the Gateway owns the certificate.
   http:

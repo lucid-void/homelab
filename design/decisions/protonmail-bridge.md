@@ -69,7 +69,7 @@ socat to republish those on the pod IP as `:143`/`:25`. The Service publishes bo
 **Proton only sends from an address it owns.** It rejects anything else at DATA, not
 at MAIL FROM, with `554 5.0.0 Error: The sender or recipient address is not valid` —
 so an SMTP connection test passes while every real mail silently fails. Adding
-`blackcats.cc` as a Proton custom domain would allow a service `from:` address;
+`<domain>` as a Proton custom domain would allow a service `from:` address;
 without it the account's own address is the only valid sender.
 
 ## Rules

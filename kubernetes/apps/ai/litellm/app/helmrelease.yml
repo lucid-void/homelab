@@ -119,7 +119,7 @@ spec:
     service:
       app:
         controller: app
-        # No monitoring.blackcats.cc/scrape label: LiteLLM's /metrics is 404 on
+        # No monitoring.${CLUSTER_DOMAIN}/scrape label: LiteLLM's /metrics is 404 on
         # this version (enterprise-gated), so there is no scrape to select it.
         # See kubernetes/apps/monitoring/ai-monitoring/app/vmservicescrape.yml.
         ports:

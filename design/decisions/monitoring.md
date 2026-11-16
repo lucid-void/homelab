@@ -29,7 +29,7 @@ Goldilocks lives in the `goldilocks` namespace via Fairwinds charts
 recommender-only mode — admission controller and updater both disabled.
 `controller.flags.on-by-default: true` monitors all namespaces except
 `kube-system,flux-system,kube-public,kube-node-lease,default,goldilocks`. Dashboard at
-`goldilocks.blackcats.cc` → `goldilocks-dashboard:80`.
+`goldilocks.<domain>` → `goldilocks-dashboard:80`.
 
 ### kromgo — README badges
 
@@ -37,14 +37,14 @@ recommender-only mode — admission controller and updater both disabled.
 `home-operations`) turns PromQL into shields.io badge JSON. It queries VMSingle at
 `vmsingle-vm-stack-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8428` —
 the Prometheus *query* API, port 8428, not Prometheus' 9090 — and serves
-`/badges/{id}?format=shields` plus a gallery at `/` on `kromgo.blackcats.cc`.
+`/badges/{id}?format=shields` plus a gallery at `/` on `kromgo.<domain>`.
 
 Three badges: `nodes` (`count(kube_node_info)`), `pods`
 (`sum(kube_pod_status_phase{phase="Running"})`) and `uptime`
 (`time() - min(node_boot_time_seconds)`, rendered by `humanizeDurationDays`).
 
 The README badges are **pushed, not pulled**. GitHub renders README images through its
-camo proxy, which fetches from the public internet; `kromgo.blackcats.cc` resolves to a
+camo proxy, which fetches from the public internet; `kromgo.<domain>` resolves to a
 LAN address, so a direct shields.io endpoint would render broken for everyone. Instead
 the `kromgo-badge-push` CronJob runs every 15m, curls the three shields payloads and
 `PATCH`es them as `nodes.json` / `pods.json` / `uptime.json` into a public gist, which
@@ -110,7 +110,7 @@ sends nothing when there are no gaps. Deliberate gaps are listed with a reason i
   (kube-state-metrics) has a single source and is unaffected. Verify with
   `count by (metrics_path) (<metric>{...})`.
 - **Key a `VMServiceScrape` selector off a dedicated label
-  (`monitoring.blackcats.cc/scrape: <target>`), never `app.kubernetes.io/name`** —
+  (`monitoring.<domain>/scrape: <target>`), never `app.kubernetes.io/name`** —
   Flux `commonMetadata` rewrites that label on every resource in a Kustomization, so
   selecting on it silently matches the wrong Services or none.
 - **The four `kube-apiserver-*` SLO rule groups are off, and must stay off while the

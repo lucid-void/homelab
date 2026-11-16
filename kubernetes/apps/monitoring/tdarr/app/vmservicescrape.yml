@@ -1,5 +1,5 @@
 ---
-# Selects on monitoring.blackcats.cc/scrape rather than app.kubernetes.io/name,
+# Selects on monitoring.${CLUSTER_DOMAIN}/scrape rather than app.kubernetes.io/name,
 # because Flux commonMetadata rewrites the latter on every resource.
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMServiceScrape
@@ -9,7 +9,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      monitoring.blackcats.cc/scrape: tdarr
+      monitoring.${CLUSTER_DOMAIN}/scrape: tdarr
   endpoints:
     - port: metrics
       path: /metrics

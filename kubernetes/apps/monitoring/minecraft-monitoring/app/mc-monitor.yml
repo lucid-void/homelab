@@ -90,7 +90,7 @@ metadata:
     # minecraft-monitoring on every resource here, overwriting any value we put
     # in that key. The scrape selector therefore keys off this dedicated label,
     # which nothing rewrites.
-    monitoring.blackcats.cc/scrape: mc-monitor
+    monitoring.${CLUSTER_DOMAIN}/scrape: mc-monitor
 spec:
   selector:
     app.kubernetes.io/name: mc-monitor

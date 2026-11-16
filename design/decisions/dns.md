@@ -17,7 +17,7 @@ runs every 15 minutes, pulls that file from `main`, and reads the Blocky version
 image tag in the same app's HelmRelease, so a Renovate bump moves both. `blocky-sync`
 validates first and rolls back if Blocky stops answering.
 
-`*.blackcats.cc` is answered locally, so those names work with no internet. Cloudflare still
+`*.<domain>` is answered locally, so those names work with no internet. Cloudflare still
 holds the public records for remote Netbird clients and DNS-01. The UDM has no local DNS
 records and forwards everything upstream; its own upstream stays on public DNS.
 
@@ -60,11 +60,11 @@ queries are lost, and logging resumes on its own.
   the cluster's DNS to start the cluster can't recover from a full restart.
 - **Set `nameservers` at node level in `talconfig.yaml`, never under `networkInterfaces[]`.**
   There it is silently dropped, and the node runs on Talos's default public resolvers.
-- **Add a `customDNS` mapping for any name not behind the Gateway.** The `blackcats.cc` entry
+- **Add a `customDNS` mapping for any name not behind the Gateway.** The `<domain>` entry
   is a wildcard to `172.16.20.50`, so a missing exception doesn't fail: it answers with the
   wrong address.
 - **Keep `filterUnmappedTypes: true`.** With it off, AAAA for a local name goes upstream and
-  times out during an outage. It does make TXT under `blackcats.cc` come back empty, which is
+  times out during an outage. It does make TXT under `<domain>` come back empty, which is
   why cert-manager's DNS-01 check uses `--dns01-recursive-nameservers-only` against public DNS.
   Don't remove those flags.
 - **Never add a public resolver as a client's third DNS server.** Clients use any of them, so
@@ -120,8 +120,8 @@ Not in git, so a UDM reset means redoing these:
 
 ```bash
 # both resolvers answer a local name
-dig +short jellyfin.blackcats.cc @172.16.20.7
-dig +short jellyfin.blackcats.cc @172.16.20.53
+dig +short jellyfin.<domain> @172.16.20.7
+dig +short jellyfin.<domain> @172.16.20.53
 
 # blocking is on (expect 0.0.0.0)
 dig +short app-measurement.com @172.16.20.7

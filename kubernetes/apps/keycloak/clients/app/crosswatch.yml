@@ -18,9 +18,9 @@ spec:
       # `{origin}/api/app-auth/oidc/callback` (_callback_url, and the router is
       # mounted under /api/app-auth). The app never reports the path in its UI,
       # so take it from the source, not from a guess.
-      - https://crosswatch.blackcats.cc/api/app-auth/oidc/callback
+      - https://crosswatch.${CLUSTER_DOMAIN}/api/app-auth/oidc/callback
     webOrigins:
-      - https://crosswatch.blackcats.cc
+      - https://crosswatch.${CLUSTER_DOMAIN}
     # CrossWatch is admin-only, so `admin` is both its only role and its login gate.
     roles: [admin]
     auth:

@@ -15,9 +15,9 @@ spec:
     enabled: true
     loginFlows: [STANDARD]
     redirectUris:
-      - https://grafana.blackcats.cc/login/generic_oauth
+      - https://grafana.${CLUSTER_DOMAIN}/login/generic_oauth
     webOrigins:
-      - https://grafana.blackcats.cc
+      - https://grafana.${CLUSTER_DOMAIN}
     # Grafana is the only one of the nine that maps an OIDC claim onto its own
     # permission model via role_attribute_path, so it is the only client that
     # gets roles here.

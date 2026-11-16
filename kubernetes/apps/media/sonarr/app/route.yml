@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - sonarr.blackcats.cc
+    - sonarr.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: sonarr

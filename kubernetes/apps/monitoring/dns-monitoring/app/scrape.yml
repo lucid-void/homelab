@@ -10,7 +10,7 @@ spec:
       - network
   selector:
     matchLabels:
-      monitoring.blackcats.cc/scrape: blocky
+      monitoring.${CLUSTER_DOMAIN}/scrape: blocky
   podMetricsEndpoints:
     - port: http
       path: /metrics

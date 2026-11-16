@@ -44,7 +44,7 @@ spec:
                 sleep 5
               done
 
-              echo "Registering admin user '${KAVITA_ADMIN_USERNAME}'..."
+              echo "Registering admin user '$${KAVITA_ADMIN_USERNAME}'..."
               resp=$(printf '{"username":"%s","email":"%s","password":"%s"}' \
                        "$KAVITA_ADMIN_USERNAME" "$KAVITA_ADMIN_EMAIL" "$KAVITA_ADMIN_PASSWORD" \
                      | curl -s -w '\n%{http_code}' -X POST "$BASE/api/account/register" \
@@ -60,7 +60,7 @@ spec:
               # Kavita keeps these toggles in its DB (not appsettings.json), so they
               # can't be set via env — configure them through the admin API. Skips
               # cleanly if kavita-oidc-secret isn't present yet (pre sealed-secrets).
-              if [ -z "${OIDC_CLIENT_SECRET:-}" ]; then
+              if [ -z "$${OIDC_CLIENT_SECRET:-}" ]; then
                 echo "kavita-oidc-secret absent; skipping OIDC provisioning config."
               else
                 TOKEN=$(printf '{"username":"%s","password":"%s"}' \

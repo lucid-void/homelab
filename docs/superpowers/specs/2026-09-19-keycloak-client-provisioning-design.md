@@ -149,8 +149,8 @@ spec:
     displayName: Gitea
     enabled: true
     loginFlows: [STANDARD]
-    redirectUris: ["https://gitea.blackcats.cc/user/oauth2/Keycloak/callback"]
-    webOrigins: ["https://gitea.blackcats.cc"]
+    redirectUris: ["https://gitea.<domain>/user/oauth2/Keycloak/callback"]
+    webOrigins: ["https://gitea.<domain>"]
     roles: [admin, user]
     auth:
       method: client-secret
@@ -202,7 +202,7 @@ this exact certificate.
 
 ### 5. Cutover, in one commit
 
-Every application's issuer becomes `https://sso.blackcats.cc/realms/homelab`.
+Every application's issuer becomes `https://sso.<domain>/realms/homelab`.
 
 Two applications embed the provider's name in their callback path, so their redirect
 URI changes and must match the CR exactly:
@@ -243,7 +243,7 @@ it bit the Immich migration already.
 
 - `.agents/scripts/validate-manifests.sh` over every changed path.
 - Each client reachable in Keycloak with the expected `clientId` and roles.
-- The discovery document at `https://sso.blackcats.cc/realms/homelab/.well-known/openid-configuration`
+- The discovery document at `https://sso.<domain>/realms/homelab/.well-known/openid-configuration`
   advertises `https://` throughout.
 - A password-reset mail actually arrives in a real mailbox.
 - One genuine interactive login per application, all nine.

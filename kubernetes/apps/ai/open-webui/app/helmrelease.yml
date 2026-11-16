@@ -94,14 +94,14 @@ spec:
                     key: OPENAI_API_KEY
 
               # -- auth ----------------------------------------------------
-              WEBUI_URL: https://chat.blackcats.cc
+              WEBUI_URL: https://chat.${CLUSTER_DOMAIN}
               WEBUI_SECRET_KEY:
                 valueFrom:
                   secretKeyRef:
                     name: open-webui-secret
                     key: WEBUI_SECRET_KEY
-              OPENID_PROVIDER_URL: https://sso.blackcats.cc/realms/homelab/.well-known/openid-configuration
-              OPENID_REDIRECT_URI: https://chat.blackcats.cc/oauth/oidc/callback
+              OPENID_PROVIDER_URL: https://sso.${CLUSTER_DOMAIN}/realms/homelab/.well-known/openid-configuration
+              OPENID_REDIRECT_URI: https://chat.${CLUSTER_DOMAIN}/oauth/oidc/callback
               OAUTH_PROVIDER_NAME: Keycloak
               OAUTH_SCOPES: openid email profile
               # Pinned to match the Keycloak client's token endpoint auth method.

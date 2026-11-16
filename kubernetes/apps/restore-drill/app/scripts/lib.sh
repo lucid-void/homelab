@@ -32,7 +32,7 @@ floor() {
   if [[ "$actual" =~ ^[0-9]+$ ]] && (( actual >= minimum )); then
     return 0
   fi
-  echo "${label}: ${actual:-nothing} is below the floor of ${minimum}"
+  echo "$${label}: $${actual:-nothing} is below the floor of $${minimum}"
   return 1
 }
 
@@ -61,16 +61,16 @@ glob_escape() {
 # version_older <image_version> <data_version> -> 0 if the image is older than
 # the data it would have to read. An unknown data version is not "older".
 version_older() {
-  local image=${1#v} data=${2#v} i a b
+  local image=$${1#v} data=$${2#v} i a b
   [[ -n "$data" ]] || return 1
   local -a iv dv
   IFS=. read -ra iv <<<"$image"
   IFS=. read -ra dv <<<"$data"
   for i in 0 1 2; do
-    a=${iv[i]:-0}; b=${dv[i]:-0}
-    a=${a%%[!0-9]*}; b=${b%%[!0-9]*}
-    (( 10#${a:-0} < 10#${b:-0} )) && return 0
-    (( 10#${a:-0} > 10#${b:-0} )) && return 1
+    a=$${iv[i]:-0}; b=$${dv[i]:-0}
+    a=$${a%%[!0-9]*}; b=$${b%%[!0-9]*}
+    (( 10#$${a:-0} < 10#$${b:-0} )) && return 0
+    (( 10#$${a:-0} > 10#$${b:-0} )) && return 1
   done
   return 1
 }
@@ -86,10 +86,10 @@ fail_body() {
 # notify_gotify <ip> <title> <message> <priority>. Posts by IP because the boot
 # pods have no DNS. Never fails the caller.
 notify_gotify() {
-  local ip=$1 title=$2 msg=$3 priority=${4:-5}
-  curl -sf -m 20 -X POST "http://${ip}/message" \
+  local ip=$1 title=$2 msg=$3 priority=$${4:-5}
+  curl -sf -m 20 -X POST "http://$${ip}/message" \
     -H "Content-Type: application/json" \
-    -H "X-Gotify-Key: ${GOTIFY_TOKEN:-}" \
-    -d "{\"title\":\"${title}\",\"message\":\"${msg}\",\"priority\":${priority}}" \
+    -H "X-Gotify-Key: $${GOTIFY_TOKEN:-}" \
+    -d "{\"title\":\"$${title}\",\"message\":\"$${msg}\",\"priority\":$${priority}}" \
     >/dev/null || true
 }

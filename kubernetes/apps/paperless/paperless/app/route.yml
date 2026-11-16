@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - paperless.blackcats.cc
+    - paperless.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: paperless-app

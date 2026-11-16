@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - romm.blackcats.cc
+    - romm.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: romm

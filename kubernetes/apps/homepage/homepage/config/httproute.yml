@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - home.blackcats.cc
+    - home.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: homepage

@@ -200,7 +200,7 @@ strings**, each holding `Name`, `Url`, `ApiKey`, `Enabled` and `UrlMappings`, an
 using**, not on the arr's address:
 
 ```
-https://jellyfin.blackcats.cc|https://sonarr.blackcats.cc
+https://jellyfin.<domain>|https://sonarr.<domain>
 ```
 
 So `Url` stays internal for the server's own calls, and anyone browsing through the
@@ -221,7 +221,7 @@ healthy:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
-  https://jellyfin.blackcats.cc/sso/OID/start/keycloak
+  https://jellyfin.<domain>/sso/OID/start/keycloak
 ```
 
 A **302 carrying a `request_uri=urn:ietf:params:oauth:request_uri:...`** is the proof that

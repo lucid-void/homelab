@@ -1,5 +1,5 @@
 ---
-# Global HTTP → HTTPS redirect for all *.blackcats.cc — no per-app redirect needed
+# Global HTTP → HTTPS redirect for all *.${CLUSTER_DOMAIN} — no per-app redirect needed
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:

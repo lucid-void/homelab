@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - plex.blackcats.cc
+    - plex.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: plex-app

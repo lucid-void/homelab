@@ -3,7 +3,7 @@
 # `monitoring`, so namespaceSelector is REQUIRED — without it the selector is
 # scoped to `monitoring` and silently matches nothing.
 #
-# Selectors key off monitoring.blackcats.cc/scrape rather than
+# Selectors key off monitoring.${CLUSTER_DOMAIN}/scrape rather than
 # app.kubernetes.io/name, because Flux commonMetadata rewrites the latter on
 # every resource in a Kustomization.
 #
@@ -25,7 +25,7 @@ spec:
       - ai
   selector:
     matchLabels:
-      monitoring.blackcats.cc/scrape: llama-swap
+      monitoring.${CLUSTER_DOMAIN}/scrape: llama-swap
   endpoints:
     - port: http
       path: /metrics
@@ -49,4 +49,4 @@ spec:
 # kube_deployment_status_replicas_available (see vmrules.yml), and per-request
 # accounting lives in its Postgres spend log. If a future version exposes
 # /metrics without a licence, re-add a VMServiceScrape here and put the
-# monitoring.blackcats.cc/scrape label back on the Service.
+# monitoring.${CLUSTER_DOMAIN}/scrape label back on the Service.

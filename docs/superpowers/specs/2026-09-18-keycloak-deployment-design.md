@@ -47,7 +47,7 @@ satisfies the repo convention that operators live in their own namespace.
 mirrored into `keycloak` by Reflector. Identical in shape to Zitadel's. The database
 is added to the `postgres-backup-databases` list.
 
-**Hostname — `sso.blackcats.cc`.** Product-neutral on purpose: under a full
+**Hostname — `sso.<domain>`.** Product-neutral on purpose: under a full
 replacement this ends up in the callback URI of every application, and a
 product-named host would have to be rewritten again if Keycloak is ever replaced.
 

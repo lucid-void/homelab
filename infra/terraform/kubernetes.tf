@@ -17,7 +17,7 @@ locals {
   bridge     = var.proxmox_network_bridge
   gateway    = "172.16.20.254"
   dns_server = "172.16.20.254"
-  domain     = "blackcats.cc"
+  domain     = var.domain
 
   k8s_nodes = {
     cp-1 = {

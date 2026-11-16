@@ -4,9 +4,9 @@
 set -uo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-SCRIPT="$HERE/../app/scripts/drive-sso.sh"
 # shellcheck source=harness.sh
 source "$HERE/harness.sh"
+SCRIPT="$SCRIPTS/drive-sso.sh"
 
 setup() {
   mkdir -p "$T/bin" "$T/scratch" "$T/run" "$T/tls" "$T/user" "$T/tmp"
@@ -38,17 +38,17 @@ echo "$url" >> "$STUB_DIR/curl.urls"
 body="" eff=$url code=200
 case "$url" in
   http://10.96.0.9/message) printf '%s\n' "$@" >> "$STUB_DIR/gotify.args"; exit 0 ;;
-  */.well-known/openid-configuration) body='{"issuer":"https://sso.blackcats.cc/realms/homelab"}' ;;
+  */.well-known/openid-configuration) body='{"issuer":"https://sso.example.com/realms/homelab"}' ;;
   */api/healthz) body='{"status":"pass"}' ;;
   */user/oauth2/Keycloak)
-    eff="https://sso.blackcats.cc/realms/homelab/protocol/openid-connect/auth?client_id=gitea"
-    body='<html><title>Sign in to homelab</title><form id="kc-form-login" action="https://sso.blackcats.cc/realms/homelab/login-actions/authenticate?session_code=abc&amp;tab_id=xyz" method="post">' ;;
+    eff="https://sso.example.com/realms/homelab/protocol/openid-connect/auth?client_id=gitea"
+    body='<html><title>Sign in to homelab</title><form id="kc-form-login" action="https://sso.example.com/realms/homelab/login-actions/authenticate?session_code=abc&amp;tab_id=xyz" method="post">' ;;
   */login-actions/authenticate*)
     printf '%s\n' "$@" >> "$STUB_DIR/login.args"
     if [[ "${STUB_LOGIN:-ok}" == "ok" ]]; then
-      eff="https://gitea.blackcats.cc/"; body='<html><title>Gitea</title>'
+      eff="https://gitea.example.com/"; body='<html><title>Gitea</title>'
     else
-      eff="https://sso.blackcats.cc/realms/homelab/login-actions/authenticate?execution=e1"
+      eff="https://sso.example.com/realms/homelab/login-actions/authenticate?execution=e1"
       body='<html><title>Sign in to homelab</title><span>Invalid username or password.</span>'
     fi ;;
   */user/settings) [[ "${STUB_LOGIN:-ok}" == "ok" ]] && code=200 || code=303 ;;
@@ -94,7 +94,7 @@ test_login_posts_the_drill_credentials_to_the_form_action() {
   yes run_script
   local l; l=$(cat "$T/login.args")
   # &amp; in the HTML attribute must be decoded before use
-  contains "$l" "https://sso.blackcats.cc/realms/homelab/login-actions/authenticate?session_code=abc&tab_id=xyz"
+  contains "$l" "https://sso.example.com/realms/homelab/login-actions/authenticate?session_code=abc&tab_id=xyz"
   contains "$l" "username=restore-drill"
   contains "$l" "password=p@ss word"
 }
@@ -127,7 +127,7 @@ test_login_failure_names_the_page() {
   no run_script
   local g; g=$(cat "$T/gotify.args")
   contains "$g" '"title":"Restore drill: sso ✗"'
-  contains "$g" "login stopped at: https://sso.blackcats.cc/realms/homelab/login-actions/authenticate?execution=e1"
+  contains "$g" "login stopped at: https://sso.example.com/realms/homelab/login-actions/authenticate?execution=e1"
   contains "$g" "Sign in to homelab"
 }
 

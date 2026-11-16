@@ -455,7 +455,7 @@ git commit -m "docs(jellyfin): document Quick Sync transcoding setup"
 
 - [ ] **Step 1: Enable VAAPI in Jellyfin's dashboard**
 
-Navigate to `https://jellyfin.blackcats.cc` → Dashboard → Playback. Set:
+Navigate to `https://jellyfin.<domain>` → Dashboard → Playback. Set:
 - Hardware acceleration: `Video Acceleration API (VAAPI)`
 - VA API Device: `/dev/dri/renderD128`
 - Enable hardware decoding for the codecs you expect to see (H.264, HEVC, etc.)
@@ -499,7 +499,7 @@ Start two simultaneous transcodes that both require hardware transcoding (two di
 
 ```bash
 mise exec -- kubectl get pod -n media -l app.kubernetes.io/name=jellyfin -o wide
-curl -sf https://jellyfin.blackcats.cc/health && echo
+curl -sf https://jellyfin.<domain>/health && echo
 ```
 
 Expected: pod `Running` on cp-2, health check returns success. This closes out the spec's Testing/Verification section.

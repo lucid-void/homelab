@@ -408,7 +408,7 @@ Absorbs: `Gitea chart`, `Gitea SSH`, `Gitea cache (valkey)`, `Gitea valkey rebui
 
 Read before editing: `kubernetes/apps/gitea/`.
 
-Facts that must survive: `gitea-charts/gitea`, `https://dl.gitea.com/charts/`, `postgresql.enabled: false`, `postgresql-ha.enabled: false`, `gitea-http`, port `3000`, `gitea-db-env`, `TCPRoute`, `kubernetes/apps/gitea/gitea/app/tcproute.yml`, `gitea-ssh`, `2222`, `START_SSH_SERVER`, `SSH_DOMAIN`, `SSH_PORT`, `externalTrafficPolicy: Cluster`, `gateway.cilium.io/backend-service`, `kubectl get endpointslice -n gateway`, `CiliumEnvoyConfig`, `enable-gateway-api-proxy-protocol`, `kubectl -n kube-system rollout restart deploy/cilium-operator`, `tcp://gitea.blackcats.cc:22`, `redis-cluster`, `valkey-cluster`, `cache.ADAPTER`, `session.PROVIDER`, `queue.TYPE`, `_helpers.tpl`, `cluster.nodes`, `nodes: 6`, `replicas: 1`, `cluster.update.addNodes: true`, `post-upgrade`, `--wait`, `VALKEY_CLUSTER_CREATOR=yes`, `flux suspend`, `kubectl scale sts`, `nodes.conf`, `CLUSTER REPLICATE`, `valkey-cli --cluster create`, `pending-upgrade`, `https://gitea.blackcats.cc/user/oauth2/Zitadel/callback`, `gitea.oauth`, `autoDiscoverUrl`, `DISABLE_REGISTRATION: false`, `ALLOW_ONLY_EXTERNAL_REGISTRATION: true`, `passwordMode: initialOnlyNoReset`, `keepUpdated`, `initialOnlyRequireReset`.
+Facts that must survive: `gitea-charts/gitea`, `https://dl.gitea.com/charts/`, `postgresql.enabled: false`, `postgresql-ha.enabled: false`, `gitea-http`, port `3000`, `gitea-db-env`, `TCPRoute`, `kubernetes/apps/gitea/gitea/app/tcproute.yml`, `gitea-ssh`, `2222`, `START_SSH_SERVER`, `SSH_DOMAIN`, `SSH_PORT`, `externalTrafficPolicy: Cluster`, `gateway.cilium.io/backend-service`, `kubectl get endpointslice -n gateway`, `CiliumEnvoyConfig`, `enable-gateway-api-proxy-protocol`, `kubectl -n kube-system rollout restart deploy/cilium-operator`, `tcp://gitea.<domain>:22`, `redis-cluster`, `valkey-cluster`, `cache.ADAPTER`, `session.PROVIDER`, `queue.TYPE`, `_helpers.tpl`, `cluster.nodes`, `nodes: 6`, `replicas: 1`, `cluster.update.addNodes: true`, `post-upgrade`, `--wait`, `VALKEY_CLUSTER_CREATOR=yes`, `flux suspend`, `kubectl scale sts`, `nodes.conf`, `CLUSTER REPLICATE`, `valkey-cli --cluster create`, `pending-upgrade`, `https://gitea.<domain>/user/oauth2/Zitadel/callback`, `gitea.oauth`, `autoDiscoverUrl`, `DISABLE_REGISTRATION: false`, `ALLOW_ONLY_EXTERNAL_REGISTRATION: true`, `passwordMode: initialOnlyNoReset`, `keepUpdated`, `initialOnlyRequireReset`.
 
 This file will approach the 8 KB ceiling. If it exceeds, split the valkey material into `design/decisions/gitea-valkey.md` and give it its own routing row.
 
@@ -418,7 +418,7 @@ Absorbs: `Zitadel bootstrap RBAC`, `Zitadel bootstrap drift + provider pinning`,
 
 Read before editing: `kubernetes/apps/auth/`, `infra/terraform/`.
 
-Facts that must survive: `zitadel.blackcats.cc`, `targetNamespace: auth`, `kubernetes/apps/auth/bootstrap-rbac/`, `ttlSecondsAfterFinished: 3600`, `tofu init -lockfile=readonly`, `tofu plan -out=tfplan`, `tofu show -json tfplan`, `tofu apply tfplan`, `emptyDir`, `backup-tools`, `main.tf`, `run.sh`, `.terraform.lock.hcl`, `configHash`, `auth/zitadel-bootstrap-state`, `.resource_changes[].change.after`, `.address`, `.change.actions`, `auth/gotify-secret`, `required_providers`, `mise exec -- tofu -chdir=<tmpdir> providers lock -platform=linux_amd64`, `data["values.yaml"]`, `valuesFrom`, `valuesKey: values.yaml`, `envFrom: secretRef`.
+Facts that must survive: `zitadel.<domain>`, `targetNamespace: auth`, `kubernetes/apps/auth/bootstrap-rbac/`, `ttlSecondsAfterFinished: 3600`, `tofu init -lockfile=readonly`, `tofu plan -out=tfplan`, `tofu show -json tfplan`, `tofu apply tfplan`, `emptyDir`, `backup-tools`, `main.tf`, `run.sh`, `.terraform.lock.hcl`, `configHash`, `auth/zitadel-bootstrap-state`, `.resource_changes[].change.after`, `.address`, `.change.actions`, `auth/gotify-secret`, `required_providers`, `mise exec -- tofu -chdir=<tmpdir> providers lock -platform=linux_amd64`, `data["values.yaml"]`, `valuesFrom`, `valuesKey: values.yaml`, `envFrom: secretRef`.
 
 - [ ] **Step 3: Create `design/decisions/gotify.md`**
 
@@ -426,7 +426,7 @@ Absorbs: `Gotify`, `gotify-telegram bridge`.
 
 Read before editing: `kubernetes/apps/monitoring/gotify/`, `kubernetes/apps/monitoring/gotify-bootstrap/`, `kubernetes/apps/monitoring/gotify-telegram/`.
 
-Facts that must survive: `gotify/server`, `gotify.blackcats.cc`, `gotify-admin-secret`, `gotify-bootstrap`, `GOTIFY_TOKEN`, `monitoring/gotify-client-secret`, `GET /application`, `GET /client`, `POST /application`, `PUT /application/{id}/security`, `{"regenerateToken":true}`, `auth.RequireElevatedClient`, `/client/{id}/elevate`, `PUT /client/{id}`, `expiresAfterInactivitySeconds: 0`, `GOTIFY_SERVER_PORT`, `GOTIFY_DATABASE_*`, `GOTIFY_DEFAULTUSER_*`, `ttlSecondsAfterFinished: 3600`, `app/bootstrap.sh`, `configMapGenerator`, `options.immutable`, `monitoring/gotify-bootstrap-state`, `DRIFT:`, `monitoring/gotify-bootstrap-secret`, `activeDeadlineSeconds: 600`, `until curl .../health`, `/stream?token=CLIENT_TOKEN`, `pip install --target /tmp/pylib`, `PYTHONPATH=/tmp/pylib`, `python -u`, uid `65534`, `/.local`.
+Facts that must survive: `gotify/server`, `gotify.<domain>`, `gotify-admin-secret`, `gotify-bootstrap`, `GOTIFY_TOKEN`, `monitoring/gotify-client-secret`, `GET /application`, `GET /client`, `POST /application`, `PUT /application/{id}/security`, `{"regenerateToken":true}`, `auth.RequireElevatedClient`, `/client/{id}/elevate`, `PUT /client/{id}`, `expiresAfterInactivitySeconds: 0`, `GOTIFY_SERVER_PORT`, `GOTIFY_DATABASE_*`, `GOTIFY_DEFAULTUSER_*`, `ttlSecondsAfterFinished: 3600`, `app/bootstrap.sh`, `configMapGenerator`, `options.immutable`, `monitoring/gotify-bootstrap-state`, `DRIFT:`, `monitoring/gotify-bootstrap-secret`, `activeDeadlineSeconds: 600`, `until curl .../health`, `/stream?token=CLIENT_TOKEN`, `pip install --target /tmp/pylib`, `PYTHONPATH=/tmp/pylib`, `python -u`, uid `65534`, `/.local`.
 
 - [ ] **Step 4: Create `design/decisions/media-stack.md`**
 
@@ -434,7 +434,7 @@ Absorbs: `media stack`, `manga stack`, `Kavita OIDC`.
 
 Read before editing: `kubernetes/apps/media/` (excluding `plex/`, `romm/`, `minecraft*/`, which keep their own files).
 
-Facts that must survive: `PUID=2202`, `PGID=2200`, `ghcr.io/seerr-team/seerr`, `runAsUser`, `runAsGroup`, `fsGroup`, `media-nfs`, `nfs-client`, `ghcr.io/suwayomi/suwayomi-server`, port `4567`, `ghcr.io/flaresolverr/flaresolverr`, `suwayomi-flaresolverr:8191`, `suwayomi-app`, `BIND_PORT`, `DOWNLOAD_AS_CBZ=true`, `AUTH_MODE=none`, `FLARESOLVERR_ENABLED`, `FLARESOLVERR_URL`, `server-reference.conf`, `/home/suwayomi/.local/share/Tachidesk`, `suwayomi-config`, `EXTENSION_REPOS`, `https://github.com/keiyoushi/extensions/tree/repo`, `/api/account/register`, `kavita-admin-secret`, `/config/appsettings.json`, `OpenIdConnectSettings`, `Authority`, `ClientId`, `Secret`, `https://kavita.blackcats.cc/signin-oidc`, `kavita-oidc-secret`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `oidc-config`, `secretKeyRef`, `POST /api/settings`, `provisionAccounts=true`, `requireVerifiedEmail=false`, `defaultRoles=["Login"]`, `defaultLibraries`, `defaultAgeRestriction=-1`, `defaultIncludeUnknowns=true`, `UpdateSettings`.
+Facts that must survive: `PUID=2202`, `PGID=2200`, `ghcr.io/seerr-team/seerr`, `runAsUser`, `runAsGroup`, `fsGroup`, `media-nfs`, `nfs-client`, `ghcr.io/suwayomi/suwayomi-server`, port `4567`, `ghcr.io/flaresolverr/flaresolverr`, `suwayomi-flaresolverr:8191`, `suwayomi-app`, `BIND_PORT`, `DOWNLOAD_AS_CBZ=true`, `AUTH_MODE=none`, `FLARESOLVERR_ENABLED`, `FLARESOLVERR_URL`, `server-reference.conf`, `/home/suwayomi/.local/share/Tachidesk`, `suwayomi-config`, `EXTENSION_REPOS`, `https://github.com/keiyoushi/extensions/tree/repo`, `/api/account/register`, `kavita-admin-secret`, `/config/appsettings.json`, `OpenIdConnectSettings`, `Authority`, `ClientId`, `Secret`, `https://kavita.<domain>/signin-oidc`, `kavita-oidc-secret`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `oidc-config`, `secretKeyRef`, `POST /api/settings`, `provisionAccounts=true`, `requireVerifiedEmail=false`, `defaultRoles=["Login"]`, `defaultLibraries`, `defaultAgeRestriction=-1`, `defaultIncludeUnknowns=true`, `UpdateSettings`.
 
 Also record the negative decisions so they are not retried: Tranga removed, Kaizoku and mangal archived — do not deploy.
 
@@ -444,7 +444,7 @@ Absorbs: `FreshRSS OIDC`, `Paperless OIDC`.
 
 Read before editing: `kubernetes/apps/freshrss/`, `kubernetes/apps/paperless/paperless/`.
 
-Facts that must survive: `OIDC_ENABLED=1`, `https://rss.blackcats.cc/i/oidc/`, `OIDC_CLIENT_CRYPTO_KEY`, `OIDC_REMOTE_USER_CLAIM`, `OIDC_X_FORWARDED_HEADERS`, `X-Forwarded-Host`, `freshrss-oidc-secret`, `PAPERLESS_SOCIALACCOUNT_PROVIDERS`, `openid_connect.APPS[].provider_id`, `zitadel`, `https://paperless.blackcats.cc/accounts/oidc/zitadel/login/callback/`, `PAPERLESS_APPS`, `allauth.socialaccount.providers.openid_connect`, `PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL=https`, `PAPERLESS_ACCOUNT_EMAIL_VERIFICATION=none`, `paperless-oidc-secret`, `settings.token_auth_method`, `client_secret_post`, `client_secret_basic`, `OIDC_AUTH_METHOD_TYPE_POST`, `65.16`.
+Facts that must survive: `OIDC_ENABLED=1`, `https://rss.<domain>/i/oidc/`, `OIDC_CLIENT_CRYPTO_KEY`, `OIDC_REMOTE_USER_CLAIM`, `OIDC_X_FORWARDED_HEADERS`, `X-Forwarded-Host`, `freshrss-oidc-secret`, `PAPERLESS_SOCIALACCOUNT_PROVIDERS`, `openid_connect.APPS[].provider_id`, `zitadel`, `https://paperless.<domain>/accounts/oidc/zitadel/login/callback/`, `PAPERLESS_APPS`, `allauth.socialaccount.providers.openid_connect`, `PAPERLESS_ACCOUNT_DEFAULT_HTTP_PROTOCOL=https`, `PAPERLESS_ACCOUNT_EMAIL_VERIFICATION=none`, `paperless-oidc-secret`, `settings.token_auth_method`, `client_secret_post`, `client_secret_basic`, `OIDC_AUTH_METHOD_TYPE_POST`, `65.16`.
 
 `65.16` is a recorded-incident version the Global Constraints keep: the rule is "pin `token_auth_method` to whatever the Zitadel app is registered as, never what the migration guide says", and the allauth version is what makes that rule non-obvious.
 
@@ -512,7 +512,7 @@ Absorbs: `Monitoring stack`, `Platform resource requests are grounded in Victori
 
 Read before editing: `kubernetes/apps/monitoring/`, any `VMRule` or `VMServiceScrape`, `kubernetes/apps/goldilocks/`.
 
-Facts that must survive: `vm-stack`, `selectAllByDefault`, `commonMetadata`, `app.kubernetes.io/name`, `monitoring.blackcats.cc/scrape`, `promtool check rules`, `metrics_path="/metrics/cadvisor"`, `/metrics/resource`, `container_memory_working_set_bytes`, `container_cpu_usage_seconds_total`, `kube_pod_container_*`, `count by (metrics_path) (<metric>{...})`, `quantile_over_time(0.90, ...[30d])`, `kubelet_volume_stats_*`, `openebs-hostpath`, `nfs-client`, `/volume2`, `NodeFilesystemAlmostFull`, `NodeFilesystemCriticallyFull`, `SynologyShareAlmostFull`, `vm-stack/vmrules.yml`, `imageGCHighThresholdPercent: 70`, `talconfig.yaml`, `kubernetes/apps/media/minecraft/app/world-size-configmap.yml`, `grafana_dashboard: "1"`, `fairwinds-stable/vpa`, `https://charts.fairwinds.com/stable`, `controller.flags.on-by-default: true`, `goldilocks.blackcats.cc`, `goldilocks-dashboard:80`, `du`, PSA `baseline`, `hostPath`.
+Facts that must survive: `vm-stack`, `selectAllByDefault`, `commonMetadata`, `app.kubernetes.io/name`, `monitoring.<domain>/scrape`, `promtool check rules`, `metrics_path="/metrics/cadvisor"`, `/metrics/resource`, `container_memory_working_set_bytes`, `container_cpu_usage_seconds_total`, `kube_pod_container_*`, `count by (metrics_path) (<metric>{...})`, `quantile_over_time(0.90, ...[30d])`, `kubelet_volume_stats_*`, `openebs-hostpath`, `nfs-client`, `/volume2`, `NodeFilesystemAlmostFull`, `NodeFilesystemCriticallyFull`, `SynologyShareAlmostFull`, `vm-stack/vmrules.yml`, `imageGCHighThresholdPercent: 70`, `talconfig.yaml`, `kubernetes/apps/media/minecraft/app/world-size-configmap.yml`, `grafana_dashboard: "1"`, `fairwinds-stable/vpa`, `https://charts.fairwinds.com/stable`, `controller.flags.on-by-default: true`, `goldilocks.<domain>`, `goldilocks-dashboard:80`, `du`, PSA `baseline`, `hostPath`.
 
 Carry forward the rule that Goldilocks/VPA recommendations are fabricated (no metrics-server) so nothing is ever sized from them.
 
@@ -634,7 +634,7 @@ and belong in `design/architecture.md`. Move them there, then delete them from
 | `Compute platform` | 3 control planes `cp-1/2/3`, `.11`–`.13`, schedulable, API VIP `.10`, Gateway VIP `.50`, no dedicated workers |
 | `Internet exposure` | Cloudflare DNS for DNS-01 certs only, all A records to internal IPs, no port forwarding on the UDM SE, no Cloudflare proxy, remote access requires Netbird |
 | `Netbird / ZeroTier` | Netbird is a Talos extension on every node (`wt0`), isolated from k8s networking; ZeroTier is gaming-only on a separate VM outside the cluster |
-| `Cloudflare API tokens` | one token per consumer (external-dns, cert-manager, Proxmox), Zone→DNS→Edit on `blackcats.cc` only, isolated for independent revocation |
+| `Cloudflare API tokens` | one token per consumer (external-dns, cert-manager, Proxmox), Zone→DNS→Edit on `<domain>` only, isolated for independent revocation |
 | `NFS / Postgres traffic` | cleartext on the internal VLAN — accepted risk, private network, VPN-gated |
 | `Tofu state` | PostgreSQL on the Synology, `tofu_state` database; if lost, run `tofu apply` fresh |
 | `UniFi backup` | not backed up; VLAN and firewall rules are reconfigured by hand after a reset |
@@ -727,7 +727,7 @@ git mv design/llm-deployment.md design/decisions/llm.md
 
 Then prune to current state using the Task 3 template.
 
-Facts that must survive: `Qwen3.6-35B-A3B Q8_0`, `34.4 GiB`, `llama.cpp`, `llama-swap`, `llm-1`, taint `workload=llm`, `LiteLLM`, `llm.blackcats.cc`, `Open WebUI`, `chat.blackcats.cc`, `local-smart`, `local-fast`, `enable_thinking: false`, `extra_body`, `--ctx-size`, `--mmproj`, `--cache-reuse`, `!llama_memory_can_shift`, `8192 MiB`, `swap/exclusive: true`, `logToStdout`, `proxy`, `GET /logs`, `/logs/stream/upstream`, `4Gi`, exit `137`, `/metrics`, `ENABLE_OAUTH_SIGNUP`, `ENABLE_PERSISTENT_CONFIG`, `--threads 6`, `openwebui-oidc-secret`, `kubernetes/apps/ai/`, `kubernetes/apps/monitoring/ai-monitoring/`.
+Facts that must survive: `Qwen3.6-35B-A3B Q8_0`, `34.4 GiB`, `llama.cpp`, `llama-swap`, `llm-1`, taint `workload=llm`, `LiteLLM`, `llm.<domain>`, `Open WebUI`, `chat.<domain>`, `local-smart`, `local-fast`, `enable_thinking: false`, `extra_body`, `--ctx-size`, `--mmproj`, `--cache-reuse`, `!llama_memory_can_shift`, `8192 MiB`, `swap/exclusive: true`, `logToStdout`, `proxy`, `GET /logs`, `/logs/stream/upstream`, `4Gi`, exit `137`, `/metrics`, `ENABLE_OAUTH_SIGNUP`, `ENABLE_PERSISTENT_CONFIG`, `--threads 6`, `openwebui-oidc-secret`, `kubernetes/apps/ai/`, `kubernetes/apps/monitoring/ai-monitoring/`.
 
 Also keep the measured decode rate `8.4–8.9 tok/s` and the thinking-cost comparison (`572 chars / 152 tokens` vs `0 / 2`) — both are the evidence for routing agents to `local-fast`, which is a live decision, not history.
 
@@ -826,7 +826,7 @@ The payoff task. Everything before it was preparation.
 
 **Output shape:** follow `.agents/skills/i-have-adhd/SKILL.md` for every response in this repo.
 
-Talos Linux Kubernetes cluster on `blackcats.cc`, managed by FluxCD. Everything
+Talos Linux Kubernetes cluster on `<domain>`, managed by FluxCD. Everything
 is declarative and driven from git: VM templates, cluster bootstrap, service
 deployment. A tiny compose remnant survives only for ZeroTier.
 

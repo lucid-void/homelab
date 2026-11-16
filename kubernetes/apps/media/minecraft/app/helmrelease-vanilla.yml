@@ -367,7 +367,7 @@ spec:
         # resource in a Kustomization, so a scrape keyed off it silently matches
         # the wrong Services or none at all.
         labels:
-          monitoring.blackcats.cc/scrape: minecraft-world-size
+          monitoring.${CLUSTER_DOMAIN}/scrape: minecraft-world-size
         # The game server's readiness must not gate metrics: a crash-looping or
         # starting server is exactly when world size matters most.
         publishNotReadyAddresses: true

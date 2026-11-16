@@ -63,7 +63,7 @@ spec:
               # Jellyfin's equivalent of Plex's ADVERTISE_IP: the absolute base URL it
               # hands to clients and writes into OIDC callbacks. Without it, clients
               # reached through the Gateway get served internal cluster URLs.
-              JELLYFIN_PublishedServerUrl: https://jellyfin.blackcats.cc
+              JELLYFIN_PublishedServerUrl: https://jellyfin.${CLUSTER_DOMAIN}
             probes:
               # /health returns non-200 for as long as startup migrations are running,
               # and a 12.x first boot converts the whole library database. A liveness

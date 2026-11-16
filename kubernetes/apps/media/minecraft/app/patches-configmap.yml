@@ -5,7 +5,7 @@
 # defaults, and those are generated per Paper version. This touches only the
 # three keys that matter and leaves the rest alone.
 #
-# `${CFG_VELOCITY_SECRET}` is substituted from the env var of the same name,
+# `$${CFG_VELOCITY_SECRET}` is substituted from the env var of the same name,
 # supplied by the `velocity-secret` SealedSecret (same value Velocity mounts as
 # forwarding.secret). itzg restricts placeholders to REPLACE_ENV_VARIABLE_PREFIX,
 # which defaults to CFG_ — hence the name.
@@ -42,7 +42,7 @@ data:
         {
           "$set": {
             "path": "$.proxies.velocity.secret",
-            "value": "${CFG_VELOCITY_SECRET}"
+            "value": "$${CFG_VELOCITY_SECRET}"
           }
         }
       ]
@@ -72,7 +72,7 @@ data:
         {
           "$set": {
             "path": "$.redis.server-id",
-            "value": "${CFG_QUICKCHAT_SERVER_ID}"
+            "value": "$${CFG_QUICKCHAT_SERVER_ID}"
           }
         },
         {

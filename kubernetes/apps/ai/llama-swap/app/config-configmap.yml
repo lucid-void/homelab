@@ -21,7 +21,7 @@ data:
         # nothing else on this node is competing for the memory.
         ttl: 0
         cmd: >
-          /app/llama-server --host 0.0.0.0 --port ${PORT}
+          /app/llama-server --host 0.0.0.0 --port $${PORT}
           --model /models/Qwen3.6-35B-A3B-Q8_0.gguf
           --threads 6 --ctx-size 32768
           --cache-type-k q8_0 --cache-type-v q8_0 --flash-attn on
@@ -50,7 +50,7 @@ data:
       local-embed:
         ttl: 0
         cmd: >
-          /app/llama-server --host 0.0.0.0 --port ${PORT}
+          /app/llama-server --host 0.0.0.0 --port $${PORT}
           --model /models/nomic-embed-text-v1.5.Q8_0.gguf
           --embeddings --threads 2 --ctx-size 8192 --metrics
 
