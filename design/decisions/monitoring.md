@@ -136,15 +136,21 @@ sends nothing when there are no gaps. Deliberate gaps are listed with a reason i
   server is serving any more, while the service itself is fine. Endpoints without a
   `[BODY]` condition leave the body unread, get their connection closed, and
   re-handshake each interval — which is why only the one body-checking endpoint
-  drifts. Confirm with
-  `kubectl debug -n monitoring pod/<gatus-pod> --image=alpine/openssl -- sh -c 'echo Q | openssl s_client -connect <host>:443 -servername <host> 2>/dev/null | openssl x509 -noout -dates'`:
-  a fresh handshake from gatus's own netns showing a different expiry than the
-  dashboard proves it is connection reuse, not the certificate.
+  drifts.
+- **Every `[CERTIFICATE_EXPIRATION]` endpoint needs `headers: {Connection: close}`** —
+  the "endpoints without `[BODY]` re-handshake" claim above did not hold: after the
+  2026-11-16 `shared-tls` renewal all 31 cert-checking endpoints (1m and 5m
+  intervals alike) stayed on the old certificate's countdown an hour later, while a
+  fresh handshake from a pod on gatus's node got the new one. `Connection: close`
+  makes Go drop the connection after each request (HTTP/1.1 and HTTP/2), so every
+  check handshakes fresh. Confirm drift by comparing the dashboard's expiry with
+  `kubectl run tlscheck -n monitoring --rm -i --restart=Never --image=curlimages/curl:<tag> --overrides='{"spec":{"nodeName":"<gatus-node>"}}' --command -- sh -c 'curl -svo /dev/null https://<host> 2>&1 | grep "expire date"'`
+  — `kubectl debug` into the gatus pod does not work, its `runAsNonRoot` rejects a
+  root debug image.
 - **Keep `[CERTIFICATE_EXPIRATION]` thresholds well under the renewal window** —
   `shared-tls` renews 720h before expiry, so a `> 720h` condition trips exactly when
-  cert-manager is *supposed* to act and leaves no margin. It survives today only
-  because non-`[BODY]` endpoints re-handshake instantly and pick the new certificate
-  up the same minute.
+  cert-manager is *supposed* to act. The threshold is `> 360h`: red means renewal
+  has been failing for 15 days.
 - **A gatus endpoint asserts what "up" means for that service, and four here do not
   assert `200` on `/`** — the probe path is a judgement, so record it rather than
   rederive it:
