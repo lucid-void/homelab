@@ -46,7 +46,7 @@ pick_sample() {
          | "\(.size)\t\(.path)"' \
     | shuf \
     | awk -F'\t' -v n="$count" -v max="$max_bytes" '
-        picked >= n { exit }
+        picked >= n { next }   # never exit: that SIGPIPEs shuf and pipefail fails the drill
         total + $1 > max { next }
         { total += $1; picked++; print $2 }'
 }

@@ -69,6 +69,19 @@ test_pick_sample_folder_filter() {
 /library/upload/u1/b.jpg"
 }
 
+test_pick_sample_large_listing_under_pipefail() {
+  # A real library lists far more files than the sample takes. Stopping early
+  # must not kill the upstream stage (SIGPIPE -> exit 141 under pipefail).
+  local i
+  for i in $(seq 1 60000); do
+    printf '{"struct_type":"node","type":"file","size":1,"path":"/library/upload/u1/aa/bb/file-with-a-long-name-%06d.jpg"}\n' "$i"
+  done > "$T/big.json"
+  local rc=0 n
+  n=$( set -o pipefail; pick_sample 5 1000 < "$T/big.json" | wc -l | tr -d ' ' ) || rc=$?
+  eq "$rc" "0"
+  eq "$n" "5"
+}
+
 test_glob_escape() {
   # restic --include-file lines are patterns; a literal path must survive as itself
   eq "$(echo '/library/library/u/trip [2024]/a*b?.jpg' | glob_escape)" '/library/library/u/trip \[2024\]/a\*b\?.jpg'
