@@ -26,6 +26,12 @@ data:
           failure-threshold: 2
           success-threshold: 2
 
+    # Every [CERTIFICATE_EXPIRATION] endpoint sends `Connection: close`. Without
+    # it gatus pools the TLS connection across checks and keeps reporting the
+    # certificate from the first handshake, so a shared-tls renewal never shows
+    # up and the countdown runs on against a certificate nobody serves any more.
+    # 360h sits well under cert-manager's 720h renewal point: red means the
+    # renewal has been failing for 15 days, not that it is merely due.
     endpoints:
       - name: Homepage
         group: infrastructure
@@ -33,7 +39,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Gotify
         group: infrastructure
@@ -41,7 +49,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # Keycloak's own /health lives on the management port 9000, which the
       # Gateway does not route — so probe the realm's discovery document instead.
@@ -53,7 +63,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Gitea
         group: infrastructure
@@ -61,7 +73,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # git-over-SSH rides a separate Gateway listener (TCP:22 -> TCPRoute) from
       # the HTTPS check above, so a healthy web UI says nothing about whether
@@ -107,7 +121,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # kromgo renders the public README's badges. Nothing else notices when it
       # dies -- the badges just go stale -- so this is the only signal. 5m: it is
@@ -118,7 +134,9 @@ data:
         interval: 5m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # /api/health answers without a login and reports Grafana's own database state.
       - name: Grafana
@@ -127,7 +145,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # No [CERTIFICATE_EXPIRATION] here on purpose: this is the only endpoint
       # with a [BODY] condition, so gatus drains the response and keeps the
@@ -149,7 +169,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: FreshRSS
         group: apps
@@ -157,7 +179,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 401"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Homebox
         group: apps
@@ -165,7 +189,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Degoog
         group: apps
@@ -173,7 +199,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # `/` answers 200 with no password set and 302 once one is, so this
       # asserts < 400 rather than == 200 -- otherwise enabling the built-in
@@ -184,7 +212,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] < 400"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # CouchDB is Obsidian LiveSync's backend, not a UI -- `/` is the server
       # welcome document and answers 401 because config-configmap.yml sets
@@ -197,7 +227,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 401"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Open WebUI
         group: apps
@@ -205,7 +237,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # /health needs the master key; /health/liveliness is the unauthenticated
       # one. It only proves the LiteLLM process is up -- it does NOT reach
@@ -217,7 +251,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Plex
         group: media
@@ -225,7 +261,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # Jellyfin's /health returns non-200 while startup migrations run, which is
       # exactly the window its startup probe is built to tolerate. The 2-failure
@@ -237,7 +275,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # Jellyfin's /health stays 200 through a completely broken login, so it says
       # nothing about SSO -- and SSO is the part that fails silently here: a
@@ -275,7 +315,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Radarr
         group: media
@@ -283,7 +325,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Prowlarr
         group: media
@@ -291,7 +335,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: SABnzbd
         group: media
@@ -299,7 +345,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] < 400"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Seerr
         group: media
@@ -307,7 +355,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Suwayomi
         group: media
@@ -315,7 +365,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] < 400"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Kavita
         group: media
@@ -323,7 +375,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: RomM
         group: media
@@ -331,7 +385,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # The server's own status endpoint; `/` is a static page that loads with the
       # backend down.
@@ -341,7 +397,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # `/` is a 302 to the SSO login; /api/health is the unauthenticated probe.
       - name: CrossWatch
@@ -350,7 +408,9 @@ data:
         interval: 1m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # Minecraft is raw TCP through the Velocity proxy, not HTTP through the
       # Gateway — hence tcp:// and no certificate condition. Using the public
@@ -383,7 +443,9 @@ data:
         interval: 5m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Minecraft map (vanilla)
         group: media
@@ -391,7 +453,9 @@ data:
         interval: 5m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       # filebrowser serves its login page unauthenticated at 200, so no
       # credentials are needed to prove it is alive.
@@ -401,7 +465,9 @@ data:
         interval: 5m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
 
       - name: Minecraft files (vanilla)
         group: media
@@ -409,4 +475,6 @@ data:
         interval: 5m
         conditions:
           - "[STATUS] == 200"
-          - "[CERTIFICATE_EXPIRATION] > 720h"
+          - "[CERTIFICATE_EXPIRATION] > 360h"
+        headers:
+          Connection: close
