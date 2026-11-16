@@ -18,7 +18,7 @@
 
 A second, fully independent media server beside Plex — not a cold spare. It serves the
 same `media-nfs` share, keeps its own library database, and is reachable at
-`jellyfin.blackcats.cc` whether or not Plex, plex.tv or the node holding Plex's config
+`jellyfin.<domain>` whether or not Plex, plex.tv or the node holding Plex's config
 is up.
 
 That last clause is the design constraint. `plex-config-local` is an `openebs-hostpath`
@@ -146,7 +146,7 @@ order, the pins that matter on 12.x, and what was rejected.
 The `KeycloakOIDCClient` CR covers the client, its sealed secret and the `user`/`admin`
 roles. Redirect URIs:
 
-- `https://jellyfin.blackcats.cc/sso/OID/redirect/keycloak` — the path shape is fixed by
+- `https://jellyfin.<domain>/sso/OID/redirect/keycloak` — the path shape is fixed by
   the plugin (`/sso/OID/redirect/<provider name>`). The trailing segment is the
   **provider name configured inside the plugin**, not the realm and not the client id.
   They must match exactly or the callback 404s.
@@ -179,7 +179,7 @@ SSO user is created as a plain user and the mapper is never consulted.
 Both defaults are right in general and wrong here. Each surfaces only once the previous
 is cleared, and each reads as a login error, not a configuration error.
 
-- **`AllowPrivateNetworkAddresses` must be ON.** `sso.blackcats.cc` resolves to the
+- **`AllowPrivateNetworkAddresses` must be ON.** `sso.<domain>` resolves to the
   Gateway VIP `172.16.20.50`, so the plugin refuses to read the discovery document
   (*"the outbound host resolves only to blocked addresses"*) without ever contacting
   Keycloak. The guard stops a hostile IdP URL probing internal hosts — moot when the
@@ -214,9 +214,9 @@ mise exec -- kubectl get pod -n media -l app.kubernetes.io/name=jellyfin -o wide
 mise exec -- kubectl get pod -n media -l app.kubernetes.io/name=plex -o wide   # must differ
 mise exec -- kubectl get keycloakoidcclient jellyfin -n keycloak \
   -o custom-columns='NAME:.metadata.name,ERRORS:.status.conditions[?(@.type=="HasErrors")].status'
-curl -sf https://jellyfin.blackcats.cc/health && echo
+curl -sf https://jellyfin.<domain>/health && echo
 
 # SSO still works: expect 302 to a Keycloak URL carrying request_uri=urn:ietf:...
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' \
-  https://jellyfin.blackcats.cc/sso/OID/start/keycloak
+  https://jellyfin.<domain>/sso/OID/start/keycloak
 ```

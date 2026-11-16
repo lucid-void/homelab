@@ -72,6 +72,16 @@ jobs:
           # and the Talos machine-config tree). kubeconform treats these as
           # parse errors ("missing 'kind' key"), which -ignore-missing-schemas
           # does NOT suppress.
+          #
+          # Manifests write the domain as ${CLUSTER_DOMAIN}, which Flux fills
+          # in from the sealed cluster-secrets. Raw, it fails schema patterns
+          # such as the HTTPRoute hostname regex, so scan a copy with a
+          # stand-in domain. The workspace stays untouched for kube-linter.
+          scan="$RUNNER_TEMP/kubeconform-scan"
+          mkdir -p "$scan" && cp -r kubernetes "$scan/"
+          grep -rlZ --fixed-strings '${CLUSTER_DOMAIN}' "$scan/kubernetes" \
+            | xargs -0 -r sed -i 's/\${CLUSTER_DOMAIN}/example.com/g'
+          cd "$scan"
           output=$(kubeconform \
             -strict \
             -ignore-missing-schemas \

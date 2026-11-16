@@ -10,5 +10,5 @@ spec:
     name: letsencrypt-production
     kind: ClusterIssuer
   dnsNames:
-    - "*.blackcats.cc"
-    - "blackcats.cc"
+    - "*.${CLUSTER_DOMAIN}"
+    - "${CLUSTER_DOMAIN}"

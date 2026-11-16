@@ -118,7 +118,7 @@ spec:
           # The scrape selector keys off THIS label, not app.kubernetes.io/name,
           # which Flux commonMetadata rewrites across the whole Kustomization —
           # selecting on that would silently match the wrong Services or none.
-          monitoring.blackcats.cc/scrape: llama-swap
+          monitoring.${CLUSTER_DOMAIN}/scrape: llama-swap
         ports:
           http:
             port: 8080

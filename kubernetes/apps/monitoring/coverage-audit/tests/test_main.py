@@ -13,7 +13,7 @@ HOMEPAGE_CM = "/api/v1/namespaces/homepage/configmaps/homepage"
 
 
 class Main(unittest.TestCase):
-    """Fixture: one route a.blackcats.cc with a Gatus check and a tile, one PVC m/one
+    """Fixture: one route a.example.com with a Gatus check and a tile, one PVC m/one
     mounted by a backup CronJob. Clean until a test breaks something."""
 
     def setUp(self):
@@ -22,15 +22,15 @@ class Main(unittest.TestCase):
             "/apis/gateway.networking.k8s.io/v1/httproutes": {"items": [{
                 "metadata": {"namespace": "x", "name": "a"},
                 "spec": {"parentRefs": [{"name": "shared", "namespace": "gateway"}],
-                         "hostnames": ["a.blackcats.cc"]}}]},
+                         "hostnames": ["a.example.com"]}}]},
             "/api/v1/persistentvolumeclaims": {"items": [
                 {"metadata": {"namespace": "m", "name": "one"}}]},
             "/apis/batch/v1/cronjobs": {"items": [{
                 "metadata": {"namespace": "m", "name": "one-backup"},
                 "spec": {"jobTemplate": {"spec": {"template": {"spec": {"volumes": [
                     {"name": "d", "persistentVolumeClaim": {"claimName": "one"}}]}}}}}}]},
-            GATUS_CM: {"data": {"config.yaml": "  - name: A\n    url: https://a.blackcats.cc/h\n"}},
-            HOMEPAGE_CM: {"data": {"services.yaml": "- G:\n  - A:\n      href: https://a.blackcats.cc\n"}},
+            GATUS_CM: {"data": {"config.yaml": "  - name: A\n    url: https://a.example.com/h\n"}},
+            HOMEPAGE_CM: {"data": {"services.yaml": "- G:\n  - A:\n      href: https://a.example.com\n"}},
         }
         fd, self.ex = tempfile.mkstemp(suffix=".json")
         with os.fdopen(fd, "w") as f:
@@ -57,13 +57,13 @@ class Main(unittest.TestCase):
         self.assertEqual(self.sent, [])
 
     def test_gap_is_sent_at_priority_5(self):
-        self.responses[GATUS_CM] = {"data": {"config.yaml": "  url: https://other.blackcats.cc\n"}}
+        self.responses[GATUS_CM] = {"data": {"config.yaml": "  url: https://other.example.com\n"}}
         self.assertEqual(self.run_main(), 0)
         self.assertEqual(self.sent, [("Coverage audit: 1 gap(s)",
-                                      "• no Gatus check: a.blackcats.cc (x/a)", 5)])
+                                      "• no Gatus check: a.example.com (x/a)", 5)])
 
     def test_undelivered_gaps_fail_the_job(self):
-        self.responses[GATUS_CM] = {"data": {"config.yaml": "  url: https://other.blackcats.cc\n"}}
+        self.responses[GATUS_CM] = {"data": {"config.yaml": "  url: https://other.example.com\n"}}
         self.delivered = False
         self.assertEqual(self.run_main(), 1)
 

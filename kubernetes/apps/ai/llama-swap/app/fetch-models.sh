@@ -26,22 +26,22 @@ nomic-ai/nomic-embed-text-v1.5-GGUF|nomic-embed-text-v1.5.Q8_0.gguf|146146432
 
 fetch() {
   local repo="$1" file="$2" want="$3"
-  local dest="${MODELS_DIR}/${file}"
-  local part="${dest}.part"
-  local url="https://huggingface.co/${repo}/resolve/main/${file}"
+  local dest="$${MODELS_DIR}/$${file}"
+  local part="$${dest}.part"
+  local url="https://huggingface.co/$${repo}/resolve/main/$${file}"
 
   if [ -f "$dest" ]; then
     local have
     have=$(stat -c %s "$dest")
     if [ "$have" = "$want" ]; then
-      echo "== ${file}: present at ${have} bytes, skipping"
+      echo "== $${file}: present at $${have} bytes, skipping"
       return 0
     fi
-    echo "!! ${file}: size ${have} != expected ${want}, refetching"
+    echo "!! $${file}: size $${have} != expected $${want}, refetching"
     rm -f "$dest"
   fi
 
-  echo "== ${file}: fetching $(( want / 1024 / 1024 )) MiB from ${repo}"
+  echo "== $${file}: fetching $(( want / 1024 / 1024 )) MiB from $${repo}"
   # -C - resumes an interrupted .part rather than restarting 34 GiB from zero.
   # --retry covers transient CDN errors; --fail turns an HTML error page into a
   # non-zero exit instead of a file full of HTML.
@@ -51,7 +51,7 @@ fetch() {
   local got
   got=$(stat -c %s "$part")
   if [ "$got" != "$want" ]; then
-    echo "!! ${file}: downloaded ${got} bytes, expected ${want}" >&2
+    echo "!! $${file}: downloaded $${got} bytes, expected $${want}" >&2
     exit 1
   fi
 
@@ -59,7 +59,7 @@ fetch() {
   # short file under the real name for llama.cpp to choke on.
   mv "$part" "$dest"
   chmod 0644 "$dest"
-  echo "== ${file}: done"
+  echo "== $${file}: done"
 }
 
 echo "== free space before:"

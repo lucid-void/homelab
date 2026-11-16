@@ -1,11 +1,11 @@
 ---
 # git-over-SSH. Gitea's built-in SSH server listens on 2222 inside the pod and
-# advertises `git@gitea.blackcats.cc:...` via SSH_DOMAIN/SSH_PORT; this route is
+# advertises `git@gitea.${CLUSTER_DOMAIN}:...` via SSH_DOMAIN/SSH_PORT; this route is
 # what makes that URL reachable, by attaching the `ssh` (TCP:22) listener on the
 # shared Gateway to the gitea-ssh Service.
 #
 # No external-dns annotation: TCPRoute has no `hostnames` field, and the A record
-# for gitea.blackcats.cc is already published by the HTTPRoute in route.yml —
+# for gitea.${CLUSTER_DOMAIN} is already published by the HTTPRoute in route.yml —
 # both HTTPS and SSH land on the same Gateway VIP (172.16.20.50).
 #
 # `gitea-ssh` is headless (the chart's default), which is fine — the HTTPRoute

@@ -2240,7 +2240,7 @@ Then check `llama-swap` did not slow down:
 ```bash
 mise exec -- kubectl -n ai exec deploy/llama-swap -- curl -s localhost:8080/v1/models | head -c 200
 ```
-and ask the user to send one chat message through `chat.blackcats.cc` or time one `local-fast` call. Baseline decode is 8.4 to 8.9 tok/s. **If decode drops by more than 20%, or `kubectl -n ai get pods` shows `llama-swap` restarted, stop and report: revert the memory change with `git revert` and keep Clef off until a smaller quantisation is chosen.**
+and ask the user to send one chat message through `chat.<domain>` or time one `local-fast` call. Baseline decode is 8.4 to 8.9 tok/s. **If decode drops by more than 20%, or `kubectl -n ai get pods` shows `llama-swap` restarted, stop and report: revert the memory change with `git revert` and keep Clef off until a smaller quantisation is chosen.**
 
 Repeat the decode check at two more moments, with the same >20% / restart rule (and the same revert):
 

@@ -395,7 +395,7 @@ Puts the UI behind SSO and gives it a hostname. Done after Task 2 on purpose —
 
 **Interfaces:**
 - Consumes: the `crosswatch` Service from Task 1.
-- Produces: `https://crosswatch.blackcats.cc`, gated by the Keycloak `user` role.
+- Produces: `https://crosswatch.<domain>`, gated by the Keycloak `user` role.
 
 - [ ] **Step 1: Generate and seal the client secret**
 
@@ -441,9 +441,9 @@ spec:
     redirectUris:
       # Confirm this path against CrossWatch's OIDC settings screen before the
       # first login attempt — api/authOidcAPI.py owns the callback route.
-      - https://crosswatch.blackcats.cc/auth/oidc/callback
+      - https://crosswatch.<domain>/auth/oidc/callback
     webOrigins:
-      - https://crosswatch.blackcats.cc
+      - https://crosswatch.<domain>
     # `user` is the entitlement gate, matching every other client in this realm.
     roles: [user]
     auth:
@@ -481,7 +481,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - crosswatch.blackcats.cc
+    - crosswatch.<domain>
   rules:
     - backendRefs:
         - name: crosswatch
@@ -514,7 +514,7 @@ And add the gateway dependency to `kubernetes/apps/media/crosswatch/ks.yml`, bet
 
 OIDC is configured in the UI, not by env var. While still on the port-forward, go to Settings → Authentication and set:
 
-- Issuer: `https://keycloak.blackcats.cc/realms/homelab`
+- Issuer: `https://keycloak.<domain>/realms/homelab`
 - Client ID: `crosswatch`
 - Client secret: the value printed in Step 1
 
@@ -538,7 +538,7 @@ Expected: no `FAILED:` lines.
 
 ```bash
 git add kubernetes/apps/media/crosswatch kubernetes/apps/keycloak/clients/app
-git commit -m "feat(crosswatch): put the UI behind Keycloak on crosswatch.blackcats.cc"
+git commit -m "feat(crosswatch): put the UI behind Keycloak on crosswatch.<domain>"
 ```
 
 - [ ] **Step 9: Verify SSO end to end**
@@ -550,7 +550,7 @@ mise exec -- kubectl get httproute -n media crosswatch
 mise exec -- kubectl get keycloakoidcclient -n keycloak crosswatch
 ```
 
-Then open `https://crosswatch.blackcats.cc` in a browser. Expected: redirect to Keycloak, login, redirect back into the UI. A user without the `user` role must be denied.
+Then open `https://crosswatch.<domain>` in a browser. Expected: redirect to Keycloak, login, redirect back into the UI. A user without the `user` role must be denied.
 
 ---
 
@@ -1058,7 +1058,7 @@ In `.claude/CLAUDE.md`, add a row to the "Which file to read" table, after the `
 
 - [ ] **Step 3: Update the service inventory**
 
-Add CrossWatch to `design/docs/services.md` with hostname `crosswatch.blackcats.cc` and auth model Keycloak OIDC (`user` role), matching the surrounding entries' format.
+Add CrossWatch to `design/docs/services.md` with hostname `crosswatch.<domain>` and auth model Keycloak OIDC (`user` role), matching the surrounding entries' format.
 
 - [ ] **Step 4: Record the Jellyfin plugin decision**
 
@@ -1084,7 +1084,7 @@ Do not stage the five pre-existing modified files noted in Task 0 Step 2.
 - [ ] Watch something on Plex → within 15 min it reads watched in Jellyfin and appears in Trakt history.
 - [ ] Watch something on Jellyfin → within 30 min (two hops) it appears in Trakt history.
 - [ ] Add a movie to the Trakt watchlist → within 30 min it is requested in Seerr and gone from the watchlist.
-- [ ] `https://crosswatch.blackcats.cc` requires Keycloak login and denies a user without the `user` role.
+- [ ] `https://crosswatch.<domain>` requires Keycloak login and denies a user without the `user` role.
 - [ ] Neither pair has watchlist sync enabled:
 
 ```bash

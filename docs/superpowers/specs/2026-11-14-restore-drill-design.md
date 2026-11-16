@@ -127,12 +127,12 @@ One pod. Containers share localhost:
   two databases with generated passwords and loads both dumps with
   `pg_restore --no-owner --no-acl`.
 - **Keycloak** — the upstream server image, started with `kc.sh start` against the local
-  database, hostname `https://sso.blackcats.cc`, plain HTTP behind the proxy below.
+  database, hostname `https://sso.<domain>`, plain HTTP behind the proxy below.
 - **Gitea** — the upstream image, `/data` pointed at the restored copy, with `GITEA__…`
   environment overrides for: database on localhost, cache/session/queue in memory (no
   Valkey), and the switches listed under isolation.
 - **TLS proxy** — terminates HTTPS on localhost with a certificate generated at pod start,
-  and routes `sso.blackcats.cc` → Keycloak and `gitea.blackcats.cc` → Gitea.
+  and routes `sso.<domain>` → Keycloak and `gitea.<domain>` → Gitea.
   `hostAliases` point both names at `127.0.0.1`, and Gitea trusts the generated CA. This
   is what lets the restored login settings (issuer URL, callback URL, client secret — all
   stored in the two databases) work without being edited.
@@ -251,7 +251,7 @@ to the backups line.
 - Resource requests and limits, from the production values of the same apps.
 - The minimum-count floors, set from the first real run.
 - Confirm the OIDC discovery URL stored in Gitea's database is the public
-  `https://sso.blackcats.cc` one (the `hostAliases` approach depends on it).
+  `https://sso.<domain>` one (the `hostAliases` approach depends on it).
 - Build order: the `gitea-backup` fix and one good nightly snapshot; then `drill-restore`, run by hand; then `drill-sso`; then
   `drill-immich`. Each is run once by hand and its log read before the schedule is
   trusted.

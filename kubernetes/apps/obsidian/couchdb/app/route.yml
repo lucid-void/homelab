@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - obsidian.blackcats.cc
+    - obsidian.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: couchdb

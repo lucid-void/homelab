@@ -11,12 +11,12 @@ set -euo pipefail
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
-SCRATCH=${SCRATCH:-/scratch}
-RUN_DIR=${RUN_DIR:-/run/drill}
-LOG=${LOG:-/tmp/drive-immich.log}
-BOOT_TIMEOUT=${BOOT_TIMEOUT:-900}
-MIN_IMMICH_ASSETS=${MIN_IMMICH_ASSETS:-1}
-MIN_SAMPLE_MATCHED=${MIN_SAMPLE_MATCHED:-150}
+SCRATCH=$${SCRATCH:-/scratch}
+RUN_DIR=$${RUN_DIR:-/run/drill}
+LOG=$${LOG:-/tmp/drive-immich.log}
+BOOT_TIMEOUT=$${BOOT_TIMEOUT:-900}
+MIN_IMMICH_ASSETS=$${MIN_IMMICH_ASSETS:-1}
+MIN_SAMPLE_MATCHED=$${MIN_SAMPLE_MATCHED:-150}
 # snapshot path /library/<x>  <->  asset."originalPath" /usr/src/app/upload/<x>
 SNAPSHOT_PREFIX=/library
 DB_PREFIX=/usr/src/app/upload
@@ -34,7 +34,7 @@ on_exit() {
   if [[ $rc -ne 0 && $REPORTED -eq 0 ]]; then
     echo "[drill] FAILED with exit $rc"
     notify_gotify "$GOTIFY_IP" "Restore drill: immich ✗" \
-      "Exit ${rc} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n$(fail_body "$LOG")" 8
+      "Exit $${rc} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n$(fail_body "$LOG")" 8
   fi
   # Leave nothing behind, whatever happened.
   find "$SCRATCH" -mindepth 1 -delete 2>/dev/null || true
@@ -46,13 +46,13 @@ if [[ -s "$RUN_DIR/STALE" ]]; then
   reason=$(head -1 "$RUN_DIR/STALE")
   echo "[drill] STALE: $reason"
   notify_gotify "$GOTIFY_IP" "Restore drill: immich stale — bump the image" \
-    "${reason}. The drill did not run; raise the image tag in cronjob-immich.yml." 8
+    "$${reason}. The drill did not run; raise the image tag in cronjob-immich.yml." 8
   REPORTED=1
   exit 3
 fi
 
 # --- 1. The restored database is not empty ------------------------------------
-assets=$(psql "${PG[@]}" -Atc "SELECT count(*) FROM asset" immich)
+assets=$(psql "$${PG[@]}" -Atc "SELECT count(*) FROM asset" immich)
 floor "Immich assets" "$assets" "$MIN_IMMICH_ASSETS"
 echo "[drill] $assets assets in the restored database"
 
@@ -61,7 +61,7 @@ echo "[drill] Waiting for Immich"
 deadline=$(( $(date +%s) + BOOT_TIMEOUT ))
 until [[ "$(curl -fsS -m 10 http://127.0.0.1:2283/api/server/ping 2>/dev/null | jq -r '.res' 2>/dev/null)" == "pong" ]]; do
   if (( $(date +%s) > deadline )); then
-    echo "[drill] Immich did not come up within ${BOOT_TIMEOUT}s (if its image is older than production, bump it)"
+    echo "[drill] Immich did not come up within $${BOOT_TIMEOUT}s (if its image is older than production, bump it)"
     exit 1
   fi
   sleep 5
@@ -78,7 +78,7 @@ while IFS= read -r path; do
     echo "[drill] sampled file was not restored: $path"
     exit 1
   fi
-  want=$(psql "${PG[@]}" -At -v p="${DB_PREFIX}${path#"$SNAPSHOT_PREFIX"}" immich \
+  want=$(psql "$${PG[@]}" -At -v p="$${DB_PREFIX}$${path#"$SNAPSHOT_PREFIX"}" immich \
     <<<"SELECT encode(checksum, 'hex') FROM asset WHERE \"originalPath\" = :'p' LIMIT 1")
   if [[ -z "$want" ]]; then
     # on disk but not an asset (a sidecar, an orphan): not evidence either way
@@ -100,6 +100,6 @@ fi
 echo "[drill] $matched of $sampled sampled files matched ($skipped had no database row)"
 
 notify_gotify "$GOTIFY_IP" "Restore drill: immich ✓" \
-  "Immich snapshot ${SNAPTIME}\n${assets} assets, server boots\n${matched} of ${sampled} sampled files matched their database checksum" 5
+  "Immich snapshot $${SNAPTIME}\n$${assets} assets, server boots\n$${matched} of $${sampled} sampled files matched their database checksum" 5
 REPORTED=1
 echo "[drill] PASS"

@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - goldilocks.blackcats.cc
+    - goldilocks.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: goldilocks-dashboard

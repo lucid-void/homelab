@@ -51,8 +51,8 @@ data:
     # hostname in the client handshake picks the backend, so both existing
     # hostnames keep working and no DNS changes.
     [forced-hosts]
-    "matcha.blackcats.cc" = ["matcha"]
-    "vanilla.blackcats.cc" = ["vanilla"]
+    "matcha.${CLUSTER_DOMAIN}" = ["matcha"]
+    "vanilla.${CLUSTER_DOMAIN}" = ["vanilla"]
 
     [advanced]
     # Matches network-compression-threshold=256 on both backends.

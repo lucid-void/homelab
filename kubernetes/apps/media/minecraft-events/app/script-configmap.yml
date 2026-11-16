@@ -60,7 +60,7 @@ data:
     # only way to notice a `kubectl logs --follow` that hung past its timeout.
     beat() { date +%s > /tmp/heartbeat; }
 
-    # Post to the in-cluster Service, never https://gotify.blackcats.cc — the
+    # Post to the in-cluster Service, never the public gotify hostname — the
     # public name needs DNS plus egress out to the Gateway and back, which is
     # exactly what breaks in the failure modes worth hearing about.
     notify() {

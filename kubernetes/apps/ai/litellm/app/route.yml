@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - llm.blackcats.cc
+    - llm.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: litellm

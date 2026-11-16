@@ -508,7 +508,7 @@ The `proxmox` `KeycloakOIDCClient` CR registers the client; the sealed
 `proxmox-client-secret` in the `keycloak` namespace carries its secret, the same one
 every other client uses (Proxmox is bare metal, outside the cluster, so nothing
 in-cluster consumes it). The client id is `proxmox` — the CRD takes it from
-`metadata.name` — and the issuer is `https://sso.blackcats.cc/realms/homelab`. Read the
+`metadata.name` — and the issuer is `https://sso.<domain>/realms/homelab`. Read the
 secret out:
 
 ```bash
@@ -524,7 +524,7 @@ On the Proxmox host, create the OpenID Connect realm (or use Datacenter → Real
 
 ```bash
 pveum realm add keycloak --type openid \
-  --issuer-url https://sso.blackcats.cc/realms/homelab \
+  --issuer-url https://sso.<domain>/realms/homelab \
   --client-id <OIDC_CLIENT_ID> \
   --client-key <OIDC_CLIENT_SECRET> \
   --username-claim username \
@@ -537,7 +537,7 @@ pveum realm add keycloak --type openid \
 
 `--default 0` is deliberate: it keeps `pam`/`pve` as the default realm in the login
 dropdown, so a Keycloak outage cannot lock you out of the hypervisor. That matters more
-here than for any in-cluster app — the Gateway that serves `sso.blackcats.cc` runs on
+here than for any in-cluster app — the Gateway that serves `sso.<domain>` runs on
 VMs this host hypervises.
 
 Then make permissions follow the Keycloak role. The account is created on first login with
@@ -563,11 +563,11 @@ client role — via `/proxmox/user` or `/proxmox/admin` — or the `browser-prox
 denies it before Proxmox ever sees the user. See `design/decisions/keycloak.md`.
 
 **Redirect URI:** Proxmox sends the web UI base URL (no path) as the OIDC redirect. The
-client registers both `https://pve.blackcats.cc:8006` and `https://pve.blackcats.cc`,
+client registers both `https://pve.<domain>:8006` and `https://pve.<domain>`,
 so login works on the default port or on 443.
 
 **Serving Proxmox on 443 (optional):** Proxmox's `pveproxy` only listens on 8006 and
-the port is not configurable through supported means. To reach it at `https://pve.blackcats.cc`
+the port is not configurable through supported means. To reach it at `https://pve.<domain>`
 add a host-level redirect on the Proxmox node (persist via `/etc/network/interfaces`
 `post-up` or an nftables ruleset):
 
@@ -778,7 +778,7 @@ mise exec -- kubectl get secret couchdb-admin-secret -n obsidian \
   -o jsonpath='{.data.COUCHDB_PASSWORD}' | base64 -d; echo
 ```
 
-URL is `https://obsidian.blackcats.cc`. The vault currently lives in the database
+URL is `https://obsidian.<domain>`. The vault currently lives in the database
 `notes`. **Off-LAN this needs Netbird up first** — the hostname resolves to
 `172.16.20.50`, which is internal with no port forwarding. On mobile a dropped VPN
 shows up as sync stalling rather than a clear error.

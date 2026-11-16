@@ -4,7 +4,7 @@
 
 ## Current state
 
-Deployed in `monitoring` at `gotify.blackcats.cc` (`gotify/server`, SQLite on an
+Deployed in `monitoring` at `gotify.<domain>` (`gotify/server`, SQLite on an
 nfs-client PVC, admin credentials in `gotify-admin-secret` SealedSecret).
 
 **Token provisioning** is the `gotify-bootstrap` Job: creates app/client tokens through

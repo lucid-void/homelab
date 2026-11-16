@@ -50,7 +50,7 @@ What it finds today (measured against the live cluster, 2026-11-14):
 
 1. An HTTPRoute with two hostnames, or none (`gateway/redirect-http-to-https` has none): each hostname is checked on its own, and a route without hostnames is ignored rather than crashing. Test in Task 1.
 2. A Gatus `tcp://host:port` or quoted `url: "https://host/path"` line: the host is still extracted. Test in Task 1.
-3. A hostname that is a prefix of another (`gatus.blackcats.cc` vs `gatus.blackcats.cc.evil`, `home` vs `homebox`): matching is on the whole hostname, never a substring. Test in Task 1.
+3. A hostname that is a prefix of another (`gatus.<domain>` vs `gatus.<domain>.evil`, `home` vs `homebox`): matching is on the whole hostname, never a substring. Test in Task 1.
 4. The Kubernetes API or a ConfigMap read fails: the job sends "Coverage audit failed" at priority 8 and exits 1, and does NOT report every service as uncovered. Test in Task 3.
 5. `exemptions.json` is malformed or has an unknown top-level key: the job fails loudly (same path as 4) instead of running with no exemptions. Test in Task 2.
 
@@ -105,38 +105,38 @@ def route(ns, name, hosts, parents=SHARED):
 
 class RouteHosts(unittest.TestCase):
     def test_maps_each_hostname_to_its_route(self):
-        got = audit.route_hosts([route("media", "plex", ["plex.blackcats.cc"]),
-                                 route("media", "mc", ["a.blackcats.cc", "b.blackcats.cc"])])
-        self.assertEqual(got, {"plex.blackcats.cc": "media/plex",
-                               "a.blackcats.cc": "media/mc", "b.blackcats.cc": "media/mc"})
+        got = audit.route_hosts([route("media", "plex", ["plex.<domain>"]),
+                                 route("media", "mc", ["a.<domain>", "b.<domain>"])])
+        self.assertEqual(got, {"plex.<domain>": "media/plex",
+                               "a.<domain>": "media/mc", "b.<domain>": "media/mc"})
 
     def test_ignores_route_without_hostnames(self):
         self.assertEqual(audit.route_hosts([route("gateway", "redirect", None)]), {})
 
     def test_ignores_route_on_another_gateway(self):
-        r = route("x", "y", ["y.blackcats.cc"], [{"name": "other", "namespace": "gateway"}])
+        r = route("x", "y", ["y.<domain>"], [{"name": "other", "namespace": "gateway"}])
         self.assertEqual(audit.route_hosts([r]), {})
 
 class ConfigHosts(unittest.TestCase):
     GATUS = '''
       - name: A
-        url: https://a.blackcats.cc/health
+        url: https://a.<domain>/health
       - name: B
-        url: "https://b.blackcats.cc"
+        url: "https://b.<domain>"
       - name: SSH
-        url: tcp://gitea.blackcats.cc:22
-      # url: https://commented.blackcats.cc
+        url: tcp://gitea.<domain>:22
+      # url: https://commented.<domain>
     '''
     def test_plain_quoted_and_tcp(self):
         self.assertEqual(audit.config_hosts(self.GATUS, "url"),
-                         {"a.blackcats.cc", "b.blackcats.cc", "gitea.blackcats.cc"})
+                         {"a.<domain>", "b.<domain>", "gitea.<domain>"})
 
     def test_key_must_match(self):
-        self.assertEqual(audit.config_hosts("href: https://a.blackcats.cc", "url"), set())
+        self.assertEqual(audit.config_hosts("href: https://a.<domain>", "url"), set())
 
     def test_whole_hostname_only(self):
-        got = audit.config_hosts("url: https://homebox.blackcats.cc", "url")
-        self.assertNotIn("home.blackcats.cc", got)
+        got = audit.config_hosts("url: https://homebox.<domain>", "url")
+        self.assertNotIn("home.<domain>", got)
 
 class Claims(unittest.TestCase):
     def cj(self, ns, name, claims):
@@ -205,7 +205,7 @@ Patterns are `fnmatch.fnmatchcase` globs against the hostname (gatus, homepage) 
 
 ```python
 class Audit(unittest.TestCase):
-    HOSTS = {"a.blackcats.cc": "x/a", "b.blackcats.cc": "x/b"}
+    HOSTS = {"a.<domain>": "x/a", "b.<domain>": "x/b"}
     NONE = {"gatus": {}, "homepage": {}, "backup": {}}
 
     def run_audit(self, **kw):
@@ -218,25 +218,25 @@ class Audit(unittest.TestCase):
         self.assertEqual(self.run_audit(), [])
 
     def test_missing_gatus_and_homepage(self):
-        got = self.run_audit(gatus={"a.blackcats.cc"}, homepage={"b.blackcats.cc"})
-        self.assertEqual(got, ["no Gatus check: b.blackcats.cc (x/b)",
-                               "no Homepage tile: a.blackcats.cc (x/a)"])
+        got = self.run_audit(gatus={"a.<domain>"}, homepage={"b.<domain>"})
+        self.assertEqual(got, ["no Gatus check: b.<domain> (x/b)",
+                               "no Homepage tile: a.<domain> (x/a)"])
 
     def test_missing_backup(self):
         got = self.run_audit(pvcs={"m/one", "m/two"}, backed_up={"m/one"})
         self.assertEqual(got, ["no backup job: m/two"])
 
     def test_exemption_silences_and_glob_matches(self):
-        ex = {"gatus": {"b.blackcats.cc": "why"}, "homepage": {},
+        ex = {"gatus": {"b.<domain>": "why"}, "homepage": {},
               "backup": {"gitea/valkey-data-*": "disposable"}}
-        got = self.run_audit(gatus={"a.blackcats.cc"},
+        got = self.run_audit(gatus={"a.<domain>"},
                              pvcs={"gitea/valkey-data-0", "gitea/valkey-data-1"}, exemptions=ex)
         self.assertEqual(got, [])
 
     def test_stale_exemption_when_item_is_now_covered(self):
-        ex = {"gatus": {"a.blackcats.cc": "why"}, "homepage": {}, "backup": {}}
+        ex = {"gatus": {"a.<domain>": "why"}, "homepage": {}, "backup": {}}
         self.assertEqual(self.run_audit(exemptions=ex),
-                         ['stale exemption: gatus "a.blackcats.cc" excuses nothing'])
+                         ['stale exemption: gatus "a.<domain>" excuses nothing'])
 
     def test_stale_exemption_when_item_is_gone(self):
         ex = {"gatus": {}, "homepage": {}, "backup": {"old/pvc": "why"}}
@@ -244,10 +244,10 @@ class Audit(unittest.TestCase):
                          ['stale exemption: backup "old/pvc" excuses nothing'])
 
     def test_empty_reason_is_reported_and_does_not_exempt(self):
-        ex = {"gatus": {"b.blackcats.cc": "  "}, "homepage": {}, "backup": {}}
-        got = self.run_audit(gatus={"a.blackcats.cc"}, exemptions=ex)
-        self.assertEqual(got, ['exemption without a reason: gatus "b.blackcats.cc"',
-                               "no Gatus check: b.blackcats.cc (x/b)"])
+        ex = {"gatus": {"b.<domain>": "  "}, "homepage": {}, "backup": {}}
+        got = self.run_audit(gatus={"a.<domain>"}, exemptions=ex)
+        self.assertEqual(got, ['exemption without a reason: gatus "b.<domain>"',
+                               "no Gatus check: b.<domain> (x/b)"])
 
 class LoadExemptions(unittest.TestCase):
     def test_missing_keys_default_empty(self):
@@ -311,7 +311,7 @@ Use a fake `get` that returns canned dicts keyed by path and a `send` that recor
 
 ```python
 class Main(unittest.TestCase):
-    # fixture: one route a.blackcats.cc, covered by gatus and homepage, one PVC m/one backed up
+    # fixture: one route a.<domain>, covered by gatus and homepage, one PVC m/one backed up
     def test_clean_cluster_sends_nothing(self):
         self.assertEqual(main.main(get=self.get, send=self.send, exemptions_path=self.ex), 0)
         self.assertEqual(self.sent, [])
@@ -321,7 +321,7 @@ class Main(unittest.TestCase):
             {"data": {"config.yaml": "endpoints: []"}}
         self.assertEqual(main.main(get=self.get, send=self.send, exemptions_path=self.ex), 0)
         self.assertEqual(self.sent, [("Coverage audit: 1 gap(s)",
-                                      "• no Gatus check: a.blackcats.cc (x/a)", 5)])
+                                      "• no Gatus check: a.<domain> (x/a)", 5)])
 
     def test_api_failure_is_not_reported_as_gaps(self):
         def boom(path):
@@ -449,12 +449,12 @@ Expected: no error and no `SKIPPED:` line from the loop; the last command prints
 
 ```json
 "gatus": {
-  "gatus.blackcats.cc": "Gatus cannot report its own outage"
+  "gatus.<domain>": "Gatus cannot report its own outage"
 },
 "homepage": {
-  "home.blackcats.cc": "this is Homepage",
-  "kromgo.blackcats.cc": "badge JSON endpoint, no UI",
-  "obsidian.blackcats.cc": "CouchDB sync endpoint, no UI"
+  "home.<domain>": "this is Homepage",
+  "kromgo.<domain>": "badge JSON endpoint, no UI",
+  "obsidian.<domain>": "CouchDB sync endpoint, no UI"
 }
 ```
 

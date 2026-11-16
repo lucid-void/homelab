@@ -85,7 +85,7 @@ rebuild path, or an in-place restore into production.
   Only `drill-restore` reaches the internet, and it runs no restored app. Never add
   either to make something work.
 - **Boot pods have no DNS.** Each app listens on a loopback address inside its pod, and
-  `hostAliases` points `sso.blackcats.cc` → `127.0.0.2` and `gitea.blackcats.cc` →
+  `hostAliases` points `sso.<domain>` → `127.0.0.2` and `gitea.<domain>` →
   `127.0.0.3`, each serving HTTPS on 443 with a certificate generated at pod start. That
   is what lets the login settings stored in the two databases work unedited. Gotify is
   reached by the IP `drill-restore` wrote into the `READY` marker.
@@ -221,7 +221,7 @@ rebuild path, or an in-place restore into production.
   paperless bind-mounts the PVCs at `/data` and `/media`, not at the
   `/usr/src/paperless/*` paths.
 - **Always post to the in-cluster Service `http://gotify.monitoring.svc.cluster.local/message`,
-  never `https://gotify.blackcats.cc`** — the public hostname needs DNS plus egress out
+  never `https://gotify.<domain>`** — the public hostname needs DNS plus egress out
   to the Gateway and back, exactly what breaks in the commonest failure mode (a node
   reboot killing egress). Applies to every job-style Gotify caller: every app backup,
   `etcd-snapshot`, `kubent` and `security-report`. Legitimate public-hostname uses: the

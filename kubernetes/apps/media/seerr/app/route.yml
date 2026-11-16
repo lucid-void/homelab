@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - seerr.blackcats.cc
+    - seerr.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: seerr

@@ -11,19 +11,19 @@
 # spaces and quotes.
 set -u
 
-FFMPEG="${FFMPEG:-ffmpeg}"
-FFPROBE="${FFPROBE:-ffprobe}"
-MEDIA_ROOT="${MEDIA_ROOT:-/Media}"
-TRASH_DIR="${TRASH_DIR:-$MEDIA_ROOT/.tdarr-trash}"
-DURATION_TOLERANCE="${DURATION_TOLERANCE:-1}"
+FFMPEG="$${FFMPEG:-ffmpeg}"
+FFPROBE="$${FFPROBE:-ffprobe}"
+MEDIA_ROOT="$${MEDIA_ROOT:-/Media}"
+TRASH_DIR="$${TRASH_DIR:-$MEDIA_ROOT/.tdarr-trash}"
+DURATION_TOLERANCE="$${DURATION_TOLERANCE:-1}"
 # Packet counts per stream may differ by this fraction (a dropped frame is a skip).
-PACKET_TOLERANCE="${PACKET_TOLERANCE:-0.001}"
+PACKET_TOLERANCE="$${PACKET_TOLERANCE:-0.001}"
 # Audio and video must start within this many seconds of each other, as in the source.
-SYNC_TOLERANCE="${SYNC_TOLERANCE:-0.1}"
+SYNC_TOLERANCE="$${SYNC_TOLERANCE:-0.1}"
 # Measured on real encodes: 0.98-0.99. This floor catches broken output, not taste.
-SSIM_MIN="${SSIM_MIN:-0.95}"
-SSIM_POINTS="${SSIM_POINTS:-5}"
-SSIM_SECONDS="${SSIM_SECONDS:-10}"
+SSIM_MIN="$${SSIM_MIN:-0.95}"
+SSIM_POINTS="$${SSIM_POINTS:-5}"
+SSIM_SECONDS="$${SSIM_SECONDS:-10}"
 
 say() { printf 'swap: %s\n' "$*"; }
 verify_fail() { say "VERIFY FAILED: $*" >&2; exit 10; }
@@ -47,10 +47,10 @@ probe() { # probe <file> <select> <entries>
 src=$(probe "$orig" v:0 stream=codec_name,height,color_transfer | tr ',' ' ') \
   || swap_fail "ffprobe failed on original"
 set -- $src
-[ "${1:-}" = h264 ] || swap_fail "source codec is '${1:-}', only h264 is re-encoded"
-[ "${2:-0}" -le 1088 ] 2>/dev/null || swap_fail "source is ${2:-?}p, 4K is never re-encoded"
-case "${3:-}" in
-  smpte2084 | arib-std-b67) swap_fail "source is HDR (${3}), never re-encoded" ;;
+[ "$${1:-}" = h264 ] || swap_fail "source codec is '$${1:-}', only h264 is re-encoded"
+[ "$${2:-0}" -le 1088 ] 2>/dev/null || swap_fail "source is $${2:-?}p, 4K is never re-encoded"
+case "$${3:-}" in
+  smpte2084 | arib-std-b67) swap_fail "source is HDR ($${3}), never re-encoded" ;;
 esac
 if "$FFPROBE" -v error -select_streams v -show_entries stream_side_data=side_data_type -of csv=p=0 -- "$orig" \
   | grep -qi -e dovi -e "dolby vision"; then
@@ -145,9 +145,9 @@ while [ "$i" -lt "$SSIM_POINTS" ]; do
     s2=$(ssim_at "$1" "$2" "$(awk -v t="$1" -v k="$k" -v f="$frame" 'BEGIN { t += k * f; if (t < 0) t = 0; printf "%.6f", t }')")
     [ -n "$s2" ] && { [ -z "$ssim" ] || awk -v a="$s2" -v b="$ssim" 'BEGIN { exit !(a > b) }'; } && ssim=$s2
   done
-  [ -n "$ssim" ] || verify_fail "could not measure similarity at ${1}s"
+  [ -n "$ssim" ] || verify_fail "could not measure similarity at $${1}s"
   awk -v s="$ssim" -v m="$SSIM_MIN" 'BEGIN { exit !(s >= m) }' \
-    || verify_fail "picture at ${1}s differs from the original (SSIM $ssim, need $SSIM_MIN)"
+    || verify_fail "picture at $${1}s differs from the original (SSIM $ssim, need $SSIM_MIN)"
   i=$((i + 1))
 done
 
@@ -155,16 +155,16 @@ sz_o=$(stat -c %s "$orig")
 sz_n=$(stat -c %s "$out")
 [ "$sz_n" -lt "$sz_o" ] || verify_fail "output $sz_n B is not smaller than original $sz_o B"
 say "verified: $sz_o -> $sz_n bytes, no drops or gaps, ssim ok at $SSIM_POINTS points"
-[ "${VERIFY_ONLY:-}" = 1 ] && exit 0
+[ "$${VERIFY_ONLY:-}" = 1 ] && exit 0
 
 # --- swap -----------------------------------------------------------------
 case "$orig" in
-  "$MEDIA_ROOT"/*) rel=${orig#"$MEDIA_ROOT"/} ;;
+  "$MEDIA_ROOT"/*) rel=$${orig#"$MEDIA_ROOT"/} ;;
   *) swap_fail "original is not under $MEDIA_ROOT" ;;
 esac
 # The output keeps the source container in the flow, so dest is normally the
 # original path. A different extension still swaps, as long as nothing is there.
-dest="${orig%.*}.${out##*.}"
+dest="$${orig%.*}.$${out##*.}"
 if [ "$dest" != "$orig" ] && [ -e "$dest" ]; then
   swap_fail "$dest already exists"
 fi

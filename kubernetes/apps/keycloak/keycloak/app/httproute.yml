@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - sso.blackcats.cc
+    - sso.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         # The operator names the Service after the Keycloak CR, suffixed -service.

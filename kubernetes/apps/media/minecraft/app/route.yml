@@ -15,7 +15,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - matcha-files.blackcats.cc
+    - matcha-files.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: matcha-files
@@ -34,7 +34,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - vanilla-files.blackcats.cc
+    - vanilla-files.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: vanilla-files
@@ -55,7 +55,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - matcha-map.blackcats.cc
+    - matcha-map.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: matcha-map
@@ -74,7 +74,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - vanilla-map.blackcats.cc
+    - vanilla-map.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: vanilla-map

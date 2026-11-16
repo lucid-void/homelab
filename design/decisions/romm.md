@@ -4,7 +4,7 @@
 
 ## Current state
 
-Game/ROM manager in `media` at `romm.blackcats.cc` (`rommapp/romm`, port `8080`).
+Game/ROM manager in `media` at `romm.<domain>` (`rommapp/romm`, port `8080`).
 Single `app-template` controller `app` → Deployment/Service `romm`.
 
 External CNPG Postgres via `ROMM_DB_DRIVER=postgresql` (password mirrored from

@@ -15,11 +15,11 @@ spec:
     enabled: true
     loginFlows: [STANDARD]
     redirectUris:
-      - https://immich.blackcats.cc/auth/login
-      - https://immich.blackcats.cc/user-settings
-      - https://immich.blackcats.cc/api/oauth/mobile-redirect
+      - https://immich.${CLUSTER_DOMAIN}/auth/login
+      - https://immich.${CLUSTER_DOMAIN}/user-settings
+      - https://immich.${CLUSTER_DOMAIN}/api/oauth/mobile-redirect
     webOrigins:
-      - https://immich.blackcats.cc
+      - https://immich.${CLUSTER_DOMAIN}
     # `user` is the entitlement gate: the per-client browser-flow override denies
     # login to anyone without it (Condition - user role, negated, + Deny access).
     # Every group for this client must therefore grant `user`, including the admin

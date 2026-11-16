@@ -37,56 +37,56 @@ config:
   services:
     - Media:
         - Plex:
-            href: https://plex.blackcats.cc
+            href: https://plex.${CLUSTER_DOMAIN}
             description: Media server
             icon: plex.png
         - Jellyfin:
-            href: https://jellyfin.blackcats.cc
+            href: https://jellyfin.${CLUSTER_DOMAIN}
             description: Media server (SSO)
             icon: jellyfin.png
         - Seerr:
-            href: https://seerr.blackcats.cc
+            href: https://seerr.${CLUSTER_DOMAIN}
             description: Request media
             icon: overseerr.png
         - Sonarr:
-            href: https://sonarr.blackcats.cc
+            href: https://sonarr.${CLUSTER_DOMAIN}
             description: TV series
             icon: sonarr.png
         - Radarr:
-            href: https://radarr.blackcats.cc
+            href: https://radarr.${CLUSTER_DOMAIN}
             description: Movies
             icon: radarr.png
         - Prowlarr:
-            href: https://prowlarr.blackcats.cc
+            href: https://prowlarr.${CLUSTER_DOMAIN}
             description: Indexers
             icon: prowlarr.png
         - Sabnzbd:
-            href: https://nzb.blackcats.cc
+            href: https://nzb.${CLUSTER_DOMAIN}
             description: Downloader
             icon: sabnzbd.png
         - Suwayomi:
-            href: https://suwayomi.blackcats.cc
+            href: https://suwayomi.${CLUSTER_DOMAIN}
             description: Manga downloader
             icon: suwayomi.png
         - Kavita:
-            href: https://kavita.blackcats.cc
+            href: https://kavita.${CLUSTER_DOMAIN}
             description: Manga reader
             icon: kavita.png
         - Tdarr:
-            href: https://tdarr.blackcats.cc
+            href: https://tdarr.${CLUSTER_DOMAIN}
             description: Library transcoding
             icon: tdarr.png
         - CrossWatch:
-            href: https://crosswatch.blackcats.cc
+            href: https://crosswatch.${CLUSTER_DOMAIN}
             description: Plex and Jellyfin watch-history sync
             icon: mdi-sync
         - Immich:
-            href: https://immich.blackcats.cc
+            href: https://immich.${CLUSTER_DOMAIN}
             description: Photos
             icon: immich.png
     - AI:
         - Open WebUI:
-            href: https://chat.blackcats.cc
+            href: https://chat.${CLUSTER_DOMAIN}
             description: Local LLM chat
             icon: open-webui.png
         # LiteLLM's own UI is at /ui and needs the master key, not SSO. Linked
@@ -94,82 +94,82 @@ config:
         # themselves are served by llama-swap, which is ClusterIP-only and has
         # no tile.
         - LiteLLM:
-            href: https://llm.blackcats.cc/ui
+            href: https://llm.${CLUSTER_DOMAIN}/ui
             description: LLM gateway — keys & spend
             icon: litellm.png
     - Games:
         # The Minecraft servers themselves are raw TCP on 172.16.20.52:25565 via
         # the Velocity proxy, so they have no web UI — connect in-game to
-        # matcha.blackcats.cc / vanilla.blackcats.cc. These are the companions.
+        # matcha.${CLUSTER_DOMAIN} / vanilla.${CLUSTER_DOMAIN}. These are the companions.
         - Matcha map:
-            href: https://matcha-map.blackcats.cc
+            href: https://matcha-map.${CLUSTER_DOMAIN}
             description: Live world map — matcha
             icon: minecraft.png
         - Matcha files:
-            href: https://matcha-files.blackcats.cc
+            href: https://matcha-files.${CLUSTER_DOMAIN}
             description: Datapacks, configs, world imports
             icon: filebrowser.png
         - Vanilla map:
-            href: https://vanilla-map.blackcats.cc
+            href: https://vanilla-map.${CLUSTER_DOMAIN}
             description: Live world map — vanilla (Terralith)
             icon: minecraft.png
         - Vanilla files:
-            href: https://vanilla-files.blackcats.cc
+            href: https://vanilla-files.${CLUSTER_DOMAIN}
             description: Datapacks, configs, world imports
             icon: filebrowser.png
         - RomM:
-            href: https://romm.blackcats.cc
+            href: https://romm.${CLUSTER_DOMAIN}
             description: ROM library
             icon: romm.png
     - Documents:
         - Paperless:
-            href: https://paperless.blackcats.cc
+            href: https://paperless.${CLUSTER_DOMAIN}
             description: Document management
             icon: paperless-ngx.png
         - FreshRSS:
-            href: https://rss.blackcats.cc
+            href: https://rss.${CLUSTER_DOMAIN}
             description: RSS reader
             icon: freshrss.png
         - Homebox:
-            href: https://homebox.blackcats.cc
+            href: https://homebox.${CLUSTER_DOMAIN}
             description: Home inventory
             icon: homebox.png
         - Degoog:
-            href: https://degoog.blackcats.cc
+            href: https://degoog.${CLUSTER_DOMAIN}
             description: Search engine aggregator
             icon: mdi-magnify
         - Changedetection:
-            href: https://changedetection.blackcats.cc
+            href: https://changedetection.${CLUSTER_DOMAIN}
             description: Website change monitoring
             icon: changedetection.png
     - Development:
         - Gitea:
-            href: https://gitea.blackcats.cc
+            href: https://gitea.${CLUSTER_DOMAIN}
             description: Git service
             icon: gitea.png
     - Infrastructure:
         - Proxmox:
-            href: https://pve.blackcats.cc:8006
+            href: https://pve.${CLUSTER_DOMAIN}:8006
             description: Hypervisor
             icon: proxmox.png
         - Keycloak:
-            href: https://sso.blackcats.cc
+            href: https://sso.${CLUSTER_DOMAIN}
             description: Identity & access
             icon: keycloak.png
         - Gotify:
-            href: https://gotify.blackcats.cc
+            href: https://gotify.${CLUSTER_DOMAIN}
             description: Notifications
             icon: gotify.png
         - Grafana:
-            href: https://grafana.blackcats.cc
+            href: https://grafana.${CLUSTER_DOMAIN}
             description: Metrics dashboards
             icon: grafana.png
         - Gatus:
-            href: https://gatus.blackcats.cc
+            href: https://gatus.${CLUSTER_DOMAIN}
             description: Status monitoring
             icon: gatus.png
         - Goldilocks:
-            href: https://goldilocks.blackcats.cc
+            href: https://goldilocks.${CLUSTER_DOMAIN}
             description: VPA recommendations
             icon: goldilocks.png
 
@@ -189,4 +189,4 @@ serviceAccount:
   create: true
 
 env:
-  HOMEPAGE_ALLOWED_HOSTS: home.blackcats.cc
+  HOMEPAGE_ALLOWED_HOSTS: home.${CLUSTER_DOMAIN}

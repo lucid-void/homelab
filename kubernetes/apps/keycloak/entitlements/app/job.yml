@@ -31,7 +31,7 @@ spec:
             # The admin API is driven over the public hostname on purpose: this is
             # the path every other SSO client depends on, so a failure here is real.
             - name: KEYCLOAK_URL
-              value: https://sso.blackcats.cc
+              value: https://sso.${CLUSTER_DOMAIN}
             - name: KEYCLOAK_CLIENT_ID
               valueFrom:
                 secretKeyRef:

@@ -16,7 +16,7 @@
 
 ## Current state
 
-Keycloak at `sso.blackcats.cc` is the identity provider for every application on SSO.
+Keycloak at `sso.<domain>` is the identity provider for every application on SSO.
 It replaced Zitadel in a single cutover on 2026-09-20; Zitadel itself was deleted on
 2026-09-21, once Joplin — its last consumer, over SAML — was gone.
 
@@ -43,7 +43,7 @@ must therefore **not** set `targetNamespace`.
 `FATAL: password authentication failed` if the managed role loses its race with the
 `Database` CR; see `design/decisions/cnpg.md`.
 
-**Hostname `sso.blackcats.cc` is product-neutral on purpose.** It lands in the callback
+**Hostname `sso.<domain>` is product-neutral on purpose.** It lands in the callback
 URI of every application, so a product-named host would have to be rewritten again the
 next time the IdP changes — which is exactly the cost this migration just paid.
 
@@ -164,7 +164,7 @@ is cosmetic: Keycloak evaluates its conditions before its actions regardless of 
 `kcadm.sh` cannot be used for any of this from inside the pod: the image has no
 `curl`, `awk`, `jq` or `python3`, and `kcadm get --fields` silently omits nested objects
 such as `authenticationFlowBindingOverrides`, which reads as "the change did not apply".
-Drive the admin REST API over `https://sso.blackcats.cc` instead, and re-read with a
+Drive the admin REST API over `https://sso.<domain>` instead, and re-read with a
 full GET. Clearing a flow override needs a full client PUT with the field set to
 `{"browser": "", "direct_grant": ""}` — sending `{}` is treated as no change.
 
@@ -252,7 +252,7 @@ because the bridge certificate's only SAN is `IP:127.0.0.1`
 **The `from:` address must be one Proton owns.** Proton rejects anything else at DATA,
 not at MAIL FROM, with `554 5.0.0 Error: The sender or recipient address is not valid`
 — so an SMTP connection test can pass while every real mail silently fails. Adding
-`blackcats.cc` as a Proton custom domain would allow a service address here.
+`<domain>` as a Proton custom domain would allow a service address here.
 
 Keycloak trusts the bridge certificate through a truststore backed by
 `keycloak/protonmail-bridge-cert`, which Reflector mirrors from
@@ -322,5 +322,5 @@ mise exec -- kubectl get keycloaks,keycloakrealmimports,keycloakoidcclients -n k
 mise exec -- kubectl get keycloakoidcclient -n keycloak \
   -o custom-columns='NAME:.metadata.name,ERRORS:.status.conditions[?(@.type=="HasErrors")].status'
 mise exec -- kubectl get keycloak keycloak -n keycloak -o jsonpath='{.spec.features.enabled}'
-curl -s https://sso.blackcats.cc/realms/homelab/.well-known/openid-configuration | head -c 200
+curl -s https://sso.<domain>/realms/homelab/.well-known/openid-configuration | head -c 200
 ```

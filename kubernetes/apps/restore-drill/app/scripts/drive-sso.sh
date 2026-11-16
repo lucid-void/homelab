@@ -11,20 +11,20 @@ set -euo pipefail
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
-SCRATCH=${SCRATCH:-/scratch}
-RUN_DIR=${RUN_DIR:-/run/drill}
-TLS_DIR=${TLS_DIR:-/tls}
-USER_DIR=${USER_DIR:-/secrets/drill-user}
-TMP_DIR=${TMP_DIR:-/tmp}
-LOG=${LOG:-/tmp/drive-sso.log}
-BOOT_TIMEOUT=${BOOT_TIMEOUT:-900}
-MIN_KEYCLOAK_USERS=${MIN_KEYCLOAK_USERS:-1}
-MIN_GITEA_REPOS=${MIN_GITEA_REPOS:-1}
+SCRATCH=$${SCRATCH:-/scratch}
+RUN_DIR=$${RUN_DIR:-/run/drill}
+TLS_DIR=$${TLS_DIR:-/tls}
+USER_DIR=$${USER_DIR:-/secrets/drill-user}
+TMP_DIR=$${TMP_DIR:-/tmp}
+LOG=$${LOG:-/tmp/drive-sso.log}
+BOOT_TIMEOUT=$${BOOT_TIMEOUT:-900}
+MIN_KEYCLOAK_USERS=$${MIN_KEYCLOAK_USERS:-1}
+MIN_GITEA_REPOS=$${MIN_GITEA_REPOS:-1}
 PG=(-h 127.0.0.1 -U postgres)
 CA="$TMP_DIR/drill-ca.pem"
 JAR="$TMP_DIR/cookies.txt"
-SSO=https://sso.blackcats.cc
-GITEA=https://gitea.blackcats.cc
+SSO=https://sso.${CLUSTER_DOMAIN}
+GITEA=https://gitea.${CLUSTER_DOMAIN}
 
 exec > >(tee "$LOG") 2>&1
 
@@ -37,7 +37,7 @@ on_exit() {
   [[ $rc -eq 0 || $REPORTED -eq 1 ]] && return
   echo "[drill] FAILED with exit $rc"
   notify_gotify "$GOTIFY_IP" "Restore drill: sso ✗" \
-    "Exit ${rc} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n$(fail_body "$LOG")" 8
+    "Exit $${rc} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n$(fail_body "$LOG")" 8
 }
 trap on_exit EXIT
 
@@ -46,7 +46,7 @@ if [[ -s "$RUN_DIR/STALE" ]]; then
   reason=$(head -1 "$RUN_DIR/STALE")
   echo "[drill] STALE: $reason"
   notify_gotify "$GOTIFY_IP" "Restore drill: sso stale — bump the image" \
-    "${reason}. The drill did not run; raise the image tag in cronjob-sso.yml." 8
+    "$${reason}. The drill did not run; raise the image tag in cronjob-sso.yml." 8
   REPORTED=1
   exit 3
 fi
@@ -63,7 +63,7 @@ wait_for() {
   until c -f "$url" 2>/dev/null | jq -e "$filter" >/dev/null 2>&1; do
     if (( $(date +%s) > deadline )); then
       echo "[drill] last answer from $url: $(c "$url" 2>&1 | head -c 300 | tr '\n' ' ')"
-      echo "[drill] $label did not come up within ${BOOT_TIMEOUT}s (if its image is older than production, bump it)"
+      echo "[drill] $label did not come up within $${BOOT_TIMEOUT}s (if its image is older than production, bump it)"
       return 1
     fi
     sleep 5
@@ -75,8 +75,8 @@ wait_for "Keycloak" "$SSO/realms/homelab/.well-known/openid-configuration" \
 wait_for "Gitea" "$GITEA/api/healthz" '.status == "pass"'
 
 # --- 2. The restored data is not empty ----------------------------------------
-users=$(psql "${PG[@]}" -Atc "SELECT count(*) FROM user_entity u JOIN realm r ON r.id = u.realm_id WHERE r.name = 'homelab'" keycloak)
-repos=$(psql "${PG[@]}" -Atc "SELECT count(*) FROM repository" gitea)
+users=$(psql "$${PG[@]}" -Atc "SELECT count(*) FROM user_entity u JOIN realm r ON r.id = u.realm_id WHERE r.name = 'homelab'" keycloak)
+repos=$(psql "$${PG[@]}" -Atc "SELECT count(*) FROM repository" gitea)
 floor "Keycloak users" "$users" "$MIN_KEYCLOAK_USERS"
 floor "Gitea repositories" "$repos" "$MIN_GITEA_REPOS"
 echo "[drill] $users Keycloak users, $repos Gitea repositories"
@@ -97,7 +97,7 @@ if [[ -z "$action" ]]; then
   exit 1
 fi
 at=$(c -L -c "$JAR" -b "$JAR" -o "$TMP_DIR/after.html" -w '%{url_effective}' \
-  --data-urlencode "username=${drill_user}" \
+  --data-urlencode "username=$${drill_user}" \
   --data-urlencode "password=$(cat "$USER_DIR/password")" \
   "$action")
 code=$(c -b "$JAR" -o /dev/null -w '%{http_code}' "$GITEA/user/settings")
@@ -126,6 +126,6 @@ floor "commits in $FSCK_REPO" "$FSCK_COMMITS" 1
 echo "[drill] git fsck OK on $FSCK_REPO ($FSCK_COMMITS commits)"
 
 notify_gotify "$GOTIFY_IP" "Restore drill: sso ✓" \
-  "Keycloak snapshot $(marker SNAPTIME_KEYCLOAK), Gitea snapshot $(marker SNAPTIME_GITEA)\n${users} Keycloak users, ${repos} Gitea repositories\nSSO login as ${drill_user} OK\ngit fsck OK on ${FSCK_REPO} (${FSCK_COMMITS} commits)" 5
+  "Keycloak snapshot $(marker SNAPTIME_KEYCLOAK), Gitea snapshot $(marker SNAPTIME_GITEA)\n$${users} Keycloak users, $${repos} Gitea repositories\nSSO login as $${drill_user} OK\ngit fsck OK on $${FSCK_REPO} ($${FSCK_COMMITS} commits)" 5
 REPORTED=1
 echo "[drill] PASS"

@@ -37,13 +37,23 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/kubeconform"
 CACHE_ARGS=()
 mkdir -p "$CACHE" 2>/dev/null && CACHE_ARGS=(-cache "$CACHE")
 
+# Manifests write the domain as ${CLUSTER_DOMAIN} (Flux fills it in from the
+# sealed cluster-secrets). Raw, it fails schema patterns like the HTTPRoute
+# hostname regex, so validate a copy with a stand-in domain — as CI does.
+TARGET="$FILE"
+if grep -qF '${CLUSTER_DOMAIN}' "$FILE"; then
+  TARGET=$(mktemp --suffix=.yml) || exit 1
+  trap 'rm -f "$TARGET"' EXIT
+  sed 's/\${CLUSTER_DOMAIN}/example.com/g' "$FILE" > "$TARGET"
+fi
+
 OUT=$(mise exec -- kubeconform \
   -strict \
   -ignore-missing-schemas \
   "${CACHE_ARGS[@]}" \
   -schema-location default \
   -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-  "$FILE" 2>&1)
+  "$TARGET" 2>&1)
 RC=$?
 
 [[ $RC -eq 0 ]] && exit 0

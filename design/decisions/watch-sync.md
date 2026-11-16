@@ -42,7 +42,7 @@ sync in this design — there is no Trakt leg and no chain.
 `bjw-s/app-template` HelmRelease, `replicas: 1`, `strategy: Recreate` (the RWO config
 PVC holds a single JSON document that two replicas would interleave writes into and
 corrupt). Config on an `nfs-client` PVC (`crosswatch-config`, 2Gi). Web UI on container
-port 8787, exposed at `https://crosswatch.blackcats.cc` via `HTTPRoute`, behind Keycloak
+port 8787, exposed at `https://crosswatch.<domain>` via `HTTPRoute`, behind Keycloak
 OIDC (client `crosswatch`, admin-only: the login gate requires the `admin` role, granted by
 `/crosswatch/admin` — see `kubernetes/apps/keycloak/entitlements/app/entitlements.conf`).
 
@@ -51,12 +51,12 @@ in `config.json` under `app_auth.oidc` — UI-only state, so this is its only re
 
 | Field | Value |
 |---|---|
-| Issuer | `https://sso.blackcats.cc/realms/homelab` |
+| Issuer | `https://sso.<domain>/realms/homelab` |
 | Client ID | `crosswatch` |
 | Client secret | `kubectl get secret crosswatch-client-secret -n keycloak -o jsonpath='{.data.secret}' \| base64 -d` |
 | Scopes | `openid profile email` |
 
-**Keycloak is served at `sso.blackcats.cc`, not `keycloak.blackcats.cc`.** The latter has
+**Keycloak is served at `sso.<domain>`, not `keycloak.<domain>`.** The latter has
 no DNS record and resolves nowhere, so an issuer built from it fails in a way that hides
 its own cause: CrossWatch *saves* the config to disk, then fails the link step with a
 `NameResolutionError` behind a 502, and the UI redisplays the OIDC toggle as disabled.
@@ -70,7 +70,7 @@ encrypted), which is not in git:
 
 | Provider | Server URL | Auth |
 |---|---|---|
-| Plex | `https://plex.blackcats.cc:443` (as configured; `http://plex-app.media.svc.cluster.local:32400` also works) | Plex account link |
+| Plex | `https://plex.<domain>:443` (as configured; `http://plex-app.media.svc.cluster.local:32400` also works) | Plex account link |
 | Jellyfin | `http://jellyfin.media.svc.cluster.local:8096` | Jellyfin API key + user id |
 
 **The Plex Service is `plex-app`, not `plex`.** `bjw-s/app-template` names the Service
@@ -247,5 +247,5 @@ mise exec -- kubectl exec -n media deploy/crosswatch -- sh -c 'cat /config/confi
 print(p["id"], p["mode"], {k:v["enable"] for k,v in p["features"].items()})'
 mise exec -- kubectl get keycloakoidcclient crosswatch -n keycloak \
   -o custom-columns='NAME:.metadata.name,ERRORS:.status.conditions[?(@.type=="HasErrors")].status'
-curl -sf https://crosswatch.blackcats.cc && echo
+curl -sf https://crosswatch.<domain> && echo
 ```

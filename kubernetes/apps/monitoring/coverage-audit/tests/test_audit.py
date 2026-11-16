@@ -17,40 +17,40 @@ def route(ns, name, hosts, parents=SHARED):
 
 class RouteHosts(unittest.TestCase):
     def test_maps_each_hostname_to_its_route(self):
-        got = audit.route_hosts([route("media", "plex", ["plex.blackcats.cc"]),
-                                 route("media", "mc", ["a.blackcats.cc", "b.blackcats.cc"])])
-        self.assertEqual(got, {"plex.blackcats.cc": "media/plex",
-                               "a.blackcats.cc": "media/mc", "b.blackcats.cc": "media/mc"})
+        got = audit.route_hosts([route("media", "plex", ["plex.example.com"]),
+                                 route("media", "mc", ["a.example.com", "b.example.com"])])
+        self.assertEqual(got, {"plex.example.com": "media/plex",
+                               "a.example.com": "media/mc", "b.example.com": "media/mc"})
 
     def test_ignores_route_without_hostnames(self):
         self.assertEqual(audit.route_hosts([route("gateway", "redirect", None)]), {})
 
     def test_ignores_route_on_another_gateway(self):
-        r = route("x", "y", ["y.blackcats.cc"], [{"name": "other", "namespace": "gateway"}])
+        r = route("x", "y", ["y.example.com"], [{"name": "other", "namespace": "gateway"}])
         self.assertEqual(audit.route_hosts([r]), {})
 
 
 class ConfigHosts(unittest.TestCase):
     GATUS = '''
       - name: A
-        url: https://a.blackcats.cc/health
+        url: https://a.example.com/health
       - name: B
-        url: "https://b.blackcats.cc"
+        url: "https://b.example.com"
       - name: SSH
-        url: tcp://gitea.blackcats.cc:22
-      # url: https://commented.blackcats.cc
+        url: tcp://gitea.example.com:22
+      # url: https://commented.example.com
     '''
 
     def test_plain_quoted_and_tcp(self):
         self.assertEqual(audit.config_hosts(self.GATUS, "url"),
-                         {"a.blackcats.cc", "b.blackcats.cc", "gitea.blackcats.cc"})
+                         {"a.example.com", "b.example.com", "gitea.example.com"})
 
     def test_key_must_match(self):
-        self.assertEqual(audit.config_hosts("href: https://a.blackcats.cc", "url"), set())
+        self.assertEqual(audit.config_hosts("href: https://a.example.com", "url"), set())
 
     def test_whole_hostname_only(self):
-        got = audit.config_hosts("url: https://homebox.blackcats.cc", "url")
-        self.assertNotIn("home.blackcats.cc", got)
+        got = audit.config_hosts("url: https://homebox.example.com", "url")
+        self.assertNotIn("home.example.com", got)
 
 
 class Claims(unittest.TestCase):
@@ -75,7 +75,7 @@ class Claims(unittest.TestCase):
 
 
 class Audit(unittest.TestCase):
-    HOSTS = {"a.blackcats.cc": "x/a", "b.blackcats.cc": "x/b"}
+    HOSTS = {"a.example.com": "x/a", "b.example.com": "x/b"}
     NONE = {"gatus": {}, "homepage": {}, "backup": {}}
 
     def run_audit(self, **kw):
@@ -88,25 +88,25 @@ class Audit(unittest.TestCase):
         self.assertEqual(self.run_audit(), [])
 
     def test_missing_gatus_and_homepage(self):
-        got = self.run_audit(gatus={"a.blackcats.cc"}, homepage={"b.blackcats.cc"})
-        self.assertEqual(got, ["no Gatus check: b.blackcats.cc (x/b)",
-                               "no Homepage tile: a.blackcats.cc (x/a)"])
+        got = self.run_audit(gatus={"a.example.com"}, homepage={"b.example.com"})
+        self.assertEqual(got, ["no Gatus check: b.example.com (x/b)",
+                               "no Homepage tile: a.example.com (x/a)"])
 
     def test_missing_backup(self):
         got = self.run_audit(pvcs={"m/one", "m/two"}, backed_up={"m/one"})
         self.assertEqual(got, ["no backup job: m/two"])
 
     def test_exemption_silences_and_glob_matches(self):
-        ex = {"gatus": {"b.blackcats.cc": "why"}, "homepage": {},
+        ex = {"gatus": {"b.example.com": "why"}, "homepage": {},
               "backup": {"gitea/valkey-data-*": "disposable"}}
-        got = self.run_audit(gatus={"a.blackcats.cc"},
+        got = self.run_audit(gatus={"a.example.com"},
                              pvcs={"gitea/valkey-data-0", "gitea/valkey-data-1"}, exemptions=ex)
         self.assertEqual(got, [])
 
     def test_stale_exemption_when_item_is_now_covered(self):
-        ex = {"gatus": {"a.blackcats.cc": "why"}, "homepage": {}, "backup": {}}
+        ex = {"gatus": {"a.example.com": "why"}, "homepage": {}, "backup": {}}
         self.assertEqual(self.run_audit(exemptions=ex),
-                         ['stale exemption: gatus "a.blackcats.cc" excuses nothing'])
+                         ['stale exemption: gatus "a.example.com" excuses nothing'])
 
     def test_stale_exemption_when_item_is_gone(self):
         ex = {"gatus": {}, "homepage": {}, "backup": {"old/pvc": "why"}}
@@ -114,10 +114,10 @@ class Audit(unittest.TestCase):
                          ['stale exemption: backup "old/pvc" excuses nothing'])
 
     def test_empty_reason_is_reported_and_does_not_exempt(self):
-        ex = {"gatus": {"b.blackcats.cc": "  "}, "homepage": {}, "backup": {}}
-        got = self.run_audit(gatus={"a.blackcats.cc"}, exemptions=ex)
-        self.assertEqual(got, ['exemption without a reason: gatus "b.blackcats.cc"',
-                               "no Gatus check: b.blackcats.cc (x/b)"])
+        ex = {"gatus": {"b.example.com": "  "}, "homepage": {}, "backup": {}}
+        got = self.run_audit(gatus={"a.example.com"}, exemptions=ex)
+        self.assertEqual(got, ['exemption without a reason: gatus "b.example.com"',
+                               "no Gatus check: b.example.com (x/b)"])
 
 
 class LoadExemptions(unittest.TestCase):

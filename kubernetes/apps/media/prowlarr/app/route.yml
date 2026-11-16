@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - prowlarr.blackcats.cc
+    - prowlarr.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: prowlarr
