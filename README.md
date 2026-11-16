@@ -4,6 +4,12 @@
 
 Personal homelab managed as a single Infrastructure-as-Code repository. Primary compute: Talos Kubernetes cluster managed by FluxCD. All services declarative — VM provisioning, OS configuration, cluster bootstrap, and service deployment driven from git.
 
+## Network Diagram
+
+[![Homelab network diagram](docs/homelab-diagram.png)](docs/homelab-diagram.png)
+
+UniFi network (UDM SE + USW Pro HD 24 PoE, VLANs 2/10/20), the Proxmox host running the Talos VMs, the Synology NAS and the cluster's services. Line width is link speed; the domain is redacted.
+
 ---
 
 ## Core Stack
