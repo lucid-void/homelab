@@ -52,7 +52,7 @@ kubernetes/
 │   │   ├── git/                  # GitRepository sources (gateway-api, keycloak-operator)
 │   │   └── oci/                  # OCI repository sources — empty (`resources: []`)
 │   ├── vars/
-│   │   ├── cluster-settings.yml  # ConfigMap: CLUSTER_NAME, CLUSTER_DOMAIN
+│   │   ├── cluster-settings.yml  # ConfigMap: CLUSTER_NAME (CLUSTER_DOMAIN is in cluster-secrets)
 │   │   └── cluster-secrets.sealed.yml  # SealedSecret: SECRET_CLOUDFLARE_API_TOKEN, SECRET_CLOUDFLARE_EMAIL
 │   └── pub-cert.pem              # Sealed Secrets public cert (safe to commit)
 ├── apps/
