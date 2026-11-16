@@ -6,12 +6,11 @@ metadata:
   namespace: freshrss
 spec:
   encryptedData:
+    OIDC_CLIENT_CRYPTO_KEY: AgBMT9leeQNqokzNEjHDRrFI8NlEpgRw0aWOi9ZB9FNuJvRvQAJfkVQQDq0FMvy+seCnRgYSZzlMyE3dvfQNpax5ESjpku3GmVPLUoMV9ejVBEOk+XpacazuXOfWEi6sUvWArD9LEkH+RdOUju0kx9VsLf96D/hROpOooh/nDk9hTR9KamDAKQ1O3gINWOCpzSUhAPJU87wEs+JFcn6A8r4cFwT0xQLZNDSL5MKW3WW+y7lkGVGp4u5XPQ/55f5m+3HQDAQ2bxxlCysFyUCQ8TMx+Ooq/fHZGPLbbntRQR/tbUTjcotSedG33pr9wyXmcGI+79h7tb4jyq6PEbhFrJ/wuYEL5K8kh4FRAVf1c7x5x8+o+1do6yHsnusBwtODV1mAc2OlakdlsknLjh7CSXsqQqO6CanOkPA/2SrUAW4p8ilcSXLy+lSMbWv4BAScYiZ9vSfacoyGnFl+8IAvC2c8n4UiJJ9fRU7wJYtHCRyG1xRfWIM7Vz23Gj9Bo35QP5JejWQ1m5s5yAPOpU46lX238AWQaJPeZPHp4R3xleaNGZqjEZ9dxxgOYI5LYSKS/rrD9ELbYnFwGngwu5qTh3eJTd6eZIdAdyC9dlUW9HIW9fy8Wk5Z2KFD2vFV7sah5aTTOzxagy5krE9xsLcnskMlp3m71tD4FA67sD3LtttdlHy3EHYlDQlPxVgXD9Zst8DQl5BIt1fZIS2WKk5vY2F/TJzpN2d5WcS4aInmL5naH/4R87lyczpKcNmZx6GV1jAOkSxC5vle/95lBkv3Uqb4
     OIDC_CLIENT_ID: AgAysJ/bSKOmEmoRjM14S2tFmLFLMxrXWtRGzCR5TL1jTzb4yinAB9CgZcvwKsw13WGytV7C1w0gEnaSCI6FGX0phBPQjg4OnFqh1KtwHuj1uENNQfovRyGVjtJXaZpZYWHHL0JU5vvJcgLB1vo4OKx+OB6xgQloXWOjK3uVRfXvVZP78lrH773cGpAkoSeUY1Fg5lAPYkpoFGUUCAF+wHXpv7N4G1LhnVADEtQeZFdYUGQia4aqzwb2+MqNiCX5KL+PCq+PzuC6Kn/TxJUQkqnnOBzqtjWGKJGAP086kT744iQlASMj9kqrHZm7zK1dQUuoAdLtC1iOP8N3Y6xfjgABQQxqAIyhMoG4pTgHqCxlg2XmcGc9/uuOM3XzziTcGJ4rsfmFRhC3ZK8suWiTCl/wuzpPbQoIKyRj+TwOjUvmbLyESqdHWlQvxuCunvT5+8zWxtbm1r73Jpl4cJ0OAmNz6hnUjR7xb3nE+YlLVjf2AaaFiXdRz4+p9EWsyja06Jan0uf09AsxRODr6/xeJozuLH3WYpy3iXaqfJ1DSwJVb3vF1o0VDLE/R5EU2Aa1HUcSaQhPqY1YrzL8JYGx3otokwmiaNodL4Yw9Qlraqt6MGr4+Uydyo4cxJLVCI1dIkWgKH+XlvYTKQ8MfvO5ob8MYzE3f8gQ1KAStX9xnxWDWhX04hxWsWEyplTM+rHAEX8eA6reFIgqyw==
     OIDC_CLIENT_SECRET: AgDK8ja0UC1HrnT/nUJEegYDU1r/jloRLq3JVXkpojvZQ+7hmwOCmTdlHRpW9AuDw5tnr0M8L0l0VOvrRHmsf9quc3F8RDoeqQzeEmEo1Co4dU0dwvA6cI21E3PSrrfuZRKpqYdVLqjtss8kj5sL17PQiYZ+Q72LeFUFCz6Ci7druEbw3BT7FgWCv4Sv8ERJh0Ym0aQxL51lpeFJWI6voL/bxI3o6rAXe2HW2MtszrZLiXMMaIMP+aoNTMZZ4r/0WRylR8cD7KT6jrkZXqtkl5bawpCMd/TseVUxZvL0wLbjpDszjGcIIcYovOuYlK9L/ZARIhY2HcIpu+ZBDDVofwMUpCzazq0MEt/dVXnb3JLzu7Jj6OWyYpqhOGOTIDvEojkc4cZxIrhzSytIXqc7mjIG5pxoUYqUjOZLNY/HbO6ebsfkboFQRcHYCI1SOzwRqa+UNd+Wco3F1V6Pi5pIlRzDkmRBd2xGjOllpncCa/+rWQFGxWXQmu46QUvGk/jSfbv/hZX30MZSQKcCf7Zhs6r8HS8zredeMqX3ZamPqCPyIbiHYAw2A4OEQmrQlrs17pLuCsf8beFojh9JQ/ij1zSNBIjC2UbZjElrK4ZP5MjnfBgpnn3Lpy83h5o1s7KQlQg77A9BU2CVHttRZVKDKn7z7gpffFMtfyOEXeQ1Lj/VzJCln3c4Sb/6E+ppnHfLT0+xION7FyG3cgrYevikZ/PBfc50I6hbGSD7qcLpkIVavHvgFSN6rwGAgNDOEjOCXiXFdLE3b/MBLPLZuRkdWcPe
   template:
     metadata:
-      name: freshrss-oidc-secret
-      namespace: freshrss
       annotations:
         # The Secret this replaces was created by the Zitadel bootstrap Terraform
         # as a plain Secret, and `removed { destroy = false }` leaves it in place.
@@ -19,4 +18,6 @@ spec:
         # own unless it carries this annotation, so without it the app would keep
         # its old Zitadel credentials while pointed at the Keycloak issuer.
         sealedsecrets.bitnami.com/managed: "true"
+      name: freshrss-oidc-secret
+      namespace: freshrss
     type: Opaque
