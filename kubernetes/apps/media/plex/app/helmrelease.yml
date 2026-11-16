@@ -35,7 +35,7 @@ spec:
               PUID: "2202"
               PGID: "2200"
               VERSION: docker
-              ADVERTISE_IP: "https://plex.example.com:443,http://172.16.20.51:32400"
+              ADVERTISE_IP: "https://plex.${CLUSTER_DOMAIN}:443,http://172.16.20.51:32400"
               # PLEX_CLAIM: ""  # set once on first deploy if claiming a new server
             probes:
               liveness: &probes

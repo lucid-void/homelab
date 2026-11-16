@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - obsidian.example.com
+    - obsidian.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: couchdb

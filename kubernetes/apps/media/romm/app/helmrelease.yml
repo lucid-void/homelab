@@ -80,7 +80,7 @@ spec:
               # endpoints (endpoints/feeds.py, roms/__init__.py, roms/files.py,
               # firmware.py) — anyone who can reach the Gateway can enumerate and
               # download the library without logging in. Acceptable here because
-              # romm.example.com resolves to an internal IP with no port forward
+              # romm.${CLUSTER_DOMAIN} resolves to an internal IP with no port forward
               # and is reachable only from the LAN or over Netbird; it would not
               # be if RomM were ever published.
               DISABLE_DOWNLOAD_ENDPOINT_AUTH: "true"

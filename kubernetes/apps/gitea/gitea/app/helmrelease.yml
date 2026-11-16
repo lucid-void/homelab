@@ -104,7 +104,7 @@ spec:
     # the OOM, so it always trails reality: 512Mi limit -> OOMKilled -> VPA said
     # 422Mi -> set 1Gi -> OOMKilled again 2026-08-28 18:51 -> VPA now says
     # ~729Mi. Each kill just re-anchors the "recommendation" below the limit
-    # that caused it. Do not re-size this from goldilocks.example.com.
+    # that caused it. Do not re-size this from goldilocks.${CLUSTER_DOMAIN}.
     #
     # Real usage, 30d over 45 pod instances (metrics_path pinned to
     # /metrics/cadvisor — the kubelet exports container_* twice and an
@@ -140,9 +140,9 @@ spec:
           USER: gitea
 
         server:
-          DOMAIN: gitea.example.com
-          ROOT_URL: https://gitea.example.com/
-          SSH_DOMAIN: gitea.example.com
+          DOMAIN: gitea.${CLUSTER_DOMAIN}
+          ROOT_URL: https://gitea.${CLUSTER_DOMAIN}/
+          SSH_DOMAIN: gitea.${CLUSTER_DOMAIN}
           LFS_START_SERVER: true
 
         # NOTE: do not set cache / session / queue here. While valkey-cluster is

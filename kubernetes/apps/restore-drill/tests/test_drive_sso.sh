@@ -4,9 +4,9 @@
 set -uo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-SCRIPT="$HERE/../app/scripts/drive-sso.sh"
 # shellcheck source=harness.sh
 source "$HERE/harness.sh"
+SCRIPT="$SCRIPTS/drive-sso.sh"
 
 setup() {
   mkdir -p "$T/bin" "$T/scratch" "$T/run" "$T/tls" "$T/user" "$T/tmp"

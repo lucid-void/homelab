@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - radarr.example.com
+    - radarr.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: radarr

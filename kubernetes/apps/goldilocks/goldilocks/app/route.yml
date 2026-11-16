@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - goldilocks.example.com
+    - goldilocks.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: goldilocks-dashboard

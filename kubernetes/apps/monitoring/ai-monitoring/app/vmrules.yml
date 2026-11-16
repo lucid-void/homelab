@@ -67,7 +67,7 @@ spec:
             summary: LiteLLM router has no available replica
             description: >
               Deployment litellm in namespace ai has been at 0 available replicas
-              for 15m. llm.example.com is down and every client — Open WebUI,
+              for 15m. llm.${CLUSTER_DOMAIN} is down and every client — Open WebUI,
               opencode, DeepSeek Harness — has lost its endpoint, including the
               cloud fallback.
 
@@ -79,7 +79,7 @@ spec:
           annotations:
             summary: Open WebUI has no available replica
             description: >
-              chat.example.com is down. If this began right after a fresh
+              chat.${CLUSTER_DOMAIN} is down. If this began right after a fresh
               install, check for CreateContainerConfigError — the pod requires
               openwebui-oidc-secret, which the SealedSecrets controller unseals,
               and it cannot start before that Secret exists.

@@ -42,7 +42,7 @@ spec:
               PORT: "5000"
               # Prefixes links in notification bodies. Without it, alerts arrive
               # with unclickable relative paths.
-              BASE_URL: https://changedetection.example.com
+              BASE_URL: https://changedetection.${CLUSTER_DOMAIN}
               # Chrome lives in the `browser` container of THIS pod, so it is
               # reachable on localhost and needs no Service.
               PLAYWRIGHT_DRIVER_URL: ws://localhost:3000

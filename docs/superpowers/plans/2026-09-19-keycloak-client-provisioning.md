@@ -17,7 +17,7 @@
 - **Never `kubectl apply` a config change.** Config goes through git and Flux. `kubectl` is for diagnostics and for the two explicitly-marked destructive admin-API steps in Task 4.
 - **All k8s tooling is behind mise:** `mise exec -- kubectl|flux|kubeseal|talosctl|helm|kubeconform`.
 - **After editing any manifest, run** `.agents/scripts/validate-manifests.sh <path>`. A schema violation that reaches `main` wedges the whole Flux Kustomization.
-- **Realm name:** `homelab`. **Issuer:** `https://sso.example.com/realms/homelab`. **Discovery:** `https://sso.example.com/realms/homelab/.well-known/openid-configuration`. Endpoints are `<issuer>/protocol/openid-connect/{auth,token,userinfo}`.
+- **Realm name:** `homelab`. **Issuer:** `https://sso.<domain>/realms/homelab`. **Discovery:** `https://sso.<domain>/realms/homelab/.well-known/openid-configuration`. Endpoints are `<issuer>/protocol/openid-connect/{auth,token,userinfo}`.
 - **`KeycloakOIDCClient` requires the server feature `client-admin-api:v2`**, enabled via `Keycloak.spec.features.enabled`. Keycloak classifies `CLIENT_ADMIN_API_V2` as **EXPERIMENTAL** — its lowest tier, below `PREVIEW`. Without it the operator refuses every client CR with *"Cannot create/update because the server does not have client-admin-api:v2 enabled"*. Accepted knowingly: clients already written are ordinary realm rows, so losing the feature degrades reconciliation, not logins.
 - **`KeycloakOIDCClient` is `v2alpha1`** and exposes only `appUrl`, `auth`, `description`, `displayName`, `enabled`, `loginFlows`, `redirectUris`, `roles`, `serviceAccountRoles`, `webOrigins`. No protocol mappers, no client attributes. Anything outside that list is a console click.
 - **`client.roles` is a list of bare strings.** Declare only roles the application actually reads.
@@ -334,7 +334,7 @@ Replace the `smtpServer` block in `kubernetes/apps/keycloak/realm/app/realmimpor
     smtpServer:
       host: 127.0.0.1
       port: "1025"
-      from: keycloak@example.com
+      from: keycloak@<domain>
       fromDisplayName: Keycloak
       ssl: "false"
       starttls: "true"
@@ -479,9 +479,9 @@ spec:
     # at cutover, which changes the callback path. It must match the
     # oauth[].name that Task 7 writes into gitea-oidc-secret exactly.
     redirectUris:
-      - https://gitea.example.com/user/oauth2/Keycloak/callback
+      - https://gitea.<domain>/user/oauth2/Keycloak/callback
     webOrigins:
-      - https://gitea.example.com
+      - https://gitea.<domain>
     roles:
       - admin
       - user
@@ -632,14 +632,14 @@ A complete example follows the table. Every field that varies between the eight 
 
 | File | `metadata.name` (becomes the client id) | `displayName` | `redirectUris` | `webOrigins` | `roles` |
 |---|---|---|---|---|---|
-| `immich.yml` | `immich` | Immich | `https://immich.example.com/auth/login`, `https://immich.example.com/user-settings`, `https://immich.example.com/api/oauth/mobile-redirect` | `https://immich.example.com` | `[]` |
-| `paperless.yml` | `paperless` | Paperless-ngx | `https://paperless.example.com/accounts/oidc/keycloak/login/callback/` | `https://paperless.example.com` | `[]` |
-| `freshrss.yml` | `freshrss` | FreshRSS | `https://rss.example.com/i/oidc/` | `https://rss.example.com` | `[]` |
-| `kavita.yml` | `kavita` | Kavita | `https://kavita.example.com/signin-oidc` | `https://kavita.example.com` | `[]` |
-| `romm.yml` | `romm` | RomM | `https://romm.example.com/api/oauth/openid` | `https://romm.example.com` | `[]` |
-| `grafana.yml` | `grafana` | Grafana | `https://grafana.example.com/login/generic_oauth` | `https://grafana.example.com` | `admin`, `editor`, `viewer` |
-| `openwebui.yml` | `openwebui` | Open WebUI | `https://chat.example.com/oauth/oidc/callback` | `https://chat.example.com` | `[]` |
-| `proxmox.yml` | `proxmox` | Proxmox VE | `https://pve.example.com:8006`, `https://pve.example.com` | `https://pve.example.com:8006` | `[]` |
+| `immich.yml` | `immich` | Immich | `https://immich.<domain>/auth/login`, `https://immich.<domain>/user-settings`, `https://immich.<domain>/api/oauth/mobile-redirect` | `https://immich.<domain>` | `[]` |
+| `paperless.yml` | `paperless` | Paperless-ngx | `https://paperless.<domain>/accounts/oidc/keycloak/login/callback/` | `https://paperless.<domain>` | `[]` |
+| `freshrss.yml` | `freshrss` | FreshRSS | `https://rss.<domain>/i/oidc/` | `https://rss.<domain>` | `[]` |
+| `kavita.yml` | `kavita` | Kavita | `https://kavita.<domain>/signin-oidc` | `https://kavita.<domain>` | `[]` |
+| `romm.yml` | `romm` | RomM | `https://romm.<domain>/api/oauth/openid` | `https://romm.<domain>` | `[]` |
+| `grafana.yml` | `grafana` | Grafana | `https://grafana.<domain>/login/generic_oauth` | `https://grafana.<domain>` | `admin`, `editor`, `viewer` |
+| `openwebui.yml` | `openwebui` | Open WebUI | `https://chat.<domain>/oauth/oidc/callback` | `https://chat.<domain>` | `[]` |
+| `proxmox.yml` | `proxmox` | Proxmox VE | `https://pve.<domain>:8006`, `https://pve.<domain>` | `https://pve.<domain>:8006` | `[]` |
 
 Grafana is the only one with roles, because it is the only one of the nine that maps an OIDC claim onto its own permission model via `role_attribute_path`. The rest get `roles: []` — declaring an `admin` role no application reads creates a permission nobody has and a claim nobody checks. Add roles later, per application, when something consumes them.
 
@@ -663,11 +663,11 @@ spec:
     enabled: true
     loginFlows: [STANDARD]
     redirectUris:
-      - https://immich.example.com/auth/login
-      - https://immich.example.com/user-settings
-      - https://immich.example.com/api/oauth/mobile-redirect
+      - https://immich.<domain>/auth/login
+      - https://immich.<domain>/user-settings
+      - https://immich.<domain>/api/oauth/mobile-redirect
     webOrigins:
-      - https://immich.example.com
+      - https://immich.<domain>
     roles: []
     auth:
       method: client-secret
@@ -773,7 +773,7 @@ These files are written and sealed but **deliberately not added to any `kustomiz
 
 - [ ] **Step 1: Record the shapes being replaced**
 
-Each plaintext template below reproduces the current Secret's keys exactly, with `zitadel.example.com` swapped for the Keycloak issuer and the opaque numeric client IDs swapped for our chosen ones. Write each as `<dir>/oidc-secret.yml` (gitignored), substituting the `<app CS>` placeholder with that app's value read from its Task 5/6 plaintext file:
+Each plaintext template below reproduces the current Secret's keys exactly, with `zitadel.<domain>` swapped for the Keycloak issuer and the opaque numeric client IDs swapped for our chosen ones. Write each as `<dir>/oidc-secret.yml` (gitignored), substituting the `<app CS>` placeholder with that app's value read from its Task 5/6 plaintext file:
 
 ```bash
 yq -r '.stringData.secret' kubernetes/apps/keycloak/clients/app/<app>-client-secret.yml
@@ -793,7 +793,7 @@ stringData:
   values.yaml: |
     "gitea":
       "oauth":
-      - "autoDiscoverUrl": "https://sso.example.com/realms/homelab/.well-known/openid-configuration"
+      - "autoDiscoverUrl": "https://sso.<domain>/realms/homelab/.well-known/openid-configuration"
         "key": "gitea"
         "name": "Keycloak"
         "provider": "openidConnect"
@@ -820,9 +820,9 @@ stringData:
         "clientId": "immich",
         "clientSecret": "<immich CS>",
         "enabled": true,
-        "issuerUrl": "https://sso.example.com/realms/homelab",
+        "issuerUrl": "https://sso.<domain>/realms/homelab",
         "mobileOverrideEnabled": true,
-        "mobileRedirectUri": "https://immich.example.com/api/oauth/mobile-redirect",
+        "mobileRedirectUri": "https://immich.<domain>/api/oauth/mobile-redirect",
         "scope": "openid email profile",
         "signingAlgorithm": "RS256"
       },
@@ -844,7 +844,7 @@ metadata:
 type: Opaque
 stringData:
   PAPERLESS_SOCIALACCOUNT_PROVIDERS: |
-    {"openid_connect":{"APPS":[{"client_id":"paperless","name":"Keycloak","provider_id":"keycloak","secret":"<paperless CS>","settings":{"server_url":"https://sso.example.com/realms/homelab","token_auth_method":"client_secret_post"}}]}}
+    {"openid_connect":{"APPS":[{"client_id":"paperless","name":"Keycloak","provider_id":"keycloak","secret":"<paperless CS>","settings":{"server_url":"https://sso.<domain>/realms/homelab","token_auth_method":"client_secret_post"}}]}}
 ```
 
 **FreshRSS** — `kubernetes/apps/freshrss/freshrss/app/oidc-secret.yml`:
@@ -892,8 +892,8 @@ stringData:
   OIDC_CLIENT_SECRET: "<romm CS>"
   OIDC_ENABLED: "true"
   OIDC_PROVIDER: Keycloak
-  OIDC_REDIRECT_URI: https://romm.example.com/api/oauth/openid
-  OIDC_SERVER_APPLICATION_URL: https://sso.example.com/realms/homelab
+  OIDC_REDIRECT_URI: https://romm.<domain>/api/oauth/openid
+  OIDC_SERVER_APPLICATION_URL: https://sso.<domain>/realms/homelab
 ```
 
 **Grafana** — `kubernetes/apps/monitoring/vm-stack/app/oidc-secret.yml`:
@@ -937,7 +937,7 @@ metadata:
   namespace: auth
 type: Opaque
 stringData:
-  ISSUER_URL: https://sso.example.com/realms/homelab
+  ISSUER_URL: https://sso.<domain>/realms/homelab
   OIDC_CLIENT_ID: proxmox
   OIDC_CLIENT_SECRET: "<proxmox CS>"
 ```
@@ -1047,13 +1047,13 @@ And `- ./proxmox-oidc-sealed.yml` to `kubernetes/apps/auth/bootstrap/app/kustomi
 `kubernetes/apps/freshrss/freshrss/app/helmrelease.yml:84`:
 
 ```yaml
-              OIDC_PROVIDER_METADATA_URL: "https://sso.example.com/realms/homelab/.well-known/openid-configuration"
+              OIDC_PROVIDER_METADATA_URL: "https://sso.<domain>/realms/homelab/.well-known/openid-configuration"
 ```
 
 `kubernetes/apps/media/kavita/app/helmrelease.yml:65`:
 
 ```yaml
-              OIDC_AUTHORITY: https://sso.example.com/realms/homelab
+              OIDC_AUTHORITY: https://sso.<domain>/realms/homelab
 ```
 
 `kubernetes/apps/monitoring/vm-stack/app/helmrelease.yml`, replacing lines 173 and 178-180:
@@ -1063,9 +1063,9 @@ And `- ./proxmox-oidc-sealed.yml` to `kubernetes/apps/auth/bootstrap/app/kustomi
 ```
 
 ```yaml
-          auth_url: https://sso.example.com/realms/homelab/protocol/openid-connect/auth
-          token_url: https://sso.example.com/realms/homelab/protocol/openid-connect/token
-          api_url: https://sso.example.com/realms/homelab/protocol/openid-connect/userinfo
+          auth_url: https://sso.<domain>/realms/homelab/protocol/openid-connect/auth
+          token_url: https://sso.<domain>/realms/homelab/protocol/openid-connect/token
+          api_url: https://sso.<domain>/realms/homelab/protocol/openid-connect/userinfo
           # Keycloak puts client roles at resource_access.<clientId>.roles.
           # Without this every SSO user lands on auto_assign_org_role (Admin).
           role_attribute_path: "contains(resource_access.grafana.roles[*], 'admin') && 'Admin' || contains(resource_access.grafana.roles[*], 'editor') && 'Editor' || 'Viewer'"
@@ -1075,7 +1075,7 @@ And `- ./proxmox-oidc-sealed.yml` to `kubernetes/apps/auth/bootstrap/app/kustomi
 `kubernetes/apps/ai/open-webui/app/helmrelease.yml:103` and `:105`:
 
 ```yaml
-              OPENID_PROVIDER_URL: https://sso.example.com/realms/homelab/.well-known/openid-configuration
+              OPENID_PROVIDER_URL: https://sso.<domain>/realms/homelab/.well-known/openid-configuration
 ```
 
 ```yaml
@@ -1196,11 +1196,11 @@ for s in gitea/gitea-oidc-secret immich/immich-oidc-config paperless/paperless-o
          freshrss/freshrss-oidc-secret media/kavita-oidc-secret media/romm-oidc-secret \
          monitoring/grafana-oidc-secret ai/openwebui-oidc-secret auth/proxmox-oidc-secret; do
   ns=${s%%/*}; n=${s##*/}
-  printf '%-32s %s\n' "$n" "$(mise exec -- kubectl get secret -n $ns $n -o json | jq -r '.data|to_entries|map(.value|@base64d)|join(" ")' | grep -oE 'zitadel|sso\.example\.com' | sort -u | tr '\n' ' ')"
+  printf '%-32s %s\n' "$n" "$(mise exec -- kubectl get secret -n $ns $n -o json | jq -r '.data|to_entries|map(.value|@base64d)|join(" ")' | grep -oE 'zitadel|sso\.<domain>' | sort -u | tr '\n' ' ')"
 done
 ```
 
-Expected: every row shows `sso.example.com` and none shows `zitadel`. FreshRSS, Kavita, Grafana and Open WebUI hold only IDs and secrets, so they will show neither — check those four by confirming their client ID is now the plain app name.
+Expected: every row shows `sso.<domain>` and none shows `zitadel`. FreshRSS, Kavita, Grafana and Open WebUI hold only IDs and secrets, so they will show neither — check those four by confirming their client ID is now the plain app name.
 
 - [ ] **Step 10: Restart the applications that do not auto-reload**
 
@@ -1330,7 +1330,7 @@ Fold in the gotcha list from `docs/superpowers/specs/2026-09-18-keycloak-deploym
 
 - [ ] **Step 2: Fix `design/docs/services.md`**
 
-- Add a Keycloak row (`keycloak` namespace, `sso.example.com`, operator-managed).
+- Add a Keycloak row (`keycloak` namespace, `sso.<domain>`, operator-managed).
 - Change the auth column for the nine migrated applications from Zitadel to Keycloak.
 - Rewrite the "OIDC Callback URIs (non-obvious)" table: Gitea's segment is now `Keycloak`, Paperless's `provider_id` is now `keycloak`.
 - **Correct the Gatus and Goldilocks rows.** Both are listed as "Zitadel OIDC" and neither has ever had a client or a secret. They are not on SSO.

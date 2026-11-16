@@ -20,7 +20,7 @@ data:
     alerting:
       gotify:
         server-url: http://gotify.monitoring.svc.cluster.local
-        token: "${GOTIFY_TOKEN}"
+        token: "$${GOTIFY_TOKEN}"
         default-alert:
           enabled: true
           failure-threshold: 2
@@ -35,7 +35,7 @@ data:
     endpoints:
       - name: Homepage
         group: infrastructure
-        url: https://home.example.com
+        url: https://home.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -45,7 +45,7 @@ data:
 
       - name: Gotify
         group: infrastructure
-        url: https://gotify.example.com/health
+        url: https://gotify.${CLUSTER_DOMAIN}/health
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -59,7 +59,7 @@ data:
       # actually works, not merely that the pod answers.
       - name: Keycloak
         group: infrastructure
-        url: https://sso.example.com/realms/homelab/.well-known/openid-configuration
+        url: https://sso.${CLUSTER_DOMAIN}/realms/homelab/.well-known/openid-configuration
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -69,7 +69,7 @@ data:
 
       - name: Gitea
         group: infrastructure
-        url: https://gitea.example.com
+        url: https://gitea.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -79,10 +79,10 @@ data:
 
       # git-over-SSH rides a separate Gateway listener (TCP:22 -> TCPRoute) from
       # the HTTPS check above, so a healthy web UI says nothing about whether
-      # `git clone git@gitea.example.com:...` works. Probe the public path.
+      # `git clone git@gitea.${CLUSTER_DOMAIN}:...` works. Probe the public path.
       - name: Gitea SSH
         group: infrastructure
-        url: "tcp://gitea.example.com:22"
+        url: "tcp://gitea.${CLUSTER_DOMAIN}:22"
         interval: 1m
         conditions:
           - "[CONNECTED] == true"
@@ -94,7 +94,7 @@ data:
         url: "172.16.20.7"
         interval: 1m
         dns:
-          query-name: jellyfin.example.com
+          query-name: jellyfin.${CLUSTER_DOMAIN}
           query-type: A
         conditions:
           - "[DNS_RCODE] == NOERROR"
@@ -107,7 +107,7 @@ data:
         url: "172.16.20.53"
         interval: 1m
         dns:
-          query-name: jellyfin.example.com
+          query-name: jellyfin.${CLUSTER_DOMAIN}
           query-type: A
         conditions:
           - "[DNS_RCODE] == NOERROR"
@@ -117,7 +117,7 @@ data:
 
       - name: Goldilocks
         group: infrastructure
-        url: https://goldilocks.example.com
+        url: https://goldilocks.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -130,7 +130,7 @@ data:
       # cosmetic, not load-bearing.
       - name: Kromgo
         group: infrastructure
-        url: https://kromgo.example.com
+        url: https://kromgo.${CLUSTER_DOMAIN}
         interval: 5m
         conditions:
           - "[STATUS] == 200"
@@ -141,7 +141,7 @@ data:
       # /api/health answers without a login and reports Grafana's own database state.
       - name: Grafana
         group: infrastructure
-        url: https://grafana.example.com/api/health
+        url: https://grafana.${CLUSTER_DOMAIN}/api/health
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -157,7 +157,7 @@ data:
       # endpoint below, so dropping it here loses no coverage.
       - name: Immich
         group: apps
-        url: https://immich.example.com/api/server/ping
+        url: https://immich.${CLUSTER_DOMAIN}/api/server/ping
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -165,7 +165,7 @@ data:
 
       - name: Paperless
         group: apps
-        url: https://paperless.example.com
+        url: https://paperless.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -175,7 +175,7 @@ data:
 
       - name: FreshRSS
         group: apps
-        url: https://rss.example.com
+        url: https://rss.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] == 401"
@@ -185,7 +185,7 @@ data:
 
       - name: Homebox
         group: apps
-        url: https://homebox.example.com
+        url: https://homebox.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -195,7 +195,7 @@ data:
 
       - name: Degoog
         group: apps
-        url: https://degoog.example.com
+        url: https://degoog.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -208,7 +208,7 @@ data:
       # password would silently turn this check red.
       - name: Changedetection
         group: apps
-        url: https://changedetection.example.com
+        url: https://changedetection.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] < 400"
@@ -223,7 +223,7 @@ data:
       # database had been thrown open.
       - name: Obsidian LiveSync
         group: apps
-        url: https://obsidian.example.com
+        url: https://obsidian.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] == 401"
@@ -233,7 +233,7 @@ data:
 
       - name: Open WebUI
         group: apps
-        url: https://chat.example.com/health
+        url: https://chat.${CLUSTER_DOMAIN}/health
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -247,7 +247,7 @@ data:
       # ai-monitoring VMRules cover that side.
       - name: LiteLLM
         group: apps
-        url: https://llm.example.com/health/liveliness
+        url: https://llm.${CLUSTER_DOMAIN}/health/liveliness
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -257,7 +257,7 @@ data:
 
       - name: Plex
         group: media
-        url: https://plex.example.com/identity
+        url: https://plex.${CLUSTER_DOMAIN}/identity
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -271,7 +271,7 @@ data:
       # that is intentional: a 12.x library conversion is worth knowing about.
       - name: Jellyfin
         group: media
-        url: https://jellyfin.example.com/health
+        url: https://jellyfin.${CLUSTER_DOMAIN}/health
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -302,7 +302,7 @@ data:
       # every minute, so asserting it again would alert twice for one condition.
       - name: Jellyfin SSO
         group: media
-        url: https://jellyfin.example.com/sso/OID/start/keycloak
+        url: https://jellyfin.${CLUSTER_DOMAIN}/sso/OID/start/keycloak
         interval: 5m
         client:
           ignore-redirect: true
@@ -311,7 +311,7 @@ data:
 
       - name: Sonarr
         group: media
-        url: https://sonarr.example.com/ping
+        url: https://sonarr.${CLUSTER_DOMAIN}/ping
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -321,7 +321,7 @@ data:
 
       - name: Radarr
         group: media
-        url: https://radarr.example.com/ping
+        url: https://radarr.${CLUSTER_DOMAIN}/ping
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -331,7 +331,7 @@ data:
 
       - name: Prowlarr
         group: media
-        url: https://prowlarr.example.com/ping
+        url: https://prowlarr.${CLUSTER_DOMAIN}/ping
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -341,7 +341,7 @@ data:
 
       - name: SABnzbd
         group: media
-        url: https://nzb.example.com
+        url: https://nzb.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] < 400"
@@ -351,7 +351,7 @@ data:
 
       - name: Seerr
         group: media
-        url: https://seerr.example.com/api/v1/status
+        url: https://seerr.${CLUSTER_DOMAIN}/api/v1/status
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -361,7 +361,7 @@ data:
 
       - name: Suwayomi
         group: media
-        url: https://suwayomi.example.com
+        url: https://suwayomi.${CLUSTER_DOMAIN}
         interval: 1m
         conditions:
           - "[STATUS] < 400"
@@ -371,7 +371,7 @@ data:
 
       - name: Kavita
         group: media
-        url: https://kavita.example.com/api/health
+        url: https://kavita.${CLUSTER_DOMAIN}/api/health
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -381,7 +381,7 @@ data:
 
       - name: RomM
         group: media
-        url: https://romm.example.com/api/heartbeat
+        url: https://romm.${CLUSTER_DOMAIN}/api/heartbeat
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -393,7 +393,7 @@ data:
       # backend down.
       - name: Tdarr
         group: media
-        url: https://tdarr.example.com/api/v2/status
+        url: https://tdarr.${CLUSTER_DOMAIN}/api/v2/status
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -404,7 +404,7 @@ data:
       # `/` is a 302 to the SSO login; /api/health is the unauthenticated probe.
       - name: CrossWatch
         group: media
-        url: https://crosswatch.example.com/api/health
+        url: https://crosswatch.${CLUSTER_DOMAIN}/api/health
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -419,14 +419,14 @@ data:
       # in-cluster mc-monitor scrape deliberately bypasses.
       - name: Minecraft (matcha)
         group: media
-        url: "tcp://matcha.example.com:25565"
+        url: "tcp://matcha.${CLUSTER_DOMAIN}:25565"
         interval: 1m
         conditions:
           - "[CONNECTED] == true"
 
       - name: Minecraft (vanilla)
         group: media
-        url: "tcp://vanilla.example.com:25565"
+        url: "tcp://vanilla.${CLUSTER_DOMAIN}:25565"
         interval: 1m
         conditions:
           - "[CONNECTED] == true"
@@ -439,7 +439,7 @@ data:
       # down. 5m interval — these are conveniences, not the game itself.
       - name: Minecraft map (matcha)
         group: media
-        url: https://matcha-map.example.com
+        url: https://matcha-map.${CLUSTER_DOMAIN}
         interval: 5m
         conditions:
           - "[STATUS] == 200"
@@ -449,7 +449,7 @@ data:
 
       - name: Minecraft map (vanilla)
         group: media
-        url: https://vanilla-map.example.com
+        url: https://vanilla-map.${CLUSTER_DOMAIN}
         interval: 5m
         conditions:
           - "[STATUS] == 200"
@@ -461,7 +461,7 @@ data:
       # credentials are needed to prove it is alive.
       - name: Minecraft files (matcha)
         group: media
-        url: https://matcha-files.example.com
+        url: https://matcha-files.${CLUSTER_DOMAIN}
         interval: 5m
         conditions:
           - "[STATUS] == 200"
@@ -471,7 +471,7 @@ data:
 
       - name: Minecraft files (vanilla)
         group: media
-        url: https://vanilla-files.example.com
+        url: https://vanilla-files.${CLUSTER_DOMAIN}
         interval: 5m
         conditions:
           - "[STATUS] == 200"

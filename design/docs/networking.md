@@ -39,7 +39,7 @@
 
 **Pod CIDR:** `10.244.0.0/16`
 **Service CIDR:** `10.96.0.0/12`
-**Cluster domain:** `example.com`
+**Cluster domain:** `<domain>`
 
 The k8s control planes (`.11`–`.13`), the `llm-1` worker (`.14`) and the API VIP (`.10`) are in the same `/24` as the rest of the homelab — no separate VLAN. (Swarm is retired; the cluster is the primary platform.)
 
@@ -183,8 +183,8 @@ Two mechanical notes for the next bump:
 ```
 GatewayClass: cilium  (kube-system, controller: io.cilium/gateway-controller)
   └── Gateway: shared  (namespace: gateway, IP: 172.16.20.50)
-        ├── Listener: http   port 80   *.example.com   → HTTPRoute (redirect to https)
-        ├── Listener: https  port 443  *.example.com   → TLS terminated by cert shared-tls
+        ├── Listener: http   port 80   *.<domain>   → HTTPRoute (redirect to https)
+        ├── Listener: https  port 443  *.<domain>   → TLS terminated by cert shared-tls
         │     ├── HTTPRoute: <app>  (per-app namespace)
         │     └── GRPCRoute: <app>  (per-app namespace; none in use today)
         └── Listener: ssh    port 22   (no hostname)    → TCPRoute
@@ -194,7 +194,7 @@ GatewayClass: cilium  (kube-system, controller: io.cilium/gateway-controller)
 The Gateway accepts routes from all namespaces (`allowedRoutes.namespaces.from: All`).
 
 **Why SSH is on the Gateway and not a pool-b LoadBalancer.** Gitea advertises its clone
-URL as `git@gitea.example.com:...`, and that hostname is an A record for the Gateway VIP,
+URL as `git@gitea.<domain>:...`, and that hostname is an A record for the Gateway VIP,
 so port 22 must answer on `172.16.20.50`. A hostname resolves to one address, so it cannot
 send HTTPS to `.50` and SSH to a pool-b IP; and putting a second `LoadBalancer` Service on
 `.50` via `lbipam.cilium.io/sharing-key` is the dual-announcement/RST failure described in
@@ -232,7 +232,7 @@ Notes on the TCP listener:
   is no generated LoadBalancer Service for the EndpointSlice to attach to, so
   `TCPRoute`/`UDPRoute` fall back to a random node port instead of the configured listener
   port.
-- Gatus probes `tcp://gitea.example.com:22` separately from the HTTPS check — the two ride
+- Gatus probes `tcp://gitea.<domain>:22` separately from the HTTPS check — the two ride
   different listeners, so a healthy web UI proves nothing about clone-over-SSH.
 
 #### Gotcha: adding a Gateway API CRD version requires restarting cilium-operator
@@ -267,14 +267,14 @@ cert-manager issues a wildcard certificate for the Gateway's HTTPS listener:
 
 - **ClusterIssuer:** `letsencrypt-production` (ACME DNS-01, Cloudflare)
 - **Certificate:** `shared-tls` in namespace `gateway`
-  - `dnsNames: ["*.example.com", "example.com"]`
+  - `dnsNames: ["*.<domain>", "<domain>"]`
   - Referenced by the Gateway's `tls.certificateRefs`
 
 Manifests: `kubernetes/apps/cert-manager/`, `kubernetes/apps/gateway/shared-gateway/config/certificate.yml`
 
 The Cloudflare API token is stored as `cloudflare-api-token` Secret in `cert-manager` namespace (SealedSecret).
 
-cert-manager checks DNS-01 propagation directly against `1.1.1.1` and `9.9.9.9` (`--dns01-recursive-nameservers-only`), because the LAN resolvers return nothing for TXT under `example.com`.
+cert-manager checks DNS-01 propagation directly against `1.1.1.1` and `9.9.9.9` (`--dns01-recursive-nameservers-only`), because the LAN resolvers return nothing for TXT under `<domain>`.
 
 ### DNS (external-dns)
 
@@ -285,16 +285,16 @@ annotations:
   external-dns.alpha.kubernetes.io/enabled: "true"
 ```
 
-Without this annotation, no DNS record is created. The Gateway's own wildcard hostname is intentionally not annotated — it would create a `*.example.com` wildcard A record.
+Without this annotation, no DNS record is created. The Gateway's own wildcard hostname is intentionally not annotated — it would create a `*.<domain>` wildcard A record.
 
 `txtOwnerId: homelab-k8s` — external-dns uses TXT records to track ownership. Records not present in git will be deleted (`policy: sync`).
 
-Almost all A records resolve to `172.16.20.50` (gateway VIP). The `service` source exists for the one case that can't route through the Gateway — Minecraft is raw TCP, so the Velocity proxy's LoadBalancer publishes `matcha.example.com` and `vanilla.example.com` at `172.16.20.52` via:
+Almost all A records resolve to `172.16.20.50` (gateway VIP). The `service` source exists for the one case that can't route through the Gateway — Minecraft is raw TCP, so the Velocity proxy's LoadBalancer publishes `matcha.<domain>` and `vanilla.<domain>` at `172.16.20.52` via:
 
 ```yaml
 annotations:
   external-dns.alpha.kubernetes.io/enabled: "true"
-  external-dns.alpha.kubernetes.io/hostname: matcha.example.com,vanilla.example.com
+  external-dns.alpha.kubernetes.io/hostname: matcha.${CLUSTER_DOMAIN},vanilla.${CLUSTER_DOMAIN}
 ```
 
 Because the annotation-filter applies to every source, adding `service` did not change any existing LoadBalancer — `plex-direct` is unannotated and stays unpublished.
@@ -305,7 +305,7 @@ Manifests: `kubernetes/apps/network/external-dns/`
 
 ### LAN resolution (Blocky)
 
-Cloudflare is the public copy of these records. On the LAN, clients ask two Blocky resolvers, `172.16.20.7` (NUT Pi) and `172.16.20.53` (cluster), which answer `*.example.com` themselves, so local names keep working with no internet and the Pi keeps working with no cluster. Talos nodes use the Pi, then the UDM.
+Cloudflare is the public copy of these records. On the LAN, clients ask two Blocky resolvers, `172.16.20.7` (NUT Pi) and `172.16.20.53` (cluster), which answer `*.<domain>` themselves, so local names keep working with no internet and the Pi keeps working with no cluster. Talos nodes use the Pi, then the UDM.
 
 The Blocky config holds a static wildcard to the Gateway plus the names not behind it, so adding an HTTPRoute needs no LAN DNS change. A new name that is **not** behind the Gateway needs a mapping in `blocky.conf`. Rules and limits: `design/decisions/dns.md`.
 
@@ -326,7 +326,7 @@ spec:
     - name: shared
       namespace: gateway
   hostnames:
-    - myapp.example.com
+    - myapp.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: myapp          # follows app-template naming — see gitops.md

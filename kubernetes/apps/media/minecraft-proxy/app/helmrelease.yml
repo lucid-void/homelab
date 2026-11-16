@@ -95,7 +95,7 @@ spec:
           # kube-system/cilium/config/cilium-l2.yml.
           lbipam.cilium.io/ips: "172.16.20.52"
           external-dns.alpha.kubernetes.io/enabled: "true"
-          external-dns.alpha.kubernetes.io/hostname: matcha.example.com,vanilla.example.com
+          external-dns.alpha.kubernetes.io/hostname: matcha.${CLUSTER_DOMAIN},vanilla.${CLUSTER_DOMAIN}
         ports:
           minecraft:
             port: 25565

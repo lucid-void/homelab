@@ -4,9 +4,9 @@
 set -uo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-SCRIPT="$HERE/../app/scripts/load-sso.sh"
 # shellcheck source=harness.sh
 source "$HERE/harness.sh"
+SCRIPT="$SCRIPTS/load-sso.sh"
 
 setup() {
   mkdir -p "$T/bin" "$T/scratch/keycloak/db" "$T/scratch/gitea/db" "$T/run"

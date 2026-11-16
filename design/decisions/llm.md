@@ -7,7 +7,7 @@
 `Qwen3.6-35B-A3B` Q8_0 (**34.4 GiB**, effectively lossless) served by `llama.cpp` behind
 `llama-swap`, on the dedicated worker `llm-1`, tainted `workload=llm:NoSchedule`. Runs
 with `--threads 6`, matching the host's 6 P-cores. `LiteLLM` routes requests at
-`llm.example.com`; `Open WebUI` is the chat UI at `chat.example.com`. Namespace `ai`,
+`llm.<domain>`; `Open WebUI` is the chat UI at `chat.<domain>`. Namespace `ai`,
 no PSA label (cluster-default `baseline`).
 
 Served as two LiteLLM model names on one process, one copy of the resident weights:
@@ -148,7 +148,7 @@ mise exec -- kubectl -n ai logs deploy/llama-swap | grep -i 'KV self size'
 mise exec -- kubectl -n ai exec deploy/llama-swap -- curl -s localhost:8080/v1/models
 
 # end to end through the router
-curl -s https://llm.example.com/v1/chat/completions \
+curl -s https://llm.<domain>/v1/chat/completions \
   -H "Authorization: Bearer <virtual-key>" \
   -d '{"model":"local-smart","messages":[{"role":"user","content":"hi"}]}'
 ```

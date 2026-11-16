@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - degoog.example.com
+    - degoog.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: degoog

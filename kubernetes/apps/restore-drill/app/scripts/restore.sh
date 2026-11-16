@@ -14,11 +14,11 @@ set -euo pipefail
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
-SCRATCH=${SCRATCH:-/scratch}
-SECRETS=${SECRETS:-/secrets}
-LOG=${LOG:-/tmp/drill-restore.log}
-SAMPLE_COUNT=${SAMPLE_COUNT:-200}
-SAMPLE_MAX_BYTES=${SAMPLE_MAX_BYTES:-5368709120}
+SCRATCH=$${SCRATCH:-/scratch}
+SECRETS=$${SECRETS:-/secrets}
+LOG=$${LOG:-/tmp/drill-restore.log}
+SAMPLE_COUNT=$${SAMPLE_COUNT:-200}
+SAMPLE_MAX_BYTES=$${SAMPLE_MAX_BYTES:-5368709120}
 GOTIFY_HOST=gotify.monitoring.svc.cluster.local
 GOTIFY_IP=""
 
@@ -31,7 +31,7 @@ on_exit() {
     echo "[drill] FAILED with exit $rc"
     if [[ -n "$GOTIFY_IP" ]]; then
       notify_gotify "$GOTIFY_IP" "Restore drill: restore ✗" \
-        "Exit ${rc} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n$(fail_body "$LOG")" 8
+        "Exit $${rc} at $(date -u +%Y-%m-%dT%H:%M:%SZ)\n\n$(fail_body "$LOG")" 8
     fi
   fi
 }
@@ -66,8 +66,8 @@ declare -A SNAP SNAPTIME
 # drill name -> secrets dir (Keycloak's dump lives in the postgres-backup repo)
 declare -A REPO=([keycloak]=postgres [gitea]=gitea [immich]=immich)
 for app in keycloak gitea immich; do
-  read -r id taken < <(latest "${REPO[$app]}")
-  [[ -n "${id:-}" && "$id" != "null" ]] || { echo "[drill] $app: no snapshot found"; exit 1; }
+  read -r id taken < <(latest "$${REPO[$app]}")
+  [[ -n "$${id:-}" && "$id" != "null" ]] || { echo "[drill] $app: no snapshot found"; exit 1; }
   if ! snapshot_fresh "$taken" "$now"; then
     echo "[drill] $app: latest snapshot $id is from $taken, older than 48 hours"
     exit 1
@@ -77,14 +77,14 @@ for app in keycloak gitea immich; do
 done
 
 echo "[drill] Restoring the Keycloak database dump"
-r postgres restore "${SNAP[keycloak]}" --target "$SCRATCH/keycloak" --include /db/keycloak.pgdump
+r postgres restore "$${SNAP[keycloak]}" --target "$SCRATCH/keycloak" --include /db/keycloak.pgdump
 
 echo "[drill] Restoring the Gitea snapshot"
-r gitea restore "${SNAP[gitea]}" --target "$SCRATCH/gitea"
+r gitea restore "$${SNAP[gitea]}" --target "$SCRATCH/gitea"
 
 echo "[drill] Choosing the Immich sample"
 mkdir -p "$SCRATCH/immich"
-r immich ls "${SNAP[immich]}" --json \
+r immich ls "$${SNAP[immich]}" --json \
   | pick_sample "$SAMPLE_COUNT" "$SAMPLE_MAX_BYTES" > "$SCRATCH/immich/sample.txt"
 [[ -s "$SCRATCH/immich/sample.txt" ]] || { echo "[drill] immich: no original files to sample"; exit 1; }
 echo "[drill] immich: sampled $(wc -l < "$SCRATCH/immich/sample.txt") files"
@@ -95,7 +95,7 @@ echo "[drill] immich: sampled $(wc -l < "$SCRATCH/immich/sample.txt") files"
 } > "$SCRATCH/immich/include.txt"
 
 echo "[drill] Restoring the Immich database dump and sample"
-r immich restore "${SNAP[immich]}" --target "$SCRATCH/immich" --include-file "$SCRATCH/immich/include.txt"
+r immich restore "$${SNAP[immich]}" --target "$SCRATCH/immich" --include-file "$SCRATCH/immich/include.txt"
 
 # A rotating slice per week reads each whole repo once a year.
 subset=$(check_subset "$(date +%V)")
@@ -107,12 +107,12 @@ done
 cat > "$SCRATCH/READY.tmp" <<EOF
 DRILL_DATE=$(date -u +%Y-%m-%d)
 GOTIFY_IP=$GOTIFY_IP
-SNAP_KEYCLOAK=${SNAP[keycloak]}
-SNAP_GITEA=${SNAP[gitea]}
-SNAP_IMMICH=${SNAP[immich]}
-SNAPTIME_KEYCLOAK=${SNAPTIME[keycloak]}
-SNAPTIME_GITEA=${SNAPTIME[gitea]}
-SNAPTIME_IMMICH=${SNAPTIME[immich]}
+SNAP_KEYCLOAK=$${SNAP[keycloak]}
+SNAP_GITEA=$${SNAP[gitea]}
+SNAP_IMMICH=$${SNAP[immich]}
+SNAPTIME_KEYCLOAK=$${SNAPTIME[keycloak]}
+SNAPTIME_GITEA=$${SNAPTIME[gitea]}
+SNAPTIME_IMMICH=$${SNAPTIME[immich]}
 EOF
 mv "$SCRATCH/READY.tmp" "$SCRATCH/READY"
 echo "[drill] READY written at $(date -u +%Y-%m-%dT%H:%M:%SZ)"

@@ -7,7 +7,7 @@
 Re-encodes H.264 to HEVC to shrink `/volume2/Media`. Status: manifests built; the libraries,
 the flow, the test encode and the pilot are runtime work still to do (`design/TODO.md`).
 
-- **Server** in `media` (`bjw-s/app-template`): UI on 8265 behind `tdarr.example.com`,
+- **Server** in `media` (`bjw-s/app-template`): UI on 8265 behind `tdarr.<domain>`,
   node port 8266 cluster-internal, config on a `tdarr-config` `nfs-client` PVC. No Keycloak
   gate — Tdarr has no OIDC, so reachability is the Gateway only.
 - **One node** pinned to **llm-1** (tolerates `workload=llm`), CPU x265 only, `startPaused: false`

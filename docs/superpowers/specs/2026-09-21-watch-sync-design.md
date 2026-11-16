@@ -157,7 +157,7 @@ queue job to CrossWatch's internal config format, which is not a stable interfac
 ### HTTPRoute behind Keycloak
 
 CrossWatch has native OIDC (`api/authOidcAPI.py`, issuer configured in Settings), so the
-UI gets an `HTTPRoute` at `crosswatch.example.com` with `parentRefs: [{name: shared,
+UI gets an `HTTPRoute` at `crosswatch.<domain>` with `parentRefs: [{name: shared,
 namespace: gateway}]` and a Keycloak client, matching the rest of the stack. Never an
 `Ingress`.
 

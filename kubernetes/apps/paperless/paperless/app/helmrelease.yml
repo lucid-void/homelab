@@ -53,7 +53,7 @@ spec:
                     name: paperless-role-secret
                     key: password
               PAPERLESS_REDIS: redis://paperless-valkey:6379
-              PAPERLESS_URL: https://paperless.example.com
+              PAPERLESS_URL: https://paperless.${CLUSTER_DOMAIN}
               PAPERLESS_TIME_ZONE: Europe/Brussels
               PAPERLESS_OCR_LANGUAGE: eng+fra+nld
               PAPERLESS_OCR_LANGUAGES: "nld fra"

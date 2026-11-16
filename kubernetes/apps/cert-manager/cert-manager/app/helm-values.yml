@@ -2,7 +2,7 @@
 crds:
   enabled: true
 
-# The cluster's resolvers answer *.example.com locally and return nothing for TXT
+# The cluster's resolvers answer *.${CLUSTER_DOMAIN} locally and return nothing for TXT
 # under it, so the DNS-01 self-check has to ask public DNS directly.
 # See design/decisions/dns.md.
 extraArgs:

@@ -5,7 +5,7 @@
 ## Current state
 
 Central CouchDB server (`couchdb:3.5.2`, `bjw-s/app-template`, single controller `app`
-→ Deployment/Service `couchdb`, port 5984, `obsidian.example.com`) is the sync backend
+→ Deployment/Service `couchdb`, port 5984, `obsidian.<domain>`) is the sync backend
 for the Obsidian LiveSync plugin — chosen over Syncthing P2P because the cluster is
 already up 24/7 with Netbird as transport and a restic pipeline, convergence otherwise
 needs two devices awake at once, there is nothing canonical to back up in a peer mesh,

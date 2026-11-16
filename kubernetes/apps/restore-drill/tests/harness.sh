@@ -11,6 +11,16 @@ lacks() { [[ "$1" != *"$2"* ]] || fail "expected NOT to contain [$2], got [$1]";
 yes() { "$@" >/dev/null 2>&1 || fail "expected success: $*"; }
 no() { if "$@" >/dev/null 2>&1; then fail "expected failure: $*"; fi; }
 
+# The scripts in ../app/scripts are Flux-substituted: every shell `${VAR}` is
+# written `$${VAR}`, and the domain is `${CLUSTER_DOMAIN}`. Render them the way
+# Flux does (domain -> example.com) into $SCRIPTS, and test those copies.
+SCRIPTS=$(mktemp -d)
+trap 'rm -rf "$SCRIPTS"' EXIT
+for _s in "$(dirname "${BASH_SOURCE[0]}")"/../app/scripts/*.sh; do
+  sed -e 's/\${CLUSTER_DOMAIN}/example.com/g' -e 's/\$\${/${/g' "$_s" > "$SCRIPTS/$(basename "$_s")"
+done
+unset _s
+
 run_tests() {
   local failed=0 t
   for t in $(declare -F | awk '{print $3}' | grep '^test_'); do

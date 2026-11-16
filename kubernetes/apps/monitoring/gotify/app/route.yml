@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - gotify.example.com
+    - gotify.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: gotify

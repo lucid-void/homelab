@@ -5,10 +5,10 @@
 set -uo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-LOAD="$HERE/../app/scripts/load-immich.sh"
-DRIVE="$HERE/../app/scripts/drive-immich.sh"
 # shellcheck source=harness.sh
 source "$HERE/harness.sh"
+LOAD="$SCRIPTS/load-immich.sh"
+DRIVE="$SCRIPTS/drive-immich.sh"
 
 # setup <files sampled> <files that have a database row>
 setup() {

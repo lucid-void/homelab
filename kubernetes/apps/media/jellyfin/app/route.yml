@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - jellyfin.example.com
+    - jellyfin.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: jellyfin

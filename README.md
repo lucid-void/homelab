@@ -1,6 +1,6 @@
 # Homelab
 
-[![Nodes](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Flucid-void%2F594c7b29869058bfb7fdb33980b38e15%2Fraw%2Fnodes.json&style=flat-square)](https://kromgo.example.com) [![Pods](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Flucid-void%2F594c7b29869058bfb7fdb33980b38e15%2Fraw%2Fpods.json&style=flat-square)](https://kromgo.example.com) [![Uptime](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Flucid-void%2F594c7b29869058bfb7fdb33980b38e15%2Fraw%2Fuptime.json&style=flat-square)](https://kromgo.example.com)
+[![Nodes](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Flucid-void%2F594c7b29869058bfb7fdb33980b38e15%2Fraw%2Fnodes.json&style=flat-square)](#observability) [![Pods](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Flucid-void%2F594c7b29869058bfb7fdb33980b38e15%2Fraw%2Fpods.json&style=flat-square)](#observability) [![Uptime](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Flucid-void%2F594c7b29869058bfb7fdb33980b38e15%2Fraw%2Fuptime.json&style=flat-square)](#observability)
 
 Personal homelab managed as a single Infrastructure-as-Code repository. Primary compute: Talos Kubernetes cluster managed by FluxCD. All services declarative — VM provisioning, OS configuration, cluster bootstrap, and service deployment driven from git.
 
@@ -22,7 +22,7 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 | Identity | Keycloak — the OIDC provider for every service on SSO |
 | Runtime security | Falco + Trivy Operator + kubent (weekly) |
 | Backups | Per-app CronJobs → restic → rclone → Filen (offsite) |
-| DNS | Two Blocky resolvers — cluster (`172.16.20.53`) and the Raspberry Pi (`172.16.20.7`) — answer `*.example.com` locally and block ads; external-dns publishes to Cloudflare |
+| DNS | Two Blocky resolvers — cluster (`172.16.20.53`) and the Raspberry Pi (`172.16.20.7`) — answer `*.<domain>` locally and block ads; external-dns publishes to Cloudflare |
 | Remote access | Netbird (primary VPN on every node); ZeroTier (gaming, outside cluster) |
 | VM provisioning | Packer (Debian + Talos templates) + OpenTofu |
 | CI / CD | GitHub Actions (image builds → GHCR, manifest + security scans) + Renovate |
@@ -34,46 +34,46 @@ Personal homelab managed as a single Infrastructure-as-Code repository. Primary 
 ## User Services
 
 ### Photos / ML
-- **Immich** — mobile sync + ML, `immich.example.com`, Keycloak OIDC
+- **Immich** — mobile sync + ML, `immich.<domain>`, Keycloak OIDC
 
 ### Documents
-- **Paperless-ngx** — document management, `paperless.example.com`, Keycloak OIDC
+- **Paperless-ngx** — document management, `paperless.<domain>`, Keycloak OIDC
 
 ### Media
-- **Plex** — `plex.example.com`, config on `openebs-hostpath`
-- **Jellyfin** — `jellyfin.example.com`, Keycloak OIDC, config on `openebs-hostpath` (cp-2, deliberately not Plex's node)
+- **Plex** — `plex.<domain>`, config on `openebs-hostpath`
+- **Jellyfin** — `jellyfin.<domain>`, Keycloak OIDC, config on `openebs-hostpath` (cp-2, deliberately not Plex's node)
 - **Sonarr, Radarr, Prowlarr, SABnzbd, Seerr** — `bjw-s/app-template`, `media-nfs` RWX PVC
 - **Minecraft** — `matcha` (plugins) & `vanilla` (plugin-free) via Velocity proxy, `172.16.20.52:25565`, `openebs-hostpath` worlds
-- **Suwayomi** — manga downloader, `suwayomi.example.com`
-- **Kavita** — ebook reader, `kavita.example.com`
+- **Suwayomi** — manga downloader, `suwayomi.<domain>`
+- **Kavita** — ebook reader, `kavita.<domain>`
 
 ### Reading
-- **FreshRSS** — `rss.example.com`, Keycloak OIDC
+- **FreshRSS** — `rss.<domain>`, Keycloak OIDC
 
 ### Code / Git
-- **Gitea** — `gitea.example.com`, mirrored from GitHub, Keycloak OIDC + SSH
+- **Gitea** — `gitea.<domain>`, mirrored from GitHub, Keycloak OIDC + SSH
 
 ### Identity
-- **Keycloak** — `sso.example.com`, the OIDC provider for every service on SSO
+- **Keycloak** — `sso.<domain>`, the OIDC provider for every service on SSO
 
 ### Dashboard
-- **Homepage** — `home.example.com`, no auth
+- **Homepage** — `home.<domain>`, no auth
 
 ### Observability
-- **Gatus** — `gatus.example.com`, health checks + cert expiry
-- **kromgo** — `kromgo.example.com`, PromQL → shields.io badges (pushed to a gist for the badges above)
-- **Goldilocks** — `goldilocks.example.com`, VPA dashboard
-- **Gotify** — `gotify.example.com`, notification hub
+- **Gatus** — `gatus.<domain>`, health checks + cert expiry
+- **kromgo** — `kromgo.<domain>`, PromQL → shields.io badges (pushed to a gist for the badges above)
+- **Goldilocks** — `goldilocks.<domain>`, VPA dashboard
+- **Gotify** — `gotify.<domain>`, notification hub
 - **Falco** — runtime security, `security` namespace (privileged PSA)
 - **Trivy Operator** — CVE + config audit scanning
 
 ### Search
-- **Degoog** — `degoog.example.com`, self-hosted search engine aggregator
+- **Degoog** — `degoog.<domain>`, self-hosted search engine aggregator
 
 ### AI / LLM
 - **llama-swap** — Qwen3.6-35B-A3B Q8_0 on dedicated tainted `llm-1`, ClusterIP `llama-swap:8080`
-- **LiteLLM** — `llm.example.com`, router with per-client virtual keys; model names `local-smart`, `local-fast`
-- **Open WebUI** — `chat.example.com`, Keycloak OIDC
+- **LiteLLM** — `llm.<domain>`, router with per-client virtual keys; model names `local-smart`, `local-fast`
+- **Open WebUI** — `chat.<domain>`, Keycloak OIDC
 
 ### VPN
 - **Netbird** — primary VPN, runs as Talos extension on every node (`wt0` interface)

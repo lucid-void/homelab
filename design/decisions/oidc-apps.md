@@ -5,7 +5,7 @@
 ## Current state
 
 **FreshRSS** uses Apache mod_auth_openidc (`OIDC_ENABLED=1`). Redirect URI is
-`https://rss.example.com/i/oidc/` — not `/i/?get=oidc`, which is the old PHP lib path.
+`https://rss.<domain>/i/oidc/` — not `/i/?get=oidc`, which is the old PHP lib path.
 Required env vars: `OIDC_CLIENT_CRYPTO_KEY` (session passphrase),
 `OIDC_REMOTE_USER_CLAIM`, `OIDC_X_FORWARDED_HEADERS` (uses real header names like
 `X-Forwarded-Host`, not PHP var names). Client/secret come from the sealed
@@ -13,7 +13,7 @@ Required env vars: `OIDC_CLIENT_CRYPTO_KEY` (session passphrase),
 
 **Paperless** goes via django-allauth 65.x: `PAPERLESS_SOCIALACCOUNT_PROVIDERS` JSON env
 var with `openid_connect.APPS[].provider_id = "keycloak"`. Callback URI:
-`https://paperless.example.com/accounts/oidc/keycloak/login/callback/` — allauth 65.x's
+`https://paperless.<domain>/accounts/oidc/keycloak/login/callback/` — allauth 65.x's
 path shape is `/accounts/oidc/<provider_id>/`, not `/accounts/<provider_id>/`. Must also
 set `PAPERLESS_APPS: "allauth.socialaccount.providers.openid_connect"`, or the provider
 is never registered in `INSTALLED_APPS` and the login button never appears. Also needs

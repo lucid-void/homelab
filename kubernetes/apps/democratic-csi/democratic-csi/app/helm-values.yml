@@ -1,5 +1,5 @@
 .global:
-  shareHost: &globalShareHost synology.example.com
+  shareHost: &globalShareHost synology.${CLUSTER_DOMAIN}
   shareBasePath: &globalShareBasePath "/volume2/Kubernetes"
   controllerBasePath: &globalControllerBasePath "/mnt/kubernetes.nfs"
 
@@ -199,7 +199,7 @@ controller:
     lifecycle:
       postStart:
         exec:
-          command: ["/bin/sh", "-c", "mkdir -p /mnt/kubernetes.nfs; mount synology.example.com:/volume2/Kubernetes /mnt/kubernetes.nfs"]
+          command: ["/bin/sh", "-c", "mkdir -p /mnt/kubernetes.nfs; mount synology.${CLUSTER_DOMAIN}:/volume2/Kubernetes /mnt/kubernetes.nfs"]
       preStop:
         exec:
           command: ["/bin/sh","-c","umount /mnt/kubernetes.nfs"]

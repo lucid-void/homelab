@@ -33,9 +33,9 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | cert-manager | cert-manager | HelmRelease | — | — | ClusterIssuer `letsencrypt-production` (DNS-01/Cloudflare) |
 | external-dns | network | HelmRelease | — | — | `gateway-httproute` + `gateway-grpcroute` sources; opt-in annotation |
 | blocky | network | HelmRelease | — | — | LAN DNS + ad blocking on `172.16.20.53:53`; second instance on the Pi (`design/decisions/dns.md`) |
-| Shared Gateway | gateway | Gateway (Cilium) | `*.example.com` → 172.16.20.50 | — | Single HTTPS Gateway; wildcard cert `shared-tls` |
+| Shared Gateway | gateway | Gateway (Cilium) | `*.<domain>` → 172.16.20.50 | — | Single HTTPS Gateway; wildcard cert `shared-tls` |
 | VPA | goldilocks | HelmRelease | — | — | Recommender-only mode (no mutation/admission) |
-| Goldilocks | goldilocks | HelmRelease | `goldilocks.example.com` | **none** | VPA recommendation dashboard; monitors all namespaces except system ones. Not on SSO — it has never had an OIDC client or secret |
+| Goldilocks | goldilocks | HelmRelease | `goldilocks.<domain>` | **none** | VPA recommendation dashboard; monitors all namespaces except system ones. Not on SSO — it has never had an OIDC client or secret |
 
 ---
 
@@ -53,7 +53,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 
 | Service | Namespace | Kind | Hostname | Auth | Notes |
 |---|---|---|---|---|---|
-| Keycloak | keycloak | Keycloak CR (operator) | `sso.example.com` | Self (OIDC provider) | **The identity provider.** Official Keycloak Operator from a tag-pinned GitRepository; realm `homelab` from a `KeycloakRealmImport`; CNPG Postgres. Service is `keycloak-service`. Realm mail via a socat sidecar to the Proton Bridge |
+| Keycloak | keycloak | Keycloak CR (operator) | `sso.<domain>` | Self (OIDC provider) | **The identity provider.** Official Keycloak Operator from a tag-pinned GitRepository; realm `homelab` from a `KeycloakRealmImport`; CNPG Postgres. Service is `keycloak-service`. Realm mail via a socat sidecar to the Proton Bridge |
 | Keycloak clients | keycloak | KeycloakOIDCClient CRs | — | — | One CR per app under `kubernetes/apps/keycloak/clients/`, each with a sealed `<app>-client-secret` that git owns. Requires the EXPERIMENTAL `client-admin-api:v2` server feature |
 | keycloak-entitlements | keycloak | Job | — | — | Converges role mappers, groups, group→role mappings and browser-flow gates from `entitlements.conf`. Re-runs ~hourly and reports changes to Gotify. See `design/decisions/keycloak.md` |
 | sso-audit | postgres | CronJob | — | — | Daily 07:15. Read-only comparison of Keycloak's gates and admin roles against Gitea, Immich, Open WebUI, Paperless and RomM; mismatches go to Gotify |
@@ -64,7 +64,7 @@ Every service is reachable only on the internal network or via Netbird VPN.
 
 | Service | Namespace | Kind | Hostname | Auth | Notes |
 |---|---|---|---|---|---|
-| Gotify | monitoring | HelmRelease | `gotify.example.com` | SealedSecret admin creds | `gotify/server:3.0.0`; SQLite on `nfs-client` PVC; push notifications hub |
+| Gotify | monitoring | HelmRelease | `gotify.<domain>` | SealedSecret admin creds | `gotify/server:3.0.0`; SQLite on `nfs-client` PVC; push notifications hub |
 | gotify-bootstrap | monitoring | Job | — | — | Creates app/client tokens via Gotify REST API; writes `gotify-secret` into each app namespace; idempotent — Gotify 3 only discloses tokens on create/rotate, so the destination Secret is the source of truth and is reused when present. Re-runs ~hourly (TTL 3600 + 30m reconcile) and reports unexplained repairs as drift; script lives in a hash-suffixed generated ConfigMap, so editing it recreates the Job (`force: true`) |
 | flux-notifications | monitoring | Provider + Alert | — | — | Flux notification-controller `Provider` (generic webhook → Gotify) + `Alert` at `eventSeverity: error`. Closes the "meta-hole": Flux itself can't fail silently. Watches `Kustomization` cluster-wide (all in flux-system — gapless backstop) + `HelmRelease` per app namespace. Token: `flux` app token in `monitoring/flux-gotify` (`headers: X-Gotify-Key`, written by gotify-bootstrap) |
 | gotify-telegram | monitoring | Deployment | — | — | Python WebSocket bridge: Gotify `/stream` → Telegram Bot API; priority colours: 🔴 ≥8, 🟡 ≥5, 🟢 <5 |
@@ -73,9 +73,9 @@ Every service is reachable only on the internal network or via Netbird VPN.
 | am-gotify-bridge | monitoring | Deployment | — | — | Python HTTP bridge: AlertManager webhook → Gotify; listens :5000; reads `gotify-secret`; priority 8 firing / 5 resolved |
 | dns-monitoring | monitoring | Kustomization | — | — | Scrapes both Blocky resolvers; Grafana dashboards `Blocky` and `Blocky query`; `Blocky Logs` datasource |
 | coverage-audit | monitoring | CronJob | — | — | Daily 07:30. Read-only: reports to Gotify any routed hostname with no Gatus check or Homepage tile, and any PVC with no backup job. Deliberate gaps are in its `exemptions.json`. See `design/decisions/monitoring.md` |
-| Gatus | monitoring | HelmRelease | `gatus.example.com` | **none** | HTTP/HTTPS health checks + cert expiry for all services. Not on SSO — it has never had an OIDC client or secret |
+| Gatus | monitoring | HelmRelease | `gatus.<domain>` | **none** | HTTP/HTTPS health checks + cert expiry for all services. Not on SSO — it has never had an OIDC client or secret |
 | VictoriaMetrics Stack | monitoring | HelmRelease | — | — | `victoria-metrics-k8s-stack` v0.76.0; includes VMSingle (30Gi openebs-hostpath), VMAgent, VMAlert, AlertManager, Grafana, kube-state-metrics, node-exporter |
-| Grafana | monitoring | HelmRelease (subchart) | `grafana.example.com` | Keycloak OIDC | Dashboards for VictoriaMetrics data; credentials from the sealed `grafana-oidc-secret`. Role comes from a JMESPath `role_attribute_path` over the flat `grafana_roles` claim (client roles `admin`/`editor`/`viewer`), strict, so a login whose role cannot be read is refused |
+| Grafana | monitoring | HelmRelease (subchart) | `grafana.<domain>` | Keycloak OIDC | Dashboards for VictoriaMetrics data; credentials from the sealed `grafana-oidc-secret`. Role comes from a JMESPath `role_attribute_path` over the flat `grafana_roles` claim (client roles `admin`/`editor`/`viewer`), strict, so a login whose role cannot be read is refused |
 
 ---
 
@@ -94,28 +94,28 @@ Every service is reachable only on the internal network or via Netbird VPN.
 
 | Service | Namespace | Kind | Hostname | Auth | Storage |
 |---|---|---|---|---|---|
-| Immich | immich | HelmRelease | `immich.example.com` | Keycloak OIDC | `nfs-client` PVC (library); CNPG Postgres (VectorChord embeddings) |
+| Immich | immich | HelmRelease | `immich.<domain>` | Keycloak OIDC | `nfs-client` PVC (library); CNPG Postgres (VectorChord embeddings) |
 | immich-backup | immich | CronJob | — | — | Daily 03:00; Postgres dump + library PVC; restic → rclone-filen |
-| Paperless-ngx | paperless | HelmRelease | `paperless.example.com` | Keycloak OIDC (django-allauth) | `nfs-client` PVCs (data + media); CNPG Postgres |
+| Paperless-ngx | paperless | HelmRelease | `paperless.<domain>` | Keycloak OIDC (django-allauth) | `nfs-client` PVCs (data + media); CNPG Postgres |
 | paperless-backup | paperless | CronJob | — | — | Daily 04:00; Postgres dump + data/media PVCs; restic → rclone-filen |
 | Proton Mail Bridge | paperless | HelmRelease | — (ClusterIP `protonmail-bridge`: `:143` IMAP for Paperless, `:25` SMTP for Keycloak) | Proton account, entered once via CLI; state in the pod's vault | `openebs-hostpath` PVC (vault + gluon SQLite + message cache). Not backed up — recovery is a re-login |
-| Gitea | gitea | HelmRelease | `gitea.example.com` (HTTPS via HTTPRoute; git-over-SSH on `:22` via TCPRoute) | Keycloak OIDC (web); SSH keys (git) | `nfs-client` PVC (repos/LFS/attachments); CNPG Postgres; bundled `valkey-cluster` for cache/session/queue |
+| Gitea | gitea | HelmRelease | `gitea.<domain>` (HTTPS via HTTPRoute; git-over-SSH on `:22` via TCPRoute) | Keycloak OIDC (web); SSH keys (git) | `nfs-client` PVC (repos/LFS/attachments); CNPG Postgres; bundled `valkey-cluster` for cache/session/queue |
 | gitea-valkey-cluster | gitea | StatefulSet (chart dep) | — | — | Cache/session/queue backing Gitea. 3 primaries + 1 replica each (`nodes: 6`, `replicas: 1`); `valkey-data-*` `nfs-client` PVCs. Disposable data — recreate rather than repair |
 | gitea-backup | gitea | CronJob | — | — | Daily 05:00; Postgres dump + the `gitea-shared-storage` PVC (the one Gitea really uses); restic → rclone-filen |
-| FreshRSS | freshrss | HelmRelease | `rss.example.com` | Keycloak OIDC (Apache mod_auth_openidc) | `nfs-client` PVC (config); CNPG Postgres |
+| FreshRSS | freshrss | HelmRelease | `rss.<domain>` | Keycloak OIDC (Apache mod_auth_openidc) | `nfs-client` PVC (config); CNPG Postgres |
 | freshrss-backup | freshrss | CronJob | — | — | Daily 06:00; `freshrss-data` PVC, no downtime; restic → rclone-filen |
-| Homebox | homebox | HelmRelease | `homebox.example.com` | Built-in | `nfs-client` PVC (SQLite data dir) |
+| Homebox | homebox | HelmRelease | `homebox.<domain>` | Built-in | `nfs-client` PVC (SQLite data dir) |
 | homebox-backup | homebox | CronJob | — | — | Daily 02:00; SQLite data dir; restic → rclone-filen |
-| CouchDB (Obsidian LiveSync) | obsidian | HelmRelease | `obsidian.example.com` | **CouchDB HTTP Basic** (SealedSecret) — not on SSO | `couchdb-data` PVC (`openebs-hostpath`, RWO — shards + _users) |
+| CouchDB (Obsidian LiveSync) | obsidian | HelmRelease | `obsidian.<domain>` | **CouchDB HTTP Basic** (SealedSecret) — not on SSO | `couchdb-data` PVC (`openebs-hostpath`, RWO — shards + _users) |
 | obsidian-backup | obsidian | CronJob | — | — | Daily 02:30; quiesced CouchDB data dir; restic → rclone-filen |
-| Homepage | homepage | HelmRelease | `home.example.com` | — | No storage. Tiles live in the chart's `helm-values.yml` (a `configMapGenerator`, so an edit makes a new ConfigMap and a Helm upgrade — Reloader is not in this path). Six groups: **Media**, **AI** (Open WebUI, LiteLLM), **Games**, **Documents**, **Development**, **Infrastructure**. Every new externally-reachable service gets a tile — step 10 of gitops.md's "Adding a New Application" |
+| Homepage | homepage | HelmRelease | `home.<domain>` | — | No storage. Tiles live in the chart's `helm-values.yml` (a `configMapGenerator`, so an edit makes a new ConfigMap and a Helm upgrade — Reloader is not in this path). Six groups: **Media**, **AI** (Open WebUI, LiteLLM), **Games**, **Documents**, **Development**, **Infrastructure**. Every new externally-reachable service gets a tile — step 10 of gitops.md's "Adding a New Application" |
 | llama-swap | ai | HelmRelease | — (ClusterIP `llama-swap:8080`) | none — ClusterIP only, reached via LiteLLM | `llama-models` PVC (`openebs-hostpath`, RWO, node-local on `llm-1`). **No memory limit** — llama.cpp mmaps the GGUF and a limit near the working set causes reclaim-thrash, not a clean OOMKill. Weights are NOT backed up (re-downloadable) |
 | Clef | ai | Deployment | — (ClusterIP `clef:8080`) | none — ClusterIP only, called by the Telegram bot | `clef-data` PVC (`openebs-hostpath`, RWO, node-local on `llm-1`): pinned venv and 19 GB weights, re-downloadable, not backed up. CPU-only decision model; requests 18Gi, limit 24Gi |
 | model-fetch | ai | Job | — | — | One-shot, on `llm-1`, writes the same node-local PVC llama-swap reads. Pins each GGUF's exact byte size; a mismatch fails the job rather than leaving a truncated file |
-| LiteLLM | ai | HelmRelease | `llm.example.com` | LiteLLM virtual keys (one per client), master key in `litellm-secret` | CNPG Postgres (`litellm`) for keys/budgets/spend. Memory limit **4Gi** — OOMKilled at 1Gi during the Prisma migration with no log output |
-| Open WebUI | ai | HelmRelease | `chat.example.com` | Keycloak OIDC | `open-webui-data` PVC (`nfs-client`, chroma vector store + uploads); CNPG Postgres (`openwebui`) for users/chats |
+| LiteLLM | ai | HelmRelease | `llm.<domain>` | LiteLLM virtual keys (one per client), master key in `litellm-secret` | CNPG Postgres (`litellm`) for keys/budgets/spend. Memory limit **4Gi** — OOMKilled at 1Gi during the Prisma migration with no log output |
+| Open WebUI | ai | HelmRelease | `chat.<domain>` | Keycloak OIDC | `open-webui-data` PVC (`nfs-client`, chroma vector store + uploads); CNPG Postgres (`openwebui`) for users/chats |
 | open-webui-backup | ai | CronJob | — | — | Daily 05:30; `open-webui-data` PVC, scales Open WebUI to 0; restic → rclone-filen |
-| Degoog | degoog | HelmRelease | `degoog.example.com` | — | Self-hosted search engine aggregator; `ghcr.io/degoog-org/degoog:0.18.0`; `nfs-client` PVC for engines/plugins/themes data |
+| Degoog | degoog | HelmRelease | `degoog.<domain>` | — | Self-hosted search engine aggregator; `ghcr.io/degoog-org/degoog:0.18.0`; `nfs-client` PVC for engines/plugins/themes data |
 
 ---
 
@@ -126,20 +126,20 @@ Linuxserver images with `PUID=2202` / `PGID=2200`. Shared `media-nfs` RWX PVC mo
 
 | Service | Hostname | Image | Storage |
 |---|---|---|---|
-| Sonarr | `sonarr.example.com` | `lscr.io/linuxserver/sonarr:4.0.13` | Config PVC (`nfs-client`) + `media-nfs` |
-| Radarr | `radarr.example.com` | `lscr.io/linuxserver/radarr:5.23.3` | Config PVC (`nfs-client`) + `media-nfs` |
-| Prowlarr | `prowlarr.example.com` | `lscr.io/linuxserver/prowlarr:1.36.3` | Config PVC (`nfs-client`) |
-| SABnzbd | `nzb.example.com` | `lscr.io/linuxserver/sabnzbd:4.5.1` | Config PVC (`nfs-client`) + `media-nfs` |
-| Seerr | `seerr.example.com` | `ghcr.io/seerr-team/seerr:v3.2.0` | Config PVC (`nfs-client`) — pod `securityContext` instead of PUID/PGID |
-| Plex | `plex.example.com` | `lscr.io/linuxserver/plex:1.41.7` | Config PVC (`openebs-hostpath`, pinned to cp-1) + `media-nfs` (readOnly) |
-| Jellyfin | `jellyfin.example.com` | `lscr.io/linuxserver/jellyfin` | Config PVC (`openebs-hostpath`, pinned to **cp-2** — deliberately not cp-1, where Plex's is) + `media-nfs` (readOnly, except subPath `YouTube` at `/YouTube`, RW) + `emptyDir` at `/config/transcodes` |
-| Suwayomi | `suwayomi.example.com` | `ghcr.io/suwayomi/suwayomi-server:v2.2.2100` (+ `flaresolverr` v3.5.0) | `suwayomi-config` PVC (`nfs-client`, embedded H2) + `media-nfs` subPath `Manga` (downloads) |
-| Kavita | `kavita.example.com` | `lscr.io/linuxserver/kavita:0.9.0` | `kavita-config` PVC (`nfs-client`, internal SQLite) + `media-nfs` subPath `Manga` (readOnly) |
-| Tdarr | `tdarr.example.com` | `ghcr.io/haveagitgat/tdarr` + `tdarr_node` | `tdarr-config` PVC (`nfs-client`, server only) + `media-nfs` (read-write, server and node); the node is pinned to **llm-1**, CPU x265 only, starts paused. No SSO (Tdarr has no OIDC) |
-| RomM | `romm.example.com` | `rommapp/romm:5.0.0` | `romm-config` PVC (`nfs-client`) + `media-nfs` subPath `Games` (ROM library) + `emptyDir` at `/redis-data` — CNPG Postgres for the app DB |
-| CrossWatch | `crosswatch.example.com` | `ghcr.io/cenodude/crosswatch:0.12.3` | `crosswatch-config` PVC (`nfs-client`) — Plex↔Jellyfin watch-history sync; see `design/decisions/watch-sync.md` |
-| matcha (Minecraft) | `matcha.example.com` (TCP 25565 via Velocity) · `matcha-files.example.com` · `matcha-map.example.com` | `itzg/minecraft-server:2026.7.2-java25` (Paper 26.2) | `matcha-data` PVC (`openebs-hostpath`) + `mc-backups` (`nfs-client`, RWX) |
-| vanilla (Minecraft) | `vanilla.example.com` (TCP 25565 via Velocity) · `vanilla-files.example.com` · `vanilla-map.example.com` | `itzg/minecraft-server:2026.7.2-java25` (Paper 26.2) | `vanilla-data` PVC (`openebs-hostpath`) + `mc-backups` (`nfs-client`, RWX) |
+| Sonarr | `sonarr.<domain>` | `lscr.io/linuxserver/sonarr:4.0.13` | Config PVC (`nfs-client`) + `media-nfs` |
+| Radarr | `radarr.<domain>` | `lscr.io/linuxserver/radarr:5.23.3` | Config PVC (`nfs-client`) + `media-nfs` |
+| Prowlarr | `prowlarr.<domain>` | `lscr.io/linuxserver/prowlarr:1.36.3` | Config PVC (`nfs-client`) |
+| SABnzbd | `nzb.<domain>` | `lscr.io/linuxserver/sabnzbd:4.5.1` | Config PVC (`nfs-client`) + `media-nfs` |
+| Seerr | `seerr.<domain>` | `ghcr.io/seerr-team/seerr:v3.2.0` | Config PVC (`nfs-client`) — pod `securityContext` instead of PUID/PGID |
+| Plex | `plex.<domain>` | `lscr.io/linuxserver/plex:1.41.7` | Config PVC (`openebs-hostpath`, pinned to cp-1) + `media-nfs` (readOnly) |
+| Jellyfin | `jellyfin.<domain>` | `lscr.io/linuxserver/jellyfin` | Config PVC (`openebs-hostpath`, pinned to **cp-2** — deliberately not cp-1, where Plex's is) + `media-nfs` (readOnly, except subPath `YouTube` at `/YouTube`, RW) + `emptyDir` at `/config/transcodes` |
+| Suwayomi | `suwayomi.<domain>` | `ghcr.io/suwayomi/suwayomi-server:v2.2.2100` (+ `flaresolverr` v3.5.0) | `suwayomi-config` PVC (`nfs-client`, embedded H2) + `media-nfs` subPath `Manga` (downloads) |
+| Kavita | `kavita.<domain>` | `lscr.io/linuxserver/kavita:0.9.0` | `kavita-config` PVC (`nfs-client`, internal SQLite) + `media-nfs` subPath `Manga` (readOnly) |
+| Tdarr | `tdarr.<domain>` | `ghcr.io/haveagitgat/tdarr` + `tdarr_node` | `tdarr-config` PVC (`nfs-client`, server only) + `media-nfs` (read-write, server and node); the node is pinned to **llm-1**, CPU x265 only, starts paused. No SSO (Tdarr has no OIDC) |
+| RomM | `romm.<domain>` | `rommapp/romm:5.0.0` | `romm-config` PVC (`nfs-client`) + `media-nfs` subPath `Games` (ROM library) + `emptyDir` at `/redis-data` — CNPG Postgres for the app DB |
+| CrossWatch | `crosswatch.<domain>` | `ghcr.io/cenodude/crosswatch:0.12.3` | `crosswatch-config` PVC (`nfs-client`) — Plex↔Jellyfin watch-history sync; see `design/decisions/watch-sync.md` |
+| matcha (Minecraft) | `matcha.<domain>` (TCP 25565 via Velocity) · `matcha-files.<domain>` · `matcha-map.<domain>` | `itzg/minecraft-server:2026.7.2-java25` (Paper 26.2) | `matcha-data` PVC (`openebs-hostpath`) + `mc-backups` (`nfs-client`, RWX) |
+| vanilla (Minecraft) | `vanilla.<domain>` (TCP 25565 via Velocity) · `vanilla-files.<domain>` · `vanilla-map.<domain>` | `itzg/minecraft-server:2026.7.2-java25` (Paper 26.2) | `vanilla-data` PVC (`openebs-hostpath`) + `mc-backups` (`nfs-client`, RWX) |
 | minecraft-proxy | — (LoadBalancer `172.16.20.52:25565`) | `itzg/mc-proxy:java25` (Velocity 3.5.1) | none |
 | minecraft-valkey | — (ClusterIP `:6379`) | `valkey/valkey` | none |
 | minecraft-events | — (no Service) | `ghcr.io/lucid-void/backup-tools` | none |
@@ -160,16 +160,16 @@ the `KeycloakOIDCClient`'s `metadata.name`.
 
 | App | Callback URI | Notes |
 |---|---|---|
-| Immich | `https://immich.example.com/auth/login`, `/user-settings`, `/api/oauth/mobile-redirect` | The mobile redirect proxies to `app.immich:///oauth-callback` |
-| Paperless | `https://paperless.example.com/accounts/oidc/keycloak/login/callback/` | django-allauth path; the `keycloak` segment is the `provider_id` in `PAPERLESS_SOCIALACCOUNT_PROVIDERS` and must match it exactly |
-| FreshRSS | `https://rss.example.com/i/oidc/` | Apache mod_auth_openidc; NOT `/i/?get=oidc` |
-| Gitea | `https://gitea.example.com/user/oauth2/Keycloak/callback` | The provider-name segment is case-sensitive and comes from the auth source's name in Gitea's DB, not from the client id |
-| Kavita | `https://kavita.example.com/signin-oidc` | ASP.NET OIDC middleware path; creds read from `/config/appsettings.json` (`OpenIdConnectSettings`), merged in by an initContainer |
-| RomM | `https://romm.example.com/api/oauth/openid` | `client_secret_basic`. All `OIDC_*` vars come from the sealed `media/romm-oidc-secret` — except `OIDC_ALLOW_REGISTRATION`, pinned to `true` in the HelmRelease, which must stay true for a Keycloak user's first login to create the RomM account, and the non-secret `OIDC_CLAIM_ROLES`/`OIDC_ROLE_*`, also in the HelmRelease |
-| CrossWatch | `https://crosswatch.example.com/api/app-auth/oidc/callback` | Keycloak OIDC, admin-only: gated on the `admin` client role. Path read from `api/authOidcAPI.py` in the running image (`_callback_url`); the app never shows it in its UI. Issuer is `https://sso.example.com/realms/homelab` |
-| Proxmox VE | `https://pve.example.com:8006` (+ `:443`) | Bare-metal host (172.16.20.3), not in-cluster. Redirect = web UI base URL (no path); `client_secret_basic`. Creds in `auth/proxmox-oidc-secret`, copied into the Proxmox `keycloak` realm manually (`pveum`, username claim `username` → `<user>@keycloak`). Not the default realm, so a Keycloak outage cannot lock the hypervisor out. See `design/runbook.md`. |
-| Open WebUI | `https://chat.example.com/oauth/oidc/callback` | `client_secret_post`, pinned client-side via `OAUTH_TOKEN_ENDPOINT_AUTH_METHOD`. **`ENABLE_OAUTH_SIGNUP` defaults to `false`** — without it the button renders and the first login fails with no account to create. **`OAUTH_MERGE_ACCOUNTS_BY_EMAIL` also defaults to `false`**, so a pre-existing account with the same email is orphaned rather than linked |
-| Grafana | `https://grafana.example.com/login/generic_oauth` | Role from `role_attribute_path` over `grafana_roles`. **`oauth_allow_insecure_email_lookup` defaults false**, so Grafana matches only on `sub` — a pre-existing user with the same email collides instead of linking |
+| Immich | `https://immich.<domain>/auth/login`, `/user-settings`, `/api/oauth/mobile-redirect` | The mobile redirect proxies to `app.immich:///oauth-callback` |
+| Paperless | `https://paperless.<domain>/accounts/oidc/keycloak/login/callback/` | django-allauth path; the `keycloak` segment is the `provider_id` in `PAPERLESS_SOCIALACCOUNT_PROVIDERS` and must match it exactly |
+| FreshRSS | `https://rss.<domain>/i/oidc/` | Apache mod_auth_openidc; NOT `/i/?get=oidc` |
+| Gitea | `https://gitea.<domain>/user/oauth2/Keycloak/callback` | The provider-name segment is case-sensitive and comes from the auth source's name in Gitea's DB, not from the client id |
+| Kavita | `https://kavita.<domain>/signin-oidc` | ASP.NET OIDC middleware path; creds read from `/config/appsettings.json` (`OpenIdConnectSettings`), merged in by an initContainer |
+| RomM | `https://romm.<domain>/api/oauth/openid` | `client_secret_basic`. All `OIDC_*` vars come from the sealed `media/romm-oidc-secret` — except `OIDC_ALLOW_REGISTRATION`, pinned to `true` in the HelmRelease, which must stay true for a Keycloak user's first login to create the RomM account, and the non-secret `OIDC_CLAIM_ROLES`/`OIDC_ROLE_*`, also in the HelmRelease |
+| CrossWatch | `https://crosswatch.<domain>/api/app-auth/oidc/callback` | Keycloak OIDC, admin-only: gated on the `admin` client role. Path read from `api/authOidcAPI.py` in the running image (`_callback_url`); the app never shows it in its UI. Issuer is `https://sso.<domain>/realms/homelab` |
+| Proxmox VE | `https://pve.<domain>:8006` (+ `:443`) | Bare-metal host (172.16.20.3), not in-cluster. Redirect = web UI base URL (no path); `client_secret_basic`. Creds in `auth/proxmox-oidc-secret`, copied into the Proxmox `keycloak` realm manually (`pveum`, username claim `username` → `<user>@keycloak`). Not the default realm, so a Keycloak outage cannot lock the hypervisor out. See `design/runbook.md`. |
+| Open WebUI | `https://chat.<domain>/oauth/oidc/callback` | `client_secret_post`, pinned client-side via `OAUTH_TOKEN_ENDPOINT_AUTH_METHOD`. **`ENABLE_OAUTH_SIGNUP` defaults to `false`** — without it the button renders and the first login fails with no account to create. **`OAUTH_MERGE_ACCOUNTS_BY_EMAIL` also defaults to `false`**, so a pre-existing account with the same email is orphaned rather than linked |
+| Grafana | `https://grafana.<domain>/login/generic_oauth` | Role from `role_attribute_path` over `grafana_roles`. **`oauth_allow_insecure_email_lookup` defaults false**, so Grafana matches only on `sub` — a pre-existing user with the same email collides instead of linking |
 
 Goldilocks and Gatus are **not** in this table and never have been — neither has an OIDC
 client or a secret. They are not on SSO.

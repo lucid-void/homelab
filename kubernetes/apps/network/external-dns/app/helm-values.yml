@@ -23,7 +23,7 @@ extraArgs:
   - --annotation-filter=external-dns.alpha.kubernetes.io/enabled=true
 
 domainFilters:
-  - example.com
+  - ${CLUSTER_DOMAIN}
 
 policy: sync
 txtOwnerId: homelab-k8s

@@ -15,9 +15,9 @@ spec:
     enabled: true
     loginFlows: [STANDARD]
     redirectUris:
-      - https://rss.example.com/i/oidc/
+      - https://rss.${CLUSTER_DOMAIN}/i/oidc/
     webOrigins:
-      - https://rss.example.com
+      - https://rss.${CLUSTER_DOMAIN}
     # `user` is the entitlement gate: the per-client browser-flow override denies
     # login to anyone without it (Condition - user role, negated, + Deny access).
     # Every group for this client must therefore grant `user`, including the admin

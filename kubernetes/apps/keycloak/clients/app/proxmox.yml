@@ -15,10 +15,10 @@ spec:
     enabled: true
     loginFlows: [STANDARD]
     redirectUris:
-      - https://pve.example.com:8006
-      - https://pve.example.com
+      - https://pve.${CLUSTER_DOMAIN}:8006
+      - https://pve.${CLUSTER_DOMAIN}
     webOrigins:
-      - https://pve.example.com:8006
+      - https://pve.${CLUSTER_DOMAIN}:8006
     # `user` is the entitlement gate: the per-client browser-flow override denies
     # login to anyone without it (Condition - user role, negated, + Deny access).
     # Every group for this client must therefore grant `user`, including the admin

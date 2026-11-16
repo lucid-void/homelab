@@ -2,7 +2,7 @@
 # vmagent runs with selectAllByDefault, so these are picked up without touching
 # the vm-stack HelmRelease (same mechanism as proxmox-monitoring's VMStaticScrape).
 #
-# Selectors key off monitoring.example.com/scrape rather than
+# Selectors key off monitoring.${CLUSTER_DOMAIN}/scrape rather than
 # app.kubernetes.io/name, because Flux commonMetadata rewrites the latter on
 # every resource in a Kustomization.
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -13,7 +13,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      monitoring.example.com/scrape: mc-monitor
+      monitoring.${CLUSTER_DOMAIN}/scrape: mc-monitor
   endpoints:
     - port: metrics
       path: /metrics
@@ -34,7 +34,7 @@ spec:
       - media
   selector:
     matchLabels:
-      monitoring.example.com/scrape: minecraft-world-size
+      monitoring.${CLUSTER_DOMAIN}/scrape: minecraft-world-size
   endpoints:
     - port: metrics
       path: /metrics

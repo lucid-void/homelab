@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - chat.example.com
+    - chat.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: open-webui

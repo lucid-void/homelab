@@ -448,7 +448,7 @@ VELOCITY_VERSION
 `*-oidc-secret`
 `*-sealed.yml`
 `*-secret.yml`
-`*.example.com`
+`*.<domain>`
 `*Avx512*`
 `, **no DNS names**, `
 `, `
@@ -1137,7 +1137,7 @@ VELOCITY_VERSION
 `auth-database`
 `auth.RequireElevatedClient`
 `auth.api_key_pepper must be set to at least 32 bytes`
-`auth.example.com`
+`auth.<domain>`
 `auth/gotify-secret`
 `auth/proxmox-oidc-secret`
 `auth/zitadel-bootstrap-state`
@@ -1160,7 +1160,7 @@ VELOCITY_VERSION
 `battery.runtime`
 `bind-address=0.0.0.0`
 `bjw-s/app-template`
-`example.com`
+`<domain>`
 `bootstrap-rbac`
 `bootstrap.sh`
 `both`
@@ -1184,7 +1184,7 @@ VELOCITY_VERSION
 `cert.pem`
 `channel`
 `chart:`
-`chat.example.com`
+`chat.<domain>`
 `checkCRDs`
 `check_hostname`
 `check`
@@ -1284,7 +1284,7 @@ VELOCITY_VERSION
 `defrag`
 `degoog-data`
 `degoog-org-official-extensions-freshrss`
-`degoog.example.com`
+`degoog.<domain>`
 `democratic-csi-nfs-node`
 `democratic-csi`
 `dependsOn: gotify-bootstrap`
@@ -1317,7 +1317,7 @@ VELOCITY_VERSION
 `disk_gb`
 `displayName`
 `dmidecode -t memory`
-`dnsNames: ["*.example.com", "example.com"]`
+`dnsNames: ["*.<domain>", "<domain>"]`
 `docker-entrypoint.sh:14`
 `docker-entrypoint.sh:37-43`
 `docker-entrypoint.sh:62`
@@ -1430,7 +1430,7 @@ VELOCITY_VERSION
 `gatewayAPI.enableAlpn: true`
 `gatewayAPI.enabled: true`
 `gateway`
-`gatus.example.com`
+`gatus.<domain>`
 `gatus`
 `get_path_from_env`
 `ghcr.io/...`
@@ -1450,7 +1450,7 @@ VELOCITY_VERSION
 `ghcr.io/videocurio/…`
 `git add`
 `git status`
-`git@gitea.example.com:...`
+`git@gitea.<domain>:...`
 `gitea-backup`
 `gitea-charts/gitea`
 `gitea-database`
@@ -1461,7 +1461,7 @@ VELOCITY_VERSION
 `gitea-role-secret.password`
 `gitea-ssh`
 `gitea-valkey-cluster`
-`gitea.example.com`
+`gitea.<domain>`
 `gitea.oauth[].name`
 `gitea.oauth`
 `gitea/gitea-valkey-cluster`
@@ -1469,7 +1469,7 @@ VELOCITY_VERSION
 `gitea`
 `github.com/lucid-void/Homelab`
 `goldilocks-matcha/app`
-`goldilocks.example.com`
+`goldilocks.<domain>`
 `goldilocks`
 `google-bad-token: true`
 `gotify-admin-secret`
@@ -1477,12 +1477,12 @@ VELOCITY_VERSION
 `gotify-bootstrap`
 `gotify-secret`
 `gotify-telegram`
-`gotify.example.com`
+`gotify.<domain>`
 `gotify/server:3.0.0`
 `gotify/server`
 `gotify`
 `grafana-oidc-secret`
-`grafana.example.com`
+`grafana.<domain>`
 `grafana_dashboard: "1"`
 `greader.php`
 `grep -c avx512 /proc/cpuinfo`
@@ -1498,10 +1498,10 @@ VELOCITY_VERSION
 `heartbeat=30000`
 `helm`
 `helmrelease.yml`
-`home.example.com`
+`home.<domain>`
 `homebox-backup`
 `homebox-secret`
-`homebox.example.com`
+`homebox.<domain>`
 `homebox`
 `homelab-k8s`
 `hostIPC: true`
@@ -1515,28 +1515,28 @@ VELOCITY_VERSION
 `httpGet: /_up`
 `httpGet: /api/ping`
 `httpGet`
-`httpHeaders: [{name: Host, value: joplin.example.com}]`
+`httpHeaders: [{name: Host, value: joplin.<domain>}]`
 `http`
 `httproute-redirect`
 `https://charts.fairwinds.com/stable`
-`https://chat.example.com/oauth/oidc/callback`
+`https://chat.<domain>/oauth/oidc/callback`
 `https://dl.gitea.com/charts/`
 `https://falcosecurity.github.io/charts`
-`https://gitea.example.com/user/oauth2/Zitadel/callback`
+`https://gitea.<domain>/user/oauth2/Zitadel/callback`
 `https://github.com/kubernetes-sigs/gateway-api`
-`https://gotify.example.com`
+`https://gotify.<domain>`
 `https://huggingface.co/<repo>/resolve/main/<file>`
-`https://immich.example.com/api/oauth/mobile-redirect`
-`https://joplin.example.com/api/saml`
-`https://joplin.example.com`
-`https://kavita.example.com/signin-oidc`
+`https://immich.<domain>/api/oauth/mobile-redirect`
+`https://joplin.<domain>/api/saml`
+`https://joplin.<domain>`
+`https://kavita.<domain>/signin-oidc`
 `https://kubernetes-sigs.github.io/descheduler/`
-`https://obsidian.example.com`
-`https://pve.example.com:8006`
-`https://pve.example.com`
-`https://romm.example.com/api/oauth/openid`
-`https://rss.example.com/i/oidc/`
-`https://zitadel.example.com/saml/v2/metadata`
+`https://obsidian.<domain>`
+`https://pve.<domain>:8006`
+`https://pve.<domain>`
+`https://romm.<domain>/api/oauth/openid`
+`https://rss.<domain>/i/oidc/`
+`https://zitadel.<domain>/saml/v2/metadata`
 `huggingface-cli download`
 `human.displayName`
 `human.email.email`
@@ -1563,7 +1563,7 @@ VELOCITY_VERSION
 `immich-db-extensions`
 `immich-library`
 `immich-server`
-`immich.example.com`
+`immich.<domain>`
 `immich`
 `includeUnknowns=false`
 `info`
@@ -1593,7 +1593,7 @@ VELOCITY_VERSION
 `joplin-backup`
 `joplin-blobs`
 `joplin-role-secret`
-`joplin.example.com`
+`joplin.<domain>`
 `joplin/server:3.7.1`
 `joplin/server`
 `joplin://`
@@ -1611,7 +1611,7 @@ VELOCITY_VERSION
 `kavita-bootstrap`
 `kavita-config`
 `kavita-oidc-secret`
-`kavita.example.com`
+`kavita.<domain>`
 `kavita`
 `keep 1 snapshots:`
 `keepUpdated`
@@ -1778,7 +1778,7 @@ VELOCITY_VERSION
 `llamacpp:tokens_predicted_total`
 `llamaswap_*`
 `llm-1`
-`llm.example.com`
+`llm.<domain>`
 `load_verify_locations(cafile=...)`
 `loaders`
 `local-embed`
@@ -1823,10 +1823,10 @@ VELOCITY_VERSION
 `masterkey-sealed.yml`
 `matchFileNames`
 `matcha-data`
-`matcha-files.example.com`
-`matcha-map.example.com`
+`matcha-files.<domain>`
+`matcha-map.<domain>`
 `matcha-metrics`
-`matcha.example.com`
+`matcha.<domain>`
 `matcha`
 `matches[].vulnerability.severity`
 `matrix`
@@ -1879,9 +1879,9 @@ VELOCITY_VERSION
 `model-fetch`
 `model_list`
 `models`
-`monitoring.example.com/scrape: <target>`
-`monitoring.example.com/scrape: llama-swap`
-`monitoring.example.com/scrape`
+`monitoring.<domain>/scrape: <target>`
+`monitoring.<domain>/scrape: llama-swap`
+`monitoring.<domain>/scrape`
 `monitoring/`
 `monitoring/flux-gotify`
 `monitoring/gotify-bootstrap-secret`
@@ -1928,11 +1928,11 @@ VELOCITY_VERSION
 `notify`
 `nut-client`
 `nut_exporter`
-`nzb.example.com`
+`nzb.<domain>`
 `oauthId`
 `observability`
 `obsidian-backup`
-`obsidian.example.com`
+`obsidian.<domain>`
 `obsidian/couchdb-data`
 `obsidian/couchdb`
 `obsidian`
@@ -1968,7 +1968,7 @@ VELOCITY_VERSION
 `paperless-app`
 `paperless-backup`
 `paperless-oidc-secret`
-`paperless.example.com`
+`paperless.<domain>`
 `paperless/app/helmrelease.yml`
 `paperless/checks.py::_email_certificate_validate`
 `paperless/settings/parsers.py`
@@ -1991,7 +1991,7 @@ VELOCITY_VERSION
 `pkill bridge`
 `plex-config-local`
 `plex-direct`
-`plex.example.com`
+`plex.<domain>`
 `plex:1.43.3.10896-cb3ebc72d-ls321`
 `plugin.yml`
 `plugins/Quickchat/redis.yml`
@@ -2034,7 +2034,7 @@ VELOCITY_VERSION
 `protonmail-bridge:143`
 `provisionAccounts=true`
 `provisionAccounts`
-`prowlarr.example.com`
+`prowlarr.<domain>`
 `proxies.velocity.*`
 `proxmox-monitoring`
 `proxmox-oidc-secret`
@@ -2061,7 +2061,7 @@ VELOCITY_VERSION
 `qwen-fast`
 `qwen-smart`
 `qwen-vision`
-`radarr.example.com`
+`radarr.<domain>`
 `radarr/`
 `radarr/app/migration-job.yml`
 `rc=11`
@@ -2133,7 +2133,7 @@ VELOCITY_VERSION
 `romm-oidc-secret`
 `romm-role-secret`
 `romm-secret`
-`romm.example.com`
+`romm.<domain>`
 `romm`
 `rommapp/romm:5.0.0`
 `rommapp/romm`
@@ -2142,7 +2142,7 @@ VELOCITY_VERSION
 `routes/api/login.ts`
 `routing:`
 `routingMode: native`
-`rss.example.com`
+`rss.<domain>`
 `run.sh`
 `runAsNonRoot`
 `runAsUser`
@@ -2171,7 +2171,7 @@ VELOCITY_VERSION
 `security/falco-gotify-secret`
 `securityContext`
 `security`
-`seerr.example.com`
+`seerr.<domain>`
 `selectAllByDefault`
 `server did not agree on a protocol`
 `server-reference.conf`
@@ -2201,7 +2201,7 @@ VELOCITY_VERSION
 `snapshot … saved`
 `soft`
 `some`
-`sonarr.example.com`
+`sonarr.<domain>`
 `sonarr:4.0.*`
 `sops -e`
 `sources`
@@ -2240,7 +2240,7 @@ VELOCITY_VERSION
 `suwayomi-config`
 `suwayomi-flaresolverr:8191`
 `suwayomi-flaresolverr`
-`suwayomi.example.com`
+`suwayomi.<domain>`
 `swap/exclusive: true`
 `swap: true, exclusive: true`
 `systemReserved`
@@ -2275,7 +2275,7 @@ VELOCITY_VERSION
 `targetNamespace`
 `tcp://172.16.20.2:3493`
 `tcp://`
-`tcp://gitea.example.com:22`
+`tcp://gitea.<domain>:22`
 `tcp_proxy`
 `tensorchord`
 `terminationGracePeriodSeconds: 120`
@@ -2346,10 +2346,10 @@ VELOCITY_VERSION
 `valuesFrom.valuesKey`
 `valuesFrom`
 `vanilla-data`
-`vanilla-files.example.com`
-`vanilla-map.example.com`
+`vanilla-files.<domain>`
+`vanilla-map.<domain>`
 `vanilla-metrics`
-`vanilla.example.com`
+`vanilla.<domain>`
 `vanilla`
 `vchord`
 `vchordrq`
@@ -2387,7 +2387,7 @@ VELOCITY_VERSION
 `zitadel-bootstrap`
 `zitadel-role-secret`
 `zitadel-setup`
-`zitadel.example.com`
+`zitadel.<domain>`
 `zitadel_action.joplin_saml_attributes`
 `zitadel_application_saml.joplin`
 `zitadel_trigger_actions`
@@ -2407,7 +2407,7 @@ VELOCITY_VERSION
 `{release-name}-{service-name}`
 `{release-name}`
 `{resources = {{resource = obj}, …}}`
-`{server}-files.example.com`
+`{server}-files.<domain>`
 `{server}-files`
 `|| echo "0"`
 `~/.config/opencode/opencode.jsonc`
@@ -2425,7 +2425,7 @@ app.kubernetes.io/name
 apps.projectsveltos.io/v1alpha1
 cas.openebs.io/config
 charts.fairwinds.com/stable
-chat.example.com/oauth/oidc/callback
+chat.<domain>/oauth/oidc/callback
 cnpg.io/cluster
 curl jq
 curl the
@@ -2505,7 +2505,7 @@ ghcr.io/videocurio
 ghcr.io/videocurio/
 ghcr.io/videocurio/proton-mail-bridge
 ghcr.io/videocurio/proton-mail-bridge:v3.24.2
-gitea.example.com/user/oauth2/Zitadel/callback
+gitea.<domain>/user/oauth2/Zitadel/callback
 github.com/FareedKhan-dev/kimi-k3-in-c
 github.com/filebrowser
 github.com/filebrowser/filebrowser/security/advisories
@@ -2533,20 +2533,20 @@ github.com/rommapp
 github.com/rommapp/romm/issues/1302
 helm template
 helm.toolkit.fluxcd.io/v2
-homelab.example.com/workload
+homelab.<domain>/workload
 ignore-check.kube-linter.io/job-ttl-seconds-after-finished
 image.toolkit.fluxcd.io/v1beta2
-immich.example.com/api/oauth/mobile-redirect
+immich.<domain>/api/oauth/mobile-redirect
 infra/packer/
 infra/packer/Talos/talos-base.pkr.hcl
 infra/proxmox/nut/
 infra/terraform/
 infra/terraform/kubernetes.tf
-joplin.example.com/api/saml
+joplin.<domain>/api/saml
 jq filter
 jq or
 jq that
-kavita.example.com/signin-oidc
+kavita.<domain>/signin-oidc
 kubeconform was
 kubectl access
 kubectl annotate
@@ -2654,8 +2654,8 @@ kustomize.toolkit.fluxcd.io/v1
 lbipam.cilium.io/ips
 lbipam.cilium.io/sharing-cross-namespace
 lbipam.cilium.io/sharing-key
-llm.example.com/v1
-llm.example.com/v1/chat/completions
+llm.<domain>/v1
+llm.<domain>/v1/chat/completions
 lscr.io/linuxserver
 lscr.io/linuxserver/kavita:0.9.0
 lscr.io/linuxserver/plex
@@ -2674,14 +2674,14 @@ mise costs
 mise exec
 mise gives
 mise shims
-monitoring.example.com/scrape
+monitoring.<domain>/scrape
 networkupstools.org/ddl/Eaton/Ellipse_PRO_650.html
 northflank.com/blog
 northflank.com/blog/what-is-kimi-k3-self-hosting
 notification.toolkit.fluxcd.io/v1beta2
 openebs.io/local
 operator.victoriametrics.com/v1beta1
-paperless.example.com/accounts/oidc/zitadel/login/callback/
+paperless.<domain>/accounts/oidc/zitadel/login/callback/
 pod-security.kubernetes.io/enforce
 promtool check
 raw.githubusercontent.com/cilium
@@ -2731,8 +2731,8 @@ restic snapshot
 restic snapshots
 restic to
 restic unlock
-romm.example.com/api/oauth/openid
-rss.example.com/i/oidc/
+romm.<domain>/api/oauth/openid
+rss.<domain>/i/oidc/
 sealedsecrets.bitnami.com/sealed-secrets-key
 sigs.k8s.io/gateway-api
 source.toolkit.fluxcd.io/v1
@@ -2797,7 +2797,7 @@ www.eaton.com/gb
 www.eaton.com/gb/en-gb/skuPage.ELP850IEC.html
 www.synology.com/en-us
 www.synology.com/en-us/compatibility
-zitadel.example.com/saml/v2/metadata
+zitadel.<domain>/saml/v2/metadata
 # --- baseline metrics (not facts) ---
 # Corpus: AGENTS.md (282 B, formerly .claude/CLAUDE.md), design/*.md design/*/*.md
 # AGENTS.md: 80247 B ~21688 tok

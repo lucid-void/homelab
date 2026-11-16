@@ -15,9 +15,9 @@ spec:
     enabled: true
     loginFlows: [STANDARD]
     redirectUris:
-      - https://chat.example.com/oauth/oidc/callback
+      - https://chat.${CLUSTER_DOMAIN}/oauth/oidc/callback
     webOrigins:
-      - https://chat.example.com
+      - https://chat.${CLUSTER_DOMAIN}
     # `user` is the entitlement gate: the per-client browser-flow override denies
     # login to anyone without it (Condition - user role, negated, + Deny access).
     # Every group for this client must therefore grant `user`, including the admin

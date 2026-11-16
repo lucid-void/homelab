@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - plex.example.com
+    - plex.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: plex-app

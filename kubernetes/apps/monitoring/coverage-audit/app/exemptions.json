@@ -1,11 +1,11 @@
 {
   "gatus": {
-    "gatus.example.com": "Gatus cannot report its own outage"
+    "gatus.${CLUSTER_DOMAIN}": "Gatus cannot report its own outage"
   },
   "homepage": {
-    "home.example.com": "this is Homepage",
-    "kromgo.example.com": "badge JSON endpoint, no UI",
-    "obsidian.example.com": "CouchDB sync endpoint, no UI"
+    "home.${CLUSTER_DOMAIN}": "this is Homepage",
+    "kromgo.${CLUSTER_DOMAIN}": "badge JSON endpoint, no UI",
+    "obsidian.${CLUSTER_DOMAIN}": "CouchDB sync endpoint, no UI"
   },
   "backup": {
     "ai/clef-data": "re-downloadable venv and weights",

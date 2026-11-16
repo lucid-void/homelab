@@ -195,21 +195,21 @@ Expected: `Complete`; the log shows three snapshot dates under 48 h old, three r
 
 **Interfaces:**
 - Consumes: the PVC layout and `READY` from Task 3; `marker_is_today`, `version_older` from Task 2.
-- Produces, inside the pod: Postgres on `127.0.0.1:5432` with databases `keycloak` and `gitea`; Keycloak answering `https://sso.example.com`; Gitea answering `https://gitea.example.com`; the generated CA at `/tls/ca.crt`; a shared `emptyDir` `/run/drill` in which the loader writes `db.env` (generated passwords) and may write `STALE` (one line: which app, image version, data version).
+- Produces, inside the pod: Postgres on `127.0.0.1:5432` with databases `keycloak` and `gitea`; Keycloak answering `https://sso.<domain>`; Gitea answering `https://gitea.<domain>`; the generated CA at `/tls/ca.crt`; a shared `emptyDir` `/run/drill` in which the loader writes `db.env` (generated passwords) and may write `STALE` (one line: which app, image version, data version).
 
 Pod spec decisions:
-- Label `drill/role: boot`; `hostAliases: 127.0.0.1 → sso.example.com, gitea.example.com`; pod sysctl `net.ipv4.ip_unprivileged_port_start=0` so the proxy binds 443 as non-root; `activeDeadlineSeconds: 2700`.
+- Label `drill/role: boot`; `hostAliases: 127.0.0.1 → sso.<domain>, gitea.<domain>`; pod sysctl `net.ipv4.ip_unprivileged_port_start=0` so the proxy binds 443 as non-root; `activeDeadlineSeconds: 2700`.
 - Everything except the driver is a **native sidecar** (`initContainers` with `restartPolicy: Always`) so the Job ends when the driver exits, in this start order with a `startupProbe` each: `postgres` → `load-sso` (ordinary init container) → `proxy` → `keycloak` → `gitea`.
 - `postgres`: an image of the same Postgres major as production, pinned to a full tag, data on `emptyDir`.
 - `load-sso.sh`: `marker_is_today /scratch/READY "$(date -u +%F)"` or exit 1; create both databases; `pg_restore --no-owner --no-acl`; compare `SELECT version FROM migration_model ORDER BY update_time DESC LIMIT 1` with `KEYCLOAK_IMAGE_VERSION` via `version_older` and write `STALE` if older.
-- `keycloak`: the image recorded in Task 0, `kc.sh start` with `--db=postgres`, `--db-url=jdbc:postgresql://127.0.0.1:5432/keycloak`, `--hostname=https://sso.example.com`, `--http-enabled=true`, `--proxy-headers=xforwarded`, `--health-enabled=true`. No SMTP sidecar, no truststore.
+- `keycloak`: the image recorded in Task 0, `kc.sh start` with `--db=postgres`, `--db-url=jdbc:postgresql://127.0.0.1:5432/keycloak`, `--hostname=https://sso.<domain>`, `--http-enabled=true`, `--proxy-headers=xforwarded`, `--health-enabled=true`. No SMTP sidecar, no truststore.
 - `gitea`: the image recorded in Task 0; the restored tree mounted so the image sees it at its data path; `SSL_CERT_FILE` pointing at a bundle that includes `/tls/ca.crt`; overrides `GITEA__database__HOST=127.0.0.1:5432`, `GITEA__database__PASSWD` from `db.env`, `GITEA__cache__ADAPTER=memory`, `GITEA__session__PROVIDER=memory`, `GITEA__queue__TYPE=level`, `GITEA__mailer__ENABLED=false`, `GITEA__mirror__ENABLED=false`, `GITEA__webhook__ALLOWED_HOST_LIST=loopback`, `GITEA__cron__ENABLED=false`, `GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION=true`. Do **not** override `SECRET_KEY`, `INTERNAL_TOKEN` or the JWT secrets — they come from the restored `app.ini`.
 
 - [ ] **Step 1: Write the manifest and the loader**, with the driver container as a placeholder that only waits for both readiness URLs and exits 0:
 
 ```bash
-curl -fsS --cacert /tls/ca.crt https://sso.example.com/realms/homelab/.well-known/openid-configuration | jq -e '.issuer == "https://sso.example.com/realms/homelab"'
-curl -fsS --cacert /tls/ca.crt https://gitea.example.com/api/healthz | jq -e '.status == "pass"'
+curl -fsS --cacert /tls/ca.crt https://sso.<domain>/realms/homelab/.well-known/openid-configuration | jq -e '.issuer == "https://sso.<domain>/realms/homelab"'
+curl -fsS --cacert /tls/ca.crt https://gitea.<domain>/api/healthz | jq -e '.status == "pass"'
 ```
 
 - [ ] **Step 2: Validate, commit, merge via PR.**
@@ -217,7 +217,7 @@ curl -fsS --cacert /tls/ca.crt https://gitea.example.com/api/healthz | jq -e '.s
 - [ ] **Step 4: Prove the isolation on that same pod's logs.** Expected: no successful connection to `postgres-rw.postgres`, the mail bridge or Valkey in any container log, and Gitea's log shows the database host as `127.0.0.1`. Then confirm the login URL the restored Gitea uses is the public one:
 
 Run (while a manual pod is up): `mise exec -- kubectl -n restore-drill exec <pod> -c postgres -- psql -U postgres gitea -Atc "select name, cfg::json->>'OpenIDConnectAutoDiscoveryURL' from login_source"`
-Expected: `https://sso.example.com/realms/homelab/.well-known/openid-configuration`. If it is an in-cluster URL instead, add that hostname to `hostAliases` and the proxy.
+Expected: `https://sso.<domain>/realms/homelab/.well-known/openid-configuration`. If it is an in-cluster URL instead, add that hostname to `hostAliases` and the proxy.
 
 ### Task 5: `drill-sso` checks and report
 
@@ -231,7 +231,7 @@ Expected: `https://sso.example.com/realms/homelab/.well-known/openid-configurati
 Check order in `drive-sso.sh` (the spec's five checks): stale short-circuit → Keycloak discovery → floors → SSO login → Gitea data.
 - Stale: if `/run/drill/STALE` exists, or Gitea's log contains its "database version is newer" refusal, send `Restore drill: sso stale — bump the image` at priority 8 and exit 3.
 - Floors: `SELECT count(*) FROM user_entity u JOIN realm r ON r.id = u.realm_id WHERE r.name = 'homelab'` against `MIN_KEYCLOAK_USERS`; `SELECT count(*) FROM repository` against `MIN_GITEA_REPOS`.
-- Login, with one curl cookie jar and `--cacert /tls/ca.crt`: GET `https://gitea.example.com/user/oauth2/Keycloak` following redirects to the Keycloak form → extract the form's `action` URL → POST `username`/`password` to it following redirects → GET `https://gitea.example.com/api/v1/user` and require HTTP 200 with a non-empty `.login`.
+- Login, with one curl cookie jar and `--cacert /tls/ca.crt`: GET `https://gitea.<domain>/user/oauth2/Keycloak` following redirects to the Keycloak form → extract the form's `action` URL → POST `username`/`password` to it following redirects → GET `https://gitea.<domain>/api/v1/user` and require HTTP 200 with a non-empty `.login`.
 - Gitea data: the number of repositories on disk equals the `repository` row count, and `git fsck` passes on a recently used repository that has commits. `backup-tools` has no `git`, so the git half runs in an ordinary init container `fsck` that uses the Gitea image and needs no database: it counts the `*.git` directories (excluding `*.wiki.git`), picks the most recently modified one that has refs, runs `git fsck` and `git rev-list --count --all` on it, and writes `REPOS_ON_DISK`, `FSCK_REPO`, `FSCK_RC` and `FSCK_COMMITS` to `/run/drill/fsck.env`. The driver then requires `REPOS_ON_DISK` to equal `SELECT count(*) FROM repository`, `FSCK_RC=0` and `FSCK_COMMITS >= 1`. Add the `fsck` init container to `cronjob-sso.yml` in this task.
 - Pass body: the three snapshot times that apply, user count, repo count, the repository fsck ran on.
 

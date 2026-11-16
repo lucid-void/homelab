@@ -184,7 +184,7 @@ ensure_client_token() {
   upsert_secret "$ns" "$secret" "$key" "$token"
 }
 
-# Always the in-cluster Service, never gotify.example.com: the public hostname
+# Always the in-cluster Service, never the public gotify hostname: the public hostname
 # needs DNS + egress out to the Gateway and back, which is exactly what is broken
 # in the failure modes worth reporting. Never silent on failure either — a
 # swallowed notification is how a four-day outage stayed invisible.

@@ -11,10 +11,10 @@ hand is the whole point. Until 2026-09-21 a second copy lived in `auth` as a
 three-key `proxmox-oidc-secret` bundle; it was dropped with Zitadel rather than moved,
 because it duplicated a credential that already sits beside every other client. The
 other two keys are fixed facts, not secrets: the issuer is
-`https://sso.example.com/realms/homelab` and the client id is `proxmox` (the CRD takes
+`https://sso.<domain>/realms/homelab` and the client id is `proxmox` (the CRD takes
 it from `metadata.name`).
 Redirect URI is the Proxmox web UI base URL with no path
-(`https://pve.example.com:8006` + `:443`); `auth_method_type = BASIC` (the
+(`https://pve.<domain>:8006` + `:443`); `auth_method_type = BASIC` (the
 `proxmox-openid` Rust crate uses `client_secret_basic`). Credentials are entered into a
 Proxmox OIDC realm manually via `pveum` (see design/runbook.md).
 

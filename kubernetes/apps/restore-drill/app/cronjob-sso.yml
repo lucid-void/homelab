@@ -41,9 +41,9 @@ spec:
           restartPolicy: Never
           hostAliases:
             - ip: 127.0.0.2
-              hostnames: ["sso.example.com"]
+              hostnames: ["sso.${CLUSTER_DOMAIN}"]
             - ip: 127.0.0.3
-              hostnames: ["gitea.example.com"]
+              hostnames: ["gitea.${CLUSTER_DOMAIN}"]
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -84,7 +84,7 @@ spec:
             - name: tmp-driver
               emptyDir: {}
           initContainers:
-            # A self-signed certificate for sso.example.com, as a keystore for
+            # A self-signed certificate for sso.${CLUSTER_DOMAIN}, as a keystore for
             # Keycloak and as PEM for the things that must trust it.
             - name: cert-keycloak
               image: quay.io/keycloak/keycloak:26.8.1
@@ -92,7 +92,7 @@ spec:
               args:
                 - >-
                   keytool -genkeypair -alias sso -keyalg RSA -keysize 2048 -validity 2
-                  -dname CN=sso.example.com -ext SAN=dns:sso.example.com
+                  -dname CN=sso.${CLUSTER_DOMAIN} -ext SAN=dns:sso.${CLUSTER_DOMAIN}
                   -storetype PKCS12 -keystore /tls/sso.p12 -storepass drill-throwaway
                   && keytool -exportcert -rfc -alias sso -keystore /tls/sso.p12
                   -storepass drill-throwaway -file /tls/sso.crt
@@ -111,7 +111,7 @@ spec:
               command: ["/bin/sh", "-c"]
               args:
                 - >-
-                  cd /tls && gitea cert --host gitea.example.com
+                  cd /tls && gitea cert --host gitea.${CLUSTER_DOMAIN}
                   && mv cert.pem gitea.crt && mv key.pem gitea.key
               env:
                 - name: HOME
@@ -222,7 +222,7 @@ spec:
                 - --db-username=postgres
                 # not a credential: the pod-local Postgres uses trust auth
                 - --db-password=unused
-                - --hostname=https://sso.example.com
+                - --hostname=https://sso.${CLUSTER_DOMAIN}
                 - --http-host=127.0.0.2
                 - --https-port=443
                 - --https-key-store-file=/tls/sso.p12
@@ -258,7 +258,7 @@ spec:
                 - {name: GITEA__server__HTTP_PORT, value: "443"}
                 - {name: GITEA__server__CERT_FILE, value: /tls/gitea.crt}
                 - {name: GITEA__server__KEY_FILE, value: /tls/gitea.key}
-                - {name: GITEA__server__LOCAL_ROOT_URL, value: "https://gitea.example.com/"}
+                - {name: GITEA__server__LOCAL_ROOT_URL, value: "https://gitea.${CLUSTER_DOMAIN}/"}
                 - {name: GITEA__server__START_SSH_SERVER, value: "false"}
                 # the pod's own Postgres instead of the production cluster
                 - {name: GITEA__database__HOST, value: "127.0.0.1:5432"}

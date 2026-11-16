@@ -17,11 +17,11 @@ spec:
       # Path shape is fixed by jellyfin-plugin-sso: /sso/OID/redirect/<provider name>.
       # The trailing segment must match the provider name configured in the plugin
       # ("keycloak"), not the realm and not the client id.
-      - https://jellyfin.example.com/sso/OID/redirect/keycloak
+      - https://jellyfin.${CLUSTER_DOMAIN}/sso/OID/redirect/keycloak
       # The official Android/mobile client completes the flow on a custom scheme.
       - org.jellyfin.mobile://login-callback
     webOrigins:
-      - https://jellyfin.example.com
+      - https://jellyfin.${CLUSTER_DOMAIN}
     # `user` is the entitlement gate: the browser-jellyfin flow override denies login
     # to anyone without it. The admin group must ALSO carry `user` — the CRD takes
     # bare strings, so composite roles are not expressible here.

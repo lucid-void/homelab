@@ -11,7 +11,7 @@ Postgres — `postgresql.enabled: false`, `postgresql-ha.enabled: false`. DB pas
 StatefulSet. HTTP service name is `{release-name}-http` (`gitea-http`) on port `3000` —
 HTTPRoute `backendRef` must use `gitea-http`.
 
-**SSH.** `git@gitea.example.com:...` works via a `TCPRoute` at
+**SSH.** `git@gitea.<domain>:...` works via a `TCPRoute` at
 `kubernetes/apps/gitea/gitea/app/tcproute.yml`, attaching the shared Gateway's `ssh`
 TCP:22 listener to the `gitea-ssh` Service (22 → pod `2222`). The chart's `gitea-ssh`
 Service is headless ClusterIP by default. Relevant env: `START_SSH_SERVER`,
@@ -20,7 +20,7 @@ LoadBalancer: the hostname is an A record for the Gateway VIP, one name can't sp
 HTTPS to `.50` and SSH elsewhere, and sharing `.50` with a second Service is the
 dual-ARP/RST trap. The Gateway Service is `externalTrafficPolicy: Cluster`, so Gitea
 logs the cluster-internal source IP (`10.244.x.x`), not the real client IP. Gatus checks
-`tcp://gitea.example.com:22` as a separate check from the HTTPS one.
+`tcp://gitea.<domain>:22` as a separate check from the HTTPS one.
 
 **Cache/session/queue run on a bundled valkey cluster, not memory.** Chart v11 renamed
 the dependency `redis-cluster` → `valkey-cluster`; a values file still setting
@@ -33,7 +33,7 @@ queue" block) — any `memory`/`channel` values in the HelmRelease are silently 
 `nodes: 6, replicas: 1`; the chart default `nodes: 3 / replicas: 0` is 3 primaries with
 no failover.
 
-**OIDC.** Callback URI: `https://gitea.example.com/user/oauth2/Keycloak/callback` — the
+**OIDC.** Callback URI: `https://gitea.<domain>/user/oauth2/Keycloak/callback` — the
 provider name segment is case-sensitive and must match `gitea.oauth[].name` exactly.
 The sealed `gitea-oidc-secret` carries a `values.yaml` key containing the full
 `gitea.oauth` list (`key`, `secret`, `autoDiscoverUrl`, `groupClaimName`, `adminGroup`).

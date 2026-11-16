@@ -60,8 +60,8 @@ Declared in `talconfig.yaml` under each node's
 | Compute platform | Talos Linux k8s cluster, FluxCD GitOps. 3 control planes `cp-1/2/3` (`.11`–`.13`, schedulable), API VIP `.10`, Gateway VIP `.50`. One worker, `llm-1` (`.14`), tainted for LLM inference only. |
 | Internet exposure | Cloudflare DNS used only for valid TLS certs (DNS-01); all A records → internal IPs; no port forwarding on UDM SE; remote access requires Netbird VPN. No Cloudflare proxy. |
 | Netbird / ZeroTier | Netbird = primary remote-access VPN, runs as a Talos extension on every node (`wt0`, isolated from k8s networking). ZeroTier = gaming with friends only, on a separate VM outside the cluster (plain compose). |
-| LAN DNS | Two Blocky resolvers, cluster (`.53`) and NUT Pi (`.7`), from one config in git; DHCP hands out both. `*.example.com` answers locally with no internet. Nodes use the Pi, then the UDM, never `.53`. See `design/decisions/dns.md`. |
-| Cloudflare API tokens | One token per consumer (external-dns, cert-manager, Proxmox), Zone→DNS→Edit on example.com only; isolated for independent revocation. |
+| LAN DNS | Two Blocky resolvers, cluster (`.53`) and NUT Pi (`.7`), from one config in git; DHCP hands out both. `*.<domain>` answers locally with no internet. Nodes use the Pi, then the UDM, never `.53`. See `design/decisions/dns.md`. |
+| Cloudflare API tokens | One token per consumer (external-dns, cert-manager, Proxmox), Zone→DNS→Edit on `<domain>` only; isolated for independent revocation. |
 | NFS / Postgres traffic | Cleartext on internal VLAN — accepted risk; private network, VPN-gated. |
 
 ### Storage, secrets, backups
@@ -103,7 +103,7 @@ See `design/docs/networking.md` for the full reference. Summary:
   kube-proxy replacement
 - **Ingress:** Cilium Gateway API — single `shared` Gateway at `172.16.20.50` (L2
   announcement)
-- **TLS:** cert-manager, wildcard `*.example.com` via Let's Encrypt DNS-01/Cloudflare
+- **TLS:** cert-manager, wildcard `*.<domain>` via Let's Encrypt DNS-01/Cloudflare
 - **DNS:** external-dns publishes to Cloudflare, opt-in annotation per HTTPRoute/GRPCRoute;
   the LAN resolves through Blocky (`design/decisions/dns.md`)
 - **Netbird VPN** runs as a Talos extension on every node, adding a `wt0` interface at
@@ -119,7 +119,7 @@ See `design/docs/networking.md` for the full reference. Summary:
 See `design/docs/storage.md` for the full reference. Summary:
 
 - **Default StorageClass:** `nfs-client` (democratic-csi, NFS subdirectory from
-  Synology `synology.example.com:/volume2/Kubernetes`)
+  Synology `synology.<domain>:/volume2/Kubernetes`)
 - **Local StorageClass:** `openebs-hostpath` (OpenEBS LocalPV at
   `/var/openebs/local`) — for workloads NFS is bad for: SQLite locking, latency-sensitive
   random I/O, fsync-per-write with long-lived file locks

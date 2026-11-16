@@ -13,7 +13,7 @@
 
 **Provisioner:** `org.democratic-csi.nfs-client`
 
-The controller mounts the Synology parent NFS share (`synology.example.com:/volume2/Kubernetes`, mounted in the controller at `/mnt/kubernetes.nfs`) at startup via a `postStart` lifecycle hook. For each PVC, it creates a subdirectory under that share. No Synology REST API is needed.
+The controller mounts the Synology parent NFS share (`synology.<domain>:/volume2/Kubernetes`, mounted in the controller at `/mnt/kubernetes.nfs`) at startup via a `postStart` lifecycle hook. For each PVC, it creates a subdirectory under that share. No Synology REST API is needed.
 
 **Controller requirements:** `hostNetwork: true`, `hostIPC: true`, `SYS_ADMIN`, `privileged: true`.
 The `democratic-csi` namespace has `pod-security.kubernetes.io/enforce: privileged` to permit this.

@@ -5,7 +5,7 @@ are each turn; give time estimates in real units; end on one concrete next step;
 preamble, recap or sign-off. Full rules, only if asked about them:
 `.agents/skills/i-have-adhd/SKILL.md`.
 
-Talos Linux Kubernetes cluster on the `example.com` domain, managed by FluxCD.
+Talos Linux Kubernetes cluster on a private domain (`${CLUSTER_DOMAIN}`, written `<domain>` in docs), managed by FluxCD.
 Everything is declarative and driven from git: VM templates (Packer), VMs + Cloudflare
 DNS (OpenTofu, always applied by hand), node OS (talhelper, SOPS+age),
 cluster workloads (Flux, from `main`). A tiny compose remnant survives only for ZeroTier.
@@ -14,6 +14,7 @@ cluster workloads (Flux, from `main`). A tiny compose remnant survives only for 
 
 - **Never write a raw `Secret`** — seal it: `mise exec -- kubeseal --cert kubernetes/flux/pub-cert.pem --format yaml < /tmp/secret.yaml > <name>-sealed.yml`; the one exception is a Secret whose values are only `${SECRET_*}` placeholders that Flux fills from `cluster-secrets` (the two `cloudflare-secret.yml` files)
 - **Never read or print secret material** — `recovery.key`, gitignored `*-secret.yml` plaintext, `kubernetes/flux/vars/cluster-secrets.yml`, `infra/terraform/terraform.tfstate*`, `kubernetes/talos/clusterconfig/`, decrypted SOPS output, `kubectl get secret -o yaml|json`; credentials have leaked into agent transcripts before, and each one then has to be rotated
+- **Never hardcode the domain** — use `${CLUSTER_DOMAIN}` (the app's `ks.yml` needs `postBuild.substituteFrom` with `cluster-secrets`, and any existing `${...}` in that path must become `$${...}`); in docs write `<domain>`
 - **Never use `Ingress`** — use `HTTPRoute`/`GRPCRoute` with `parentRefs: [{name: shared, namespace: gateway}]`
 - **Never `kubectl apply` a config change** — it goes through git and Flux; `kubectl` is for diagnostics only; the bootstrap and recovery procedures in `design/runbook.md` are the only sanctioned imperative steps
 - **Never set `spec.targetNamespace`** on a Kustomization whose resources span namespaces — it overrides every explicit namespace field

@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - gatus.example.com
+    - gatus.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: gatus

@@ -4,9 +4,9 @@
 set -uo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-SCRIPT="$HERE/../app/scripts/restore.sh"
 # shellcheck source=harness.sh
 source "$HERE/harness.sh"
+SCRIPT="$SCRIPTS/restore.sh"
 
 # Builds stubs in $T/bin and a scratch dir in $T/scratch. Stub behaviour is
 # steered by STUB_* variables exported by the individual test.

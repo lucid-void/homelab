@@ -6,8 +6,8 @@
 # Tests: tests/test_fsck_gitea.sh
 set -eu
 
-REPO_ROOT=${REPO_ROOT:-/data/git/gitea-repositories}
-RUN_DIR=${RUN_DIR:-/run/drill}
+REPO_ROOT=$${REPO_ROOT:-/data/git/gitea-repositories}
+RUN_DIR=$${RUN_DIR:-/run/drill}
 
 has_refs() {
   [ -s "$1/packed-refs" ] || [ -n "$(find "$1/refs" -type f 2>/dev/null | head -1)" ]
@@ -31,12 +31,12 @@ done
 
 rc=0 commits=0 name=""
 if [ -n "$broken" ]; then
-  name=${broken#"$REPO_ROOT"/}
+  name=$${broken#"$REPO_ROOT"/}
   echo "[drill] $name has refs but git cannot read its history"
   git -C "$broken" fsck --no-dangling || rc=$?
   [ "$rc" -ne 0 ] || rc=1
 elif [ -n "$newest" ]; then
-  name=${newest#"$REPO_ROOT"/}
+  name=$${newest#"$REPO_ROOT"/}
   echo "[drill] git fsck on $name"
   git -C "$newest" fsck --no-dangling || rc=$?
   commits=$(git -C "$newest" rev-list --count --all 2>/dev/null || echo 0)
@@ -49,4 +49,4 @@ FSCK_REPO=$name
 FSCK_RC=$rc
 FSCK_COMMITS=$commits
 EOF
-echo "[drill] $count repositories on disk; checked '${name:-none}' rc=$rc commits=$commits"
+echo "[drill] $count repositories on disk; checked '$${name:-none}' rc=$rc commits=$commits"

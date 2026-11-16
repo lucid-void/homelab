@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - crosswatch.example.com
+    - crosswatch.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: crosswatch

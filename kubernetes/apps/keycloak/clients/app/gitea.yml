@@ -20,9 +20,9 @@ spec:
     # at cutover, which changes the callback path. It must match the
     # oauth[].name that Task 7 writes into gitea-oidc-secret exactly.
     redirectUris:
-      - https://gitea.example.com/user/oauth2/Keycloak/callback
+      - https://gitea.${CLUSTER_DOMAIN}/user/oauth2/Keycloak/callback
     webOrigins:
-      - https://gitea.example.com
+      - https://gitea.${CLUSTER_DOMAIN}
     roles:
       - admin
       - user

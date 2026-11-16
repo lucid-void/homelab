@@ -37,7 +37,7 @@ success).
 **Kavita OIDC.** Kavita reads OIDC creds only from `/config/appsettings.json` under key
 `OpenIdConnectSettings` (`Authority`+`ClientId`+`Secret`, all three required for
 `Enabled`) — it does not bind env vars and manages this file itself. Callback URI:
-`https://kavita.example.com/signin-oidc` (ASP.NET middleware const). Wiring: a
+`https://kavita.<domain>/signin-oidc` (ASP.NET middleware const). Wiring: a
 `KeycloakOIDCClient` CR registers the client and the sealed flat `kavita-oidc-secret`
 (`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`) lands in `media`; an `alpine`+`jq` initContainer
 (`oidc-config`) idempotently merges `{Authority,ClientId,Secret}` into

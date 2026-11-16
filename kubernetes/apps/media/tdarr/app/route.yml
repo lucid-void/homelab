@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - tdarr.example.com
+    - tdarr.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: tdarr

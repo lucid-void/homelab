@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - changedetection.example.com
+    - changedetection.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: changedetection

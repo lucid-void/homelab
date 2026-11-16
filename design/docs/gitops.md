@@ -82,7 +82,7 @@ Flux starts from two root Kustomizations (applied via `kubectl apply -k kubernet
 1. **`cluster`** → `kubernetes/flux/` — loads repositories, vars, and `apps.yml`
 2. **`cluster-apps`** → `kubernetes/apps/` — root of all application Kustomizations
 
-Both use `postBuild.substituteFrom` to inject `cluster-settings` ConfigMap and `cluster-secrets` Secret variables into all manifests (e.g. `${CLUSTER_DOMAIN}` → `example.com`).
+Both use `postBuild.substituteFrom` to inject `cluster-settings` ConfigMap and `cluster-secrets` Secret variables — but only into the objects they apply directly (the `ks.yml` Flux Kustomizations), not into an app's own manifests. See [Variable Substitution](#variable-substitution).
 
 ### Kustomization Tree
 
@@ -136,16 +136,29 @@ Most Kustomizations set `spec.targetNamespace`. **Critical:** `targetNamespace` 
 
 ### Variable Substitution
 
-Variables are substituted in all manifests via `postBuild.substituteFrom`:
+Variables are substituted only in the manifests of a Flux Kustomization that has its own `postBuild.substituteFrom` — the roots' substitution does not reach an app's path. Any app whose manifests use `${CLUSTER_DOMAIN}` must carry this in its `ks.yml`:
+
+```yaml
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-settings
+      - kind: Secret
+        name: cluster-secrets
+        optional: false
+```
 
 | Variable | Source | Value |
 |---|---|---|
 | `${CLUSTER_NAME}` | `cluster-settings` ConfigMap | `homelab-k8s` |
-| `${CLUSTER_DOMAIN}` | `cluster-settings` ConfigMap | `example.com` |
+| `${CLUSTER_DOMAIN}` | `cluster-secrets` SealedSecret | the cluster domain (private) — never hardcode it; docs write `<domain>` |
 | `${SECRET_CLOUDFLARE_EMAIL}` | `cluster-secrets` SealedSecret | Cloudflare account email |
 | `${SECRET_CLOUDFLARE_API_TOKEN}` | `cluster-secrets` SealedSecret | Cloudflare API token — fills the two raw `cloudflare-secret.yml` manifests (`design/docs/secrets.md`) |
 
-`cluster-secrets` is `optional: true` — reconciliation proceeds even if the secret is absent.
+The root Kustomizations reference `cluster-secrets` with `optional: true`; app Kustomizations use `optional: false`, so a missing secret fails the reconcile instead of rendering hostnames with no domain.
+
+- **An unset variable renders as an empty string**, silently — `plex.${CLUSTER_DOMAIN}` becomes `plex.` with no error.
+- **Substitution touches every `${...}` in the path**, including ones meant for the app itself (shell scripts, Helm values, config templates). Once a Kustomization gains `postBuild.substituteFrom`, escape those as `$${...}`; Flux writes them out as a literal `${...}`.
 
 ---
 
@@ -318,7 +331,7 @@ spec:
     - name: shared
       namespace: gateway
   hostnames:
-    - myapp.example.com
+    - myapp.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: myapp   # single-service app-template naming
@@ -343,8 +356,8 @@ spec:
     displayName: MyApp
     enabled: true
     loginFlows: [STANDARD]
-    redirectUris: [https://myapp.example.com/oidc/callback]
-    webOrigins: [https://myapp.example.com]
+    redirectUris: [https://myapp.${CLUSTER_DOMAIN}/oidc/callback]
+    webOrigins: [https://myapp.${CLUSTER_DOMAIN}]
     roles: [admin, user]
     auth:
       method: client-secret
@@ -392,7 +405,7 @@ matching `group` (`infrastructure`, `apps`, or `media`):
 ```yaml
       - name: MyApp
         group: apps
-        url: https://myapp.example.com/health
+        url: https://myapp.${CLUSTER_DOMAIN}/health
         interval: 1m
         conditions:
           - "[STATUS] == 200"
@@ -429,7 +442,7 @@ Only if the service has a web UI a human would open. Edit
 ```yaml
     - Documents:
         - MyApp:
-            href: https://myapp.example.com
+            href: https://myapp.${CLUSTER_DOMAIN}
             description: What it is for
             icon: myapp.png
 ```

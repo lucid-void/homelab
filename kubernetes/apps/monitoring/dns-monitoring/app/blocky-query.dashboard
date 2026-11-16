@@ -41,7 +41,7 @@
        "viz": false
       }
      },
-     "displayName": "${__field.labels.response_type}",
+     "displayName": "$${__field.labels.response_type}",
      "mappings": [],
      "unit": "short"
     },
@@ -488,7 +488,7 @@
        "mode": "off"
       }
      },
-     "displayName": "${__field.labels.client_name}",
+     "displayName": "$${__field.labels.client_name}",
      "mappings": [],
      "thresholds": {
       "mode": "absolute",

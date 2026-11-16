@@ -5,7 +5,7 @@
 ## Current state
 
 Website change monitor in its own `changedetection` namespace, at
-`changedetection.example.com` via HTTPRoute on the shared Gateway. One
+`changedetection.<domain>` via HTTPRoute on the shared Gateway. One
 `bjw-s/app-template` HelmRelease, one controller named `app`, so the Deployment and
 Service are both `changedetection` with no suffix. Service port is `5000`.
 

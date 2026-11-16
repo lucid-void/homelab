@@ -15,7 +15,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - matcha-files.example.com
+    - matcha-files.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: matcha-files
@@ -34,7 +34,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - vanilla-files.example.com
+    - vanilla-files.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: vanilla-files
@@ -55,7 +55,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - matcha-map.example.com
+    - matcha-map.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: matcha-map
@@ -74,7 +74,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - vanilla-map.example.com
+    - vanilla-map.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: vanilla-map

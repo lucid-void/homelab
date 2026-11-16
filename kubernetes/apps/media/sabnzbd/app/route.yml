@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - nzb.example.com
+    - nzb.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: sabnzbd

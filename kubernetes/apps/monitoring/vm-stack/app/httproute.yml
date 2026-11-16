@@ -12,7 +12,7 @@ spec:
       namespace: gateway
       sectionName: https
   hostnames:
-    - grafana.example.com
+    - grafana.${CLUSTER_DOMAIN}
   rules:
     - backendRefs:
         - name: vm-stack-grafana

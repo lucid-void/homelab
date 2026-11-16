@@ -61,3 +61,7 @@ variable "cloudflare_api_token" {
 variable "cloudflare_zone_id" {
   type = string
 }
+# The cluster domain. Kept in secrets.sops.tfvars so it never appears in the public repo.
+variable "domain" {
+  type = string
+}

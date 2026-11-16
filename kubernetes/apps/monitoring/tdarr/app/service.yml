@@ -5,7 +5,7 @@ metadata:
   name: tdarr-exporter
   namespace: monitoring
   labels:
-    monitoring.example.com/scrape: tdarr
+    monitoring.${CLUSTER_DOMAIN}/scrape: tdarr
 spec:
   selector:
     app: tdarr-exporter
