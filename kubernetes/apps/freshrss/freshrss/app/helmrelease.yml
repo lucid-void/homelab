@@ -86,7 +86,6 @@ spec:
               OIDC_USERNAME_CLAIM: "preferred_username"
               OIDC_REMOTE_USER_CLAIM: "preferred_username"
               OIDC_X_FORWARDED_HEADERS: "X-Forwarded-Host X-Forwarded-Port X-Forwarded-Proto"
-              OIDC_CLIENT_CRYPTO_KEY: "freshrss-oidc-session-key-example"
             envFrom:
               - secretRef:
                   name: freshrss-oidc-secret

@@ -8,8 +8,9 @@
 `https://rss.<domain>/i/oidc/` — not `/i/?get=oidc`, which is the old PHP lib path.
 Required env vars: `OIDC_CLIENT_CRYPTO_KEY` (session passphrase),
 `OIDC_REMOTE_USER_CLAIM`, `OIDC_X_FORWARDED_HEADERS` (uses real header names like
-`X-Forwarded-Host`, not PHP var names). Client/secret come from the sealed
-`freshrss-oidc-secret`.
+`X-Forwarded-Host`, not PHP var names). Client ID, client secret and the crypto key
+all come from the sealed `freshrss-oidc-secret` via `envFrom`; the crypto key used to be
+a literal in the HelmRelease, in a public repo, and was rotated when it moved.
 
 **Paperless** goes via django-allauth 65.x: `PAPERLESS_SOCIALACCOUNT_PROVIDERS` JSON env
 var with `openid_connect.APPS[].provider_id = "keycloak"`. Callback URI:
