@@ -1,0 +1,345 @@
+---
+# Stage 2 of the weekly restore drill: boot the real Keycloak and the real Gitea
+# on the data drill-restore pulled from Filen, inside ONE pod that can reach
+# nothing but Gotify (label drill/role: boot, see networkpolicy.yml).
+#
+# How the restored login settings work unchanged: the issuer URL, callback URL
+# and client secret live in the two databases and name the production
+# hostnames. hostAliases points those names at loopback addresses inside this
+# pod, and each app serves HTTPS itself on 443 with a certificate generated at
+# pod start — Keycloak on 127.0.0.2, Gitea on 127.0.0.3. No proxy, no Service,
+# no DNS.
+#
+# Everything except `driver` is a native sidecar (initContainer with
+# restartPolicy: Always), so the Job ends when the driver exits.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: drill-sso
+  namespace: restore-drill
+  annotations:
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see design/decisions/backups.md"
+    # Keycloak builds itself and Postgres/Gitea write under their own trees at start
+    ignore-check.kube-linter.io/no-read-only-root-fs: "throwaway app copies that write at start"
+spec:
+  schedule: "0 12 * * 6"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 2700
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            drill/role: boot
+        spec:
+          serviceAccountName: restore-drill
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          hostAliases:
+            - ip: 127.0.0.2
+              hostnames: ["sso.example.com"]
+            - ip: 127.0.0.3
+              hostnames: ["gitea.example.com"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+            # lets uid 1000 bind 443, which the stored URLs imply (they carry no port)
+            sysctls:
+              - name: net.ipv4.ip_unprivileged_port_start
+                value: "0"
+          volumes:
+            - name: scratch
+              persistentVolumeClaim:
+                claimName: restore-drill-scratch
+            - name: script
+              configMap:
+                name: drill-scripts
+                defaultMode: 0755
+            # The Keycloak account the drill logs in with (keys username,
+            # password). optional so the pod still starts and reports clearly
+            # if the SealedSecret has not been added yet.
+            - name: drill-user
+              secret:
+                secretName: drill-user
+                optional: true
+                defaultMode: 0440
+            - name: tls
+              emptyDir: {}
+            - name: run
+              emptyDir: {}
+            - name: pgdata
+              emptyDir: {}
+            - name: tmp-load
+              emptyDir: {}
+            - name: tmp-gitea
+              emptyDir: {}
+            - name: tmp-driver
+              emptyDir: {}
+          initContainers:
+            # A self-signed certificate for sso.example.com, as a keystore for
+            # Keycloak and as PEM for the things that must trust it.
+            - name: cert-keycloak
+              image: quay.io/keycloak/keycloak:26.8.1
+              command: ["/bin/sh", "-c"]
+              args:
+                - >-
+                  keytool -genkeypair -alias sso -keyalg RSA -keysize 2048 -validity 2
+                  -dname CN=sso.example.com -ext SAN=dns:sso.example.com
+                  -storetype PKCS12 -keystore /tls/sso.p12 -storepass drill-throwaway
+                  && keytool -exportcert -rfc -alias sso -keystore /tls/sso.p12
+                  -storepass drill-throwaway -file /tls/sso.crt
+              volumeMounts:
+                - name: tls
+                  mountPath: /tls
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 50m, memory: 128Mi}
+                limits: {memory: 512Mi}
+            - name: cert-gitea
+              image: docker.gitea.com/gitea:1.27.0-rootless
+              command: ["/bin/sh", "-c"]
+              args:
+                - >-
+                  cd /tls && gitea cert --host gitea.example.com
+                  && mv cert.pem gitea.crt && mv key.pem gitea.key
+              env:
+                - name: HOME
+                  value: /tmp
+              volumeMounts:
+                - name: tls
+                  mountPath: /tls
+                - name: tmp-gitea
+                  mountPath: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 50m, memory: 64Mi}
+                limits: {memory: 256Mi}
+            # Counts the restored repositories and runs git fsck on the newest
+            # one. Here because this is the only drill image that has git.
+            - name: fsck
+              image: docker.gitea.com/gitea:1.27.0-rootless
+              command: ["/bin/sh", "/scripts/fsck-gitea.sh"]
+              env:
+                - name: HOME
+                  value: /tmp
+              volumeMounts:
+                - name: scratch
+                  mountPath: /data
+                  subPath: gitea/data
+                  readOnly: true
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+                - name: run
+                  mountPath: /run/drill
+                - name: tmp-gitea
+                  mountPath: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 50m, memory: 64Mi}
+                limits: {memory: 512Mi}
+            # Throwaway Postgres: loopback only, trust auth, data on emptyDir.
+            # Never the production cluster.
+            - name: postgres
+              image: postgres:17.6-bookworm
+              restartPolicy: Always
+              args: ["-c", "listen_addresses=127.0.0.1"]
+              env:
+                - name: POSTGRES_HOST_AUTH_METHOD
+                  value: trust
+                - name: PGDATA
+                  value: /var/lib/postgresql/data/pgdata
+              volumeMounts:
+                - name: pgdata
+                  mountPath: /var/lib/postgresql/data
+              securityContext:
+                runAsUser: 999
+                runAsGroup: 999
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 100m, memory: 256Mi}
+                limits: {memory: 1Gi}
+            - name: load-sso
+              image: ghcr.io/lucid-void/backup-tools:v1.1.0
+              command: ["/bin/bash", "/scripts/load-sso.sh"]
+              env:
+                # must equal the keycloak container's image tag below
+                - name: KEYCLOAK_IMAGE_VERSION
+                  value: "26.8.1"
+                - name: HOME
+                  value: /tmp
+                - name: GOTIFY_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gotify-secret
+                      key: GOTIFY_TOKEN
+                      optional: true
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+                  readOnly: true
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+                - name: run
+                  mountPath: /run/drill
+                - name: tmp-load
+                  mountPath: /tmp
+              securityContext:
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 100m, memory: 128Mi}
+                limits: {memory: 1Gi}
+            - name: keycloak
+              image: quay.io/keycloak/keycloak:26.8.1
+              restartPolicy: Always
+              args:
+                - start
+                - --db=postgres
+                - --db-url=jdbc:postgresql://127.0.0.1:5432/keycloak
+                - --db-username=postgres
+                # not a credential: the pod-local Postgres uses trust auth
+                - --db-password=unused
+                - --hostname=https://sso.example.com
+                - --http-host=127.0.0.2
+                - --https-port=443
+                - --https-key-store-file=/tls/sso.p12
+                - --https-key-store-password=drill-throwaway
+                - --cache=local
+              volumeMounts:
+                - name: tls
+                  mountPath: /tls
+                  readOnly: true
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 200m, memory: 768Mi}
+                limits: {memory: 1536Mi}
+            - name: gitea
+              image: docker.gitea.com/gitea:1.27.0-rootless
+              restartPolicy: Always
+              env:
+                # the same layout production uses (chart defaults)
+                - {name: GITEA_APP_INI, value: /data/gitea/conf/app.ini}
+                - {name: GITEA_CUSTOM, value: /data/gitea}
+                - {name: GITEA_WORK_DIR, value: /data}
+                - {name: GITEA_TEMP, value: /tmp/gitea}
+                - {name: TMPDIR, value: /tmp/gitea}
+                - {name: HOME, value: /data/gitea/git}
+                # trust the drill Keycloak's certificate, and only that
+                - {name: SSL_CERT_FILE, value: /tls/sso.crt}
+                # serve the real hostname on loopback
+                - {name: GITEA__server__PROTOCOL, value: https}
+                - {name: GITEA__server__HTTP_ADDR, value: 127.0.0.3}
+                - {name: GITEA__server__HTTP_PORT, value: "443"}
+                - {name: GITEA__server__CERT_FILE, value: /tls/gitea.crt}
+                - {name: GITEA__server__KEY_FILE, value: /tls/gitea.key}
+                - {name: GITEA__server__LOCAL_ROOT_URL, value: "https://gitea.example.com/"}
+                - {name: GITEA__server__START_SSH_SERVER, value: "false"}
+                # the pod's own Postgres instead of the production cluster
+                - {name: GITEA__database__HOST, value: "127.0.0.1:5432"}
+                - {name: GITEA__database__USER, value: postgres}
+                - {name: GITEA__database__PASSWD, value: unused}
+                - {name: GITEA__database__SSL_MODE, value: disable}
+                # no Valkey here
+                - {name: GITEA__cache__ADAPTER, value: memory}
+                - {name: GITEA__session__PROVIDER, value: memory}
+                - {name: GITEA__queue__TYPE, value: level}
+                - {name: GITEA__queue__CONN_STR, value: ""}
+                - {name: GITEA__queue__DATADIR, value: /tmp/gitea/queues}
+                # belt and braces under the network policy: nothing that reaches out
+                - {name: GITEA__mailer__ENABLED, value: "false"}
+                - {name: GITEA__mirror__ENABLED, value: "false"}
+                - {name: GITEA__webhook__ALLOWED_HOST_LIST, value: loopback}
+                - {name: GITEA__cron__ENABLED, value: "false"}
+                - {name: GITEA__actions__ENABLED, value: "false"}
+                # first SSO login creates the account instead of stopping at "link account"
+                - {name: GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION, value: "true"}
+                # SECRET_KEY, INTERNAL_TOKEN and the JWT secrets are deliberately NOT
+                # overridden: they come from the restored app.ini, and the stored
+                # secrets are encrypted with them.
+              volumeMounts:
+                - name: scratch
+                  mountPath: /data
+                  subPath: gitea/data
+                - name: tmp-gitea
+                  mountPath: /tmp
+                - name: tls
+                  mountPath: /tls
+                  readOnly: true
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 50m, memory: 512Mi}
+                limits: {memory: 2Gi}
+          containers:
+            - name: driver
+              image: ghcr.io/lucid-void/backup-tools:v1.1.0
+              command: ["/bin/bash", "/scripts/drive-sso.sh"]
+              env:
+                - name: HOME
+                  value: /tmp
+                # Floors against a backup that restores cleanly but is empty.
+                # Raise to about half of what a passing run reports.
+                - name: MIN_KEYCLOAK_USERS
+                  value: "1"
+                - name: MIN_GITEA_REPOS
+                  value: "1"
+                - name: GOTIFY_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gotify-secret
+                      key: GOTIFY_TOKEN
+                      optional: true
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+                  readOnly: true
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+                - name: tls
+                  mountPath: /tls
+                  readOnly: true
+                - name: run
+                  mountPath: /run/drill
+                  readOnly: true
+                - name: drill-user
+                  mountPath: /secrets/drill-user
+                  readOnly: true
+                - name: tmp-driver
+                  mountPath: /tmp
+              securityContext:
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 50m, memory: 64Mi}
+                limits: {memory: 256Mi}

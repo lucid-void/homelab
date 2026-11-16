@@ -19,6 +19,10 @@ topic rather than reading it whole; owner-only items are at the top.
   restore into a clean PVC and a fresh CNPG database, and write the procedure that worked into
   `design/runbook.md` — today it only restores to a scratch directory. The etcd path
   (`talosctl bootstrap --recover-from`) is equally unexercised.
+  The weekly restore drill (`design/decisions/backups.md`) now covers restore-to-scratch
+  and booting for Keycloak, Gitea and Immich's database; it never restores into
+  production, so this item stays open for an in-place restore, a full Immich library
+  restore and etcd.
 - **CRITICAL — needs the owner. The gitignored `*-secret.yml` plaintext files are the only
   source for re-sealing, and they are on one workstation.** If the controller key is lost,
   every SealedSecret has to be re-sealed from plaintext; some sealed files have no plaintext
@@ -146,13 +150,6 @@ topic rather than reading it whole; owner-only items are at the top.
   not completed a run yet. Watch for restic exit 3 (a file the job's uid cannot read) and
   for the shared-secret mirror in `ai`, `freshrss` and `monitoring`
   (`design/decisions/backups.md`).
-- **Build `restore-drill`: a weekly CronJob that proves a backup restores.** Each run picks
-  one app in rotation, restores its latest restic snapshot from Filen into a scratch PVC and
-  a throwaway CNPG database, checks the result (the dump loads, row and file counts are
-  sane, the snapshot is under 48 h old), posts pass or fail to Gotify, and tears everything
-  down. Start with Homebox (SQLite only), then add an app at a time; Immich is the highest
-  value and the hardest. It automates the restore test above, it does not replace doing
-  one by hand first. Not yet designed.
 - `immich-backup` still takes the deployment offline for the whole maintenance window,
   not just the backup — the cache PVC fix landed (`immich-backup-cache`, mounted at
   `/cache` via `RESTIC_CACHE_DIR`), which cut nightly downtime from ~136 min to

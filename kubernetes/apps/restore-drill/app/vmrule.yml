@@ -1,0 +1,36 @@
+---
+# The drill's own Gotify ✓/✗ is the primary signal. These catch the case where
+# it stops reporting at all — suspended, unschedulable, or failing before the
+# script can post — which a missing ✓ on a Saturday is easy to overlook.
+# Routes through Alertmanager -> am-gotify-bridge -> Gotify like every VMRule.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: restore-drill
+  namespace: monitoring
+spec:
+  groups:
+    - name: restore-drill
+      rules:
+        # Weekly job, so 9 days = one missed Saturday plus two days of slack.
+        - alert: RestoreDrillNotPassing
+          expr: |
+            time() - kube_cronjob_status_last_successful_time{namespace="restore-drill", cronjob=~"drill-(sso|immich)"}
+              > 9 * 86400
+          labels:
+            severity: warning
+          annotations:
+            summary: "Restore drill {{ $labels.cronjob }} has not passed in over 9 days"
+            description: "No backup restore has been proven since then. See 'The restore drill failed' in design/runbook.md."
+        # last_successful_time does not exist until the first success, so the
+        # rule above can never fire for a drill that has never passed.
+        - alert: RestoreDrillNeverPassed
+          expr: |
+            (time() - kube_cronjob_created{namespace="restore-drill", cronjob=~"drill-(sso|immich)"} > 9 * 86400)
+              unless on (cronjob)
+            kube_cronjob_status_last_successful_time{namespace="restore-drill"}
+          labels:
+            severity: warning
+          annotations:
+            summary: "Restore drill {{ $labels.cronjob }} has existed for over 9 days and never passed"
+            description: "See 'The restore drill failed' in design/runbook.md."

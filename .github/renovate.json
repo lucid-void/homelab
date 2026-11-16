@@ -31,6 +31,30 @@
   "customManagers": [
     {
       "customType": "regex",
+      "description": "The restore drill's loaders compare the restored database's app version with the image they boot, via an env var that repeats the image tag. Track those env values as the same package so they move in the same PR as the image line.",
+      "managerFilePatterns": [
+        "/^kubernetes/apps/restore-drill/app/cronjob-sso\\.yml$/"
+      ],
+      "matchStrings": [
+        "name: KEYCLOAK_IMAGE_VERSION\\n\\s+value: [\"']?(?<currentValue>[^\"'\\n]+)[\"']?"
+      ],
+      "depNameTemplate": "quay.io/keycloak/keycloak",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Same as above for the Immich drill; the package name puts it in the existing 'immich' group.",
+      "managerFilePatterns": [
+        "/^kubernetes/apps/restore-drill/app/cronjob-immich\\.yml$/"
+      ],
+      "matchStrings": [
+        "name: IMMICH_IMAGE_VERSION\\n\\s+value: [\"']?(?<currentValue>[^\"'\\n]+)[\"']?"
+      ],
+      "depNameTemplate": "ghcr.io/immich-app/immich-server",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
       "description": "Container image repository+tag pairs in bjw-s app-template HelmReleases",
       "managerFilePatterns": [
         "/kubernetes/.+\\.ya?ml$/"
@@ -70,6 +94,13 @@
   ],
 
   "packageRules": [
+    {
+      "description": "The restore drill boots its own pinned copies of Keycloak and Gitea on restored data. Production's versions come from the Keycloak operator and the Gitea chart, so nothing ties these pins to them: a drill image OLDER than production cannot read the restored database (the drill then reports 'stale'), a newer one just migrates the throwaway copy. Labeled for manual review so a bump is a deliberate 'catch up with production'. See design/decisions/backups.md.",
+      "matchFileNames": ["kubernetes/apps/restore-drill/**"],
+      "matchPackageNames": ["quay.io/keycloak/keycloak", "docker.gitea.com/gitea"],
+      "groupName": "restore-drill app images",
+      "labels": ["major-update"]
+    },
     {
       "description": "The keycloak-k8s-resources tag pins the operator AND the Keycloak server image it deploys — the Keycloak CR has no image field. Any bump here is a Keycloak upgrade that migrates the database schema on rollout, so it is labeled for manual review at every update type, not just major. Read the Keycloak release upgrading notes before merging.",
       "matchPackageNames": ["keycloak-k8s-resources", "keycloak/keycloak-k8s-resources"],

@@ -65,28 +65,70 @@ by `BACKUP_NAME`, `NAMESPACE` and `SCALE_DOWN`.
 ### Restore drill
 
 `kubernetes/apps/restore-drill/` — a weekly proof that the Keycloak, Gitea and Immich
-backups restore. Design: `docs/superpowers/specs/2026-11-14-restore-drill-design.md`.
-**Built so far: stage 1 only.** `drill-restore` (Saturday 10:00 UTC) wipes the
-`restore-drill-scratch` PVC, restores the Keycloak dump, the whole Gitea snapshot and
-Immich's dump plus a sample of about 200 originals, runs `restic check` on a 1/52 slice
-of each repo, and writes a `READY` marker. The boot stages that start the real apps on
-that data are not built yet, so nothing reports a pass.
+backups restore into something that runs. Three CronJobs share one scratch PVC
+(`restore-drill-scratch`). Design: `docs/superpowers/specs/2026-11-14-restore-drill-design.md`.
+What to do when it fails: `design/runbook.md`, "The restore drill failed".
+
+| Saturday (UTC) | Job | Network | What it proves |
+|---|---|---|---|
+| 10:00 | `drill-restore` | internet + DNS + Gotify | the three repos open, the latest snapshot is under 48 h old, the data restores, a 1/52 slice of each repo passes `restic check` |
+| 12:00 | `drill-sso` | Gotify only | real Keycloak and Gitea boot on the restored data; a login to Gitea through Keycloak works; repositories are on disk and pass `git fsck` |
+| 13:00 | `drill-immich` | Gotify only | real Immich boots on the restored database; about 200 sampled originals match the SHA-1 the database holds; then wipes the scratch PVC |
+
+It reports `Restore drill: sso ✓/✗` and `Restore drill: immich ✓/✗` to Gotify;
+`drill-restore` only reports a failure. It does **not** prove a full Immich library
+restore (database plus a sample only), older retention points, the operator/chart
+rebuild path, or an in-place restore into production.
 
 - **The drill namespace has no RBAC and mounts no production PVC**, and its network is
   default-deny (`networkpolicy.yml`, the only `CiliumNetworkPolicy` objects in the repo).
-  Only `drill-restore` reaches the internet. Never add either to make something work.
+  Only `drill-restore` reaches the internet, and it runs no restored app. Never add
+  either to make something work.
+- **Boot pods have no DNS.** Each app listens on a loopback address inside its pod, and
+  `hostAliases` points `sso.example.com` → `127.0.0.2` and `gitea.example.com` →
+  `127.0.0.3`, each serving HTTPS on 443 with a certificate generated at pod start. That
+  is what lets the login settings stored in the two databases work unedited. Gotify is
+  reached by the IP `drill-restore` wrote into the `READY` marker.
+- **`READY` is the handshake.** `drill-restore` wipes the PVC first and writes `READY`
+  last; both loaders refuse to run unless its `DRILL_DATE` is today. A boot job run on
+  any other day fails with "no restore from today" — run `drill-restore` first.
 - **`restore.sh` is read-only by behaviour, not by credential** — Filen has no read-only
   login. Every restic call goes through `r()`, which adds `--no-lock`; the script must
   never call `backup`, `forget`, `prune`, `unlock` or `init`. `tests/test_restore.sh`
   fails if it does.
+- **"stale — bump the image" is not a bad backup.** The drill pins its own Keycloak,
+  Gitea and Immich images. Production's Keycloak version comes from the operator and
+  Gitea's from the chart, so the pins can fall behind; an image older than the restored
+  data cannot be trusted to read it. The Keycloak and Immich loaders compare versions and
+  report stale; Gitea records no app version, so there it shows as "Gitea did not come
+  up" under `sso ✗`. Fix: raise the image tag **and** the matching
+  `KEYCLOAK_IMAGE_VERSION` / `IMMICH_IMAGE_VERSION` env in the same file (Renovate moves
+  both).
+- **Never override `SECRET_KEY`, `INTERNAL_TOKEN` or the JWT secrets on the drill's
+  Gitea** — they come from the restored `app.ini`, and the stored login-source secret is
+  encrypted with them.
+- **The floors (`MIN_KEYCLOAK_USERS`, `MIN_GITEA_REPOS`, `MIN_IMMICH_ASSETS`,
+  `MIN_SAMPLE_MATCHED`) are env on the driver containers** — they stop a backup that
+  restores cleanly but is empty from passing. Keep them near half the real counts.
+- **The `restore-drill` Keycloak user exists only for this** — created by hand in the
+  `homelab` realm, member of the Gitea `user` group only, credentials in the
+  `drill-user` SealedSecret (keys `username`, `password`). It has to exist in production
+  to be inside the backup. Rotating its password means re-sealing, and the drill only
+  passes again once a backup taken after the rotation has been restored.
 - **The drill's repo credentials are Reflector mirrors under their own names**
   (`restic-gitea`, `restic-postgres`, `restic-immich`, `rclone-secret`), declared
   value-less in `mirrored-secrets.yml` with a `reflects:` annotation, because all three
   sources are called `restic-secret`. The sources allow it through
   `reflection-allowed-namespaces: "restore-drill"` on their SealedSecret templates.
-- **Run the drill's tests in the image, not only locally**:
-  `docker run --rm -v "$PWD/kubernetes/apps/restore-drill:/w:ro" --entrypoint bash ghcr.io/lucid-void/backup-tools:<tag> -c 'bash /w/tests/test_lib.sh; bash /w/tests/test_restore.sh'`.
-  busybox differs from GNU where it hurts (see the awk rule below).
+- **A mirror created before its source allows it stays empty until Reflector's hourly
+  resync** — Reflector logs `Source … does not permit it` once and does not retry when
+  the source's annotation arrives later. Seen on first rollout (2026-11-15); expect it
+  again on a cluster rebuild, where the drill namespace and the backup namespaces
+  reconcile in no fixed order.
+- **Run the drill's tests in the image, not only locally** — busybox differs from GNU
+  where it hurts (see the awk rule below):
+  `docker run --rm -v "$PWD/kubernetes/apps/restore-drill:/w:ro" --entrypoint bash ghcr.io/lucid-void/backup-tools:<tag> -c 'for t in /w/tests/test_*.sh; do bash "$t"; done'`
+  (`test_fsck_gitea.sh` needs `git`, so that one runs locally only).
 
 ## Rules
 
