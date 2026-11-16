@@ -1,0 +1,206 @@
+---
+# Stage 3 (last) of the weekly restore drill: boot the real Immich server on the
+# restored database and prove that a sample of restored photos matches the
+# checksums that database holds. One pod, Gotify-only egress (label
+# drill/role: boot). Pass or fail, the driver empties the scratch PVC.
+#
+# Not a full library restore — that is 100Gi. drill-restore pulls the database
+# dump plus about 200 originals; `restic check` slices cover the rest over a year.
+#
+# Postgres here is the production image run standalone, so the vector
+# extensions the dump needs are exactly the versions production has.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: drill-immich
+  namespace: restore-drill
+  annotations:
+    ignore-check.kube-linter.io/job-ttl-seconds-after-finished: "deliberate - see design/decisions/backups.md"
+    ignore-check.kube-linter.io/no-read-only-root-fs: "throwaway app copies that write at start"
+spec:
+  schedule: "0 13 * * 6"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 2700
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            drill/role: boot
+        spec:
+          serviceAccountName: restore-drill
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          volumes:
+            - name: scratch
+              persistentVolumeClaim:
+                claimName: restore-drill-scratch
+            - name: script
+              configMap:
+                name: drill-scripts
+                defaultMode: 0755
+            - name: run
+              emptyDir: {}
+            - name: pgdata
+              emptyDir: {}
+            - name: valkey
+              emptyDir: {}
+            - name: tmp-load
+              emptyDir: {}
+            - name: tmp-driver
+              emptyDir: {}
+          initContainers:
+            # Throwaway Postgres: loopback only, trust auth, data on emptyDir.
+            # A CNPG image has no entrypoint of its own, hence initdb by hand;
+            # uid 26 is its postgres user (initdb needs a passwd entry).
+            - name: postgres
+              image: ghcr.io/lucid-void/postgres-cnpg-immich:v1.1.0
+              restartPolicy: Always
+              command: ["/bin/sh", "-c"]
+              args:
+                - >-
+                  /usr/lib/postgresql/17/bin/initdb -D /pgdata/data --auth=trust -U postgres
+                  && exec /usr/lib/postgresql/17/bin/postgres -D /pgdata/data
+                  -c listen_addresses=127.0.0.1 -c shared_preload_libraries=vchord.so
+              volumeMounts:
+                - name: pgdata
+                  mountPath: /pgdata
+              securityContext:
+                runAsUser: 26
+                runAsGroup: 26
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 100m, memory: 512Mi}
+                limits: {memory: 2Gi}
+            - name: load-immich
+              image: ghcr.io/lucid-void/backup-tools:v1.1.0
+              command: ["/bin/bash", "/scripts/load-immich.sh"]
+              env:
+                # must equal the immich-server container's image tag below
+                - name: IMMICH_IMAGE_VERSION
+                  value: v3.3.5
+                - name: HOME
+                  value: /tmp
+                - name: GOTIFY_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gotify-secret
+                      key: GOTIFY_TOKEN
+                      optional: true
+              volumeMounts:
+                # read-write: a failed load empties the volume (last drill stage)
+                - name: scratch
+                  mountPath: /scratch
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+                - name: run
+                  mountPath: /run/drill
+                - name: tmp-load
+                  mountPath: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 100m, memory: 128Mi}
+                limits: {memory: 1Gi}
+            - name: valkey
+              image: valkey/valkey:9.2-alpine
+              restartPolicy: Always
+              args: ["--bind", "127.0.0.1", "--save", "", "--appendonly", "no"]
+              volumeMounts:
+                - name: valkey
+                  mountPath: /data
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 10m, memory: 32Mi}
+                limits: {memory: 128Mi}
+            # The real server, same tag as production. No machine-learning
+            # container and no config file: nothing here needs OIDC or ML.
+            - name: immich-server
+              image: ghcr.io/immich-app/immich-server:v3.3.5
+              restartPolicy: Always
+              env:
+                - {name: IMMICH_HOST, value: 127.0.0.1}
+                - {name: DB_HOSTNAME, value: 127.0.0.1}
+                - {name: DB_PORT, value: "5432"}
+                - {name: DB_USERNAME, value: postgres}
+                # not a credential: the pod-local Postgres uses trust auth
+                - {name: DB_PASSWORD, value: unused}
+                - {name: DB_DATABASE_NAME, value: immich}
+                - {name: REDIS_HOSTNAME, value: 127.0.0.1}
+                - {name: REDIS_PORT, value: "6379"}
+                - {name: UPLOAD_LOCATION, value: /usr/src/app/upload}
+                # only a sample of the library is here; do not refuse to start over it
+                - {name: IMMICH_IGNORE_MOUNT_CHECK_ERRORS, value: "true"}
+                - {name: IMMICH_LOG_LEVEL, value: log}
+              volumeMounts:
+                # same path production mounts immich-library at
+                - name: scratch
+                  mountPath: /usr/src/app/upload
+                  subPath: immich/library
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 100m, memory: 512Mi}
+                limits: {memory: 4Gi}
+          containers:
+            - name: driver
+              image: ghcr.io/lucid-void/backup-tools:v1.1.0
+              command: ["/bin/bash", "/scripts/drive-immich.sh"]
+              env:
+                - name: HOME
+                  value: /tmp
+                # Floor against a backup that restores cleanly but is empty.
+                # Raise to about half of what a passing run reports.
+                - name: MIN_IMMICH_ASSETS
+                  value: "1"
+                # of the ~200 sampled originals, how many must match the database
+                - name: MIN_SAMPLE_MATCHED
+                  value: "150"
+                - name: GOTIFY_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: gotify-secret
+                      key: GOTIFY_TOKEN
+                      optional: true
+              volumeMounts:
+                # read-write: the driver empties the volume when it is done
+                - name: scratch
+                  mountPath: /scratch
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+                - name: run
+                  mountPath: /run/drill
+                  readOnly: true
+                - name: tmp-driver
+                  mountPath: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: {cpu: 50m, memory: 64Mi}
+                limits: {memory: 256Mi}
