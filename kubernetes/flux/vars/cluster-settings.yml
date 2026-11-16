@@ -6,4 +6,3 @@ metadata:
   namespace: flux-system
 data:
   CLUSTER_NAME: "homelab-k8s"
-  CLUSTER_DOMAIN: "example.com"
