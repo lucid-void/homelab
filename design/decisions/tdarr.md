@@ -37,8 +37,11 @@ the flow, the test encode and the pilot are runtime work still to do (`design/TO
 - **`tdarr-trash-purge`** CronJob (daily 04:23) deletes trash files older than 14 days by mtime, and
   stale files (older than a day) in `/Media/.tdarr-staging`, where a flow puts a finished encode
   before the swap. A crash or power cut can leave a half-written file there.
-- **Exporter** (`homeylab/tdarr-exporter`, Docker Hub) in `monitoring`, scraped every 60 s.
-  Availability alerts exist; queue and error alerts are written after the live series names
+- **Exporter** (`homeylab/tdarr-exporter`, Docker Hub) in `monitoring`, scraped every 60 s
+  with `scrapeTimeout: 50s`. The exporter calls the Tdarr API live on every scrape, and that
+  API stalls when its NFS-backed DB is slow, so the 10 s default failed about 12% of scrapes
+  and raised `TooManyScrapeErrors`. A long stall (11-18: ~8 h, the node could not poll
+  either) still shows as `TargetDown`, which is a real outage. Availability alerts exist; queue and error alerts are written after the live series names
   are known.
 
 ## Scope (from a 10,622-file census, 2026-11-07)
