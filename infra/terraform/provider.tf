@@ -6,11 +6,11 @@ terraform {
   required_providers {
     proxmox = {
       source  = "bpg/proxmox"
-      version = "~> 0.118.0"
+      version = "~> 0.123.0"
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = "5.28.1"
+      version = "5.29.0"
     }
   }
 }
