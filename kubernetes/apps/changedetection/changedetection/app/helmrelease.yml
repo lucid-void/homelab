@@ -84,7 +84,7 @@ spec:
           browser:
             image:
               repository: dgtlmoon/sockpuppetbrowser
-              tag: "0.0.3"
+              tag: "0.0.5"
             env:
               SCREEN_WIDTH: "1920"
               SCREEN_HEIGHT: "1024"
