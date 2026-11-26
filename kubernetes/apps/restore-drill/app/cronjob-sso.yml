@@ -107,7 +107,7 @@ spec:
                 requests: {cpu: 50m, memory: 128Mi}
                 limits: {memory: 512Mi}
             - name: cert-gitea
-              image: docker.gitea.com/gitea:1.27.3-rootless
+              image: docker.gitea.com/gitea:28.4.0-rootless
               command: ["/bin/sh", "-c"]
               args:
                 - >-
@@ -131,7 +131,7 @@ spec:
             # Counts the restored repositories and runs git fsck on the newest
             # one. Here because this is the only drill image that has git.
             - name: fsck
-              image: docker.gitea.com/gitea:1.27.3-rootless
+              image: docker.gitea.com/gitea:28.4.0-rootless
               command: ["/bin/sh", "/scripts/fsck-gitea.sh"]
               env:
                 - name: HOME
@@ -240,7 +240,7 @@ spec:
                 requests: {cpu: 200m, memory: 768Mi}
                 limits: {memory: 1536Mi}
             - name: gitea
-              image: docker.gitea.com/gitea:1.27.3-rootless
+              image: docker.gitea.com/gitea:28.4.0-rootless
               restartPolicy: Always
               env:
                 # the same layout production uses (chart defaults)
