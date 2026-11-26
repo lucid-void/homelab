@@ -129,6 +129,12 @@ spec:
                   httpGet:
                     path: /
                     port: 8000
+                    # Since 3.5.0, setting PAPERLESS_URL limits ALLOWED_HOSTS to its
+                    # hostname plus localhost. A probe sends the pod IP as Host and
+                    # gets a 400, so the kubelet restarts the pod until Helm gives up.
+                    httpHeaders:
+                      - name: Host
+                        value: localhost
                   initialDelaySeconds: 60
                   periodSeconds: 30
                   timeoutSeconds: 5
