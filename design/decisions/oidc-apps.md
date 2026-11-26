@@ -53,6 +53,12 @@ version boundary — which is why it is pinned rather than left to inference.
 - **Always set `PAPERLESS_APPS` alongside `PAPERLESS_SOCIALACCOUNT_PROVIDERS`** — without
   it the OIDC provider class is never registered in `INSTALLED_APPS`, and the failure
   mode is silent: no error, just no login button.
+- **Keep `Host: localhost` on the Paperless probes.** Since 3.5.0, setting `PAPERLESS_URL`
+  limits `ALLOWED_HOSTS` to that hostname plus `localhost`, so a probe that sends the pod IP
+  gets a 400. On 2026-11-26 the 3.5.1 upgrade migrated the DB and then failed its probes.
+  Helm rolled back to 3.3.4, which crash-loops on the migrated schema
+  (`documents_tag.tn_ancestors_pks does not exist`). A Paperless rollback cannot undo
+  migrations, so the fix is to roll forward, never to roll back.
 - **Use FreshRSS's `/i/oidc/` redirect path, never `/i/?get=oidc`** — the latter is the
   old PHP OIDC library's path and no longer exists.
 
