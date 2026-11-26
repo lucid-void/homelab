@@ -9,7 +9,7 @@
   "automerge": false,
   "platformAutomerge": false,
 
-  "prConcurrentLimit": 6,
+  "prConcurrentLimit": null,
   "prCreation": "immediate",
   "schedule": ["every weekend"],
 

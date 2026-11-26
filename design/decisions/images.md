@@ -12,8 +12,9 @@ rolling major tag (`latest`, `3`), and never a digest pin.
 mutable — it is re-pointed at every rebuild, several times a month, without the
 upstream version changing, which makes it a rolling tag wearing a version number.
 Renovate tracks the `ls` revision via four regex-versioning rules in
-`.github/renovate.json`, grouped into one `linuxserver` PR (per-image PRs would exhaust
-`prConcurrentLimit: 6`). Four regexes because the tag shapes differ — table under *Mutable upstream tags* below.
+`.github/renovate.json`, grouped into one `linuxserver` PR so the fast rebuild churn
+arrives as a single update. Four regexes because the tag shapes differ — table under
+*Mutable upstream tags* below.
 
 ## Rules
 
@@ -84,8 +85,8 @@ Ubuntu base, not Jellyfin, so capturing it would read a jump to `ubu2610` as an 
 release.
 
 All four share `groupName: linuxserver` so the churn arrives as one PR — lscr
-rebuilds often enough that six separate PR streams would exhaust
-`prConcurrentLimit: 6` and crowd out everything else.
+rebuilds often enough that separate PR streams per image would crowd out everything
+else.
 
 **A regex that fails to parse a tag puts you straight back to "no update
 available", with no error anywhere.** If lscr changes a tag shape, or a new lscr
