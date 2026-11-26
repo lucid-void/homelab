@@ -31,7 +31,7 @@ spec:
           app:
             image:
               repository: ghcr.io/immich-app/immich-server
-              tag: v3.3.5
+              tag: v3.4.2
             env:
               DB_HOSTNAME: postgres-rw.postgres.svc.cluster.local
               DB_PORT: "5432"
@@ -81,7 +81,7 @@ spec:
           app:
             image:
               repository: ghcr.io/immich-app/immich-machine-learning
-              tag: v3.3.5
+              tag: v3.4.2
             env:
               MACHINE_LEARNING_CACHE_FOLDER: /cache
             resources:

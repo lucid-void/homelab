@@ -54,7 +54,7 @@ spec:
               # Renovate bumps this tag, and ytdl-sub pins the yt-dlp it ships with,
               # so the tag is also how yt-dlp stays current. Plain date tags only —
               # see design/decisions/youtube-queue.md.
-              image: ghcr.io/jmbannon/ytdl-sub:2026.08.26
+              image: ghcr.io/jmbannon/ytdl-sub:2026.11.26
               # Bypass the image's s6 /init (cron daemon + PUID remapping): the
               # CronJob is the scheduler, and securityContext sets the uid.
               command:
