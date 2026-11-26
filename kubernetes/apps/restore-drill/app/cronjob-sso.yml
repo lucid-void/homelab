@@ -87,7 +87,7 @@ spec:
             # A self-signed certificate for sso.${CLUSTER_DOMAIN}, as a keystore for
             # Keycloak and as PEM for the things that must trust it.
             - name: cert-keycloak
-              image: quay.io/keycloak/keycloak:26.8.1
+              image: quay.io/keycloak/keycloak:26.8.2
               command: ["/bin/sh", "-c"]
               args:
                 - >-
@@ -107,7 +107,7 @@ spec:
                 requests: {cpu: 50m, memory: 128Mi}
                 limits: {memory: 512Mi}
             - name: cert-gitea
-              image: docker.gitea.com/gitea:1.27.0-rootless
+              image: docker.gitea.com/gitea:1.27.3-rootless
               command: ["/bin/sh", "-c"]
               args:
                 - >-
@@ -131,7 +131,7 @@ spec:
             # Counts the restored repositories and runs git fsck on the newest
             # one. Here because this is the only drill image that has git.
             - name: fsck
-              image: docker.gitea.com/gitea:1.27.0-rootless
+              image: docker.gitea.com/gitea:1.27.3-rootless
               command: ["/bin/sh", "/scripts/fsck-gitea.sh"]
               env:
                 - name: HOME
@@ -184,7 +184,7 @@ spec:
               env:
                 # must equal the keycloak container's image tag below
                 - name: KEYCLOAK_IMAGE_VERSION
-                  value: "26.8.1"
+                  value: "26.8.2"
                 - name: HOME
                   value: /tmp
                 - name: GOTIFY_TOKEN
@@ -213,7 +213,7 @@ spec:
                 requests: {cpu: 100m, memory: 128Mi}
                 limits: {memory: 1Gi}
             - name: keycloak
-              image: quay.io/keycloak/keycloak:26.8.1
+              image: quay.io/keycloak/keycloak:26.8.2
               restartPolicy: Always
               args:
                 - start
@@ -240,7 +240,7 @@ spec:
                 requests: {cpu: 200m, memory: 768Mi}
                 limits: {memory: 1536Mi}
             - name: gitea
-              image: docker.gitea.com/gitea:1.27.0-rootless
+              image: docker.gitea.com/gitea:1.27.3-rootless
               restartPolicy: Always
               env:
                 # the same layout production uses (chart defaults)
