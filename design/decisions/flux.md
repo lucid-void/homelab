@@ -18,7 +18,8 @@ Flux's own version is pinned in **two** files that must be bumped together:
 Renovate raises these as two separate PRs.
 
 Failure alerting is `kubernetes/apps/monitoring/flux-notifications/`
-(`dependsOn: gotify-bootstrap`): one `v1beta3` `Provider` (`type: generic` →
+(`dependsOn: gotify-bootstrap`; `Alert`/`Provider` are `notification.toolkit.fluxcd.io/v1`,
+which needs Flux 2.10+): one `Provider` (`type: generic` →
 `http://gotify.monitoring.svc.cluster.local/message`) plus one `Alert` at
 `eventSeverity: error`, both in `monitoring`. Auth is the `flux` Gotify token in
 `monitoring/flux-gotify` under the key **`headers`**, holding `X-Gotify-Key: <token>`
