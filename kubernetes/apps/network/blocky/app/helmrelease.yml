@@ -83,7 +83,7 @@ spec:
               # blocky-sync on the Pi reads this tag, so one Renovate bump moves
               # both resolvers. Keep repository and tag on adjacent lines.
               repository: ghcr.io/0xerr0r/blocky
-              tag: "v0.35.0"
+              tag: "v0.37.0"
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
