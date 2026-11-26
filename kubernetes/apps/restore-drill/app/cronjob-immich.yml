@@ -65,7 +65,7 @@ spec:
             # A CNPG image has no entrypoint of its own, hence initdb by hand;
             # uid 26 is its postgres user (initdb needs a passwd entry).
             - name: postgres
-              image: ghcr.io/lucid-void/postgres-cnpg-immich:v1.1.0
+              image: ghcr.io/lucid-void/postgres-cnpg-immich:v1.1.2
               restartPolicy: Always
               command: ["/bin/sh", "-c"]
               args:
