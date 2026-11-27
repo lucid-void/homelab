@@ -15,22 +15,20 @@ data:
     logToStdout: both
 
     models:
-      # Inkling 2 Mini, unsloth UD-Q4_K_M (15.5 GiB), plus its DSpark block
-      # drafter for speculative decoding. The key name is what LiteLLM routes on.
+      # Inkling 2 Mini, unsloth UD-Q4_K_M (15.5 GiB). The key name is what
+      # LiteLLM routes on.
       #
       # Q4_K_M rather than Q8: on CPU, decode speed is bound by the bytes of
       # weights read per token. Inkling loops layers 6-17 three times per token
       # (~5.4B effective active parameters against Qwen3.6-35B-A3B's 3B), so only
       # a 4-bit quant brings its per-token read down to what the Q8 Qwen needed.
       #
-      # DSpark: --spec-type draft-dspark needs llama.cpp b12722+ (PR #32218) and
-      # the Mainline_Support drafter file (see fetch-models.sh). The draft depth
-      # is 5, not llama.cpp's default 3, and not 2: on mainline the drafter
-      # always decodes its full 8-token block, so short drafts save nothing.
-      # unsloth measured 5 fastest, and 2 slower than no drafter at all. Those
-      # numbers are from GPUs. On CPU, verifying a draft batch touches more
-      # experts per step, so the gain can be smaller or negative. Benchmark with
-      # and without -md before believing it.
+      # NO DSpark drafter (--model-draft / --spec-type draft-dspark), on purpose.
+      # Measured on llm-1 at n-max 5: 5.2-6.7 tok/s with it, 7.5 tok/s without
+      # (llama bench, tg64), with only 28% of drafted tokens accepted. On CPU,
+      # verifying each draft batch costs more than the accepted tokens save; the
+      # 1.1-1.2x gain unsloth reports is from GPUs. The drafter file is still
+      # fetched (fetch-models.sh), so re-testing it is a config change only.
       #
       # Sampling (temp 1.0, no truncation) is the model card's recommendation.
       inkling:
@@ -40,8 +38,6 @@ data:
         cmd: >
           /app/llama-server --host 0.0.0.0 --port $${PORT}
           --model /models/Inkling-2-Mini-UD-Q4_K_M.gguf
-          --model-draft /models/dspark-Inkling-2-Mini-Q8_0.gguf
-          --spec-type draft-dspark --spec-draft-n-max 5
           --threads 6 --ctx-size 32768
           --cache-type-k q8_0 --cache-type-v q8_0 --flash-attn on
           --cache-ram 4096

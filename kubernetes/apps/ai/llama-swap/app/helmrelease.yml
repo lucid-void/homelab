@@ -108,7 +108,7 @@ spec:
               # 46Gi request: allocatable is ~68.3 GiB and the DaemonSets already
               # request ~1.6 GiB, so this leaves room for the clef Deployment's 18Gi
               # request (design/decisions/llm.md). It was 60Gi before clef existed. Real
-              # use is the 15.5 GiB Inkling weights plus the 0.5 GiB drafter, up to
+              # use is the 15.5 GiB Inkling weights, up to
               # 4 GiB prompt cache and the KV cache. Inkling keeps a separate KV per
               # loop pass, so read `KV self size` from a boot log before lowering
               # this; if llm-1 is ever evicting llama-swap, this number is the first suspect.

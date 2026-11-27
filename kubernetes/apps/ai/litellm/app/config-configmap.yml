@@ -28,13 +28,17 @@ data:
 
       # Same llama-server process and the same resident weights as local-smart
       # -- this is NOT a second model and costs no extra memory. The only
-      # difference is reasoning_effort="none" pushed into the chat template.
+      # difference is that thinking is switched off for each request.
       #
-      # Inkling's template reads `reasoning_effort` (none, minimal, low, medium,
-      # high, xhigh, max, or a number 0.0-0.99) and defaults to 0.9 ("high"),
-      # which is what local-smart gets. It does NOT read Qwen's
-      # `enable_thinking`: passing that is silently ignored and leaves thinking
-      # on at high. An unknown string makes the template raise an exception.
+      # THAT TAKES BOTH KEYS BELOW. Inkling's template reads `reasoning_effort`
+      # (none, minimal, low, medium, high, xhigh, max, or 0.0-0.99; default 0.9,
+      # which is what local-smart gets), but it is only a hint: "none" renders
+      # "Thinking effort level: 0" and the model still thinks. On a coding
+      # prompt it spent a whole 200-token budget reasoning and returned empty
+      # content. `thinking_budget_tokens: 0` is llama-server's hard stop, which
+      # closes the thinking block at once. Measured with both: 0 reasoning
+      # chars and a correct answer. Qwen's `enable_thinking` is ignored by this
+      # template, and an unknown effort string makes it raise an exception.
       #
       # On Qwen3.6 at 8.4 tok/s, "Reply with exactly: ok" cost local-smart
       # 120 output tokens (~14 s) against 2 for local-fast (~0.2 s). That
@@ -48,6 +52,7 @@ data:
           api_key: none
           timeout: 1800
           extra_body:
+            thinking_budget_tokens: 0
             chat_template_kwargs:
               reasoning_effort: "none"
         model_info:

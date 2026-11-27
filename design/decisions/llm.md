@@ -5,25 +5,21 @@
 ## Current state
 
 `Inkling 2 Mini` (Thinking Machines, Apache 2.0) at unsloth `UD-Q4_K_M` (**15.5 GiB**),
-with its DSpark block drafter (0.5 GiB) for speculative decoding. It is served by `llama.cpp`
-behind `llama-swap` as model id `inkling`, on the dedicated worker `llm-1`, tainted
-`workload=llm:NoSchedule`. Runs with `--threads 6`, matching the host's 6 P-cores.
-`LiteLLM` routes requests at `llm.<domain>`; `Open WebUI` is the chat UI at
+served by `llama.cpp` behind `llama-swap` as model id `inkling`, on the dedicated worker
+`llm-1`, tainted `workload=llm:NoSchedule`. Runs with `--threads 6`, matching the host's
+6 P-cores. `LiteLLM` routes requests at `llm.<domain>`; `Open WebUI` is the chat UI at
 `chat.<domain>`. Namespace `ai`, no PSA label (cluster-default `baseline`).
 
-It replaced `Qwen3.6-35B-A3B` Q8_0, which measured **8.4–8.9 tok/s** decode. Inkling is a
+Measured decode: **7.5 tok/s** (`llama bench` tg64, 6 threads). It replaced
+`Qwen3.6-35B-A3B` Q8_0 at 8.4–8.9 tok/s, so it is about 12% *slower* per token. Inkling is a
 looped MoE: layers 6–17 run three times per token, so it does ~5.4B effective active
-parameters of work against Qwen's 3B. On a CPU-only node that cancels most of the
-size advantage, so it runs at 4-bit to keep the bytes read per token near the old Q8.
-Expect similar decode speed, not a large jump. The drafter's gain is measured on
-GPUs (~1.1–1.2×) and is unproven on CPU.
+parameters of work against Qwen's 3B. On a CPU-only node that cancels most of the size
+advantage even at 4-bit. The Qwen GGUF is still on the `llama-models` PVC.
 
 Served as two LiteLLM model names on one process, one copy of the resident weights:
-`local-smart` (template default `reasoning_effort` 0.9, "high") and `local-fast`
-(`reasoning_effort: "none"` pushed into the chat template via `extra_body`). Neither is a
-separate model or uses extra memory. Thinking cost on a trivial prompt was ~18 s vs
-~0.2 s on Qwen; the overhead is per turn, so it compounds across a tool-calling loop.
-**Coding agents use `local-fast`.**
+`local-smart` (template default `reasoning_effort` 0.9, "high") and `local-fast` (thinking
+hard-off, see Rules). Neither is a separate model or uses extra memory. Thinking overhead
+is per turn, so it compounds across a tool-calling loop. **Coding agents use `local-fast`.**
 
 Vision is not deployed. The model is itself multimodal, so adding it later is one
 `--mmproj` flag, not another model.
@@ -52,9 +48,16 @@ Telegram bot (`design/decisions/flight-tracker.md`).
   7.65), with no error. The unsloth repo-root GGUFs and the root drafter are in Unsloth's own
   layout, which mainline refuses. The mainline files end in `.gguf_file` and are saved
   under a `.gguf` local name by `fetch-models.sh`.
-- **Inkling's thinking switch is `reasoning_effort`, not `enable_thinking`** — the Qwen key
-  is silently ignored and leaves thinking at the template default ("high"). An unknown
-  string value makes the template raise.
+- **Turning Inkling's thinking off takes `thinking_budget_tokens: 0`** — the template's
+  `reasoning_effort: "none"` is only a hint ("Thinking effort level: 0"), and the model still
+  thinks: on a coding prompt it spent the whole 200-token budget reasoning and returned
+  empty content. `thinking_budget_tokens` is llama-server's per-request hard stop, and
+  `local-fast` sends both. Qwen's `enable_thinking` is silently ignored, and an unknown
+  effort string makes the template raise.
+- **No DSpark drafter on CPU** — at `--spec-draft-n-max 5` it measured 5.2–6.7 tok/s
+  against 7.5 without, with only 28% of drafted tokens accepted. Verifying each draft
+  batch costs more on CPU than the accepted tokens save. The drafter GGUF is still fetched,
+  so re-testing it after a llama.cpp bump is a config change only.
 - **Never raise `--ctx-size` without reading `KV self size` from a fresh boot log
   first** — it pre-allocates the entire KV cache at startup and `llama-swap` runs with
   no memory limit, so an oversized value takes the *node*, not the pod.
@@ -130,7 +133,7 @@ Telegram bot (`design/decisions/flight-tracker.md`).
   suspect this split first.
 - **Clef has priority class `clef-low`** (value -100, no preemption), so the kubelet evicts it
   before `llama-swap` under node memory pressure; its callers fail open. `llama-swap`'s 46Gi
-  request is meant to sit just above its expected working set (16 GiB weights and drafter plus the
+  request is meant to sit just above its expected working set (15.5 GiB weights plus the
   4 GiB-capped prompt cache plus KV and overhead); if that working set ever exceeds the request,
   `llama-swap` becomes an eviction candidate like Clef. The prompt cache fills over days:
   re-check decode speed and the working set after a few days of chat use, not only at rollout.
