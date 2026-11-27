@@ -9,24 +9,33 @@ set -euo pipefail
 
 MODELS_DIR=/models
 
-# repo|filename|exact size in bytes
+# repo|path in repo|exact size in bytes|local filename (optional)
 #
 # Sizes are pinned deliberately. A truncated or redirected download otherwise
 # leaves a plausible-looking file that llama.cpp rejects much later with an
 # opaque GGUF parse error, at which point the cause is hours behind you.
 #
-# Qwen3.6-35B-A3B-Q8_0 is the chat/coding model — note the name has NO `UD-`
-# prefix. `UD-Q8_0` does not exist in this repo; the unsloth-dynamic variant at
-# this tier is `UD-Q8_K_XL.gguf` (38.4 GB), which is a valid alternative but not
-# what is deployed. Getting this wrong 404s after the download has already run.
+# Inkling 2 Mini comes from unsloth's `Mainline_Support/` folder, NOT the repo
+# root. The root files use Unsloth's own looped layout, which mainline
+# llama.cpp (what the llama-swap image ships) refuses. The mainline files carry a
+# `.gguf_file` extension on purpose, so they are saved under a `.gguf` local name.
+#
+# The drafter MUST be the Mainline_Support one too. The root
+# `dspark-Inkling-2-Mini-Q8_0.gguf` is in the older Unsloth format, and mainline
+# rejects it at load with `tensor 'markov_w1.weight' has wrong shape`.
+#
+# Files dropped from this list are NOT deleted from the PVC. The old
+# Qwen3.6-35B-A3B-Q8_0.gguf (34.4 GiB) stays on disk as the rollback until it is
+# removed by hand.
 MODELS="
-unsloth/Qwen3.6-35B-A3B-GGUF|Qwen3.6-35B-A3B-Q8_0.gguf|36903140320
+unsloth/Inkling-2-Mini-GGUF|Mainline_Support/Inkling-2-Mini-UD-Q4_K_M.gguf_file|16610544608|Inkling-2-Mini-UD-Q4_K_M.gguf
+unsloth/Inkling-2-Mini-GGUF|Mainline_Support/dspark-Inkling-2-Mini-Q8_0.gguf_file|503889952|dspark-Inkling-2-Mini-Q8_0.gguf
 nomic-ai/nomic-embed-text-v1.5-GGUF|nomic-embed-text-v1.5.Q8_0.gguf|146146432
 "
 
 fetch() {
-  local repo="$1" file="$2" want="$3"
-  local dest="$${MODELS_DIR}/$${file}"
+  local repo="$1" file="$2" want="$3" name="$${4:-$2}"
+  local dest="$${MODELS_DIR}/$${name}"
   local part="$${dest}.part"
   local url="https://huggingface.co/$${repo}/resolve/main/$${file}"
 
@@ -69,9 +78,9 @@ df -h "$MODELS_DIR" | tail -1
 # inside fetch() would abort only that subshell and the exit status would depend
 # on pipefail subtleties. This keeps the loop in the main shell where `set -e`
 # means what it says.
-while IFS='|' read -r repo file size; do
+while IFS='|' read -r repo file size name; do
   [ -z "$repo" ] && continue
-  fetch "$repo" "$file" "$size"
+  fetch "$repo" "$file" "$size" "$name"
 done <<< "$MODELS"
 
 echo "== free space after:"
