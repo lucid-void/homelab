@@ -125,13 +125,27 @@ Kustomization `dependsOn`: `hermes` depends on `llama-swap` (ctx prerequisite me
   - `terminal.backend: ssh`, `TERMINAL_SSH_HOST` = the Sandbox's stable service name,
     `TERMINAL_SSH_USER: agent`, `TERMINAL_SSH_KEY` path, persistent shell on.
   - `approvals.mode: manual`, `approvals.approvers: [<owner telegram id>]`,
-    `approvals.timeout: 300`, `approvals.cron_mode: deny` (unattended cron jobs never run
-    a dangerous command without the owner).
+    `approvals.timeout: 300`.
+  - `approvals.cron_mode: approve` (owner decision: a job the owner scheduled is
+    pre-approved). The owner also wants "unless it's unrelated to the task" — Hermes cannot
+    enforce that: `cron_mode` is binary (`deny | approve`, `tools/approval_context.py`
+    v0.23.4) and the smart guardian does not run in cron context. So it is held by layers,
+    not by Hermes: (1) `approvals.deny` still hard-blocks in cron; (2) each job's prompt is
+    written to state its scope and to stop and report instead of acting outside it (soft —
+    a model instruction, not enforcement); (3) every job delivers its output to Telegram, so
+    the owner sees what ran; (4) network policy and server-side branch rules bound what an
+    off-task command can reach. Residual risk, recorded: a job that reads untrusted input
+    (feeds, issue bodies, web pages) can be prompt-injected into an unrelated command that
+    runs auto-approved inside the sandbox. If that proves real, a later `pre_tool_call`
+    plugin can add an LLM relatedness check for cron (out of scope for v1).
   - `approvals.deny`: at least `"kubectl*"`, `"talosctl*"`, `"*169.254.169.254*"`,
     `"git push*--force*"`, `"git push*main*"`, `"rm -rf /*"`. Defence in depth only — the
     real enforcement is server-side (branch rules) and network policy.
   - `unauthorized_dm_behavior: ignore`.
-  - `memory.write_approval: true`, `skills.write_approval: true`.
+  - `memory.write_approval: false` (owner decision: memory saves are automatic; Hermes
+    still scans entries for injection/exfiltration patterns). `skills.write_approval: true`
+    (designer's call: a skill is standing instructions the agent follows on every
+    matching task, closer to code than to a note).
   - `auxiliary.background_review.enabled: false` (or pointed at `local-fast`; builder's
     call after measuring).
   - Delegation concurrency 1.
@@ -264,7 +278,8 @@ Kustomization `dependsOn`: `hermes` depends on `llama-swap` (ctx prerequisite me
 
 - Terminal: D1 (agent-sandbox `Sandbox` + SSH backend).
 - Repos: Gitea (owner picks which) and GitHub `Homelab`.
-- Memory: built-in only for v1 (my recommendation, not objected to).
+- Memory: built-in only for v1 (my recommendation, not objected to); writes automatic.
+- Cron jobs: auto-approved (`cron_mode: approve`), since the owner scheduled them.
 - Separate Telegram bot; locked-down terminal with manual approvals.
 - Public-push domain risk: accepted, with the tripwire workflow (option A; staging on a
   private Gitea copy and excluding `Homelab` were offered and declined).
@@ -276,6 +291,8 @@ Kustomization `dependsOn`: `hermes` depends on `llama-swap` (ctx prerequisite me
   user's personal repo).
 - Hermes `config.yaml` rendered from a ConfigMap on every start, so git wins over
   Hermes's in-place config rewrites.
-- `approvals.cron_mode: deny`; memory and skill writes need approval.
+- Skill writes still need approval (memory writes are automatic, per owner).
+- "Unrelated to the task" for cron is held by job-prompt scoping + deny list + Telegram
+  delivery + network/branch limits, not by Hermes (it has no such check).
 - Sandbox on control-plane nodes, not `llm-1`; sandbox PVC may skip backups.
 - No HTTPRoute, API server, browser, or web search in v1.
