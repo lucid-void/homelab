@@ -119,6 +119,26 @@ topic rather than reading it whole; owner-only items are at the top.
   over the last 20 days, vs. hundreds/week historically), which suggests the flap rate
   has dropped substantially — but this was not root-caused via the metrics above and
   must be re-checked against the live cluster before treating it as resolved.
+  **Data point 2026-11-27:** `cilium-operator` on cp-1 lost its lease and restarted at
+  02:14Z. Its lease GET to KubePrism (`localhost:7445`) timed out for 5 s, while etcd
+  WAL fsync p99 stayed at about 15 ms, iowait was 0 and node CPU was about 25%. Two
+  minutes earlier (02:02–02:11Z) the Telegram bot got `URLError` reaching Telegram, so
+  check whether a LAN/WAN blip lines up before blaming etcd.
+- **`drill-sso` has never passed** (`RestoreDrillNeverPassed` has fired since the drill
+  was added). `drill-restore` and `drill-immich` both pass. Read the next run's Gotify
+  report (Saturday 12:00) or its pod logs, and check the "stale — bump the image" case in
+  `design/decisions/backups.md` first: production Gitea records no app version, so a
+  mismatched image shows only as "Gitea did not come up".
+- **Suppress the Trivy exposed-secret false positive on the drill's `postgres` image.**
+  `drill-sso`'s `postgres:17.x-bookworm` sidecar reports one High `private-key` finding:
+  `/etc/ssl/private/ssl-cert-snakeoil.key`, the snakeoil cert Debian's `ssl-cert` package
+  generates. It is unused (the drill's Postgres listens on loopback with trust auth), but
+  it is the only exposed-secret finding in the weekly `security-report`, so it would hide
+  a real one. Add a Trivy Operator exception for that path, or move the drill to an image
+  without `ssl-cert`.
+- **Watch `pve-msa2` memory (81%, flat for the week to 2026-11-27).** It is steady VM
+  allocation, not growth, but it leaves little headroom for a new VM or a bigger `llm-1`.
+  Re-check before resizing any VM; there is no alert on the Proxmox host's memory today.
 - Move Gitea's `valkey` cluster off NFS (`emptyDir` or `openebs-hostpath`) — the bundled
   chart persists AOF to `nfs-client` PVCs, the same fsync-locking trap RomM's embedded
   Valkey avoids by using `emptyDir`. Replica placement is also imperative runtime state
