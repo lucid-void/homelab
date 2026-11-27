@@ -60,7 +60,10 @@ spec:
                   mountPath: /scripts
               resources:
                 requests:
-                  memory: 64Mi
+                  memory: 128Mi
                   cpu: 50m
+                # kubectl decodes all VulnerabilityReports (33 MB of JSON at 166
+                # reports) at several times that size; 256Mi was OOMKilled.
+                # See design/decisions/security-tooling.md.
                 limits:
-                  memory: 256Mi
+                  memory: 1Gi
