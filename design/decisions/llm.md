@@ -4,29 +4,29 @@
 
 ## Current state
 
-`Inkling 2 Mini` (Thinking Machines, Apache 2.0) at unsloth `UD-Q4_K_M` (**15.5 GiB**),
-with its DSpark block drafter (0.5 GiB) for speculative decoding. It is served by `llama.cpp`
-behind `llama-swap` as model id `inkling`, on the dedicated worker `llm-1`, tainted
-`workload=llm:NoSchedule`. Runs with `--threads 6`, matching the host's 6 P-cores.
-`LiteLLM` routes requests at `llm.<domain>`; `Open WebUI` is the chat UI at
-`chat.<domain>`. Namespace `ai`, no PSA label (cluster-default `baseline`).
-
-It replaced `Qwen3.6-35B-A3B` Q8_0, which measured **8.4–8.9 tok/s** decode. Inkling is a
-looped MoE: layers 6–17 run three times per token, so it does ~5.4B effective active
-parameters of work against Qwen's 3B. On a CPU-only node that cancels most of the
-size advantage, so it runs at 4-bit to keep the bytes read per token near the old Q8.
-Expect similar decode speed, not a large jump. The drafter's gain is measured on
-GPUs (~1.1–1.2×) and is unproven on CPU.
+`Qwen3.6-35B-A3B` Q8_0 (**34.4 GiB**, effectively lossless) served by `llama.cpp` behind
+`llama-swap`, on the dedicated worker `llm-1`, tainted `workload=llm:NoSchedule`. Runs
+with `--threads 6`, matching the host's 6 P-cores. `LiteLLM` routes requests at
+`llm.<domain>`; `Open WebUI` is the chat UI at `chat.<domain>`. Namespace `ai`,
+no PSA label (cluster-default `baseline`).
 
 Served as two LiteLLM model names on one process, one copy of the resident weights:
-`local-smart` (template default `reasoning_effort` 0.9, "high") and `local-fast`
-(`reasoning_effort: "none"` pushed into the chat template via `extra_body`). Neither is a
-separate model or uses extra memory. Thinking cost on a trivial prompt was ~18 s vs
-~0.2 s on Qwen; the overhead is per turn, so it compounds across a tool-calling loop.
-**Coding agents use `local-fast`.**
+`local-smart` (thinking on) and `local-fast` (`enable_thinking: false` pushed into the
+chat template via `extra_body`). Neither is a separate model or uses extra memory.
+
+Measured decode: **8.4–8.9 tok/s**. Thinking cost on the same trivial prompt: `local-smart`
+572 chars / 152 reasoning tokens (~18s) vs `local-fast` 0 / 2 (~0.2s) — the overhead is
+per turn, so it compounds across a tool-calling loop. **Coding agents use `local-fast`.**
 
 Vision is not deployed. The model is itself multimodal, so adding it later is one
 `--mmproj` flag, not another model.
+
+**Inkling 2 Mini was tried and rejected (2026-11-27, #390, reverted).** At unsloth
+`UD-Q4_K_M` it decoded at 7.5 tok/s, slower than this Qwen Q8. It is a looped MoE (layers
+6–17 run three times per token, ~5.4B effective active against Qwen's 3B), so on a CPU-only
+node it loses even at 4-bit. Its DSpark drafter made it slower still (5.2–6.7 tok/s, 28%
+acceptance), and `reasoning_effort: "none"` does not stop it thinking; that needs
+llama-server's per-request `thinking_budget_tokens: 0`. Only revisit with a GPU on `llm-1`.
 
 `--ctx-size` is `32768`. Embeddings model is `nomic-embed-text-v1.5` Q8_0, served as
 `local-embed`. Client configs (e.g. opencode) must declare `context: 32768`, not the
@@ -47,14 +47,6 @@ Telegram bot (`design/decisions/flight-tracker.md`).
 
 ## Rules
 
-- **Inkling needs llama.cpp b12722+ and unsloth's `Mainline_Support/` files** — older builds
-  load the model but lose the looped-expert scales and produce garbage (perplexity ~130 vs
-  7.65), with no error. The unsloth repo-root GGUFs and the root drafter are in Unsloth's own
-  layout, which mainline refuses. The mainline files end in `.gguf_file` and are saved
-  under a `.gguf` local name by `fetch-models.sh`.
-- **Inkling's thinking switch is `reasoning_effort`, not `enable_thinking`** — the Qwen key
-  is silently ignored and leaves thinking at the template default ("high"). An unknown
-  string value makes the template raise.
 - **Never raise `--ctx-size` without reading `KV self size` from a fresh boot log
   first** — it pre-allocates the entire KV cache at startup and `llama-swap` runs with
   no memory limit, so an oversized value takes the *node*, not the pod.
@@ -71,11 +63,9 @@ Telegram bot (`design/decisions/flight-tracker.md`).
   `kubectl logs`, `GET /logs`, or `/logs/stream/upstream`. That hides model-load
   failures completely — a bad GGUF or an OOM abort surfaces as a request that never
   returns, while the proxy keeps answering `/v1/models` and the pod stays Ready.
-- **`--cache-reuse` did not work with Qwen3.6, and is assumed dead on Inkling** — on Qwen
-  `llama-server` logged `cache_reuse is not supported by this context`, gated by
-  `!llama_memory_can_shift(...)`, a property of the model's KV implementation that no flag
-  overrides. Inkling also keeps a convolution state per loop pass. Check its boot log before
-  adding the flag. The only live
+- **`--cache-reuse` does not work with this model** — `llama-server` logs
+  `cache_reuse is not supported by this context`, gated by `!llama_memory_can_shift(...)`,
+  a property of the model's KV implementation that no flag overrides. The only live
   prefix caching is the cross-request prompt cache, which defaults to **8192 MiB** and
   is on unasked. It is capped with `--cache-ram 4096` so llama-swap's worst case stays
   under its 46Gi request (Clef needs the rest of the node); raising it re-opens the
@@ -130,7 +120,7 @@ Telegram bot (`design/decisions/flight-tracker.md`).
   suspect this split first.
 - **Clef has priority class `clef-low`** (value -100, no preemption), so the kubelet evicts it
   before `llama-swap` under node memory pressure; its callers fail open. `llama-swap`'s 46Gi
-  request is meant to sit just above its expected working set (16 GiB weights and drafter plus the
+  request is meant to sit just above its expected working set (34.4 GiB weights plus the
   4 GiB-capped prompt cache plus KV and overhead); if that working set ever exceeds the request,
   `llama-swap` becomes an eviction candidate like Clef. The prompt cache fills over days:
   re-check decode speed and the working set after a few days of chat use, not only at rollout.

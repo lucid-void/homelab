@@ -28,7 +28,7 @@ spec:
     controllers:
       app:
         replicas: 1
-        # openebs-hostpath is node-local RWO: a rolling
+        # openebs-hostpath is node-local RWO and the model is 34 GiB: a rolling
         # update would schedule a second pod that cannot bind the volume, so the
         # rollout would stall with the old pod still holding it.
         strategy: Recreate
@@ -60,11 +60,7 @@ spec:
               # source) is only published for cuda and vulkan. Legacy reads its
               # config from /app/config.yaml, which is where it is mounted below.
               repository: ghcr.io/mostlygeek/llama-swap
-              # Inkling 2 Mini needs llama.cpp b12722+: looped-layer support
-              # (#32694), the looped-expert scale fix (#32704) and DSpark
-              # drafting (#32218). An older build loads the model and gives
-              # garbage output (perplexity ~130).
-              tag: "v277-cpu-b12808"
+              tag: "v251-cpu-b10680"
             env:
               TZ: Europe/Brussels
             args:
@@ -108,10 +104,8 @@ spec:
               # 46Gi request: allocatable is ~68.3 GiB and the DaemonSets already
               # request ~1.6 GiB, so this leaves room for the clef Deployment's 18Gi
               # request (design/decisions/llm.md). It was 60Gi before clef existed. Real
-              # use is the 15.5 GiB Inkling weights plus the 0.5 GiB drafter, up to
-              # 4 GiB prompt cache and the KV cache. Inkling keeps a separate KV per
-              # loop pass, so read `KV self size` from a boot log before lowering
-              # this; if llm-1 is ever evicting llama-swap, this number is the first suspect.
+              # use is the 34.4 GiB weights plus up to 8 GiB prompt cache and the KV
+              # cache; if llm-1 is ever evicting llama-swap, this number is the first suspect.
               #
               # No CPU limit either, matching the house style — a CPU limit is
               # throttling, and throttling llama-server is directly a token-rate

@@ -16,7 +16,7 @@ data:
       # llama-swap's own config.
       - model_name: local-smart
         litellm_params:
-          model: openai/inkling
+          model: openai/qwen-smart
           api_base: http://llama-swap.ai.svc.cluster.local:8080/v1
           api_key: none
           # Decode is single-digit tok/s and a long prompt can spend minutes in
@@ -28,28 +28,26 @@ data:
 
       # Same llama-server process and the same resident weights as local-smart
       # -- this is NOT a second model and costs no extra memory. The only
-      # difference is reasoning_effort="none" pushed into the chat template.
+      # difference is enable_thinking=false pushed into the chat template.
       #
-      # Inkling's template reads `reasoning_effort` (none, minimal, low, medium,
-      # high, xhigh, max, or a number 0.0-0.99) and defaults to 0.9 ("high"),
-      # which is what local-smart gets. It does NOT read Qwen's
-      # `enable_thinking`: passing that is silently ignored and leaves thinking
-      # on at high. An unknown string makes the template raise an exception.
+      # Qwen3.6 is a reasoning model, and thinking is not free at 8.4 tok/s.
+      # Measured on "Reply with exactly: ok":
       #
-      # On Qwen3.6 at 8.4 tok/s, "Reply with exactly: ok" cost local-smart
-      # 120 output tokens (~14 s) against 2 for local-fast (~0.2 s). That
-      # overhead is per turn, so it dominates an agentic loop far more than a
-      # single chat answer. Use local-fast for coding agents and tool-calling
-      # loops; use local-smart when the reasoning is the point.
+      #   local-smart  448 chars of reasoning_content, 120 output tokens (~14 s)
+      #   local-fast     0 chars,                        2 output tokens (~0.2 s)
+      #
+      # That overhead is per turn, so it dominates an agentic loop far more than
+      # it dominates a single chat answer. Use local-fast for coding agents and
+      # tool-calling loops; use local-smart when the reasoning is the point.
       - model_name: local-fast
         litellm_params:
-          model: openai/inkling
+          model: openai/qwen-smart
           api_base: http://llama-swap.ai.svc.cluster.local:8080/v1
           api_key: none
           timeout: 1800
           extra_body:
             chat_template_kwargs:
-              reasoning_effort: "none"
+              enable_thinking: false
         model_info:
           mode: chat
 
