@@ -77,7 +77,7 @@ UniFi network (UDM SE + USW Pro HD 24 PoE, VLANs 2/10/20), the Proxmox host runn
 - **Degoog** — `degoog.<domain>`, self-hosted search engine aggregator
 
 ### AI / LLM
-- **llama-swap** — Inkling 2 Mini UD-Q4_K_M + DSpark drafter on dedicated tainted `llm-1`, ClusterIP `llama-swap:8080`
+- **llama-swap** — Qwen3.6-35B-A3B Q8_0 on dedicated tainted `llm-1`, ClusterIP `llama-swap:8080`
 - **LiteLLM** — `llm.<domain>`, router with per-client virtual keys; model names `local-smart`, `local-fast`
 - **Open WebUI** — `chat.<domain>`, Keycloak OIDC
 

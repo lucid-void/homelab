@@ -19,7 +19,7 @@ metadata:
     ignore-check.kube-linter.io/run-as-non-root: "weights must be owned by the uid llama-swap runs as"
 spec:
   ttlSecondsAfterFinished: 86400
-  # ~16 GiB. At 50 MB/s that is ~6 minutes; at 5 MB/s it is closer to an hour.
+  # ~35 GiB. At 50 MB/s that is ~12 minutes; at 5 MB/s it is closer to two hours.
   # 6h is a bound against a stalled transfer, not a performance target — without
   # one, a hung curl leaves the pod Running with no output and nothing retries.
   activeDeadlineSeconds: 21600
