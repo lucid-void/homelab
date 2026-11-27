@@ -29,6 +29,19 @@ spec:
       name: gitea-oidc-secret
       valuesKey: values.yaml
   values:
+    # The chart defaults the image tag to its own appVersion, so the Gitea
+    # version only moves when a chart release happens to move it. Pin the tag
+    # explicitly so production runs the same docker.gitea.com/gitea image the
+    # restore drill boots on the restored data, at the same version: an image
+    # older than production cannot read the restored database, and a newer one
+    # does not verify what production actually runs. Renovate tracks this tag
+    # as that image (custom manager in .github/renovate.json) and groups it
+    # with the drill's pin, so both move in one PR. `rootless` keeps the chart
+    # default of true — the chart appends the -rootless suffix to this tag, so
+    # do not add it here.
+    image:
+      tag: "28.4.0"
+
     # Disable bundled databases
     postgresql:
       enabled: false

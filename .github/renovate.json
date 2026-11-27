@@ -90,16 +90,34 @@
       ],
       "depNameTemplate": "supervc-stack/VectorChord",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "The Gitea image tag in the production HelmRelease values. The chart defaults the tag to appVersion, so without this nothing tracks the production image and it would silently stop updating, exactly like the pgvector pin before its manager. Tracked as the same package as the drill's pin so the gitea group keeps the two in lockstep.",
+      "managerFilePatterns": [
+        "/^kubernetes/apps/gitea/gitea/app/helmrelease\\.yml$/"
+      ],
+      "matchStrings": [
+        "image:\\n\\s+tag: [\"']?(?<currentValue>[^\"'\\n]+)[\"']?"
+      ],
+      "depNameTemplate": "docker.gitea.com/gitea",
+      "datasourceTemplate": "docker"
     }
   ],
 
   "packageRules": [
     {
-      "description": "The restore drill boots its own pinned copies of Keycloak and Gitea on restored data. Production's versions come from the Keycloak operator and the Gitea chart, so nothing ties these pins to them: a drill image OLDER than production cannot read the restored database (the drill then reports 'stale'), a newer one just migrates the throwaway copy. Labeled for manual review so a bump is a deliberate 'catch up with production'. See design/decisions/backups.md.",
+      "description": "The restore drill boots its own pinned copy of Keycloak on restored data. Production's Keycloak version comes from the operator, so nothing ties this pin to it: a drill image OLDER than production cannot read the restored database (the drill then reports 'stale'), a newer one just migrates the throwaway copy. Labeled for manual review so a bump is a deliberate 'catch up with production'. Gitea is grouped on its own (rule below) so it can also cover the production pin. See design/decisions/backups.md.",
       "matchFileNames": ["kubernetes/apps/restore-drill/**"],
-      "matchPackageNames": ["quay.io/keycloak/keycloak", "docker.gitea.com/gitea"],
+      "matchPackageNames": ["quay.io/keycloak/keycloak"],
       "groupName": "restore-drill app images",
       "labels": ["major-update"]
+    },
+    {
+      "description": "Production Gitea and the restore drill's Gitea pin are the same docker.gitea.com/gitea image and must run the same version: an image OLDER than production cannot read the restored database (the drill then reports 'stale'), a newer one does not verify what production actually runs. The production side is the image.tag override in the HelmRelease values — the chart defaults the tag to appVersion, and the chart line lags the image line, so the tag is the version lever; the drill side is the raw pin in cronjob-sso.yml. Grouped so both pins land in one PR. See design/decisions/gitea.md.",
+      "matchPackageNames": ["docker.gitea.com/gitea"],
+      "groupName": "gitea",
+      "groupSlug": "gitea"
     },
     {
       "description": "The keycloak-k8s-resources tag pins the operator AND the Keycloak server image it deploys — the Keycloak CR has no image field. Any bump here is a Keycloak upgrade that migrates the database schema on rollout, so it is labeled for manual review at every update type, not just major. Read the Keycloak release upgrading notes before merging.",

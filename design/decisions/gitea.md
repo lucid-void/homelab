@@ -4,8 +4,14 @@
 
 ## Current state
 
-Official `gitea-charts/gitea` chart from `https://dl.gitea.com/charts/`. External CNPG
-Postgres — `postgresql.enabled: false`, `postgresql-ha.enabled: false`. DB password via
+Official `gitea-charts/gitea` chart from `https://dl.gitea.com/charts/`. The image tag
+is pinned explicitly in the HelmRelease values (`image.tag`) — the chart defaults it to
+its own appVersion and the chart line lags the image line — and Renovate tracks that pin
+as `docker.gitea.com/gitea` (custom manager in `.github/renovate.json`) grouped with the
+restore drill's pin, so production and the drill always move to the same version in one
+PR: an older drill image cannot read the restored database, and a newer one does not
+verify what production actually runs. External CNPG Postgres —
+`postgresql.enabled: false`, `postgresql-ha.enabled: false`. DB password via
 `extraEnvFrom: gitea-db-env` (written by the `gitea-db-bootstrap` Job, which remaps
 `password` → `GITEA__database__PASSWD`). The chart creates a **Deployment**, not a
 StatefulSet. HTTP service name is `{release-name}-http` (`gitea-http`) on port `3000` —

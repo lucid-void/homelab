@@ -97,13 +97,16 @@ rebuild path, or an in-place restore into production.
   never call `backup`, `forget`, `prune`, `unlock` or `init`. `tests/test_restore.sh`
   fails if it does.
 - **"stale — bump the image" is not a bad backup.** The drill pins its own Keycloak,
-  Gitea and Immich images. Production's Keycloak version comes from the operator and
-  Gitea's from the chart, so the pins can fall behind; an image older than the restored
-  data cannot be trusted to read it. The Keycloak and Immich loaders compare versions and
-  report stale; Gitea records no app version, so there it shows as "Gitea did not come
-  up" under `sso ✗`. Fix: raise the image tag **and** the matching
+  Gitea and Immich images. Production's Keycloak version comes from the operator, so
+  the pin can fall behind; an image older than the restored data cannot be trusted to
+  read it. The Keycloak and Immich loaders compare versions and report stale; Gitea
+  records no app version, so there it shows as "Gitea did not come up" under
+  `sso ✗`. Fix: raise the image tag **and** the matching
   `KEYCLOAK_IMAGE_VERSION` / `IMMICH_IMAGE_VERSION` env in the same file (Renovate moves
-  both).
+  both). Gitea can't fall behind on its own: production's version is pinned in the
+  HelmRelease values and Renovate moves that pin together with the drill's (the `gitea`
+  group in `.github/renovate.json`), so the two always land in one PR at the same
+  version — see `gitea.md`.
 - **Never override `SECRET_KEY`, `INTERNAL_TOKEN` or the JWT secrets on the drill's
   Gitea** — they come from the restored `app.ini`, and the stored login-source secret is
   encrypted with them.
