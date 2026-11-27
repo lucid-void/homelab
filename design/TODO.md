@@ -32,6 +32,12 @@ topic rather than reading it whole; owner-only items are at the top.
   local gitignored `infra/terraform/terraform.tfstate`; the `backend "pg"` block in
   `infra/terraform/provider.tf` is commented out. Losing it means importing the existing VMs
   and DNS records by hand.
+- **Needs the owner. Log Proton Mail Bridge back in.** Since 2026-11-08 21:50 UTC, a minute
+  after the bridge container last restarted, it has refused every IMAP login with
+  `no such user`: no Proton account is signed in. Paperless mail fetch has been failing since,
+  and Keycloak's mail goes through the same bridge. Login takes the account password and 2FA:
+  `design/runbook.md` → "Bootstrap Proton Mail Bridge". If the vault was rebuilt, re-export and
+  re-seal the certificate (`design/decisions/protonmail-bridge.md`).
 - **Replace the UPS.** The Eaton Ellipse PRO 850 lasts seconds at real load, so a power cut still
   hard-crashes everything. Requirements and the post-install test are in `design/decisions/ups.md`.
 - **Rotate the Sonarr Postgres password.** Sonarr prints it in its startup log, and it landed in an
