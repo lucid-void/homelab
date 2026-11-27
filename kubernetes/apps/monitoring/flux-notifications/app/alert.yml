@@ -25,7 +25,7 @@
 # MAINTENANCE: when you add a HelmRelease in a NEW namespace, add a HelmRelease
 # entry below. Forgetting means a failed install there can alert nowhere.
 # Grep: `grep -rl 'kind: HelmRelease' kubernetes/apps`.
-apiVersion: notification.toolkit.fluxcd.io/v1beta3
+apiVersion: notification.toolkit.fluxcd.io/v1
 kind: Alert
 metadata:
   name: flux-failures
