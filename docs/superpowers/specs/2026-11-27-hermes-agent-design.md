@@ -1,6 +1,18 @@
 # Hermes Agent gateway — design
 
-Date: 2026-11-27. Status: draft, awaiting owner approval.
+Date: 2026-11-27. Status: approved; built. The implemented state lives in
+`design/decisions/hermes.md` — this spec is history.
+
+**Changed at build time:**
+- **External models, not the local LLM** (owner). The 64K context gate and the
+  `llama-swap` prerequisite are dropped. Hermes reaches the model through a LiteLLM
+  alias `hermes`, so the gateway's network policy still has no route to any provider.
+- **Own namespace `hermes`, not `ai`** (builder's call), so its network policies and RBAC
+  are separate from the LLM stack.
+- **gitea-mcp holds no token** (found in its docs): HTTP mode passes the caller's bearer
+  through, and `GITEA_TOOLS` gives a server-side tool allowlist.
+- **Sync-back disabled** (found in Hermes's source): `terminal.sync_back_max_bytes: 0`
+  stops the sandbox writing changed skill files back into the gateway.
 
 ## Intent
 

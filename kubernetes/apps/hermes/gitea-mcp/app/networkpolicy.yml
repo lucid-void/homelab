@@ -1,0 +1,44 @@
+---
+# gitea-mcp: reachable only from the Hermes gateway; reaches only DNS and the
+# Gitea HTTP port. Selecting the pod in both directions makes Cilium deny
+# everything not listed. See design/decisions/hermes.md.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: gitea-mcp
+  namespace: hermes
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: gitea-mcp
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: hermes
+            app.kubernetes.io/name: hermes
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    # kubelet liveness/readiness probes.
+    - fromEntities:
+        - host
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: gitea
+            app.kubernetes.io/name: gitea
+      toPorts:
+        - ports:
+            - port: "3000"
+              protocol: TCP

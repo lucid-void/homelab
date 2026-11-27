@@ -1,0 +1,102 @@
+---
+# The shell Hermes Agent runs every command in (terminal.backend: ssh). It
+# holds no Hermes secrets and no Kubernetes token; its only credentials are the
+# `hermes` Gitea user's token and the GitHub machine account's PAT, whose reach
+# is bounded server-side by branch protection. See design/decisions/hermes.md.
+#
+# The controller creates the pod once: a podTemplate change (a new image tag)
+# does NOT roll it. Apply one by deleting the pod (the controller recreates it,
+# the home PVC survives) — `kubectl -n hermes delete pod hermes-sandbox`.
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: hermes-sandbox
+  namespace: hermes
+spec:
+  # Headless Service hermes-sandbox.hermes.svc → the pod IP; Hermes dials :2222.
+  service: true
+  failedPodPolicy: Recreate
+  podTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hermes-sandbox
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sandbox
+          image: ghcr.io/lucid-void/hermes-sandbox:v1.0.0
+          ports:
+            - name: ssh
+              containerPort: 2222
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 2222
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 2222
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 4Gi
+          volumeMounts:
+            - name: home
+              mountPath: /home/agent
+            - name: tmp
+              mountPath: /tmp
+            - name: ssh
+              mountPath: /etc/hermes-sandbox/ssh
+              readOnly: true
+            - name: git
+              mountPath: /etc/hermes-sandbox/git
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 4Gi
+        - name: ssh
+          secret:
+            secretName: hermes-sandbox-secret
+            defaultMode: 0440
+            items:
+              - key: ssh_host_ed25519_key
+                path: ssh_host_ed25519_key
+              - key: authorized_keys
+                path: authorized_keys
+        - name: git
+          secret:
+            secretName: hermes-sandbox-secret
+            defaultMode: 0440
+            items:
+              - key: git-credentials
+                path: credentials
+  volumeClaimTemplates:
+    # Clones, mise toolchains, the agent's dotfiles. Disposable: wipe it by
+    # deleting the Sandbox's PVC and the pod.
+    - metadata:
+        name: home
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: nfs-client
+        resources:
+          requests:
+            storage: 20Gi

@@ -1,0 +1,99 @@
+---
+# Official Gitea MCP server, HTTP transport, for Hermes only. It holds NO
+# token: HTTP mode passes the caller's `Authorization: Bearer` through to
+# Gitea per request, so Hermes acts as the `hermes` Gitea user and this pod is
+# a stateless translator. GITEA_TOOLS is the server-side allowlist — a tool not
+# listed here does not exist for the agent, whatever Hermes is told.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gitea-mcp
+  namespace: hermes
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    defaultPodOptions:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+    controllers:
+      app:
+        replicas: 1
+        containers:
+          app:
+            image:
+              repository: docker.gitea.com/gitea-mcp-server
+              tag: "1.13.0"
+            args:
+              - -t
+              - http
+              - -p
+              - "8080"
+              # In-cluster Service, not the public hostname: keeps the domain
+              # out of this pod's config, and NetworkPolicy allows only this.
+              # Gitea's API still returns ROOT_URL-based links in responses.
+              - -H
+              - http://gitea-http.gitea.svc.cluster.local:3000
+            env:
+              # Read tools plus issue and PR writing. Deliberately absent:
+              # repo_write (settings, branch protection), branch_write and
+              # create_or_update_file/delete_file (code goes through git in the
+              # sandbox, where branch protection applies), actions_config_*
+              # (secrets), actions_run_write, package_write, release_write,
+              # tag_write, label/milestone/wiki/project writes, create_organization.
+              # pull_request_write includes `merge`; Gitea branch protection on
+              # every repo the hermes user can see is what stops that.
+              GITEA_TOOLS: "get_gitea_mcp_server_version,get_me,search_repos,search_issues,list_issues,issue_read,issue_write,list_pull_requests,pull_request_read,pull_request_write,repo_read,get_repository_tree,get_file_contents,get_dir_contents,branch_read,commit_read,tag_read,release_read,label_read,milestone_read,actions_run_read"
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+              readiness: *probes
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: ["ALL"]
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 8080
+    persistence:
+      tmp:
+        type: emptyDir
+        medium: Memory
+        globalMounts:
+          - path: /tmp

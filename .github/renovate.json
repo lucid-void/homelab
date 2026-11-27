@@ -224,6 +224,17 @@
       "matchPackageNames": ["ghcr.io/cenodude/crosswatch"],
       "automerge": false,
       "dependencyDashboardApproval": true
+    },
+    {
+      "description": "agent-sandbox ships its controller image as a ko:// placeholder in k8s/, so kubernetes/apps/agent-sandbox/controller/ks.yml patches the real image in. The GitRepository tag and that image tag are one version and must move in one PR — a mismatched controller can reconcile CRDs it does not understand.",
+      "matchPackageNames": ["agent-sandbox", "kubernetes-sigs/agent-sandbox", "registry.k8s.io/agent-sandbox/agent-sandbox-controller"],
+      "groupName": "agent-sandbox"
+    },
+    {
+      "description": "Hermes Agent publishes canary, stable, desktop and per-arch tags alongside vX.Y.Z; only vX.Y.Z is a pin. Each bump also needs `_config_version` read from a booted pod and copied into kubernetes/apps/hermes/hermes/app/config/config.yaml — see design/decisions/hermes.md.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["nousresearch/hermes-agent"],
+      "allowedVersions": "/^v[0-9]+\\.[0-9]+\\.[0-9]+$/"
     }
   ]
 }

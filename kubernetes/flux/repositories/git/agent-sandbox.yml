@@ -1,0 +1,20 @@
+---
+# https://github.com/kubernetes-sigs/agent-sandbox
+#
+# Only k8s/ is fetched: its kustomization.yaml is upstream's GitOps entry point
+# (core + extensions, controller declared once). The controller image there is a
+# ko:// placeholder, so kubernetes/apps/agent-sandbox/controller/ks.yml patches
+# the real image in — keep that tag equal to this ref (Renovate groups them).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: agent-sandbox
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://github.com/kubernetes-sigs/agent-sandbox
+  ref:
+    tag: v1.0.12
+  ignore: |
+    /*
+    !/k8s

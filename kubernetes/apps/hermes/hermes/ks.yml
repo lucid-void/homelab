@@ -1,0 +1,27 @@
+---
+# Deliberately NO postBuild.substituteFrom: config/config.yaml uses ${VAR}
+# references that Hermes itself expands from the pod env, and nothing here
+# needs the cluster domain. Adding substitution would make Flux blank them.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app hermes
+  namespace: flux-system
+spec:
+  targetNamespace: hermes
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: litellm
+    - name: hermes-gitea-mcp
+    - name: hermes-sandbox
+    - name: sealed-secrets
+  path: ./kubernetes/apps/hermes/hermes/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: false
+  interval: 30m
+  timeout: 10m

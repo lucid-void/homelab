@@ -1,0 +1,33 @@
+# Non-root sshd for the Hermes sandbox. Key auth only, one user, no forwarding:
+# the sandbox is a place to run commands, not a jump host.
+Port 2222
+ListenAddress 0.0.0.0
+PidFile /tmp/sshd.pid
+
+# Host key is mounted from the sandbox SealedSecret so Hermes's known_hosts
+# (StrictHostKeyChecking=accept-new) stays valid across pod restarts. The
+# entrypoint copies it to /tmp with 0600 and passes it as -o HostKey=.
+
+AuthorizedKeysFile /etc/hermes-sandbox/ssh/authorized_keys
+StrictModes no
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+AllowUsers agent
+UsePAM no
+
+AllowTcpForwarding no
+AllowStreamLocalForwarding no
+AllowAgentForwarding no
+GatewayPorts no
+PermitTunnel no
+X11Forwarding no
+PermitUserEnvironment no
+
+# Hermes forwards env passthrough names with SendEnv; accept only those it
+# would send for git/tooling, never anything credential-shaped.
+AcceptEnv LANG LC_* TERM
+
+Subsystem sftp /usr/lib/openssh/sftp-server
+LogLevel INFO

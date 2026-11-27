@@ -1,0 +1,73 @@
+---
+# The sandbox's whole reachable world. Ingress: SSH from the Hermes gateway.
+# Egress: DNS, Gitea's HTTP port, and HTTPS to GitHub and the package
+# registries by name. Nothing else — no kube-apiserver, no LiteLLM, no LAN
+# (172.16.20.0/24), no `world`. A tool that needs another download host gets
+# it added here, deliberately. See design/decisions/hermes.md.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: hermes-sandbox
+  namespace: hermes
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: hermes-sandbox
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: hermes
+            app.kubernetes.io/name: hermes
+      toPorts:
+        - ports:
+            - port: "2222"
+              protocol: TCP
+    # kubelet tcpSocket probes.
+    - fromEntities:
+        - host
+  egress:
+    # toFQDNs only works when DNS goes through Cilium's DNS proxy, which this
+    # L7 rule turns on for the pod.
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: gitea
+            app.kubernetes.io/name: gitea
+      toPorts:
+        - ports:
+            - port: "3000"
+              protocol: TCP
+    - toFQDNs:
+        # GitHub: git over HTTPS, API, release and raw downloads.
+        - matchName: github.com
+        - matchName: api.github.com
+        - matchName: codeload.github.com
+        - matchPattern: "*.githubusercontent.com"
+        # Package registries.
+        - matchName: pypi.org
+        - matchName: files.pythonhosted.org
+        - matchName: registry.npmjs.org
+        - matchName: proxy.golang.org
+        - matchName: sum.golang.org
+        # mise and the toolchains it fetches.
+        - matchName: mise.jdx.dev
+        - matchName: mise-versions.jdx.dev
+        - matchName: nodejs.org
+        - matchName: go.dev
+        - matchName: dl.google.com
+        - matchName: dl.k8s.io
+        - matchName: cdn.dl.k8s.io
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

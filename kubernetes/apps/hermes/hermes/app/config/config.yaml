@@ -1,0 +1,120 @@
+# Hermes Agent config. Rendered into /opt/data/config.yaml by the
+# `config` initContainer on every pod start, so git wins over any in-place
+# edit Hermes makes (/model, "Always Approve", hermes config set). Anything
+# worth keeping goes back into this file.
+#
+# ${VAR} below is expanded by Hermes from the pod env, not by Flux: the
+# hermes Kustomization has no postBuild substitution on purpose.
+# See design/decisions/hermes.md.
+
+model:
+  # A LiteLLM model name, not a provider model id. Point the `hermes` entry in
+  # kubernetes/apps/ai/litellm/app/config-configmap.yml at whichever external
+  # model should drive the agent; nothing here changes when you swap it.
+  default: hermes
+  provider: custom
+  base_url: http://litellm.ai.svc.cluster.local:4000/v1
+  key_env: LITELLM_API_KEY
+  # Hermes cannot read a context window through LiteLLM for an alias and
+  # falls back to 256,000 (measured). Set this to the backing model's real
+  # window when you choose it; Hermes refuses anything under 64,000.
+  # context_length: 200000
+
+# state.db is on an NFS PVC: WAL shared-memory locks are a network round trip
+# there and not crash-safe. Hermes picks DELETE on NFS by itself for a fresh
+# DB; pinned so a restored or migrated DB can't come back as WAL.
+database:
+  journal_mode: delete
+
+terminal:
+  # Every shell command, file tool and execute_code script runs in the
+  # hermes-sandbox pod over SSH, never in this pod. That pod holds none of
+  # this pod's secrets.
+  backend: ssh
+  ssh_host: hermes-sandbox.hermes.svc.cluster.local
+  ssh_user: agent
+  ssh_port: 2222
+  # Staged 0600/uid 10000 by the `config` initContainer from hermes-secret.
+  ssh_key: /etc/hermes-ssh/id_ed25519
+  persistent_shell: true
+  cwd: /home/agent
+  # Hermes pushes its skills into the sandbox and, by default, syncs files
+  # that changed there back into /opt/data. That would let anything running
+  # in the sandbox rewrite a skill this agent then follows. A cap of 0 bytes
+  # makes every sync-back skip extraction.
+  sync_back_max_bytes: 0
+
+agent:
+  disabled_toolsets:
+    - browser
+    - computer_use
+    - desktop_ui
+    - image_gen
+    - video_gen
+
+approvals:
+  # Every dangerous command in a chat asks the owner on Telegram.
+  mode: manual
+  timeout: 300
+  # [] = the requester and platform admins only. TELEGRAM_ALLOWED_USERS
+  # admits the owner alone, so the owner is the only possible approver.
+  approvers: []
+  # Owner decision: a job the owner scheduled is pre-approved. Hermes has no
+  # "unless it's unrelated" mode; see design/decisions/hermes.md for the
+  # layers that stand in for it.
+  cron_mode: approve
+  single_query_mode: deny
+  unattended_mode: deny
+  # Checked before every mode, including cron_mode: approve. Defence in depth:
+  # the sandbox has no kubeconfig and no route to the API server anyway.
+  deny:
+    - "kubectl*"
+    - "*/kubectl *"
+    - "talosctl*"
+    - "helm *"
+    - "flux *"
+    - "*169.254.169.254*"
+    - "git push*--force*"
+    - "git push*-f *"
+    - "git push*--mirror*"
+    - "git push*:main*"
+    - "git push* main"
+    - "git push*HEAD:main*"
+    - "git push*--delete*"
+    - "rm -rf /"
+    - "rm -rf /*"
+    - "rm -rf ~"
+    - "rm -rf ~/*"
+
+memory:
+  # Owner decision: memory saves are automatic.
+  write_approval: false
+
+skills:
+  # A skill is standing instructions the agent follows on every matching
+  # task, so new or edited skills still wait for the owner.
+  write_approval: true
+
+unauthorized_dm_behavior: ignore
+platforms:
+  telegram:
+    unauthorized_dm_behavior: ignore
+
+mcp_servers:
+  gitea:
+    # gitea-mcp holds no token: this header is passed through to Gitea per
+    # request, so the agent acts as the `hermes` Gitea user. The server side
+    # (GITEA_TOOLS in its HelmRelease) decides which tools exist at all.
+    url: http://gitea-mcp.hermes.svc.cluster.local:8080/mcp
+    headers:
+      Authorization: "Bearer ${GITEA_TOKEN}"
+    timeout: 60
+
+# The image is immutable and Flux owns upgrades.
+updates:
+  check: false
+
+# Matches what v0.23.4 stamps on a migrated config; without it Hermes rewrites
+# the file on boot. When Renovate bumps the image, boot it once, read the new
+# value from /opt/data/config.yaml, and copy it here.
+_config_version: 54

@@ -1,0 +1,16 @@
+---
+# /opt/data: config (re-rendered each start), memories, sessions (state.db),
+# skills, cron jobs, logs. nfs-client like every other app's config PVC; the
+# SQLite journal mode is pinned to DELETE for NFS in config/config.yaml.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hermes-data
+  namespace: hermes
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 10Gi

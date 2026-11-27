@@ -1,0 +1,59 @@
+---
+# Hermes gateway: no ingress at all (Telegram is long-polled, the loopback API
+# server is never exposed). Egress: DNS, LiteLLM, gitea-mcp, the sandbox's
+# sshd, and the Telegram Bot API. External model providers are reached by
+# LiteLLM, not by this pod. See design/decisions/hermes.md.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: hermes
+  namespace: hermes
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: hermes
+  ingress:
+    - fromEntities:
+        - host
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: ai
+            app.kubernetes.io/name: litellm
+      toPorts:
+        - ports:
+            - port: "4000"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: hermes
+            app.kubernetes.io/name: gitea-mcp
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: hermes
+            app.kubernetes.io/name: hermes-sandbox
+      toPorts:
+        - ports:
+            - port: "2222"
+              protocol: TCP
+    - toFQDNs:
+        - matchName: api.telegram.org
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

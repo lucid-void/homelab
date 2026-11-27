@@ -1,0 +1,149 @@
+---
+# Hermes Agent gateway (Telegram). Commands run in the hermes-sandbox pod over
+# SSH, never here; this pod holds the Telegram token, the LiteLLM key, the
+# Gitea token (for gitea-mcp passthrough) and the sandbox SSH client key.
+# See design/decisions/hermes.md.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: hermes
+  namespace: hermes
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: "3.7.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  timeout: 10m
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    defaultPodOptions:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+    controllers:
+      app:
+        replicas: 1
+        # One gateway per Telegram token: two pods would both long-poll and
+        # Telegram answers the second with 409 Conflict.
+        strategy: Recreate
+        annotations:
+          # Controller metadata, not pod annotations (helm-charts.md).
+          # Restarts on a config/skill or credential change.
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          config:
+            image: &image
+              repository: nousresearch/hermes-agent
+              tag: "v0.23.4"
+            # Bypasses the image entrypoint: plain sh as root, before s6.
+            command:
+              - /bin/sh
+              - -ec
+              - |
+                install -d -o 10000 -g 10000 -m 0700 /opt/data
+                install -o 10000 -g 10000 -m 0640 /config/config.yaml /opt/data/config.yaml
+                install -d -o 10000 -g 10000 /opt/data/skills/homelab-repo
+                install -o 10000 -g 10000 -m 0644 /config/homelab-repo-SKILL.md /opt/data/skills/homelab-repo/SKILL.md
+                install -d -o 10000 -g 10000 -m 0700 /etc/hermes-ssh
+                install -o 10000 -g 10000 -m 0600 /secret/id_ed25519 /etc/hermes-ssh/id_ed25519
+            securityContext:
+              runAsUser: 0
+              runAsNonRoot: false
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
+                add: ["CHOWN", "DAC_OVERRIDE", "FOWNER"]
+        containers:
+          app:
+            image: *image
+            args: ["gateway", "run"]
+            env:
+              TZ: Europe/Brussels
+              TELEGRAM_BOT_TOKEN:
+                valueFrom:
+                  secretKeyRef:
+                    name: hermes-secret
+                    key: TELEGRAM_BOT_TOKEN
+              TELEGRAM_ALLOWED_USERS:
+                valueFrom:
+                  secretKeyRef:
+                    name: hermes-secret
+                    key: TELEGRAM_ALLOWED_USERS
+              LITELLM_API_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: hermes-secret
+                    key: LITELLM_API_KEY
+              GITEA_TOKEN:
+                valueFrom:
+                  secretKeyRef:
+                    name: hermes-secret
+                    key: GITEA_TOKEN
+            securityContext:
+              # s6-overlay must start as root (it remaps and chowns /opt/data,
+              # then drops to uid 10000 for the gateway). This set is what it
+              # was measured to need; everything else is dropped.
+              runAsUser: 0
+              runAsNonRoot: false
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
+                add: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETUID", "SETGID", "KILL"]
+            resources:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+    persistence:
+      data:
+        existingClaim: hermes-data
+        advancedMounts:
+          app:
+            config:
+              - path: /opt/data
+            app:
+              - path: /opt/data
+      config:
+        type: configMap
+        name: hermes-config
+        advancedMounts:
+          app:
+            config:
+              - path: /config
+                readOnly: true
+      secret:
+        type: secret
+        name: hermes-secret
+        defaultMode: 0400
+        items:
+          - key: id_ed25519
+            path: id_ed25519
+        advancedMounts:
+          app:
+            config:
+              - path: /secret
+                readOnly: true
+      ssh-key:
+        type: emptyDir
+        medium: Memory
+        advancedMounts:
+          app:
+            config:
+              - path: /etc/hermes-ssh
+            app:
+              - path: /etc/hermes-ssh
+                readOnly: true

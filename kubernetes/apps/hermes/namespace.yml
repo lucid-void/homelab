@@ -1,0 +1,10 @@
+---
+# Hermes Agent: a Telegram-driven coding agent. Its own namespace, not `ai`, so
+# its CiliumNetworkPolicies and (empty) RBAC never touch the LLM stack. No
+# pod-security label: cluster-default `baseline` fits — the Hermes image must
+# start as root for s6-overlay, which `restricted` forbids.
+# See design/decisions/hermes.md.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hermes

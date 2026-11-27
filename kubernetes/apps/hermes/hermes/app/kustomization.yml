@@ -1,0 +1,18 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Created by kubernetes/apps/hermes/seal-secrets.sh — run it before merging.
+  - ./hermes-sealed.yml
+  - ./pvc.yml
+  - ./helmrelease.yml
+  - ./networkpolicy.yml
+configMapGenerator:
+  - name: hermes-config
+    files:
+      - config.yaml=./config/config.yaml
+      - homelab-repo-SKILL.md=./config/homelab-repo-SKILL.md
+generatorOptions:
+  # The HelmRelease names this ConfigMap literally; Reloader on the controller
+  # restarts the pod when it changes, and the initContainer re-renders it.
+  disableNameSuffixHash: true

@@ -100,6 +100,7 @@ large file whole (`design/runbook.md` above all).
 - changedetection.io, sockpuppetbrowser, its non-SSO login: changedetection.md
 - Proxmox OIDC: proxmox-oidc.md
 - the LLM stack: llm.md
+- Hermes Agent, its sandbox, agent-sandbox, gitea-mcp: hermes.md
 - service inventory, hostnames, auth model: design/docs/services.md
 - UPS, NUT Pi, power-loss shutdown order: ups.md
 - topology, nodes, IP plan, Netbird, `talconfig.yaml`: design/architecture.md
