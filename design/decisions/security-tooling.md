@@ -75,6 +75,13 @@ with default policies. Depends on the `cilium` Flux Kustomization.
   evidence) before three failures would otherwise retain it, so a self-deleting weekly
   failure is invisible unless the schedule is checked directly. Run
   `kubectl create job --from=cronjob/kubent` before any Talos/k8s upgrade.
+- **Size `security-report`'s memory limit from the VulnerabilityReport volume, not the
+  script** — it pulls every report as one `kubectl get … -o json` and pipes it to jq,
+  and kubectl holds the decoded list at several times the JSON size. At 166 reports
+  (33 MB of JSON, 2026-11-27) a `256Mi` limit was OOMKilled (exit 137) within 12 s,
+  silently, two Mondays running; the same `lastSuccessfulTime` check as kubent (below)
+  is how it surfaced. Re-measure with
+  `kubectl get vulnerabilityreports -A -o json | wc -c` when the limit is hit again.
 - **`.github/kube-linter-config.yaml`'s `checks.exclude` must be a flat list of check
   name strings, not an object with `objects:` keys** — the object shape fails config
   load, and if the workflow captures that failure into its own JSON output instead of
