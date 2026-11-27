@@ -71,6 +71,16 @@ used for a client-credentials grant against the **master** realm. Ours is a
 `keycloak-operator` service account client scoped to `manage-clients`, `view-clients`,
 `query-clients` and `view-realm` on the `homelab-realm` client — not a realm admin.
 
+**That client needs the `kc-admin-api` client scope as a Default scope** (master realm →
+Clients → `keycloak-operator` → Client scopes → Add client scope), granted by hand, once.
+Since Keycloak 26.8.2 (CVE-2026-19688) the Admin REST API rejects any token that lacks
+both this scope and the admin-API audience it adds. The upgrade assigns it only to
+`admin-cli` and `security-admin-console`. Without it, every admin call returns **401**
+even with a fresh token, the entitlements Job crashes before it can report to Gotify,
+and operator client reconciliation stops; logins are unaffected. A master-realm token
+carrying this scope still works against `/admin/realms/homelab`. The scope must be
+Default, not Optional: neither the operator nor the Job requests scopes.
+
 **There is no `clientId` field on the CRD.** It defines none and sets no
 `x-kubernetes-preserve-unknown-fields`, so the apiserver silently prunes one if you
 write it: the manifest looks like it names the client and does nothing. The client id
@@ -90,7 +100,8 @@ access is set. The Job only adds `initialMembers` to a group it has just created
 removing someone in the console sticks, and a realm rebuild restores the structure but not
 who belonged where.
 
-**The Job needs two roles granted by hand, once.** It authenticates as the
+**The Job needs two roles granted by hand, once** (on top of the `kc-admin-api` scope
+above). It authenticates as the
 `keycloak-operator` service account, whose `manage-clients` covers mappers. Groups need
 `manage-users` and gates need `manage-realm`, both on the `homelab-realm` client: master
 realm → Clients → `keycloak-operator` → Service accounts roles → Assign role → filter by
