@@ -15,37 +15,50 @@ data:
     logToStdout: both
 
     models:
-      qwen-smart:
+      # Inkling 2 Mini, unsloth UD-Q4_K_M (15.5 GiB), plus its DSpark block
+      # drafter for speculative decoding. The key name is what LiteLLM routes on.
+      #
+      # Q4_K_M rather than Q8: on CPU, decode speed is bound by the bytes of
+      # weights read per token. Inkling loops layers 6-17 three times per token
+      # (~5.4B effective active parameters against Qwen3.6-35B-A3B's 3B), so only
+      # a 4-bit quant brings its per-token read down to what the Q8 Qwen needed.
+      #
+      # DSpark: --spec-type draft-dspark needs llama.cpp b12722+ (PR #32218) and
+      # the Mainline_Support drafter file (see fetch-models.sh). The draft depth
+      # is 5, not llama.cpp's default 3, and not 2: on mainline the drafter
+      # always decodes its full 8-token block, so short drafts save nothing.
+      # unsloth measured 5 fastest, and 2 slower than no drafter at all. Those
+      # numbers are from GPUs. On CPU, verifying a draft batch touches more
+      # experts per step, so the gain can be smaller or negative. Benchmark with
+      # and without -md before believing it.
+      #
+      # Sampling (temp 1.0, no truncation) is the model card's recommendation.
+      inkling:
         aliases: [default]
-        # Never unload. Reloading 34 GiB off local disk is tens of seconds, and
-        # nothing else on this node is competing for the memory.
+        # Never unload. Nothing else on this node competes for the memory.
         ttl: 0
         cmd: >
           /app/llama-server --host 0.0.0.0 --port $${PORT}
-          --model /models/Qwen3.6-35B-A3B-Q8_0.gguf
+          --model /models/Inkling-2-Mini-UD-Q4_K_M.gguf
+          --model-draft /models/dspark-Inkling-2-Mini-Q8_0.gguf
+          --spec-type draft-dspark --spec-draft-n-max 5
           --threads 6 --ctx-size 32768
           --cache-type-k q8_0 --cache-type-v q8_0 --flash-attn on
           --cache-ram 4096
+          --temp 1.0 --top-p 1.0 --top-k 0 --min-p 0.0
           --jinja --metrics
 
-      # NO --cache-reuse HERE, and it must not be re-added for this model.
-      # It was in the first revision and llama-server threw it away at startup:
+      # --cache-reuse is left out. It was dead on Qwen3.6, where llama-server
+      # logged `cache_reuse is not supported by this context` because the model
+      # has no shiftable KV. Inkling also has a convolution state per loop pass,
+      # so it is very likely dead here too. Check the boot log before adding it:
+      # a dead flag that reads as a speed-up is worse than no flag.
       #
-      #   W srv load_model: cache_reuse is not supported by this context,
-      #                     it will be disabled
-      #
-      # The guard is `if (!llama_memory_can_shift(...))` in server-context.cpp
-      # — a property of this model's KV implementation, not something a flag can
-      # turn on. A dead flag in git that reads as a performance optimisation is
-      # worse than no flag: it invites someone to "explain" a slow prefill with
-      # a setting that was never in effect.
-      #
-      # The live prefix-caching mechanism is llama-server's cross-request prompt
-      # cache (--cache-ram), which is NOT gated by that check and is on by default
-      # at 8192 MiB. It is capped at 4096 MiB above so llama-swap's worst case
-      # (34.4 GiB weights + this cache + KV + overhead) stays under its 46Gi
-      # request, which the clef Deployment's scheduling depends on. Raising it
-      # re-opens the eviction risk described in design/decisions/llm.md.
+      # The live prefix caching is llama-server's cross-request prompt cache
+      # (--cache-ram), on by default at 8192 MiB. It is capped at 4096 MiB so
+      # llama-swap stays under its 46Gi request, which the clef Deployment's
+      # scheduling depends on. Raising it re-opens the eviction risk described
+      # in design/decisions/llm.md.
 
       local-embed:
         ttl: 0
@@ -55,7 +68,7 @@ data:
           --embeddings --threads 2 --ctx-size 8192 --metrics
 
     # LOAD-BEARING. Both keys default to TRUE, so in the single default group
-    # every embedding call from Open WebUI's RAG would unload the 34 GiB chat
+    # every embedding call from Open WebUI's RAG would unload the 15.5 GiB chat
     # model and reload it afterwards — a multi-second stall on each document
     # chunk, with nothing in the logs that names the cause.
     #
@@ -68,7 +81,7 @@ data:
       chat:
         swap: false
         exclusive: false
-        members: [qwen-smart]
+        members: [inkling]
       embed:
         swap: false
         exclusive: false
