@@ -59,11 +59,23 @@ Done by hand, once, before the first deploy. Everything sealed goes through
    `kubernetes/apps/ai/litellm/app/config-configmap.yml` pointing at the external model
    (provider key sealed into `litellm-secret`), then mint a virtual key allowed only
    `hermes`: `POST /key/generate` with `{"models": ["hermes"], "key_alias": "hermes"}`.
-3. **Gitea:** create a non-admin user **`hermes`** (the username is fixed in
-   `seal-secrets.sh`); add it as a *Write* collaborator on the chosen repos only; protect
-   `main` on each (no direct push, PR required, 1 approval, `hermes` not in the
-   push/merge whitelist); create a token for it with `write:repository`, `write:issue`,
-   `read:user`.
+3. **Gitea, through Keycloak:** the `hermes` Gitea account is an SSO account like every
+   other (Gitea allows only external registration).
+   1. Keycloak `homelab` realm → Users → Add user: username **`hermes`** (fixed in
+      `seal-secrets.sh`), an email address you own that no other Gitea account uses,
+      *Email verified* on. Credentials → set a long password, *Temporary* off; keep it
+      in your password manager. Hermes never gets this password.
+   2. Groups → join **`/gitea/user` only**. Not `/gitea/admin` (the admin flag follows
+      `gitea_roles` at each login), and no other group: every other client's
+      browser-flow gate then refuses it.
+   3. In a private window, sign in to Gitea with Keycloak as `hermes`. If Keycloak asks
+      for OTP setup, do it and store the seed with the password. If Gitea offers a
+      registration form, keep the username `hermes`.
+   4. As `hermes`: Settings → Applications → generate a token with
+      `write:repository`, `write:issue`, `read:user`. That token is `GITEA_TOKEN`.
+   5. As yourself: add `hermes` as a *Write* collaborator on the chosen repos only, and
+      protect `main` on each (no direct push, PR required, 1 approval, `hermes` not in
+      the push/merge whitelist).
 4. **GitHub:** create a machine account, invite it as a *Write* collaborator on
    `homelab` only, and create a **classic** PAT with `public_repo` only (a fine-grained
    PAT cannot target a repo owned by another personal account). Add a ruleset on `main`:
