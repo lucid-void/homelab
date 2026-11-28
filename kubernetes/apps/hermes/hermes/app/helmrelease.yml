@@ -1,7 +1,9 @@
 ---
-# Hermes Agent gateway (Telegram). Commands run in the hermes-sandbox pod over
-# SSH, never here; this pod holds the Telegram token, the LiteLLM key, the
-# Gitea token (for gitea-mcp passthrough) and the sandbox SSH client key.
+# Hermes Agent gateway (Telegram) plus the desktop-app backend (`hermes
+# dashboard`, s6 service, :9119, password-gated). Commands run in the
+# hermes-sandbox pod over SSH, never here; this pod holds the Telegram token,
+# the LiteLLM key, the Gitea token (for gitea-mcp passthrough), the sandbox SSH
+# client key and the dashboard login.
 # See design/decisions/hermes.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -90,6 +92,29 @@ spec:
                   secretKeyRef:
                     name: hermes-secret
                     key: GITEA_TOKEN
+              # Desktop-app backend: the image's s6 `dashboard` service runs
+              # `hermes dashboard` beside the gateway when this is truthy. A
+              # non-loopback bind always requires an auth provider; the
+              # password provider is the only one besides Nous Portal OAuth.
+              HERMES_DASHBOARD: "1"
+              HERMES_DASHBOARD_HOST: 0.0.0.0
+              HERMES_DASHBOARD_PORT: "9119"
+              HERMES_DASHBOARD_BASIC_AUTH_USERNAME:
+                valueFrom:
+                  secretKeyRef:
+                    name: hermes-dashboard-secret
+                    key: username
+              HERMES_DASHBOARD_BASIC_AUTH_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: hermes-dashboard-secret
+                    key: password
+              # Stable signing secret: without it every restart signs you out.
+              HERMES_DASHBOARD_BASIC_AUTH_SECRET:
+                valueFrom:
+                  secretKeyRef:
+                    name: hermes-dashboard-secret
+                    key: session-secret
             securityContext:
               # s6-overlay must start as root (it remaps and chowns /opt/data,
               # then drops to uid 10000 for the gateway). This set is what it
@@ -106,6 +131,12 @@ spec:
                 memory: 512Mi
               limits:
                 memory: 2Gi
+    service:
+      app:
+        controller: app
+        ports:
+          http:
+            port: 9119
     persistence:
       data:
         existingClaim: hermes-data

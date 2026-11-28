@@ -4,6 +4,8 @@ kind: Kustomization
 resources:
   # Created by kubernetes/apps/hermes/seal-secrets.sh — run it before merging.
   - ./hermes-sealed.yml
+  # Created by `seal-secrets.sh dashboard`.
+  - ./hermes-dashboard-sealed.yml
   - ./pvc.yml
   - ./helmrelease.yml
   - ./networkpolicy.yml

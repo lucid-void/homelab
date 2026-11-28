@@ -1,0 +1,22 @@
+---
+# Hermes desktop-app backend. LAN and Netbird only, like every route here (no
+# Cloudflare proxy); the backend's password gate is the auth. Settings →
+# Gateways → Remote gateway in the desktop app. See design/decisions/hermes.md.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: hermes
+  namespace: hermes
+  annotations:
+    external-dns.alpha.kubernetes.io/enabled: "true"
+spec:
+  parentRefs:
+    - name: shared
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - hermes.${CLUSTER_DOMAIN}
+  rules:
+    - backendRefs:
+        - name: hermes
+          port: 9119

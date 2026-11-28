@@ -1,6 +1,7 @@
 ---
-# Hermes gateway: no ingress at all (Telegram is long-polled, the loopback API
-# server is never exposed). Egress: DNS, LiteLLM, gitea-mcp, the sandbox's
+# Hermes gateway. Ingress: only the desktop-app backend on :9119, from the
+# shared Gateway's Envoy (Cilium's `ingress` identity); Telegram is long-polled
+# and the loopback API server is never exposed. Egress: DNS, LiteLLM, gitea-mcp, the sandbox's
 # sshd, and the Telegram Bot API. External model providers are reached by
 # LiteLLM, not by this pod. See design/decisions/hermes.md.
 apiVersion: cilium.io/v2
@@ -15,6 +16,12 @@ spec:
   ingress:
     - fromEntities:
         - host
+    - fromEntities:
+        - ingress
+      toPorts:
+        - ports:
+            - port: "9119"
+              protocol: TCP
   egress:
     - toEndpoints:
         - matchLabels:

@@ -1,0 +1,27 @@
+---
+# Only the HTTPRoute, split from `hermes` so it can take cluster-domain
+# substitution: the `hermes` Kustomization must never substitute (its
+# config.yaml carries ${VAR} references Hermes expands itself).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: hermes-route
+  namespace: flux-system
+spec:
+  targetNamespace: hermes
+  dependsOn:
+    - name: hermes
+  path: ./kubernetes/apps/hermes/route/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: false
+  interval: 30m
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-settings
+      - kind: Secret
+        name: cluster-secrets
+        optional: false

@@ -6,3 +6,4 @@ resources:
   - ./gitea-mcp/ks.yml
   - ./sandbox/ks.yml
   - ./hermes/ks.yml
+  - ./route/ks.yml

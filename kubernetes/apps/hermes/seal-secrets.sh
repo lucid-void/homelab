@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Creates the two Hermes SealedSecrets. Run from the repo root:
 #
-#   kubernetes/apps/hermes/seal-secrets.sh
+#   kubernetes/apps/hermes/seal-secrets.sh            # gateway + sandbox
+#   kubernetes/apps/hermes/seal-secrets.sh dashboard  # desktop-app login only
+#
+# `dashboard` prompts for a username and password, generates the session
+# secret, writes kubernetes/apps/hermes/hermes/app/hermes-dashboard-sealed.yml
+# and touches nothing else (no key rotation).
 #
 # Prompts (input hidden) for the four values, generates the two SSH keypairs
 # itself, and writes:
@@ -27,6 +32,22 @@ ask() { # ask VAR "prompt"
   [ -n "$v" ] || { echo "empty value for $1" >&2; exit 1; }
   printf '%s' "$v" > "$work/$1"
 }
+
+if [ "${1:-}" = dashboard ]; then
+  echo "Hermes desktop-app login. Input is hidden." >&2
+  ask username "Dashboard username"
+  ask password "Dashboard password (long; LAN/Netbird only, still the only gate)"
+  ask password2 "Repeat the password"
+  cmp -s "$work/password" "$work/password2" || { echo "passwords differ" >&2; exit 1; }
+  openssl rand -hex 32 | tr -d '\n' > "$work/session-secret"
+  mise exec -- kubectl create secret generic hermes-dashboard-secret --namespace hermes --dry-run=client -o yaml \
+    --from-file=username="$work/username" \
+    --from-file=password="$work/password" \
+    --from-file=session-secret="$work/session-secret" \
+    | seal > kubernetes/apps/hermes/hermes/app/hermes-dashboard-sealed.yml
+  echo "Wrote hermes-dashboard-sealed.yml. Commit it." >&2
+  exit 0
+fi
 
 cat >&2 <<'EOF'
 Hermes secrets. See design/decisions/hermes.md → "Owner setup" for where each

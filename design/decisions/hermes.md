@@ -19,7 +19,7 @@ Three pods, split so that the one running commands holds nothing worth stealing:
 
 | Pod | Holds | Reaches |
 |---|---|---|
-| `hermes` (gateway, app-template) | Telegram token, LiteLLM key, Gitea token, sandbox SSH client key | DNS, LiteLLM `:4000`, gitea-mcp `:8080`, sandbox `:2222`, `api.telegram.org:443` |
+| `hermes` (gateway + desktop backend, app-template) | Telegram token, LiteLLM key, Gitea token, sandbox SSH client key, dashboard login | DNS, LiteLLM `:4000`, gitea-mcp `:8080`, sandbox `:2222`, `api.telegram.org:443`; ingress `:9119` from the Gateway only |
 | `hermes-sandbox` (`Sandbox` CR, agent-sandbox) | `hermes` Gitea token (git credential store), SSH host key | DNS, Gitea `:3000`, HTTPS by FQDN to public download hosts: GitHub, PyPI, npm, Go proxy, mise/toolchain hosts |
 | `gitea-mcp` (app-template) | nothing — HTTP mode passes the caller's bearer through to Gitea | DNS, Gitea `:3000` |
 
@@ -29,6 +29,17 @@ Three pods, split so that the one running commands holds nothing worth stealing:
   falls back to 256,000 (measured); set `model.context_length` once the model is chosen.
   Hermes refuses any model under 64,000 (`MINIMUM_CONTEXT_LENGTH`, enforced at startup),
   which is why the local CPU Qwen at 32K cannot drive it.
+- **Desktop app:** `HERMES_DASHBOARD=1` makes the image's s6 `dashboard` service run
+  `hermes dashboard` on `:9119` beside the Telegram gateway, same `/opt/data`, same
+  sandbox. It is what Hermes Desktop's *Remote gateway* talks to (REST plus the `/api/ws`
+  chat socket). Route `hermes.<domain>` lives in its own `hermes-route` Kustomization so
+  it can substitute the domain. Auth is the **password** provider
+  (`hermes-dashboard-secret`: username, password, a stable session secret so restarts
+  keep you signed in). Keycloak cannot gate it: the only OAuth provider Hermes ships is
+  Nous Portal. A non-loopback bind refuses to start without a provider, and every API
+  path answers 401 before sign-in (measured). Anyone signed in has the agent's full
+  power, including reading its env, so the password is as sensitive as the Telegram
+  account. Settings changed in the app are lost on restart, like `/model`.
 - **Terminal:** `terminal.backend: ssh` to `hermes-sandbox.hermes.svc:2222` (the
   `Sandbox`'s headless Service). Shell commands, file tools **and `execute_code` scripts**
   all run there (checked in v0.23.4's `code_execution_tool.py`). The sandbox image is
@@ -74,7 +85,9 @@ Done by hand, once, before the first deploy. Everything sealed goes through
    5. As yourself: add `hermes` as a *Write* collaborator on the chosen repos only, and
       protect `main` on each (no direct push, PR required, 1 approval, `hermes` not in
       the push/merge whitelist).
-4. **Seal:** `kubernetes/apps/hermes/seal-secrets.sh`, commit both `*-sealed.yml`.
+4. **Seal:** `kubernetes/apps/hermes/seal-secrets.sh`, commit both `*-sealed.yml`. Then
+   `kubernetes/apps/hermes/seal-secrets.sh dashboard` for the desktop-app login; it
+   writes only `hermes-dashboard-sealed.yml` and rotates nothing.
 5. **Image:** push `.github/workflows/hermes-sandbox.yml` yourself (agent sessions have
    no `workflow` scope), run the image build, and make the
    `ghcr.io/lucid-void/hermes-sandbox` package **public** (new GHCR packages start
@@ -138,6 +151,8 @@ Done by hand, once, before the first deploy. Everything sealed goes through
 # gateway connected and its policy loaded
 kubectl -n hermes logs deploy/hermes | grep -E "telegram|Gateway"
 kubectl -n hermes get cnp
+# desktop backend: gated, password provider offered
+curl -s https://hermes.<domain>/api/status | jq '.auth_required, .auth_providers'
 # the sandbox: Ready, and no route to the API server, the NAS or the internet at large
 kubectl -n hermes get sandbox hermes-sandbox
 kubectl -n hermes exec hermes-sandbox -- sh -c 'curl -sm5 https://kubernetes.default.svc || echo blocked'
@@ -145,6 +160,9 @@ kubectl -n hermes exec hermes-sandbox -- sh -c 'curl -sm5 http://172.16.20.2 || 
 kubectl -n hermes exec hermes-sandbox -- sh -c 'curl -sm5 https://example.com || echo blocked'
 kubectl -n hermes exec hermes-sandbox -- sh -c 'git ls-remote http://gitea-http.gitea.svc.cluster.local:3000/<owner>/<repo>.git HEAD'
 ```
+
+Desktop app: Settings → Gateways → Remote gateway → `https://hermes.<domain>` → Sign in →
+Save and reconnect; **Test** must pass both the HTTP and the WebSocket leg.
 
 In Telegram: a plain question gets an answer; a dangerous command (`rm -rf ~/x`) asks
 for approval and `no` denies it; asking it to push to a protected `main` in Gitea fails.
