@@ -14,6 +14,7 @@ spec:
     - name: llama-swap
     - name: shared-gateway
     - name: sealed-secrets
+    - name: keycloak-clients
   path: ./kubernetes/apps/ai/litellm/app
   prune: true
   sourceRef:

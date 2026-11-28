@@ -86,6 +86,14 @@ Telegram bot (`design/decisions/flight-tracker.md`).
   rendering — no error, the key just never reaches the manifest), so Open WebUI
   genuinely requires `openwebui-oidc-secret` and sits in `CreateContainerConfigError`
   without it, same as Kavita.
+- **LiteLLM's admin UI signs in through Keycloak client `litellm`** (generic OIDC,
+  `GENERIC_*` env, callback `<PROXY_BASE_URL>/sso/callback`). SSO is free on the OSS
+  image only up to 5 users, so the client is admin-only: gate and only role are both
+  `proxy_admin`. That role is not called `admin` because LiteLLM reads the claim
+  value (`litellm_roles`, first element) as its role name verbatim; its group→role
+  mapping is stored in its database through the UI, outside git. A user with no
+  valid role claim is created as `internal_user_viewer`. The master key still logs
+  in as `admin` and stays the break-glass path.
 - **LiteLLM and Open WebUI use different env var names for the same DB credential** —
   `DATABASE_USERNAME` for LiteLLM, `DATABASE_USER` for Open WebUI. Open WebUI also only
   builds a Postgres URL when **all five** `DATABASE_*` vars are set — miss one and it

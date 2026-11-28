@@ -1,0 +1,15 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: litellm-client-secret
+  namespace: keycloak
+spec:
+  encryptedData:
+    secret: AgARsszWcfASvLABCqhWJzCuH4UmHk7luFGUIDFnEx9UJeGsMRw8+KCuPkgx+EzLeEakyeLJL3cc5dqs3cc8QpBvZdoMnJSBDF1avYdk79hSyx3K5UHj09E/01e5lqR8czrN4uqGB4yv7hphZZNzXAUtJb0t/ekinxZvGvnXmK5h7GCM1UdYeDUXxUtwEpBZ1lAcboDpWDFab1eo/0ADQsfhA2TILoCPFlnRwZ9dXJNsUZV3Hqi/ohmBUSuC11HHqSPmWMos5lRxF9ADQITE3MC3TSA72Al1vE47UT80ydoK6ZTrObdkjWOhBKubwdfPCzLLRtlIXXBalns1ycSXZVb0VPoM9eUFkC7TghSgcHnWtumOy57sbpAKnYUigv9//bT6eCNrZNJdcN3iAfGZwQ4cWlG/xPvIuCyVrotUiVEv5getHy83sM7rpBW1gMPr0A3D5VV5LoOxyXJiZ0x7AL6wuymCtV9l3t4ZI/Yw4QQIB+Ac2dUBQx3xZBwdCZtl8Ju4XA7xJRtNIF+wjMgsudpD4cOSvqsKQKEXApKWp4/Oguqg6GAZ8g5qSHAoz6YfR7+E+/fhooBoJZeAX310WsVCZCaL15wyc4L54rk/kjipllpi0JRgtRf8h7vWIfAkOohrFPtlQeZfIi3DMPhF424l9l97EG7WoHJPuFrHClO4zYK3BwkAFGtlJdBxR1o7ogFdh1SsxTL32HiXVJHW3IC8y/r8sCr0V7Y06A7NXZN+5/K4EI5OQLmSV1L10AEJf6uAezf3cGLxagQ+rociloqD
+  template:
+    metadata:
+      labels:
+        operator.keycloak.org/kind: KeycloakOIDCClient
+      name: litellm-client-secret
+      namespace: keycloak
