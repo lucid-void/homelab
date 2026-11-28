@@ -43,6 +43,9 @@ spec:
             image:
               repository: docker.gitea.com/gitea-mcp-server
               tag: "1.13.0"
+            # The image sets only CMD (no ENTRYPOINT), so args alone would replace
+            # the binary.
+            command: ["/app/gitea-mcp"]
             args:
               - -t
               - http
