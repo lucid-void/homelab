@@ -44,8 +44,34 @@ spec:
               - /app/config.yaml
               - --port
               - "4000"
+            envFrom:
+              # oidc-sealed.yml in this directory: GENERIC_CLIENT_ID and
+              # GENERIC_CLIENT_SECRET for the `litellm` Keycloak client. Not
+              # optional — app-template 3.7.3 strips `optional` from envFrom.
+              - secretRef:
+                  name: litellm-oidc-secret
             env:
               TZ: Europe/Brussels
+              # -- SSO (admin UI) ------------------------------------------
+              # Free on the OSS image for up to 5 users (v1.76.0+). The
+              # Keycloak gate admits only /litellm/admin, so that cap is moot.
+              # The redirect_uri is <PROXY_BASE_URL>/sso/callback and must match
+              # the client in kubernetes/apps/keycloak/clients/app/litellm.yml.
+              PROXY_BASE_URL: https://llm.${CLUSTER_DOMAIN}
+              GENERIC_AUTHORIZATION_ENDPOINT: https://sso.${CLUSTER_DOMAIN}/realms/homelab/protocol/openid-connect/auth
+              GENERIC_TOKEN_ENDPOINT: https://sso.${CLUSTER_DOMAIN}/realms/homelab/protocol/openid-connect/token
+              GENERIC_USERINFO_ENDPOINT: https://sso.${CLUSTER_DOMAIN}/realms/homelab/protocol/openid-connect/userinfo
+              GENERIC_SCOPE: openid email profile
+              # Defaults: id=preferred_username (kept: survives an IdP change,
+              # unlike `sub`), display name=`sub` (a UUID, so overridden).
+              GENERIC_USER_ID_ATTRIBUTE: preferred_username
+              GENERIC_USER_DISPLAY_NAME_ATTRIBUTE: name
+              GENERIC_USER_FIRST_NAME_ATTRIBUTE: given_name
+              GENERIC_USER_LAST_NAME_ATTRIBUTE: family_name
+              # The entitlements Job's mapper emits ["proxy_admin"]; LiteLLM takes
+              # the first element as its role. Absent, a new SSO user lands as
+              # internal_user_viewer.
+              GENERIC_USER_ROLE_ATTRIBUTE: litellm_roles
               # LiteLLM assembles DATABASE_URL from these four itself, quoting
               # each component — which is what lets the CNPG-managed password
               # arrive by reference rather than embedded in a URL string.

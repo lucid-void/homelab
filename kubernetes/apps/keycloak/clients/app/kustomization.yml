@@ -16,6 +16,8 @@ resources:
   - ./jellyfin.yml
   - ./kavita-client-sealed.yml
   - ./kavita.yml
+  - ./litellm-client-sealed.yml
+  - ./litellm.yml
   - ./openwebui-client-sealed.yml
   - ./openwebui.yml
   - ./paperless-client-sealed.yml

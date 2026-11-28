@@ -121,9 +121,10 @@ takes bare strings, so composite roles are not expressible and the group carries
 | gitea, immich, freshrss, kavita, romm, openwebui, proxmox | `user` | `admin` |
 | grafana | `viewer` | `editor`, `admin` |
 | crosswatch, paperless (admin-only) | `admin` | — |
+| litellm (admin-only) | `proxy_admin` | — |
 
 Groups mirror it: `/<service>/user`, `/<service>/admin` (and `/grafana/editor`), except
-that CrossWatch only has `/crosswatch/admin`. `/paperless/user` still exists, but its members
+that CrossWatch and LiteLLM only have `/crosswatch/admin` and `/litellm/admin`. `/paperless/user` still exists, but its members
 are refused at login. Parent groups hold no roles, with one leftover: `/jellyfin` carries
 `user`. Children inherit from parents, not siblings.
 
@@ -201,6 +202,7 @@ client's roles into one list, and `admin` on one app reads as `admin` on all of 
 | Kavita | `syncUserSettings`, `rolesClaim` (`design/decisions/media-stack.md`) | New account refused; existing account loses its roles |
 | Open WebUI | `ENABLE_OAUTH_ROLE_MANAGEMENT`, `OAUTH_ROLES_CLAIM` | Role left as it is |
 | Paperless | `PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM`, `..._SYNC_SUPERUSER_GROUP` | **Superuser removed** |
+| LiteLLM | `GENERIC_USER_ROLE_ATTRIBUTE` (value must be a LiteLLM role name) | Created as `internal_user_viewer` |
 | RomM | `OIDC_CLAIM_ROLES`, `OIDC_ROLE_ADMIN`, `OIDC_ROLE_VIEWER` | Role left as it is |
 | Proxmox | `--groups-claim` on the realm, set by hand (`design/runbook.md`) | Not checked |
 

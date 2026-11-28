@@ -1,0 +1,29 @@
+---
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakOIDCClient
+metadata:
+  # There is no `clientId` field on this CRD — the apiserver prunes one in silence.
+  # metadata.name IS the client id.
+  name: litellm
+  namespace: keycloak
+spec:
+  keycloakCRName: keycloak
+  realm: homelab
+  client:
+    displayName: LiteLLM
+    enabled: true
+    loginFlows: [STANDARD]
+    redirectUris:
+      # `<PROXY_BASE_URL>/sso/callback`, from litellm/proxy/management_endpoints/ui_sso.py.
+      - https://llm.${CLUSTER_DOMAIN}/sso/callback
+    webOrigins:
+      - https://llm.${CLUSTER_DOMAIN}
+    # Admin-only. The role is named `proxy_admin`, not `admin`, because LiteLLM takes
+    # the claim value as its role name verbatim (GENERIC_USER_ROLE_ATTRIBUTE); its
+    # group->role mapping lives in its database, set through the UI, not in git.
+    roles: [proxy_admin]
+    auth:
+      method: client-secret
+      secretRef:
+        name: litellm-client-secret
+        key: secret
