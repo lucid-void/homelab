@@ -5,7 +5,7 @@
 	helper = store --file=/etc/hermes-sandbox/git/credentials
 [user]
 	name = hermes
-	email = hermes@users.noreply.github.com
+	email = hermes@hermes.invalid
 [init]
 	defaultBranch = main
 [push]

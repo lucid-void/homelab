@@ -55,8 +55,6 @@ spec:
               - |
                 install -d -o 10000 -g 10000 -m 0700 /opt/data
                 install -o 10000 -g 10000 -m 0640 /config/config.yaml /opt/data/config.yaml
-                install -d -o 10000 -g 10000 /opt/data/skills/homelab-repo
-                install -o 10000 -g 10000 -m 0644 /config/homelab-repo-SKILL.md /opt/data/skills/homelab-repo/SKILL.md
                 install -d -o 10000 -g 10000 -m 0700 /etc/hermes-ssh
                 install -o 10000 -g 10000 -m 0600 /secret/id_ed25519 /etc/hermes-ssh/id_ed25519
             securityContext:

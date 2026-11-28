@@ -3,7 +3,7 @@
 #
 #   kubernetes/apps/hermes/seal-secrets.sh
 #
-# Prompts (input hidden) for the four tokens, generates the two SSH keypairs
+# Prompts (input hidden) for the four values, generates the two SSH keypairs
 # itself, and writes:
 #   kubernetes/apps/hermes/hermes/app/hermes-sealed.yml    (Hermes pod)
 #   kubernetes/apps/hermes/sandbox/app/sandbox-sealed.yml  (sandbox pod)
@@ -36,17 +36,13 @@ ask TELEGRAM_BOT_TOKEN     "Telegram bot token (new bot from @BotFather, not the
 ask TELEGRAM_ALLOWED_USERS "Your numeric Telegram user id"
 ask LITELLM_API_KEY        "LiteLLM virtual key (allowed model: hermes)"
 ask GITEA_TOKEN            "Gitea token of the 'hermes' user"
-ask GITHUB_PAT             "GitHub classic PAT of the machine account (public_repo only)"
-ask GITHUB_USER            "GitHub machine account username"
 
 ssh-keygen -q -t ed25519 -N '' -C hermes-gateway -f "$work/client"
 ssh-keygen -q -t ed25519 -N '' -C hermes-sandbox -f "$work/host"
 
 # git credential-store format; the Gitea host is the in-cluster Service.
-{
-  printf 'http://hermes:%s@gitea-http.gitea.svc.cluster.local:3000\n' "$(cat "$work/GITEA_TOKEN")"
-  printf 'https://%s:%s@github.com\n' "$(cat "$work/GITHUB_USER")" "$(cat "$work/GITHUB_PAT")"
-} > "$work/git-credentials"
+printf 'http://hermes:%s@gitea-http.gitea.svc.cluster.local:3000\n' "$(cat "$work/GITEA_TOKEN")" \
+  > "$work/git-credentials"
 
 mise exec -- kubectl create secret generic hermes-secret --namespace hermes --dry-run=client -o yaml \
   --from-file=TELEGRAM_BOT_TOKEN="$work/TELEGRAM_BOT_TOKEN" \

@@ -1,7 +1,7 @@
 # Hermes Agent
 
 **Read before editing:** `kubernetes/apps/hermes/`, `kubernetes/apps/agent-sandbox/`,
-`kubernetes/images/hermes-sandbox/`, `.github/workflows/hermes-*.yml`
+`kubernetes/images/hermes-sandbox/`, `.github/workflows/hermes-sandbox.yml`
 
 **Contents:** Current state · Owner setup · Rules · Verify
 
@@ -9,16 +9,18 @@
 
 [Hermes Agent](https://hermes-agent.nousresearch.com) (Nous Research) runs as a Telegram
 gateway in namespace `hermes`. The owner talks to it on a **dedicated** bot (not the
-alerts bot). It keeps memory, runs cron jobs, and writes code in Gitea repos and in the
-GitHub `lucid-void/homelab` repo by pushing `hermes/*` branches and opening PRs. The
-owner merges every PR; Flux deploys only `main`.
+alerts bot). It keeps memory, runs cron jobs, and writes code in **Gitea repos only**,
+by pushing branches and opening PRs as the `hermes` user. The owner merges every PR. It
+has no GitHub credentials, so it cannot push to this repo (`lucid-void/homelab`) at all.
+GitHub access was designed (a machine-account PAT, a `main` ruleset and a domain tripwire
+workflow, see the spec) and dropped before deploy.
 
 Three pods, split so that the one running commands holds nothing worth stealing:
 
 | Pod | Holds | Reaches |
 |---|---|---|
 | `hermes` (gateway, app-template) | Telegram token, LiteLLM key, Gitea token, sandbox SSH client key | DNS, LiteLLM `:4000`, gitea-mcp `:8080`, sandbox `:2222`, `api.telegram.org:443` |
-| `hermes-sandbox` (`Sandbox` CR, agent-sandbox) | `hermes` Gitea token + GitHub machine-account PAT (git credential store), SSH host key | DNS, Gitea `:3000`, HTTPS by FQDN to GitHub, PyPI, npm, Go proxy, mise/toolchain hosts |
+| `hermes-sandbox` (`Sandbox` CR, agent-sandbox) | `hermes` Gitea token (git credential store), SSH host key | DNS, Gitea `:3000`, HTTPS by FQDN to public download hosts: GitHub, PyPI, npm, Go proxy, mise/toolchain hosts |
 | `gitea-mcp` (app-template) | nothing — HTTP mode passes the caller's bearer through to Gitea | DNS, Gitea `:3000` |
 
 - **Model:** `model.provider: custom` → LiteLLM `/v1`, model name **`hermes`**, an alias
@@ -37,17 +39,13 @@ Three pods, split so that the one running commands holds nothing worth stealing:
   plus an `approvals.deny` glob list that applies in every mode. Memory writes are
   automatic; **skill** writes need approval.
 - **Config is rendered from git on every start:** the `config` initContainer installs
-  `config/config.yaml` and the `homelab-repo` skill into `/opt/data`, so `/model`,
+  `config/config.yaml` into `/opt/data`, so `/model`,
   "Always Approve" and `hermes config set` are lost on restart — edit the file in git.
 - **State:** `hermes-data` PVC (`nfs-client`) at `/opt/data`: memories, `state.db`
   (journal mode pinned `delete` for NFS), sessions, cron jobs, skills.
-- **Server-side gates (configured by hand, the real enforcement):** branch protection on
-  every Gitea repo the `hermes` user can write, a ruleset on GitHub `main` (PR + one
-  approval, no bypass for the machine account), and the machine account's PAT has no
-  `workflow` scope so GitHub rejects any push touching `.github/workflows/`.
-- **Domain tripwire:** `.github/workflows/hermes-domain-tripwire.yml` fails a `hermes/**`
-  push (or PR from one) whose commits contain the domain, read from the `CLUSTER_DOMAIN`
-  Actions secret. It detects, it cannot prevent: the push is already public.
+- **Server-side gates (configured by hand, the real enforcement):** the `hermes` Gitea
+  user is a non-admin SSO account, a *Write* collaborator only on the repos chosen for it,
+  and branch protection on each one's `main` keeps it out of `main`.
 
 ## Owner setup
 
@@ -76,16 +74,11 @@ Done by hand, once, before the first deploy. Everything sealed goes through
    5. As yourself: add `hermes` as a *Write* collaborator on the chosen repos only, and
       protect `main` on each (no direct push, PR required, 1 approval, `hermes` not in
       the push/merge whitelist).
-4. **GitHub:** create a machine account, invite it as a *Write* collaborator on
-   `homelab` only, and create a **classic** PAT with `public_repo` only (a fine-grained
-   PAT cannot target a repo owned by another personal account). Add a ruleset on `main`:
-   require a PR, 1 approval, block force-push and deletion, bypass = you only. Add the
-   repo Actions secret `CLUSTER_DOMAIN`.
-5. **Seal:** `kubernetes/apps/hermes/seal-secrets.sh`, commit both `*-sealed.yml`.
-6. **Workflows:** push `.github/workflows/hermes-sandbox.yml` and
-   `hermes-domain-tripwire.yml` yourself (agent sessions have no `workflow` scope), run
-   the image build, and make the `ghcr.io/lucid-void/hermes-sandbox` package **public**
-   (new GHCR packages start private and the cluster has no pull secret).
+4. **Seal:** `kubernetes/apps/hermes/seal-secrets.sh`, commit both `*-sealed.yml`.
+5. **Image:** push `.github/workflows/hermes-sandbox.yml` yourself (agent sessions have
+   no `workflow` scope), run the image build, and make the
+   `ghcr.io/lucid-void/hermes-sandbox` package **public** (new GHCR packages start
+   private and the cluster has no pull secret).
 
 ## Rules
 
@@ -125,8 +118,9 @@ Done by hand, once, before the first deploy. Everything sealed goes through
 - **A new download host for the sandbox goes into its CiliumNetworkPolicy** — not
   `toEntities: world`. `toFQDNs` needs the `dns` rule with `matchPattern: "*"` on the
   DNS egress entry, or every FQDN rule silently matches nothing.
-- **Domain leak via the tripwire:** delete the branch at once, close any PR, then ask
-  GitHub Support to purge the PR refs/cached views, as after the 2026-11 history rewrite.
+- **Never give the sandbox a GitHub token** — this repo is public and the domain is
+  private; one pushed commit containing it is public at once. Re-adding GitHub means the
+  spec's machine account, `main` ruleset and domain tripwire together, not a PAT alone.
 
 ## Verify
 
@@ -139,8 +133,8 @@ kubectl -n hermes get sandbox hermes-sandbox
 kubectl -n hermes exec hermes-sandbox -- sh -c 'curl -sm5 https://kubernetes.default.svc || echo blocked'
 kubectl -n hermes exec hermes-sandbox -- sh -c 'curl -sm5 http://172.16.20.2 || echo blocked'
 kubectl -n hermes exec hermes-sandbox -- sh -c 'curl -sm5 https://example.com || echo blocked'
-kubectl -n hermes exec hermes-sandbox -- sh -c 'git ls-remote https://github.com/lucid-void/homelab.git HEAD'
+kubectl -n hermes exec hermes-sandbox -- sh -c 'git ls-remote http://gitea-http.gitea.svc.cluster.local:3000/<owner>/<repo>.git HEAD'
 ```
 
 In Telegram: a plain question gets an answer; a dangerous command (`rm -rf ~/x`) asks
-for approval and `no` denies it; asking it to push to `main` or edit a workflow fails.
+for approval and `no` denies it; asking it to push to a protected `main` in Gitea fails.

@@ -1,9 +1,9 @@
 ---
 # The sandbox's whole reachable world. Ingress: SSH from the Hermes gateway.
-# Egress: DNS, Gitea's HTTP port, and HTTPS to GitHub and the package
-# registries by name. Nothing else — no kube-apiserver, no LiteLLM, no LAN
-# (172.16.20.0/24), no `world`. A tool that needs another download host gets
-# it added here, deliberately. See design/decisions/hermes.md.
+# Egress: DNS, Gitea's HTTP port, and HTTPS by name to public download hosts
+# (GitHub releases, package registries); it holds no GitHub token. Nothing
+# else — no kube-apiserver, no LiteLLM, no LAN (172.16.20.0/24), no `world`.
+# A tool that needs another download host gets it added here, deliberately. See design/decisions/hermes.md.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -48,7 +48,7 @@ spec:
             - port: "3000"
               protocol: TCP
     - toFQDNs:
-        # GitHub: git over HTTPS, API, release and raw downloads.
+        # GitHub: public clones, release and raw downloads (mise uses these).
         - matchName: github.com
         - matchName: api.github.com
         - matchName: codeload.github.com

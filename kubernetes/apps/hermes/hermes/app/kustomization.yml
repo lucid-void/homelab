@@ -11,7 +11,6 @@ configMapGenerator:
   - name: hermes-config
     files:
       - config.yaml=./config/config.yaml
-      - homelab-repo-SKILL.md=./config/homelab-repo-SKILL.md
 generatorOptions:
   # The HelmRelease names this ConfigMap literally; Reloader on the controller
   # restarts the pod when it changes, and the initContainer re-renders it.

@@ -1,8 +1,8 @@
 ---
 # The shell Hermes Agent runs every command in (terminal.backend: ssh). It
-# holds no Hermes secrets and no Kubernetes token; its only credentials are the
-# `hermes` Gitea user's token and the GitHub machine account's PAT, whose reach
-# is bounded server-side by branch protection. See design/decisions/hermes.md.
+# holds no Hermes secrets and no Kubernetes token; its only credential is the
+# `hermes` Gitea user's token, whose reach is bounded server-side by
+# collaborator access and branch protection. See design/decisions/hermes.md.
 #
 # The controller creates the pod once: a podTemplate change (a new image tag)
 # does NOT roll it. Apply one by deleting the pod (the controller recreates it,
