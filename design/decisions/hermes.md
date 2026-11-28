@@ -118,6 +118,16 @@ Done by hand, once, before the first deploy. Everything sealed goes through
 - **A new download host for the sandbox goes into its CiliumNetworkPolicy** — not
   `toEntities: world`. `toFQDNs` needs the `dns` rule with `matchPattern: "*"` on the
   DNS egress entry, or every FQDN rule silently matches nothing.
+- **gitea-mcp needs `command: ["/app/gitea-mcp"]`** — the image sets only `CMD`, no
+  `ENTRYPOINT`, so `args` alone replace the binary and the pod fails with
+  `exec: "-t": executable file not found`.
+- **Hermes parks an MCP server it cannot reach at boot** — `failed initial connection
+  after 3 attempts, parking` in `/opt/data/logs/errors.log`, and the Gitea tools stay
+  missing until the gateway restarts (`kubectl -n hermes rollout restart deploy/hermes`).
+  Expect it on a cold start, when gitea-mcp comes up after Hermes.
+- **`TERMINAL_CWD does not exist: /home/agent` in the gateway log is harmless** — Hermes
+  checks the path on its own filesystem; with the SSH backend commands still run in
+  `/home/agent` on the sandbox.
 - **Never give the sandbox a GitHub token** — this repo is public and the domain is
   private; one pushed commit containing it is public at once. Re-adding GitHub means the
   spec's machine account, `main` ruleset and domain tripwire together, not a PAT alone.
